@@ -1,0 +1,12 @@
+﻿node_modules/
+.pnp.*
+.next/
+dist/
+.vscode/
+.DS_Store
+.env*
+apps/*/.env*
+backend/strapi/.env*
+backend/strapi/public/uploads/
+backend/strapi/.cache/
+.turbo/
