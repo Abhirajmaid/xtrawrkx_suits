@@ -1,6 +1,6 @@
 import "../styles/globals.css";
-import Header from "../components/Header";
-import Sidebar from "../components/Sidebar";
+import ConditionalLayout from "../components/ConditionalLayout";
+import { WorkspaceProvider } from "../contexts/WorkspaceContext";
 
 export const metadata = {
   title: "PM Dashboard - Xtrawrkx Suite",
@@ -11,13 +11,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="bg-gradient-main min-h-screen">
-        <div className="flex h-screen">
-          <Sidebar />
-          <div className="flex-1 flex flex-col">
-            <Header title="Home" />
-            <main className="flex-1 p-6 overflow-auto">{children}</main>
-          </div>
-        </div>
+        <WorkspaceProvider>
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
+        </WorkspaceProvider>
       </body>
     </html>
   );

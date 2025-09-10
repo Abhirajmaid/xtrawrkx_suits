@@ -1,6 +1,13 @@
 ﻿import { Search, Settings, HelpCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-export default function Header({ title = "Home" }) {
+export default function Header({ title = "Home", subtitle = "Monitor all of your projects and tasks here" }) {
+  const router = useRouter();
+
+  const handleSettingsClick = () => {
+    router.push('/settings');
+  };
+
   return (
     <header className="bg-gradient-glass backdrop-blur-xl border-b border-white/30 shadow-lg">
       <div className="px-6 py-4">
@@ -11,7 +18,7 @@ export default function Header({ title = "Home" }) {
               {title}
             </h1>
             <p className="text-sm text-brand-text-light">
-              Monitor all of your projects and tasks here
+              {subtitle}
             </p>
           </div>
 
@@ -38,7 +45,10 @@ export default function Header({ title = "Home" }) {
             {/* Quick Actions */}
             <div className="flex items-center gap-2">
               {/* Settings */}
-              <button className="p-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg">
+              <button 
+                onClick={handleSettingsClick}
+                className="p-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
+              >
                 <Settings className="w-5 h-5 text-brand-text-light" />
               </button>
 
