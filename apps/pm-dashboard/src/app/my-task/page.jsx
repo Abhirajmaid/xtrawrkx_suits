@@ -16,16 +16,24 @@ import {
   Bell,
   Settings,
   HelpCircle,
+  X,
 } from "lucide-react";
 import { Card } from "@xtrawrkx/ui";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useMyTasksKanbanDragDrop, getMyTasksDropZoneClass, getMyTasksTaskCardClass } from "./my-tasks-drag-drop";
-import TaskContextMenu from "../../components/TaskContextMenu";
-import TaskDateModal from "../../components/TaskDateModal";
+import KanbanBoard from "./components/KanbanBoard";
+import TaskContextMenu from "./components/TaskContextMenu";
+import TaskDateModal from "./components/TaskDateModal";
+import TaskRowDropdown from "./components/TaskRowDropdown";
+import TaskDeleteConfirmationModal from "./components/TaskDeleteConfirmationModal";
+import TaskCreateModal from "./components/TaskCreateModal";
+import TaskDetailModal from "./components/TaskDetailModal";
+import ColumnsDropdown from "./components/ColumnsDropdown";
+import AssigneeDropdown from "./components/AssigneeDropdown";
+import FilterComponent from "./components/FilterComponent";
 import Header from "../../components/Header";
 
-export default function MyTasks() {
+export default function MyTasks({ onSearchClick }) {
   const router = useRouter();
   const [activeView, setActiveView] = useState("table");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -45,23 +53,6 @@ export default function MyTasks() {
   const columnsMenuRef = useRef(null);
   const filterMenuRef = useRef(null);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (columnsMenuRef.current && !columnsMenuRef.current.contains(event.target)) {
-        setShowColumnsMenu(false);
-      }
-      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target)) {
-        setShowFilterMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-  
   // Context menu state
   const [contextMenu, setContextMenu] = useState({
     isOpen: false,
@@ -75,8 +66,76 @@ export default function MyTasks() {
     selectedDate: null
   });
 
+  // Row dropdown state
+  const [rowDropdown, setRowDropdown] = useState({
+    isOpen: false,
+    taskId: null
+  });
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (columnsMenuRef.current && !columnsMenuRef.current.contains(event.target)) {
+        setShowColumnsMenu(false);
+      }
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target)) {
+        setShowFilterMenu(false);
+      }
+      // Close row dropdown when clicking outside
+      if (rowDropdown.isOpen) {
+        const dropdownElement = document.getElementById(`row-dropdown-${rowDropdown.taskId}`);
+        const triggerElement = document.getElementById(`row-trigger-${rowDropdown.taskId}`);
+        if (dropdownElement && !dropdownElement.contains(event.target) && 
+            triggerElement && !triggerElement.contains(event.target)) {
+          setRowDropdown({ isOpen: false, taskId: null });
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [rowDropdown.isOpen, rowDropdown.taskId]);
+  
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    task: null
+  });
+
+  // Task creation modal state
+  const [createModal, setCreateModal] = useState({
+    isOpen: false,
+    defaultStatus: null
+  });
+
+  // Task detail modal state
+  const [taskDetailModal, setTaskDetailModal] = useState({
+    isOpen: false,
+    task: null,
+    isFullView: false
+  });
+
+  // Dropdown states
+  const [columnsDropdown, setColumnsDropdown] = useState(false);
+  const [assigneeDropdown, setAssigneeDropdown] = useState(false);
+  const [filterDropdown, setFilterDropdown] = useState(false);
+  
+  // Filter states
+  const [selectedAssignees, setSelectedAssignees] = useState(['only-me']);
+  const [appliedFilters, setAppliedFilters] = useState({
+    status: ['to-do'],
+    assignee: ['only-me']
+  });
+  
+  // Refs for dropdown positioning
+  const columnsButtonRef = useRef(null);
+  const assigneeButtonRef = useRef(null);
+  const filterButtonRef = useRef(null);
+
   // Mock data for tasks - will be filtered based on current month
-  const allTasks = [
+  const allTasksData = [
     // January 2024 tasks
     {
       id: 1,
@@ -263,7 +322,7 @@ export default function MyTasks() {
       name: "Landing Page",
       project: {
         name: "Mogo Web Design",
-        color: "from-yellow-400 to-yellow-600",
+        color: "from-blue-400 to-blue-600",
         icon: "M"
       },
       assignee: "You",
@@ -313,7 +372,7 @@ export default function MyTasks() {
       name: "Homepage",
       project: {
         name: "Mogo Web Design",
-        color: "from-yellow-400 to-yellow-600",
+        color: "from-blue-400 to-blue-600",
         icon: "M"
       },
       assignee: "You",
@@ -575,7 +634,7 @@ export default function MyTasks() {
       name: "March Kickoff",
       project: {
         name: "Mogo Web Design",
-        color: "from-yellow-400 to-yellow-600",
+        color: "from-blue-400 to-blue-600",
         icon: "M"
       },
       assignee: "You",
@@ -584,7 +643,7 @@ export default function MyTasks() {
       status: "To Do",
       progress: 0,
       hasMultipleAssignees: false,
-      borderColor: "border-yellow-400"
+      borderColor: "border-blue-400"
     },
     {
       id: 32,
@@ -635,10 +694,45 @@ export default function MyTasks() {
       progress: 75,
       hasMultipleAssignees: false,
       borderColor: "border-pink-400"
+    },
+    
+    // Add some Backlog tasks
+    {
+      id: 35,
+      name: "Research Phase",
+      project: {
+        name: "Carl UI/UX",
+        color: "from-orange-400 to-orange-600",
+        icon: "C"
+      },
+      assignee: "You",
+      dueDate: "Jan 15 2024",
+      time: null,
+      status: "Backlog",
+      progress: 0,
+      hasMultipleAssignees: false,
+      borderColor: "border-purple-400"
+    },
+    {
+      id: 36,
+      name: "Initial Planning",
+      project: {
+        name: "Futurework",
+        color: "from-blue-400 to-blue-600",
+        icon: "F"
+      },
+      assignee: "Multiple",
+      dueDate: "Jan 20 2024",
+      time: null,
+      status: "Backlog",
+      progress: 5,
+      hasMultipleAssignees: true,
+      borderColor: "border-purple-400"
     }
   ];
 
-  // Filter tasks based on current month
+  const [allTasks, setAllTasks] = useState(allTasksData);
+  
   const getTasksForCurrentMonth = () => {
     const currentYear = currentMonth.getFullYear();
     const currentMonthNum = currentMonth.getMonth();
@@ -650,27 +744,14 @@ export default function MyTasks() {
   };
 
   const tasks = getTasksForCurrentMonth();
-
-  // Initialize drag and drop functionality
-  const {
-    tasks: draggableTasks,
-    draggedTask,
-    draggedOverColumn,
-    handleDragStart,
-    handleDragOver,
-    handleDragEnter,
-    handleDragLeave,
-    handleDrop,
-    handleDragEnd,
-    getKanbanColumns
-  } = useMyTasksKanbanDragDrop(tasks);
+  const draggableTasks = tasks;
 
   const getStatusColor = (status) => {
     switch (status) {
       case "In Review":
         return "bg-green-100 text-green-700 border-green-200";
       case "In Progress":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+        return "bg-blue-100 text-blue-700 border-blue-200";
       case "Done":
         return "bg-green-100 text-green-700 border-green-200";
       case "To Do":
@@ -741,6 +822,200 @@ export default function MyTasks() {
       position: { x: 0, y: 0 },
       task: null
     });
+  };
+
+  // Handle row dropdown toggle
+  const handleRowDropdownToggle = (taskId) => {
+    setRowDropdown(prev => ({
+      isOpen: prev.taskId === taskId ? !prev.isOpen : true,
+      taskId: taskId
+    }));
+  };
+
+  // Handle delete task
+  const handleDeleteTask = (task) => {
+    setDeleteModal({
+      isOpen: true,
+      task: task
+    });
+    handleContextMenuClose();
+  };
+
+  const handleDeleteConfirm = () => {
+    console.log('Deleting task:', deleteModal.task?.name);
+    // Add actual delete logic here
+    setDeleteModal({ isOpen: false, task: null });
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({ isOpen: false, task: null });
+  };
+
+  // Task action handlers
+  const handleTaskDetail = (task) => {
+    console.log('Opening task detail for:', task.name);
+    // Navigate to task detail page or open modal
+  };
+
+
+  const handleEditTask = (task) => {
+    console.log('Editing task:', task.name);
+    // Open task edit modal
+  };
+
+  // Task detail handlers
+  const handleTaskClick = (task) => {
+    setTaskDetailModal({
+      isOpen: true,
+      task: task,
+      isFullView: false
+    });
+  };
+
+  const handleTaskDetailClose = () => {
+    setTaskDetailModal({
+      isOpen: false,
+      task: null,
+      isFullView: false
+    });
+  };
+
+  const handleToggleView = () => {
+    setTaskDetailModal(prev => ({
+      ...prev,
+      isFullView: !prev.isFullView
+    }));
+  };
+
+  const handleOpenProject = (project) => {
+    console.log('Opening project:', project.name);
+    // Navigate to project page
+    router.push(`/projects/${project.name.toLowerCase().replace(/\s+/g, '-')}`);
+  };
+
+  // Dropdown handlers
+  const handleColumnsDropdownToggle = () => {
+    setColumnsDropdown(!columnsDropdown);
+    setAssigneeDropdown(false);
+    setFilterDropdown(false);
+  };
+
+  const handleAssigneeDropdownToggle = () => {
+    setAssigneeDropdown(!assigneeDropdown);
+    setColumnsDropdown(false);
+    setFilterDropdown(false);
+  };
+
+  const handleFilterDropdownToggle = () => {
+    setFilterDropdown(!filterDropdown);
+    setColumnsDropdown(false);
+    setAssigneeDropdown(false);
+  };
+
+  const handleAssigneeChange = (newAssignees) => {
+    setSelectedAssignees(newAssignees);
+    setAppliedFilters(prev => ({
+      ...prev,
+      assignee: newAssignees
+    }));
+  };
+
+  const handleFiltersChange = (newFilters) => {
+    setAppliedFilters(newFilters);
+  };
+
+  const removeFilter = (category, filterId) => {
+    const categoryFilters = appliedFilters[category] || [];
+    const newCategoryFilters = categoryFilters.filter(id => id !== filterId);
+    
+    setAppliedFilters(prev => ({
+      ...prev,
+      [category]: newCategoryFilters
+    }));
+
+    if (category === 'assignee') {
+      setSelectedAssignees(newCategoryFilters);
+    }
+  };
+
+  const clearAllFilters = () => {
+    setAppliedFilters({});
+    setSelectedAssignees([]);
+  };
+
+  const getFilterLabel = (category, filterId) => {
+    const filterOptions = {
+      status: {
+        'to-do': 'To Do',
+        'in-progress': 'In Progress',
+        'in-review': 'In Review',
+        'done': 'Done',
+        'backlog': 'Backlog'
+      },
+      assignee: {
+        'only-me': 'Only Me',
+        'jonathan-bustos': 'Jonathan Bustos',
+        'jane-cooper': 'Jane Cooper'
+      }
+    };
+    
+    return filterOptions[category]?.[filterId] || filterId;
+  };
+
+  const getTotalFilterCount = () => {
+    return Object.values(appliedFilters).reduce((total, filters) => total + filters.length, 0);
+  };
+
+  // Kanban handlers
+  const handleTaskUpdate = (updatedTask) => {
+    console.log('Updating task:', updatedTask.name, 'to status:', updatedTask.status);
+    
+    // Update the task in the state
+    setAllTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === updatedTask.id ? updatedTask : task
+      )
+    );
+  };
+
+  const handleTaskCreate = (columnId) => {
+    const statusMap = {
+      'backlog': 'Backlog',
+      'todo': 'To Do',
+      'in-progress': 'In Progress',
+      'done': 'Done'
+    };
+    
+    setCreateModal({
+      isOpen: true,
+      defaultStatus: statusMap[columnId] || 'Backlog'
+    });
+  };
+
+  const handleTaskCreateConfirm = (taskData) => {
+    console.log('Creating task:', taskData);
+    
+    // Create new task with unique ID
+    const newTask = {
+      id: Date.now(), // Simple ID generation
+      name: taskData.name,
+      project: taskData.project,
+      assignee: "You",
+      dueDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: null,
+      status: taskData.status,
+      progress: 0,
+      hasMultipleAssignees: false,
+      borderColor: "border-blue-400"
+    };
+    
+    // Add the new task to state
+    setAllTasks(prevTasks => [...prevTasks, newTask]);
+    setCreateModal({ isOpen: false, defaultStatus: null });
+  };
+
+  const handleTaskCreateCancel = () => {
+    setCreateModal({ isOpen: false, defaultStatus: null });
   };
 
   // Handle task date modal
@@ -866,9 +1141,9 @@ export default function MyTasks() {
             return (
               <div
                 key={index}
-                className={`min-h-[100px] p-1.5 border border-white/10 rounded-lg ${
+                className={`min-h-[140px] p-2 border border-white/10 rounded-lg ${
                   isCurrentMonth ? 'bg-white/5' : 'bg-white/2'
-                } ${isToday ? 'ring-2 ring-brand-primary' : ''} hover:bg-white/10 transition-colors relative group`}
+                } ${isToday ? 'ring-2 ring-blue-500' : ''} hover:bg-white/10 transition-colors relative group`}
               >
                 <div className={`text-sm font-medium mb-1 ${
                   isCurrentMonth ? 'text-brand-foreground' : 'text-brand-text-muted'
@@ -877,41 +1152,81 @@ export default function MyTasks() {
                 </div>
                 
                 {/* Tasks for this date */}
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {dayTasks.slice(0, 2).map(task => (
                     <div
                       key={task.id}
-                      className={`p-1.5 rounded border-l-2 ${task.borderColor} bg-white/10 backdrop-blur-sm text-xs`}
+                      className={`p-2 rounded-lg border-l-3 ${task.borderColor} bg-white/15 backdrop-blur-sm shadow-sm cursor-pointer hover:bg-white/20 transition-colors`}
+                      onClick={() => handleTaskClick(task)}
                     >
-                      <div className="font-medium text-brand-foreground truncate text-xs">
+                      <div className="font-medium text-brand-foreground truncate text-xs mb-2">
                         {task.name}
                       </div>
-                      <div className="flex items-center gap-1 mt-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {/* Profile Images - Larger */}
                         {task.hasMultipleAssignees ? (
                           <div className="flex -space-x-1">
-                            <div className="w-3 h-3 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-full flex items-center justify-center text-white text-xs border border-white/20">
-                              <User className="w-1.5 h-1.5" />
+                              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs border-2 border-white shadow-sm">
+                                <User className="w-3 h-3" />
                             </div>
-                            <div className="w-3 h-3 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-full flex items-center justify-center text-white text-xs border border-white/20">
-                              <User className="w-1.5 h-1.5" />
+                              <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-xs border-2 border-white shadow-sm">
+                                <User className="w-3 h-3" />
                             </div>
                           </div>
                         ) : (
-                          <div className="w-3 h-3 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-full flex items-center justify-center text-white text-xs">
-                            <User className="w-1.5 h-1.5" />
+                            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs border-2 border-white shadow-sm">
+                              <User className="w-3 h-3" />
                           </div>
                         )}
-                        <div
-                          className={`w-2 h-2 bg-gradient-to-br ${task.project.color} rounded-sm`}
-                        ></div>
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                          
+                          {/* Project Indicator - Larger */}
+                          <div
+                            className={`w-5 h-5 bg-gradient-to-br ${task.project.color} rounded-md flex items-center justify-center text-white text-xs font-bold shadow-sm`}
+                          >
+                            {task.project.icon}
+                          </div>
+                        </div>
+                        
+                        {/* Circular Progress - Larger */}
+                        <div className="relative inline-flex items-center justify-center">
+                          <svg
+                            width={24}
+                            height={24}
+                            className="transform -rotate-90"
+                          >
+                            <circle
+                              cx={12}
+                              cy={12}
+                              r={9}
+                              stroke="#e5e7eb"
+                              strokeWidth={2}
+                              fill="transparent"
+                            />
+                            <circle
+                              cx={12}
+                              cy={12}
+                              r={9}
+                              stroke={task.progress === 100 ? "#22c55e" : "#3b82f6"}
+                              strokeWidth={2}
+                              fill="transparent"
+                              strokeDasharray={56.55}
+                              strokeDashoffset={56.55 - (task.progress / 100) * 56.55}
+                              strokeLinecap="round"
+                              className="transition-all duration-300"
+                            />
+                          </svg>
+                          <span className="absolute text-xs font-semibold text-gray-700" style={{ fontSize: '8px' }}>
+                            {task.progress}%
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
                   
                   {/* Show More link for dates with more than 2 tasks */}
                   {dayTasks.length > 2 && (
-                    <div className="text-xs text-brand-primary hover:text-brand-secondary cursor-pointer">
+                    <div className="text-xs text-blue-500 hover:text-blue-600 cursor-pointer">
                       +{dayTasks.length - 2}
                     </div>
                   )}
@@ -937,53 +1252,51 @@ export default function MyTasks() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/20">
-              <th className="px-6 py-4 text-left">
+              <th className="px-4 py-3 text-left">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 text-brand-primary bg-white/10 border-white/20 rounded focus:ring-brand-primary focus:ring-2"
+                  className="w-4 h-4 text-blue-500 bg-white/10 border-white/20 rounded focus:ring-blue-500 focus:ring-2"
                 />
               </th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-brand-text-light uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
                 Task Name
               </th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-brand-text-light uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
                 Project
               </th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-brand-text-light uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
                 Assignee
               </th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-brand-text-light uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
                 Due Date
               </th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-brand-text-light uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-brand-text-light uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
                 Progress
               </th>
-              <th className="px-6 py-4 text-left">
+              <th className="px-4 py-3 text-left">
                 {/* Empty header for actions */}
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
             {draggableTasks.map((task) => (
-              <tr
-                key={task.id}
-                className="hover:bg-white/5 transition-colors duration-200"
-              >
-                <td className="px-6 py-4">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-brand-primary bg-white/10 border-white/20 rounded focus:ring-brand-primary focus:ring-2"
-                  />
-                </td>
-                <td className="px-6 py-4">
-                  <span className="text-sm font-medium text-brand-foreground">
-                    {task.name}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
+              <React.Fragment key={task.id}>
+                <tr className="hover:bg-white/5 transition-colors duration-200 cursor-pointer" onClick={() => handleTaskClick(task)}>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-blue-500 bg-white/10 border-white/20 rounded focus:ring-blue-500 focus:ring-2"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm font-medium text-brand-foreground">
+                      {task.name}
+                    </span>
+                  </td>
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-8 h-8 bg-gradient-to-br ${task.project.color} rounded-lg flex items-center justify-center shadow-sm`}
@@ -997,13 +1310,13 @@ export default function MyTasks() {
                     </span>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   {task.hasMultipleAssignees ? (
                     <div className="flex -space-x-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/20">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/20">
                         <User className="w-4 h-4" />
                       </div>
-                      <div className="w-8 h-8 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/20">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/20">
                         <User className="w-4 h-4" />
                       </div>
                     </div>
@@ -1013,52 +1326,81 @@ export default function MyTasks() {
                     </span>
                   )}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-brand-text-light" />
-                    <div>
-                      <span className="text-sm text-brand-foreground">
-                        {task.dueDate}
+                    <span className="text-sm text-brand-foreground whitespace-nowrap">
+                      {task.dueDate}{task.time ? ` ${task.time}` : ''}
                       </span>
-                      {task.time && (
-                        <span className="text-xs text-brand-text-muted block">
-                          {task.time}
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span
-                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
+                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
                       task.status
-                    )}`}
+                    )} whitespace-nowrap`}
                   >
                     {task.status}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 bg-white/20 rounded-full h-2">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-brand-foreground min-w-[2.5rem]">
+                      {task.progress}%
+                    </span>
+                    <div className="w-24 bg-white/20 rounded-full h-2.5">
                       <div
-                        className="bg-gradient-to-r from-brand-primary to-brand-secondary h-2 rounded-full transition-all duration-300"
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-300 shadow-sm"
                         style={{ width: `${task.progress}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm text-brand-text-light min-w-[3rem]">
-                      {task.progress}%
-                    </span>
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <button 
-                    onClick={(e) => handleContextMenuOpen(e, task)}
-                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                  >
-                    <MoreHorizontal className="w-4 h-4 text-brand-text-light" />
-                  </button>
+                <td className="px-4 py-3 relative" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      id={`row-trigger-${task.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowDropdownToggle(task.id);
+                      }}
+                      className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                    >
+                      <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${
+                        rowDropdown.isOpen && rowDropdown.taskId === task.id ? 'rotate-180' : ''
+                      }`} />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleContextMenuOpen(e, task);
+                      }}
+                      className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                    >
+                      <MoreHorizontal className="w-4 h-4 text-brand-text-light" />
+                    </button>
+                  </div>
                 </td>
               </tr>
+                
+                {/* Row Dropdown */}
+                {rowDropdown.isOpen && rowDropdown.taskId === task.id && (
+                  <tr>
+                    <td colSpan="8" className="px-4 py-0">
+                      <div id={`row-dropdown-${task.id}`}>
+                        <TaskRowDropdown
+                          isOpen={rowDropdown.isOpen && rowDropdown.taskId === task.id}
+                          task={task}
+                          onClose={() => setRowDropdown({ isOpen: false, taskId: null })}
+                          onTaskDetail={handleTaskDetail}
+                          onOpenProject={handleOpenProject}
+                          onEditTask={handleEditTask}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -1102,119 +1444,69 @@ export default function MyTasks() {
   );
 
   const renderKanbanView = () => {
-    const kanbanColumns = getKanbanColumns();
-
     return (
-      <div className="grid grid-cols-3 gap-6">
-        {Object.entries(kanbanColumns).map(([columnTitle, column]) => (
-          <div 
-            key={columnTitle} 
-            className={getMyTasksDropZoneClass(columnTitle, draggedOverColumn, draggedTask)}
-            onDragOver={(e) => handleDragOver(e, columnTitle)}
-            onDragEnter={(e) => handleDragEnter(e, columnTitle)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, columnTitle)}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${column.color}`}></div>
-                <h3 className="font-medium text-gray-800">{columnTitle}</h3>
-                <span className="text-sm text-gray-500">{column.tasks.length}</span>
-              </div>
-              <button className="p-1 hover:bg-gray-200 rounded">
-                <Plus className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-
-            <div className="space-y-3 min-h-[200px]">
-              {column.tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className={getMyTasksTaskCardClass(task, draggedTask)}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, task)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <h4 className="font-medium text-gray-800 text-sm leading-tight">{task.name}</h4>
-                    <button 
-                      onClick={(e) => handleContextMenuOpen(e, task)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className={`w-4 h-4 rounded-md bg-gradient-to-br ${task.project.color} flex items-center justify-center text-white text-xs font-bold`}>
-                      {task.project.icon}
-                    </div>
-                    <span className="text-xs text-gray-600">{task.project.name}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {task.hasMultipleAssignees ? (
-                        <div className="flex -space-x-1">
-                          <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs border-2 border-white">
-                            +
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white">
-                          {task.assignee.charAt(0)}
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-1 text-gray-400">
-                        <Clock className="w-3 h-3" />
-                        <span className="text-xs">{task.dueDate}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-gray-400">
-                      {task.progress}%
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="mt-3">
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div 
-                        className={`h-1.5 rounded-full ${task.borderColor.replace('border-', 'bg-')}`}
-                        style={{ width: `${task.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              <button className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-2">
-                <Plus className="w-4 h-4" />
-                Add task
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <KanbanBoard
+        tasks={draggableTasks}
+        onTaskUpdate={handleTaskUpdate}
+        onTaskDelete={handleDeleteTask}
+        onTaskCreate={handleTaskCreate}
+        onTaskClick={handleTaskClick}
+      />
     );
   };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <Header title="My Tasks" subtitle="Monitor all of your tasks here" />
+      <Header title="My Tasks" subtitle="Monitor all of your tasks here" onSearchClick={onSearchClick} />
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto p-6">
         <div className="space-y-6">
-          {/* Filtering and Actions Bar */}
-          <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Date Filter */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg">
+          {/* Header Controls Row */}
+          <div className="flex items-center justify-between w-full">
+            {/* Left Side - View Toggle Buttons */}
+            <div className="flex items-center gap-2">
+              <div className="flex bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-1 shadow-lg">
+                <button
+                  onClick={() => setActiveView("table")}
+                  className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all duration-300 transform ${
+                    activeView === "table"
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                      : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10 hover:shadow-md"
+                  }`}
+                >
+                  Table
+                </button>
+                <button
+                  onClick={() => setActiveView("kanban")}
+                  className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all duration-300 transform ${
+                    activeView === "kanban"
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                      : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10 hover:shadow-md"
+                  }`}
+                >
+                  Kanban
+                </button>
+                <button
+                  onClick={() => setActiveView("calendar")}
+                  className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all duration-300 transform ${
+                    activeView === "calendar"
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                      : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10 hover:shadow-md"
+                  }`}
+                >
+                  Calendar
+                </button>
+              </div>
+            </div>
+
+            {/* Right Side - Controls */}
+            <div className="flex items-center gap-3">
+              {/* Date Display */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg">
             <Calendar className="w-4 h-4 text-brand-text-light" />
-            <span className="text-sm text-brand-foreground">
+                <span className="text-sm font-medium text-brand-foreground">
               {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
             <div className="flex flex-col">
@@ -1230,12 +1522,15 @@ export default function MyTasks() {
           {/* Columns Dropdown */}
           <div className="relative" ref={columnsMenuRef}>
             <button
-              onClick={() => setShowColumnsMenu(!showColumnsMenu)}
-              className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors"
+              ref={columnsButtonRef}
+              onClick={handleColumnsDropdownToggle}
+              className={`flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors ${
+                columnsDropdown ? 'bg-white/20' : ''
+              }`}
             >
               <Columns className="w-4 h-4 text-brand-text-light" />
-              <span className="text-sm text-brand-foreground">Columns</span>
-              <ChevronDown className="w-4 h-4 text-brand-text-light" />
+              <span className="text-sm font-medium text-brand-foreground">Columns</span>
+              <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${columnsDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {showColumnsMenu && (
@@ -1260,12 +1555,20 @@ export default function MyTasks() {
           {/* Filter Dropdown */}
           <div className="relative" ref={filterMenuRef}>
             <button
-              onClick={() => setShowFilterMenu(!showFilterMenu)}
-              className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors"
+              ref={filterButtonRef}
+              onClick={handleFilterDropdownToggle}
+              className={`flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors ${
+                filterDropdown ? 'bg-white/20' : ''
+              }`}
             >
               <Filter className="w-4 h-4 text-brand-text-light" />
-              <span className="text-sm text-brand-foreground">Filter</span>
-              <ChevronDown className="w-4 h-4 text-brand-text-light" />
+              <span className="text-sm font-medium text-brand-foreground">Filter</span>
+              {getTotalFilterCount() > 0 && (
+                <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                  {getTotalFilterCount()}
+                </span>
+              )}
+              <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${filterDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {showFilterMenu && (
@@ -1325,69 +1628,58 @@ export default function MyTasks() {
           {/* Sort */}
           <button
             onClick={toggleSortOrder}
-            className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors"
           >
-            <span className="text-sm text-brand-foreground">Nearest Due Date</span>
+                <span className="text-sm font-medium text-brand-foreground">Nearest Due Date</span>
             {sortOrder === "asc" ? (
               <ChevronUp className="w-4 h-4 text-brand-text-light" />
             ) : (
               <ChevronDown className="w-4 h-4 text-brand-text-light" />
             )}
           </button>
-        </div>
 
-        <div className="flex items-center gap-3">
           {/* New Task Button */}
           <button 
             onClick={handleNewTask}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl font-medium transition-all duration-300 shadow-lg"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg transform hover:scale-105"
           >
             <Plus className="w-4 h-4" />
             New
           </button>
-
-          {/* More Options */}
-          <button className="p-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors">
-            <MoreHorizontal className="w-4 h-4 text-brand-text-light" />
-          </button>
         </div>
       </div>
 
-      {/* View Toggle Buttons - Compact Design */}
-      <div className="flex items-center justify-start">
-        <div className="flex space-x-1 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-1">
-          <button
-            onClick={() => setActiveView("table")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-              activeView === "table"
-                ? "bg-white/20 text-brand-foreground shadow-sm"
-                : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10"
-            }`}
-          >
-            Table
-          </button>
-          <button
-            onClick={() => setActiveView("kanban")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-              activeView === "kanban"
-                ? "bg-white/20 text-brand-foreground shadow-sm"
-                : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10"
-            }`}
-          >
-            Kanban
-          </button>
-          <button
-            onClick={() => setActiveView("calendar")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-              activeView === "calendar"
-                ? "bg-white/20 text-brand-foreground shadow-sm"
-                : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10"
-            }`}
-          >
-            Calendar
-          </button>
-        </div>
-      </div>
+          {/* Applied Filters */}
+          {getTotalFilterCount() > 0 && (
+            <div className="flex items-center gap-3 flex-wrap mb-6">
+              <span className="text-sm font-medium text-brand-text-light">Filter</span>
+              
+              {Object.entries(appliedFilters).map(([category, filters]) =>
+                filters.map((filterId) => (
+                  <div
+                    key={`${category}-${filterId}`}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-brand-foreground"
+                  >
+                    <span className="text-sm font-medium capitalize">{category}</span>
+                    <span className="text-sm">{getFilterLabel(category, filterId)}</span>
+                    <button
+                      onClick={() => removeFilter(category, filterId)}
+                      className="p-0.5 hover:bg-white/20 rounded-full transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))
+              )}
+              
+              <button
+                onClick={clearAllFilters}
+                className="text-sm text-red-400 hover:text-red-300 transition-colors"
+              >
+                Remove Filter
+              </button>
+            </div>
+          )}
 
           {/* Content based on active view */}
           <div className="w-full">
@@ -1403,6 +1695,59 @@ export default function MyTasks() {
         onClose={handleContextMenuClose}
         position={contextMenu.position}
         task={contextMenu.task}
+        onDelete={handleDeleteTask}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <TaskDeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        taskName={deleteModal.task?.name || ''}
+      />
+
+      {/* Task Creation Modal */}
+      <TaskCreateModal
+        isOpen={createModal.isOpen}
+        onClose={handleTaskCreateCancel}
+        onConfirm={handleTaskCreateConfirm}
+        defaultStatus={createModal.defaultStatus}
+      />
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        isOpen={taskDetailModal.isOpen}
+        onClose={handleTaskDetailClose}
+        task={taskDetailModal.task}
+        isFullView={taskDetailModal.isFullView}
+        onToggleView={handleToggleView}
+        onOpenProject={handleOpenProject}
+      />
+
+      {/* Dropdown Components */}
+      <ColumnsDropdown
+        isOpen={columnsDropdown}
+        onClose={() => setColumnsDropdown(false)}
+        onToggle={handleColumnsDropdownToggle}
+        anchorRef={columnsButtonRef}
+      />
+
+      <AssigneeDropdown
+        isOpen={assigneeDropdown}
+        onClose={() => setAssigneeDropdown(false)}
+        onToggle={handleAssigneeDropdownToggle}
+        anchorRef={assigneeButtonRef}
+        selectedAssignees={selectedAssignees}
+        onAssigneeChange={handleAssigneeChange}
+      />
+
+      <FilterComponent
+        isOpen={filterDropdown}
+        onClose={() => setFilterDropdown(false)}
+        onToggle={handleFilterDropdownToggle}
+        anchorRef={filterButtonRef}
+        appliedFilters={appliedFilters}
+        onFiltersChange={handleFiltersChange}
       />
     </div>
   );

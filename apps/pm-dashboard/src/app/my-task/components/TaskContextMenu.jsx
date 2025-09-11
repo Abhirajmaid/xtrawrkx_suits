@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
-const TaskContextMenu = ({ isOpen, onClose, position, task }) => {
+const TaskContextMenu = ({ isOpen, onClose, position, task, onDelete }) => {
   const menuRef = useRef(null);
 
   // Close menu when clicking outside
@@ -146,7 +146,9 @@ const TaskContextMenu = ({ isOpen, onClose, position, task }) => {
       label: "Delete",
       icon: Trash2,
       action: () => {
-        console.log("Delete task", task?.name);
+        if (onDelete && task) {
+          onDelete(task);
+        }
         onClose();
       },
       isDangerous: true

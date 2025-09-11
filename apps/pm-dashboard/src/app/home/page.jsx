@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Header, StatsCards, AssignedTasks, Projects, People, PrivateNotepad } from './components';
 
-const HomePage = () => {
+const HomePage = ({ onSearchClick }) => {
   const [hasData, setHasData] = useState(true); // Default to filled state to show the UI like the image
 
   // Mock data state
@@ -60,7 +60,7 @@ const HomePage = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <Header onToggleData={() => setHasData(!hasData)} />
+      <Header onToggleData={() => setHasData(!hasData)} onSearchClick={onSearchClick} />
       
       <div className="flex-1 p-4 overflow-auto">
         <div className="max-w-7xl mx-auto">
