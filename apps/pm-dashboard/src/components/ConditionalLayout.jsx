@@ -4,14 +4,22 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import WorkspaceModal from "./WorkspaceModal";
 import ManageWorkspaceModal from "./ManageWorkspaceModal";
+import GlobalSearchModal from "./GlobalSearchModal";
 import { useWorkspace } from "../contexts/WorkspaceContext";
-import { useState, useCallback } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  cloneElement,
+  isValidElement,
+} from "react";
 
 export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isManageWorkspaceModalOpen, setIsManageWorkspaceModalOpen] =
     useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const { createWorkspace } = useWorkspace();
 
   // Workspace modal handlers
@@ -32,6 +40,23 @@ export default function ConditionalLayout({ children }) {
     setIsManageWorkspaceModalOpen(true);
   }, []);
 
+  const openSearchModal = useCallback(() => {
+    setIsSearchModalOpen(true);
+  }, []);
+
+  // Keyboard shortcut for search (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setIsSearchModalOpen(true);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // Define routes that should NOT have sidebar and header
   const authRoutes = ["/signup", "/signup-demo", "/auth"];
 
@@ -46,8 +71,15 @@ export default function ConditionalLayout({ children }) {
   // For all other pages, render with sidebar and header
   return (
     <div className="flex h-screen">
-      <Sidebar onOpenWorkspaceModal={openWorkspaceModal} />
-      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+      <Sidebar
+        onOpenWorkspaceModal={openWorkspaceModal}
+        onOpenManageWorkspaceModal={openManageWorkspaceModal}
+      />
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {isValidElement(children)
+          ? cloneElement(children, { onSearchClick: openSearchModal })
+          : children}
+      </main>
 
       {/* Workspace Modal - rendered at root level for proper positioning */}
       <WorkspaceModal
@@ -60,6 +92,12 @@ export default function ConditionalLayout({ children }) {
       <ManageWorkspaceModal
         isOpen={isManageWorkspaceModalOpen}
         onClose={() => setIsManageWorkspaceModalOpen(false)}
+      />
+
+      {/* Global Search Modal - rendered at root level for proper positioning */}
+      <GlobalSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
       />
     </div>
   );

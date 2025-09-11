@@ -1,7 +1,7 @@
 ﻿import { Search, Settings, HelpCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function Header({ title = "Home", subtitle = "Monitor all of your projects and tasks here" }) {
+export default function Header({ title = "Home", subtitle = "Monitor all of your projects and tasks here", onSearchClick }) {
   const router = useRouter();
 
   const handleSettingsClick = () => {
@@ -30,7 +30,9 @@ export default function Header({ title = "Home", subtitle = "Monitor all of your
               <input
                 type="text"
                 placeholder="Search anything"
-                className="w-80 pl-10 pr-12 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/15 transition-all duration-300 placeholder:text-brand-text-light shadow-lg"
+                onClick={onSearchClick}
+                readOnly
+                className="w-80 pl-10 pr-12 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/15 transition-all duration-300 placeholder:text-brand-text-light shadow-lg cursor-pointer"
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 text-xs text-brand-text-light bg-white/10 rounded border border-white/20">
