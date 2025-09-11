@@ -13,12 +13,16 @@ export function Avatar({
   src,
   alt = "",
   name,
+  initials,
   size = "md",
   status, // 'online', 'offline', 'away', 'busy'
+  color = "bg-gray-500",
   className,
+  hoverable = false,
   ...props
 }) {
   const getInitials = (name) => {
+    if (initials) return initials;
     if (!name) return "";
     const words = name.split(" ");
     if (words.length === 1) return words[0].charAt(0).toUpperCase();
@@ -39,8 +43,10 @@ export function Avatar({
     <div className="relative inline-block">
       <div
         className={clsx(
-          "relative flex items-center justify-center rounded-full bg-gray-200 overflow-hidden",
+          "relative flex items-center justify-center rounded-full overflow-hidden transition-all duration-200",
+          src ? "bg-gray-100" : color,
           sizes[size],
+          hoverable && "hover:scale-105 cursor-pointer",
           className
         )}
         {...props}
@@ -51,8 +57,8 @@ export function Avatar({
             alt={alt || name}
             className="w-full h-full object-cover"
           />
-        ) : name ? (
-          <span className="font-medium text-gray-600">{getInitials(name)}</span>
+        ) : name || initials ? (
+          <span className="font-semibold text-white">{getInitials(name)}</span>
         ) : (
           <User className="w-1/2 h-1/2 text-gray-400" />
         )}

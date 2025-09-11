@@ -7,11 +7,11 @@
 /* Base Styles */
 @layer base {
     * {
-        @apply border-brand-border;
+        @apply border-gray-200;
     }
 
     body {
-        @apply bg-gradient-main text-brand-foreground font-primary antialiased;
+        @apply bg-gray-50 text-gray-900 font-sans antialiased;
         font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     }
 

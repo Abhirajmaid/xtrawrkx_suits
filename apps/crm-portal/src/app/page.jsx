@@ -481,7 +481,7 @@ export default function Home() {
       </Card>
 
       {/* Button Demo */}
-      <Card glass={true}>
+      {/* <Card glass={true}>
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-brand-foreground mb-2">
@@ -498,7 +498,7 @@ export default function Home() {
             <Button text="Tertiary" type="tertiary" size="sm" />
           </div>
         </div>
-      </Card>
+      </Card> */}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

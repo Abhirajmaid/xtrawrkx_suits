@@ -8,35 +8,23 @@ export function Card({
   actions,
   padding = true,
   hoverable = false,
-  gradient = false,
-  gradientType = "primary",
-  glass = false,
+  variant = "default",
   onClick,
   ...props
 }) {
-  const gradientClasses = {
-    primary: "bg-gradient-primary",
-    secondary: "bg-gradient-secondary",
-    warm: "bg-gradient-warm",
-    peach: "bg-gradient-peach",
-    coral: "bg-gradient-coral",
-    gold: "bg-gradient-gold",
-    sunset: "bg-gradient-sunset",
-    amber: "bg-gradient-amber",
-    default: "bg-gradient-card",
+  const variants = {
+    default: "bg-white border border-gray-100 shadow-sm",
+    elevated: "bg-white border border-gray-100 shadow-md",
+    outlined: "bg-white border border-gray-200",
+    ghost: "bg-transparent border-0",
   };
 
   return (
     <div
       className={clsx(
-        glass
-          ? "bg-gradient-glass rounded-2xl shadow-card border border-white/30 backdrop-blur-md"
-          : gradient
-            ? `${gradientClasses[gradientType] || gradientClasses.default} rounded-2xl shadow-card border border-brand-border/20`
-            : "bg-white rounded-2xl shadow-card border border-brand-border/50 backdrop-blur-sm",
-        hoverable &&
-          "hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 cursor-pointer",
-        !hoverable && "transition-all duration-300",
+        "rounded-lg transition-all duration-200",
+        variants[variant] || variants.default,
+        hoverable && "hover:shadow-md hover:border-gray-200 cursor-pointer",
         padding && "p-6",
         className
       )}
@@ -44,15 +32,13 @@ export function Card({
       {...props}
     >
       {(title || subtitle || actions) && (
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-6">
           <div>
             {title && (
-              <h3 className="text-lg font-semibold text-brand-foreground">
-                {title}
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             )}
             {subtitle && (
-              <p className="text-sm text-brand-text-light mt-1">{subtitle}</p>
+              <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
             )}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
