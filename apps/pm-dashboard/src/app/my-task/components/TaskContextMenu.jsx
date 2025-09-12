@@ -158,7 +158,7 @@ const TaskContextMenu = ({ isOpen, onClose, position, task, onDelete }) => {
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 w-44 bg-white/95 backdrop-blur-xl border border-white/30 rounded-lg shadow-2xl py-1"
+      className="fixed z-50 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
       style={{
         top: position.y,
         left: position.x,
@@ -169,7 +169,7 @@ const TaskContextMenu = ({ isOpen, onClose, position, task, onDelete }) => {
         <div key={item.id}>
           <button
             onClick={item.action}
-            className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-white/20 transition-colors duration-200 ${
+            className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors duration-200 ${
               item.isDangerous 
                 ? 'text-red-600 hover:text-red-700' 
                 : 'text-gray-700 hover:text-gray-900'
@@ -198,7 +198,7 @@ const TaskContextMenu = ({ isOpen, onClose, position, task, onDelete }) => {
           
           {/* Add separator before delete */}
           {item.id === "archive" && (
-            <div className="my-0.5 border-t border-gray-200/50" />
+            <div className="my-0.5 border-t border-gray-200" />
           )}
         </div>
       ))}

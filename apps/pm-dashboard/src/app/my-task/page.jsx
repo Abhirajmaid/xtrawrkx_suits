@@ -18,7 +18,6 @@ import {
   // HelpCircle,
   X,
 } from "lucide-react";
-import { Card } from "@xtrawrkx/ui";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import KanbanBoard from "./components/KanbanBoard";
@@ -31,7 +30,7 @@ import TaskDetailModal from "./components/TaskDetailModal";
 import ColumnsDropdown from "./components/ColumnsDropdown";
 import AssigneeDropdown from "./components/AssigneeDropdown";
 import FilterComponent from "./components/FilterComponent";
-import Header from "../../components/Header";
+import Header from "../dashboard/components/Header";
 
 export default function MyTasks({ onSearchClick }) {
   const router = useRouter();
@@ -751,17 +750,32 @@ export default function MyTasks({ onSearchClick }) {
   ];
 
   const [allTasks, setAllTasks] = useState(allTasksData);
+  const [draggedOver, setDraggedOver] = useState(null);
+  const [selectedDateForNewTask, setSelectedDateForNewTask] = useState(null);
+  const [dueDateSortOrder, setDueDateSortOrder] = useState("asc"); // "asc" or "desc"
 
   const getTasksForCurrentMonth = () => {
     const currentYear = currentMonth.getFullYear();
     const currentMonthNum = currentMonth.getMonth();
 
-    return allTasks.filter((task) => {
+    const filteredTasks = allTasks.filter((task) => {
       const taskDate = new Date(task.dueDate);
       return (
         taskDate.getFullYear() === currentYear &&
         taskDate.getMonth() === currentMonthNum
       );
+    });
+
+    // Sort by due date based on dueDateSortOrder
+    return filteredTasks.sort((a, b) => {
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      
+      if (dueDateSortOrder === "asc") {
+        return dateA - dateB; // Nearest first
+      } else {
+        return dateB - dateA; // Furthest first
+      }
     });
   };
 
@@ -1099,10 +1113,6 @@ export default function MyTasks({ onSearchClick }) {
     const month = currentMonth.getMonth();
 
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-
-    // Calculate the start date for the calendar grid (first Sunday of the week containing the 1st)
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
 
@@ -1116,65 +1126,36 @@ export default function MyTasks({ onSearchClick }) {
     }
 
     const monthNames = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
     ];
 
-    // Helper function to check if a year is a leap year
-    const isLeapYear = (year) => {
-      return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    // Get tasks for a specific date
+    const getTasksForCalendarDate = (date) => {
+      return tasks.filter(task => {
+        const taskDate = new Date(task.dueDate);
+        return taskDate.toDateString() === date.toDateString();
+      });
     };
 
-    // Get the correct number of days in the month
-    const getDaysInMonth = (year, month) => {
-      const daysInMonthArray = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-      if (month === 1 && isLeapYear(year)) {
-        // February in leap year
-        return 29;
-      }
-      return daysInMonthArray[month];
+    // Get project icon component
+    const getProjectIcon = (project) => {
+    return (
+        <div className={`w-4 h-4 rounded bg-gradient-to-r ${project.color} flex items-center justify-center text-white text-xs font-medium flex-shrink-0`}>
+          {project.icon}
+          </div>
+      );
     };
 
     return (
-      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 w-full">
-        {/* Calendar Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigateMonth("prev")}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4 text-brand-text-light" />
-            </button>
-            <h2 className="text-lg font-semibold text-brand-foreground">
-              {monthNames[month]} {year}
-            </h2>
-            <button
-              onClick={() => navigateMonth("next")}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-            >
-              <ChevronRight className="w-4 h-4 text-brand-text-light" />
-            </button>
-          </div>
-        </div>
-
+      <div className="bg-white w-full">
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1 w-full">
+        <div className="grid grid-cols-7 border border-gray-300">
           {/* Day Headers */}
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div
               key={day}
-              className="p-2 text-center text-sm font-medium text-brand-text-light"
+              className="border-r border-gray-300 last:border-r-0 px-4 py-3 text-center text-sm font-medium text-gray-600 bg-gray-100"
             >
               {day}
             </div>
@@ -1183,119 +1164,111 @@ export default function MyTasks({ onSearchClick }) {
           {/* Calendar Days */}
           {days.map((date, index) => {
             const isCurrentMonth = date.getMonth() === month;
-            const isToday = date.toDateString() === new Date().toDateString();
-            const dayTasks = getTasksForDate(date);
+            const dayTasks = getTasksForCalendarDate(date);
             const dayNumber = date.getDate();
 
             return (
               <div
                 key={index}
-                className={`min-h-[140px] p-2 border border-white/10 rounded-lg ${
-                  isCurrentMonth ? "bg-white/5" : "bg-white/2"
-                } ${isToday ? "ring-2 ring-blue-500" : ""} hover:bg-white/10 transition-colors relative group`}
+                className={`border-r border-b border-gray-300 last:border-r-0 h-40 p-1.5 ${
+                  isCurrentMonth ? "bg-white" : "bg-gray-50"
+                } relative group cursor-pointer`}
+                onClick={() => isCurrentMonth && setSelectedDateForNewTask(date)}
               >
-                <div
-                  className={`text-sm font-medium mb-1 ${
-                    isCurrentMonth
-                      ? "text-brand-foreground"
-                      : "text-brand-text-muted"
-                  }`}
-                >
+                {/* Day Number */}
+                <div className={`text-sm font-medium mb-1 ${
+                  isCurrentMonth ? "text-gray-700" : "text-gray-400"
+                }`}>
                   {dayNumber}
                 </div>
 
+                {/* Plus button for adding new task */}
+                {isCurrentMonth && (
+                  <button 
+                    className="absolute top-1 right-1 w-5 h-5 bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-blue-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDateForNewTask(date);
+                      setCreateModal({ isOpen: true, defaultStatus: null });
+                    }}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                )}
+
                 {/* Tasks for this date */}
-                <div className="space-y-2">
-                  {dayTasks.slice(0, 2).map((task) => (
+                <div className="space-y-1 overflow-hidden">
+                  {dayTasks.slice(0, 3).map((task, taskIndex) => (
                     <div
                       key={task.id}
-                      className={`p-2 rounded-lg border-l-3 ${task.borderColor} bg-white/15 backdrop-blur-sm shadow-sm cursor-pointer hover:bg-white/20 transition-colors`}
-                      onClick={() => handleTaskClick(task)}
+                      className="bg-white border-l-4 border-l-green-400 border border-gray-200 rounded-md p-1.5 shadow-sm cursor-pointer hover:shadow-md transition-shadow text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTaskClick(task);
+                      }}
                     >
-                      <div className="font-medium text-brand-foreground truncate text-xs mb-2">
+                      {/* Task Title */}
+                      <div className="font-medium text-gray-800 mb-1 leading-tight truncate">
                         {task.name}
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {/* Profile Images - Larger */}
+
+                      {/* Task Footer - Profile, Project, Progress */}
+                      <div className="flex items-center gap-1">
+                        {/* User Profile Picture */}
                           {task.hasMultipleAssignees ? (
-                            <div className="flex -space-x-1">
-                              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs border-2 border-white shadow-sm">
-                                <User className="w-3 h-3" />
-                              </div>
-                              <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-xs border-2 border-white shadow-sm">
-                                <User className="w-3 h-3" />
-                              </div>
+                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border border-white flex items-center justify-center">
+                            <User className="w-2.5 h-2.5 text-white" />
                             </div>
                           ) : (
-                            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs border-2 border-white shadow-sm">
-                              <User className="w-3 h-3" />
+                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-green-500 border border-white flex items-center justify-center">
+                            <User className="w-2.5 h-2.5 text-white" />
                             </div>
                           )}
 
-                          {/* Project Indicator - Larger */}
-                          <div
-                            className={`w-5 h-5 bg-gradient-to-br ${task.project.color} rounded-md flex items-center justify-center text-white text-xs font-bold shadow-sm`}
-                          >
+                        {/* Dot Separator */}
+                        <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+                        
+                        {/* Project Logo */}
+                        <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${task.project.color} border border-white flex items-center justify-center text-white text-xs font-bold`}>
                             {task.project.icon}
-                          </div>
                         </div>
 
-                        {/* Circular Progress - Larger */}
-                        <div className="relative inline-flex items-center justify-center">
-                          <svg
-                            width={24}
-                            height={24}
-                            className="transform -rotate-90"
-                          >
+                        {/* Dot Separator */}
+                        <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+                        
+                        {/* Progress Circle */}
+                        <div className="w-5 h-5 rounded-full border border-white bg-white flex items-center justify-center relative">
+                          <svg width="20" height="20" className="transform -rotate-90">
                             <circle
-                              cx={12}
-                              cy={12}
-                              r={9}
+                              cx="10"
+                              cy="10"
+                              r="7"
                               stroke="#e5e7eb"
-                              strokeWidth={2}
+                              strokeWidth="1.5"
                               fill="transparent"
                             />
                             <circle
-                              cx={12}
-                              cy={12}
-                              r={9}
-                              stroke={
-                                task.progress === 100 ? "#22c55e" : "#3b82f6"
-                              }
-                              strokeWidth={2}
+                              cx="10"
+                              cy="10"
+                              r="7"
+                              stroke={task.progress === 100 ? "#22c55e" : "#3b82f6"}
+                              strokeWidth="1.5"
                               fill="transparent"
-                              strokeDasharray={56.55}
-                              strokeDashoffset={
-                                56.55 - (task.progress / 100) * 56.55
-                              }
+                              strokeDasharray={44}
+                              strokeDashoffset={44 - (task.progress / 100) * 44}
                               strokeLinecap="round"
-                              className="transition-all duration-300"
                             />
                           </svg>
-                          <span
-                            className="absolute text-xs font-semibold text-gray-700"
-                            style={{ fontSize: "8px" }}
-                          >
-                            {task.progress}%
-                          </span>
                         </div>
                       </div>
                     </div>
                   ))}
 
-                  {/* Show More link for dates with more than 2 tasks */}
-                  {dayTasks.length > 2 && (
-                    <div className="text-xs text-blue-500 hover:text-blue-600 cursor-pointer">
-                      +{dayTasks.length - 2}
+                  {/* Show more indicator if there are more tasks */}
+                  {dayTasks.length > 3 && (
+                    <div className="text-xs text-gray-500 text-center py-1">
+                      +{dayTasks.length - 3} more
                     </div>
-                  )}
-
-                  {/* Add task button for empty dates */}
-                  {dayTasks.length === 0 && isCurrentMonth && (
-                    <button className="opacity-0 group-hover:opacity-100 absolute top-1 right-1 w-5 h-5 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
-                      <Plus className="w-2.5 h-2.5 text-brand-text-light" />
-                    </button>
                   )}
                 </div>
               </div>
@@ -1307,45 +1280,45 @@ export default function MyTasks({ onSearchClick }) {
   };
 
   const renderTableView = () => (
-    <Card glass={true} className="overflow-hidden w-full">
-      <div className="overflow-x-auto w-full">
-        <table className="w-full">
+     <div className="bg-white rounded-lg overflow-hidden w-full">
+       <div className="w-full">
+         <table className="w-full table-fixed">
           <thead>
-            <tr className="border-b border-white/20">
-              <th className="px-4 py-3 text-left">
+             <tr className="border-b border-gray-200 bg-gray-50">
+               <th className="w-10 px-4 py-3 text-left">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 text-blue-500 bg-white/10 border-white/20 rounded focus:ring-blue-500 focus:ring-2"
+                   className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
+               <th className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Task Name
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
+               <th className="w-1/5 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Project
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
+               <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Assignee
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
+               <th className="w-28 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Due Date
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
+               <th className="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-light uppercase tracking-wider">
+               <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Progress
               </th>
-              <th className="px-4 py-3 text-left">
+               <th className="w-12 px-4 py-3 text-left">
                 {/* Empty header for actions */}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody className="bg-white divide-y divide-gray-200">
             {draggableTasks.map((task) => (
               <React.Fragment key={task.id}>
                 <tr
-                  className="hover:bg-white/5 transition-colors duration-200 cursor-pointer"
+                   className="hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
                   onClick={() => handleTaskClick(task)}
                 >
                   <td
@@ -1354,90 +1327,93 @@ export default function MyTasks({ onSearchClick }) {
                   >
                     <input
                       type="checkbox"
-                      className="w-4 h-4 text-blue-500 bg-white/10 border-white/20 rounded focus:ring-blue-500 focus:ring-2"
+                       className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-sm font-medium text-brand-foreground">
+                     <span className="text-sm font-medium text-gray-900 truncate block">
                       {task.name}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                     <div className="flex items-center gap-2">
                       <div
-                        className={`w-8 h-8 bg-gradient-to-br ${task.project.color} rounded-lg flex items-center justify-center shadow-sm`}
+                         className={`w-6 h-6 bg-gradient-to-br ${task.project.color} rounded-md flex items-center justify-center flex-shrink-0`}
                       >
-                        <span className="text-white font-bold text-sm">
+                         <span className="text-white font-bold text-xs">
                           {task.project.icon}
                         </span>
                       </div>
-                      <span className="text-sm text-brand-text-light">
+                       <span className="text-sm text-gray-700 truncate">
                         {task.project.name}
                       </span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     {task.hasMultipleAssignees ? (
-                      <div className="flex -space-x-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/20">
-                          <User className="w-4 h-4" />
+                       <div className="flex -space-x-1">
+                         <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-bold border border-white">
+                           <User className="w-3 h-3" />
                         </div>
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/20">
-                          <User className="w-4 h-4" />
+                         <div className="w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs font-bold border border-white">
+                           <User className="w-3 h-3" />
                         </div>
                       </div>
                     ) : (
-                      <span className="text-sm text-brand-foreground">
-                        {task.assignee}
-                      </span>
+                       <div className="flex items-center gap-1">
+                         <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                           <User className="w-3 h-3" />
+                         </div>
+                         <span className="text-sm text-gray-700">You</span>
+                       </div>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-brand-text-light" />
-                      <span className="text-sm text-brand-foreground whitespace-nowrap">
+                     <span className="text-sm text-gray-700">
                         {task.dueDate}
-                        {task.time ? ` ${task.time}` : ""}
+                       {task.time ? (
+                         <span className="text-orange-500 font-medium">, {task.time}</span>
+                       ) : null}
                       </span>
-                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
+                       className={`inline-flex px-2 py-1 rounded text-xs font-medium ${getStatusColor(
                         task.status
-                      )} whitespace-nowrap`}
+                       )}`}
                     >
                       {task.status}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-brand-foreground min-w-[2.5rem]">
+                     <div className="flex items-center gap-2">
+                       <span className="text-sm font-medium text-gray-900 min-w-[2rem]">
                         {task.progress}%
                       </span>
-                      <div className="w-24 bg-white/20 rounded-full h-2.5">
+                       <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                         <div
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-300 shadow-sm"
+                           className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
                           style={{ width: `${task.progress}%` }}
                         ></div>
                       </div>
                     </div>
                   </td>
                   <td
-                    className="px-4 py-3 relative"
+                     className="px-4 py-3 text-right relative"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center justify-end gap-1">
                       <button
                         id={`row-trigger-${task.id}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRowDropdownToggle(task.id);
                         }}
-                        className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                         className="p-1 hover:bg-gray-100 rounded transition-colors"
+                         title="Expand row details"
                       >
                         <ChevronDown
-                          className={`w-4 h-4 text-brand-text-light transition-transform ${
+                           className={`w-4 h-4 text-gray-500 transition-transform ${
                             rowDropdown.isOpen && rowDropdown.taskId === task.id
                               ? "rotate-180"
                               : ""
@@ -1449,9 +1425,10 @@ export default function MyTasks({ onSearchClick }) {
                           e.stopPropagation();
                           handleContextMenuOpen(e, task);
                         }}
-                        className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                         className="p-1 hover:bg-gray-100 rounded transition-colors"
+                         title="More actions"
                       >
-                        <MoreHorizontal className="w-4 h-4 text-brand-text-light" />
+                         <MoreHorizontal className="w-4 h-4 text-gray-500" />
                       </button>
                     </div>
                   </td>
@@ -1485,95 +1462,384 @@ export default function MyTasks({ onSearchClick }) {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-white/20">
-        <div className="text-sm text-brand-text-light">Page 1 of 10</div>
+       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-white">
+         <div className="text-sm text-gray-600">Page 1 of 10</div>
 
-        <div className="flex items-center gap-2">
-          <button className="p-2 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50">
-            <ChevronLeft className="w-4 h-4 text-brand-text-light" />
+         <div className="flex items-center gap-1">
+           <button className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50">
+             <ChevronLeft className="w-4 h-4 text-gray-400" />
           </button>
-          <button className="px-3 py-2 bg-white/20 text-brand-foreground rounded-lg text-sm font-medium">
+           <button className="px-2 py-1 bg-blue-600 text-white rounded text-sm font-medium min-w-[24px]">
             1
           </button>
-          <button className="px-3 py-2 hover:bg-white/20 text-brand-text-light hover:text-brand-foreground rounded-lg text-sm font-medium">
+           <button className="px-2 py-1 hover:bg-gray-100 text-gray-700 rounded text-sm font-medium min-w-[24px]">
             2
           </button>
-          <button className="px-3 py-2 hover:bg-white/20 text-brand-text-light hover:text-brand-foreground rounded-lg text-sm font-medium">
+           <button className="px-2 py-1 hover:bg-gray-100 text-gray-700 rounded text-sm font-medium min-w-[24px]">
             3
           </button>
-          <button className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-            <ChevronRight className="w-4 h-4 text-brand-text-light" />
+           <button className="p-1 hover:bg-gray-100 rounded transition-colors">
+             <ChevronRight className="w-4 h-4 text-gray-400" />
           </button>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm text-brand-text-light">Show</span>
-          <select className="px-2 py-1 bg-white/10 border border-white/20 rounded text-sm text-brand-foreground">
+           <span className="text-sm text-gray-600">Show</span>
+           <select className="px-2 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700 min-w-[60px]">
             <option>12</option>
             <option>24</option>
             <option>48</option>
           </select>
-          <span className="text-sm text-brand-text-light">/page</span>
+           <span className="text-sm text-gray-600">/page</span>
         </div>
       </div>
-    </Card>
+    </div>
   );
 
   const renderKanbanView = () => {
+    // Group tasks by status
+    const groupedTasks = {
+      'Backlog': tasks.filter(task => task.status === 'Backlog'),
+      'To Do': tasks.filter(task => task.status === 'To Do'),
+      'In Progress': tasks.filter(task => task.status === 'In Progress'),
+      'Done': tasks.filter(task => task.status === 'Done')
+    };
+
+    // Drag and drop handlers
+    const handleDragStart = (e, task) => {
+      e.dataTransfer.setData('text/plain', JSON.stringify(task));
+      e.dataTransfer.effectAllowed = 'move';
+      // Add some visual feedback
+      e.target.style.opacity = '0.5';
+    };
+
+    const handleDragEnd = (e) => {
+      e.target.style.opacity = '1';
+      setDraggedOver(null);
+    };
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDragEnter = (e, status) => {
+      e.preventDefault();
+      setDraggedOver(status);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      // Only clear if we're leaving the column entirely
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+        setDraggedOver(null);
+      }
+    };
+
+    const handleDrop = (e, newStatus) => {
+      e.preventDefault();
+      setDraggedOver(null);
+      
+      const taskData = JSON.parse(e.dataTransfer.getData('text/plain'));
+      
+      if (taskData.status !== newStatus) {
+        // Update the task status in the allTasks state
+        setAllTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === taskData.id 
+              ? { ...task, status: newStatus }
+              : task
+          )
+        );
+      }
+    };
+
+    const getColumnColor = (status) => {
+      switch (status) {
+        case 'Backlog':
+          return 'text-gray-700';
+        case 'To Do':
+          return 'text-gray-700';
+        case 'In Progress':
+          return 'text-gray-700';
+        case 'Done':
+          return 'text-gray-700';
+        default:
+          return 'text-gray-700';
+      }
+    };
+
+    const getStatusIcon = (status) => {
+      switch (status) {
+        case 'Backlog':
+          return <div className="w-2 h-2 rounded-full bg-gray-400"></div>;
+        case 'To Do':
+          return <div className="w-2 h-2 rounded-full bg-orange-400"></div>;
+        case 'In Progress':
+          return <div className="w-2 h-2 rounded-full bg-blue-400"></div>;
+        case 'Done':
+          return <div className="w-2 h-2 rounded-full bg-green-400"></div>;
+        default:
+          return <div className="w-2 h-2 rounded-full bg-gray-400"></div>;
+      }
+    };
+
+    const getStatusProgressCircle = (status) => {
+      switch (status) {
+        case 'Backlog':
+          return (
+            <div className="w-4 h-4 rounded-full border-2 border-gray-400 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div>
+            </div>
+          );
+        case 'To Do':
+          return (
+            <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke="#fb923c" strokeWidth="2" fill="none" opacity="0.3"/>
+              <circle cx="12" cy="12" r="10" stroke="#fb923c" strokeWidth="2" fill="none"
+                strokeDasharray="20 60" strokeLinecap="round"/>
+            </svg>
+          );
+        case 'In Progress':
+          return (
+            <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke="#60a5fa" strokeWidth="2" fill="none" opacity="0.3"/>
+              <circle cx="12" cy="12" r="10" stroke="#60a5fa" strokeWidth="2" fill="none"
+                strokeDasharray="40 40" strokeLinecap="round"/>
+            </svg>
+          );
+        case 'Done':
+          return (
+            <div className="w-4 h-4 rounded-full bg-green-400 flex items-center justify-center">
+              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+          );
+        default:
+          return (
+            <div className="w-4 h-4 rounded-full border-2 border-gray-400 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div>
+            </div>
+          );
+      }
+    };
+
+    const getProjectIcon = (project) => {
     return (
-      <KanbanBoard
-        tasks={draggableTasks}
-        onTaskUpdate={handleTaskUpdate}
-        onTaskDelete={handleDeleteTask}
-        onTaskCreate={handleTaskCreate}
-        onTaskClick={handleTaskClick}
-      />
+        <div className={`w-5 h-5 rounded bg-gradient-to-r ${project.color} flex items-center justify-center text-white text-xs font-medium flex-shrink-0`}>
+          {project.icon}
+        </div>
+      );
+    };
+
+    const getAssigneeAvatars = (task) => {
+      if (task.hasMultipleAssignees) {
+        return (
+          <div className="flex -space-x-1">
+            <div className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs">
+              <User className="w-2.5 h-2.5" />
+            </div>
+            <div className="w-5 h-5 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs">
+              <User className="w-2.5 h-2.5" />
+            </div>
+            <div className="w-5 h-5 rounded-full bg-gray-600 flex items-center justify-center text-white text-xs">
+              +
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs">
+            <User className="w-2.5 h-2.5" />
+          </div>
+        );
+      }
+    };
+
+    return (
+      <div className="w-full">
+        <div className="flex gap-3 overflow-x-auto pb-6">
+          {Object.entries(groupedTasks).map(([status, statusTasks]) => (
+            <div 
+              key={status} 
+              className={`flex-shrink-0 w-64 transition-colors ${
+                draggedOver === status ? 'bg-blue-50 rounded-lg' : ''
+              }`}
+              onDragOver={handleDragOver}
+              onDragEnter={(e) => handleDragEnter(e, status)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, status)}
+            >
+              {/* Column Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  {getStatusProgressCircle(status)}
+                  <h3 className="font-bold text-sm text-gray-800">{status}</h3>
+                  <span className="bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded-full font-medium">
+                    {statusTasks.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <button className="p-1 hover:bg-gray-100 rounded">
+                    <MoreHorizontal className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                  <button className="p-1 hover:bg-gray-100 rounded">
+                    <Plus className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Task Cards */}
+              <div className="space-y-2">
+                {statusTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task)}
+                    onDragEnd={handleDragEnd}
+                    className="bg-white rounded-lg border border-gray-200 p-2.5 hover:shadow-md transition-all cursor-move group"
+                    onClick={() => handleTaskClick(task)}
+                  >
+                    {/* Task Header with Three Dots */}
+                    <div className="flex items-start justify-between mb-3">
+                      <h4 className="font-semibold text-sm text-gray-900 leading-tight flex-1">
+                        {task.name}
+                      </h4>
+                      <button
+                        onClick={(e) => handleContextMenuOpen(e, task)}
+                        className="p-0.5 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      >
+                        <MoreHorizontal className="w-3 h-3 text-gray-400" />
+                      </button>
+                    </div>
+
+                    {/* Dotted Separator Line */}
+                    <div className="border-b border-dashed border-gray-300 mb-3"></div>
+
+                    {/* Middle Row: Profile • Date • Progress */}
+                    <div className="flex items-center mb-3">
+                      {/* Profile Circle */}
+                      {task.hasMultipleAssignees ? (
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border border-white flex items-center justify-center flex-shrink-0">
+                          <User className="w-2.5 h-2.5 text-white" />
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-green-500 border border-white flex items-center justify-center flex-shrink-0">
+                          <User className="w-2.5 h-2.5 text-white" />
+                        </div>
+                      )}
+                      
+                      {/* Dot Separator */}
+                      <div className="w-1 h-1 rounded-full bg-gray-400 flex-shrink-0 mx-1"></div>
+                      
+                      {/* Date and Progress Circle - RIGHT NEXT TO EACH OTHER */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-700 font-medium">
+                          {task.dueDate}
+                          {task.time && (
+                            <span className="text-orange-500 font-semibold">, {task.time}</span>
+                          )}
+                        </span>
+                        
+                        {/* Simple Dot Separator */}
+                        <span className="text-gray-400 text-xs">•</span>
+                        
+                        {/* Progress Circle - THICKER stroke, RIGHT next to date */}
+                        <div className="w-5 h-5 rounded-full border border-white bg-white flex items-center justify-center relative flex-shrink-0">
+                          <svg width="20" height="20" className="transform -rotate-90">
+                            <circle
+                              cx="10"
+                              cy="10"
+                              r="6"
+                              stroke="#e5e7eb"
+                              strokeWidth="3"
+                              fill="transparent"
+                            />
+                            <circle
+                              cx="10"
+                              cy="10"
+                              r="6"
+                              stroke="#3b82f6"
+                              strokeWidth="3"
+                              fill="transparent"
+                              strokeDasharray={37.7}
+                              strokeDashoffset={37.7 - (task.progress / 100) * 37.7}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Project Name at Bottom */}
+                    <div className="flex items-center gap-2">
+                      {getProjectIcon(task.project)}
+                      <span className="text-xs text-gray-800 font-semibold truncate">
+                        {task.project.name}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          
+          {/* Add Status Column */}
+          <div className="flex-shrink-0 w-64">
+            <button className="w-full h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 font-medium text-sm">
+              <Plus className="w-4 h-4" />
+              Add Status
+            </button>
+          </div>
+        </div>
+      </div>
     );
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
       <Header
         title="My Tasks"
         subtitle="Monitor all of your tasks here"
-        onSearchClick={onSearchClick}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="space-y-6">
+      <div className="flex-1 p-4 lg:p-6 overflow-auto bg-gray-50">
+        <div className="max-w-full mx-auto px-2 lg:px-4">
+          <div className="space-y-4 lg:space-y-6">
           {/* Header Controls Row */}
           <div className="flex items-center justify-between w-full">
             {/* Left Side - View Toggle Buttons */}
             <div className="flex items-center gap-2">
-              <div className="flex bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-1 shadow-lg">
+              <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setActiveView("table")}
-                  className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all duration-300 transform ${
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     activeView === "table"
-                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105"
-                      : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10 hover:shadow-md"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
                   Table
                 </button>
                 <button
                   onClick={() => setActiveView("kanban")}
-                  className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all duration-300 transform ${
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     activeView === "kanban"
-                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105"
-                      : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10 hover:shadow-md"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
                   Kanban
                 </button>
                 <button
                   onClick={() => setActiveView("calendar")}
-                  className={`px-4 py-2.5 rounded-md text-sm font-semibold transition-all duration-300 transform ${
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     activeView === "calendar"
-                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105"
-                      : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10 hover:shadow-md"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
                   Calendar
@@ -1583,51 +1849,52 @@ export default function MyTasks({ onSearchClick }) {
 
             {/* Right Side - Controls */}
             <div className="flex items-center gap-3">
+              {/* Month Navigation Arrows */}
+              <button
+                onClick={() => handleDateChange("prev")}
+                className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-400" />
+              </button>
+
               {/* Date Display */}
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg">
-                <Calendar className="w-4 h-4 text-brand-text-light" />
-                <span className="text-sm font-medium text-brand-foreground">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg shadow-sm h-10">
+                <Calendar className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium text-gray-900">
                   {currentMonth.toLocaleDateString("en-US", {
                     month: "long",
                     year: "numeric",
                   })}
                 </span>
-                <div className="flex flex-col">
-                  <button
-                    onClick={() => handleDateChange("prev")}
-                    className="hover:bg-white/20 rounded p-0.5"
-                  >
-                    <ChevronUp className="w-3 h-3 text-brand-text-light" />
-                  </button>
+              </div>
+
                   <button
                     onClick={() => handleDateChange("next")}
-                    className="hover:bg-white/20 rounded p-0.5"
+                className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
                   >
-                    <ChevronDown className="w-3 h-3 text-brand-text-light" />
+                <ChevronRight className="w-4 h-4 text-gray-400" />
                   </button>
-                </div>
-              </div>
 
               {/* Columns Dropdown */}
               <div className="relative" ref={columnsMenuRef}>
                 <button
                   ref={columnsButtonRef}
                   onClick={handleColumnsDropdownToggle}
-                  className={`flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors ${
-                    columnsDropdown ? "bg-white/20" : ""
+                  className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm h-10 ${
+                    columnsDropdown ? "bg-gray-50" : ""
                   }`}
                 >
-                  <Columns className="w-4 h-4 text-brand-text-light" />
-                  <span className="text-sm font-medium text-brand-foreground">
+                  <Columns className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700">
                     Columns
                   </span>
                   <ChevronDown
-                    className={`w-4 h-4 text-brand-text-light transition-transform ${columnsDropdown ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 text-gray-400 transition-transform ${columnsDropdown ? "rotate-180" : ""}`}
                   />
                 </button>
 
                 {showColumnsMenu && (
-                  <div className="absolute top-full left-0 mt-2 w-48 bg-white/90 backdrop-blur-md border border-white/20 rounded-lg shadow-lg z-50">
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                     <div className="p-2">
                       {[
                         "Task Name",
@@ -1640,15 +1907,15 @@ export default function MyTasks({ onSearchClick }) {
                       ].map((column) => (
                         <label
                           key={column}
-                          className="flex items-center gap-2 p-2 hover:bg-white/20 rounded cursor-pointer"
+                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
                         >
                           <input
                             type="checkbox"
                             checked={selectedColumns.includes(column)}
                             onChange={() => handleColumnToggle(column)}
-                            className="w-4 h-4 text-brand-primary bg-white/10 border-white/20 rounded focus:ring-brand-primary"
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                           />
-                          <span className="text-sm text-brand-foreground">
+                          <span className="text-sm text-gray-900">
                             {column}
                           </span>
                         </label>
@@ -1663,12 +1930,12 @@ export default function MyTasks({ onSearchClick }) {
                 <button
                   ref={filterButtonRef}
                   onClick={handleFilterDropdownToggle}
-                  className={`flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors ${
-                    filterDropdown ? "bg-white/20" : ""
+                  className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm h-10 ${
+                    filterDropdown ? "bg-gray-50" : ""
                   }`}
                 >
-                  <Filter className="w-4 h-4 text-brand-text-light" />
-                  <span className="text-sm font-medium text-brand-foreground">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700">
                     Filter
                   </span>
                   {getTotalFilterCount() > 0 && (
@@ -1677,15 +1944,15 @@ export default function MyTasks({ onSearchClick }) {
                     </span>
                   )}
                   <ChevronDown
-                    className={`w-4 h-4 text-brand-text-light transition-transform ${filterDropdown ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 text-gray-400 transition-transform ${filterDropdown ? "rotate-180" : ""}`}
                   />
                 </button>
 
                 {showFilterMenu && (
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-white/90 backdrop-blur-md border border-white/20 rounded-lg shadow-lg z-50">
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                     <div className="p-4 space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-brand-foreground mb-2 block">
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">
                           Status
                         </label>
                         <select
@@ -1693,7 +1960,7 @@ export default function MyTasks({ onSearchClick }) {
                           onChange={(e) =>
                             handleFilterChange("status", e.target.value)
                           }
-                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-sm text-brand-foreground"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900"
                         >
                           <option value="all">All Status</option>
                           <option value="todo">To Do</option>
@@ -1705,7 +1972,7 @@ export default function MyTasks({ onSearchClick }) {
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-brand-foreground mb-2 block">
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">
                           Project
                         </label>
                         <select
@@ -1713,7 +1980,7 @@ export default function MyTasks({ onSearchClick }) {
                           onChange={(e) =>
                             handleFilterChange("project", e.target.value)
                           }
-                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-sm text-brand-foreground"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900"
                         >
                           <option value="all">All Projects</option>
                           <option value="yellow-branding">
@@ -1735,7 +2002,7 @@ export default function MyTasks({ onSearchClick }) {
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-brand-foreground mb-2 block">
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">
                           Assignee
                         </label>
                         <select
@@ -1743,7 +2010,7 @@ export default function MyTasks({ onSearchClick }) {
                           onChange={(e) =>
                             handleFilterChange("assignee", e.target.value)
                           }
-                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-sm text-brand-foreground"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900"
                         >
                           <option value="all">All Assignees</option>
                           <option value="me">Me</option>
@@ -1757,26 +2024,26 @@ export default function MyTasks({ onSearchClick }) {
 
               {/* Sort */}
               <button
-                onClick={toggleSortOrder}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 transition-colors"
+                onClick={() => setDueDateSortOrder(dueDateSortOrder === "asc" ? "desc" : "asc")}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm h-10"
               >
-                <span className="text-sm font-medium text-brand-foreground">
+                {dueDateSortOrder === "asc" ? (
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                )}
+                <span className="text-sm font-medium text-gray-700">
                   Nearest Due Date
                 </span>
-                {sortOrder === "asc" ? (
-                  <ChevronUp className="w-4 h-4 text-brand-text-light" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-brand-text-light" />
-                )}
               </button>
 
               {/* New Task Button */}
               <button
-                onClick={handleNewTask}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg transform hover:scale-105"
+                onClick={() => setCreateModal({ isOpen: true, defaultStatus: null })}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 shadow-sm h-10"
               >
                 <Plus className="w-4 h-4" />
-                New
+                New Task
               </button>
             </div>
           </div>
@@ -1784,7 +2051,7 @@ export default function MyTasks({ onSearchClick }) {
           {/* Applied Filters */}
           {getTotalFilterCount() > 0 && (
             <div className="flex items-center gap-3 flex-wrap mb-6">
-              <span className="text-sm font-medium text-brand-text-light">
+              <span className="text-sm font-medium text-gray-700">
                 Filter
               </span>
 
@@ -1792,7 +2059,7 @@ export default function MyTasks({ onSearchClick }) {
                 filters.map((filterId) => (
                   <div
                     key={`${category}-${filterId}`}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-brand-foreground"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-900 shadow-sm"
                   >
                     <span className="text-sm font-medium capitalize">
                       {category}
@@ -1802,9 +2069,9 @@ export default function MyTasks({ onSearchClick }) {
                     </span>
                     <button
                       onClick={() => removeFilter(category, filterId)}
-                      className="p-0.5 hover:bg-white/20 rounded-full transition-colors"
+                      className="p-0.5 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3 h-3 text-gray-400" />
                     </button>
                   </div>
                 ))
@@ -1812,7 +2079,7 @@ export default function MyTasks({ onSearchClick }) {
 
               <button
                 onClick={clearAllFilters}
-                className="text-sm text-red-400 hover:text-red-300 transition-colors"
+                className="text-sm text-red-600 hover:text-red-700 transition-colors"
               >
                 Remove Filter
               </button>
@@ -1826,6 +2093,7 @@ export default function MyTasks({ onSearchClick }) {
               : activeView === "kanban"
                 ? renderKanbanView()
                 : renderTableView()}
+          </div>
           </div>
         </div>
       </div>

@@ -50,39 +50,39 @@ const TaskDetailModal = ({
 
   const contentClasses = isFullView
     ? "bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] border border-gray-200"
-    : "bg-white shadow-2xl w-[600px] h-full border-l border-gray-200";
+    : "bg-white shadow-2xl w-[450px] h-full border-l border-gray-200";
 
   return (
     <div className={modalClasses}>
       <div className={contentClasses}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">{task.name}</h1>
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h1 className="text-lg font-bold text-gray-900 truncate pr-4">{task.name}</h1>
           
           <div className="flex items-center gap-2">
             {/* Open Project Button */}
             <button
               onClick={() => onOpenProject?.(task.project)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
+              className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors border border-blue-200"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-3 h-3" />
               Open Project
             </button>
             
             {/* Full/Half View Toggle */}
             <button
               onClick={onToggleView}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
+              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors border border-gray-200"
             >
               {isFullView ? (
                 <>
-                  <Minimize2 className="w-4 h-4" />
-                  Open Half
+                  <Minimize2 className="w-3 h-3" />
+                  Half
                 </>
               ) : (
                 <>
-                  <Maximize2 className="w-4 h-4" />
-                  Open Full
+                  <Maximize2 className="w-3 h-3" />
+                  Full
                 </>
               )}
             </button>
@@ -90,27 +90,27 @@ const TaskDetailModal = ({
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
             >
-              <X className="w-4 h-4 text-gray-500" />
+              <X className="w-3 h-3 text-gray-500" />
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {/* Task Details Section */}
-          <div className="p-6 border-b border-gray-200">
-            <div className="grid grid-cols-2 gap-6">
+        {/* Content - Full Height No Scroll */}
+        <div className="flex-1 flex flex-col h-full">
+          {/* Task Details Section - Compact */}
+          <div className="p-3 border-b border-gray-200 flex-shrink-0">
+            <div className="grid grid-cols-2 gap-3">
               {/* Left Column */}
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {/* Project */}
                 <div>
-                  <label className="text-sm font-medium text-gray-500 mb-2 block">
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">
                     Project
                   </label>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 bg-gradient-to-br ${task.project.color} rounded-md flex items-center justify-center text-white text-xs font-bold`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-5 h-5 bg-gradient-to-br ${task.project.color} rounded-md flex items-center justify-center text-white text-xs font-bold`}>
                       {task.project.icon}
                     </div>
                     <span className="text-sm font-medium text-gray-900">
@@ -121,22 +121,22 @@ const TaskDetailModal = ({
 
                 {/* Assignee */}
                 <div>
-                  <label className="text-sm font-medium text-gray-500 mb-2 block">
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">
                     Assignee
                   </label>
                   <div className="flex items-center gap-2">
                     {task.hasMultipleAssignees ? (
-                      <div className="flex -space-x-2">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white">
-                          <User className="w-3 h-3" />
+                      <div className="flex -space-x-1">
+                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs border border-white">
+                          <User className="w-2.5 h-2.5" />
                         </div>
-                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white">
-                          <User className="w-3 h-3" />
+                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs border border-white">
+                          <User className="w-2.5 h-2.5" />
                         </div>
                       </div>
                     ) : (
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                        <User className="w-3 h-3" />
+                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
+                        <User className="w-2.5 h-2.5" />
                       </div>
                     )}
                     <span className="text-sm text-gray-900">{task.assignee}</span>
@@ -145,44 +145,44 @@ const TaskDetailModal = ({
 
                 {/* Due Date */}
                 <div>
-                  <label className="text-sm font-medium text-gray-500 mb-2 block">
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">
                     Due Date
                   </label>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-900">
                       {task.dueDate}
-                      {task.time && <span className="text-gray-500 ml-1">{task.time}</span>}
+                      {task.time && <span className="text-orange-500 ml-1 font-medium">{task.time}</span>}
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Right Column */}
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {/* Status */}
                 <div>
-                  <label className="text-sm font-medium text-gray-500 mb-2 block">
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">
                     Status
                   </label>
-                  <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(task.status)}`}>
+                  <span className={`inline-flex px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)}`}>
                     {task.status}
                   </span>
                 </div>
 
                 {/* Progress */}
                 <div>
-                  <label className="text-sm font-medium text-gray-500 mb-2 block">
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">
                     Progress
                   </label>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                       <div
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${task.progress}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm font-semibold text-gray-700 min-w-[3rem]">
+                    <span className="text-xs font-semibold text-gray-700 min-w-[2rem]">
                       {task.progress}%
                     </span>
                   </div>
@@ -190,28 +190,28 @@ const TaskDetailModal = ({
               </div>
             </div>
 
-            {/* Description */}
-            <div className="mt-6">
-              <label className="text-sm font-medium text-gray-500 mb-2 block">
+            {/* Description - Compact */}
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-500 mb-1 block">
                 Description
               </label>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 leading-relaxed">
+              <div className="bg-gray-50 rounded-md p-2">
+                <p className="text-xs text-gray-700 leading-relaxed">
                   Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
-                  Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+                  Donec pretium elit nulla, nec malesuada nisl volutpat ut. 
                   Aliquam suscipit ante et viverra aliquam.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Tabs Section */}
-          <div className="flex-1 flex flex-col">
+          {/* Tabs Section - Full Height */}
+          <div className="flex-1 flex flex-col min-h-0">
             {/* Tab Headers */}
-            <div className="flex border-b border-gray-200">
+            <div className="flex border-b border-gray-200 flex-shrink-0">
               <button
                 onClick={() => setActiveTab("subtasks")}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "subtasks"
                     ? "text-blue-600 border-blue-600"
                     : "text-gray-500 border-transparent hover:text-gray-700"
@@ -221,7 +221,7 @@ const TaskDetailModal = ({
               </button>
               <button
                 onClick={() => setActiveTab("comments")}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "comments"
                     ? "text-blue-600 border-blue-600"
                     : "text-gray-500 border-transparent hover:text-gray-700"
@@ -231,8 +231,8 @@ const TaskDetailModal = ({
               </button>
             </div>
 
-            {/* Tab Content */}
-            <div className="flex-1 overflow-hidden">
+            {/* Tab Content - Full Height */}
+            <div className="flex-1 min-h-0">
               {activeTab === "subtasks" ? (
                 <SubTasksSection task={task} />
               ) : (

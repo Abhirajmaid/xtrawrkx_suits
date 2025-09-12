@@ -13,7 +13,7 @@ import {
   LogOut,
 } from "lucide-react";
 
-const Header = ({ onToggleData }) => {
+const Header = ({ onToggleData, title = "Home", subtitle = "Monitor all of your projects and tasks here" }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
@@ -60,9 +60,9 @@ const Header = ({ onToggleData }) => {
         <div className="flex items-center justify-between">
           {/* Left side - Title */}
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Home</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
             <p className="text-gray-600 mt-1">
-              Monitor all of your projects and tasks here
+              {subtitle}
             </p>
           </div>
 

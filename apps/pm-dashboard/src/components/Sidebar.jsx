@@ -19,12 +19,14 @@ import React, {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useWorkspace } from "../contexts/WorkspaceContext";
+import CreateProjectModal from "./CreateProjectModal";
 
 const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
   const workspaceDropdownRef = useRef(null);
 
   const { workspaces, activeWorkspace, switchWorkspace } = useWorkspace();
@@ -203,6 +205,14 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
     [switchWorkspace]
   );
 
+  // Handle create project
+  const handleCreateProject = useCallback((projectData) => {
+    // Here you would typically call an API to create the project
+    console.log("Creating project:", projectData);
+    setShowCreateProjectModal(false);
+    // You can add actual project creation logic here
+  }, []);
+
   return (
     <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col">
       {/* Header */}
@@ -324,8 +334,9 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
               Projects
             </h3>
             <button
-              onClick={() => handleNavigation("/projects")}
+              onClick={() => setShowCreateProjectModal(true)}
               className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors group"
+              title="Create New Project"
             >
               <Plus className="w-3 h-3 text-gray-500 group-hover:text-gray-700 transition-colors" />
             </button>
@@ -371,6 +382,13 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
           </div>
         </div>
       </div>
+
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        isOpen={showCreateProjectModal}
+        onClose={() => setShowCreateProjectModal(false)}
+        onCreateProject={handleCreateProject}
+      />
     </div>
   );
 });
