@@ -59,8 +59,8 @@ const SubTasksSection = ({ task }) => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-6">
+    <div className="h-full flex flex-col">
+      <div className="p-4 flex-1 overflow-y-auto">
         {/* Add Subtask Button */}
         <div className="mb-6">
           {!isAddingSubtask ? (

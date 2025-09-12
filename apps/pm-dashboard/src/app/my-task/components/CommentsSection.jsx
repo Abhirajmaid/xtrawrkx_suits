@@ -133,14 +133,14 @@ const CommentsSection = ({ task }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col">
       {/* Filter Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-3 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="relative">
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
             >
               <span>{filterOptions.find(f => f.value === activeFilter)?.label}</span>
               <ChevronDown className="w-4 h-4" />
@@ -170,7 +170,7 @@ const CommentsSection = ({ task }) => {
       </div>
 
       {/* Activity Feed */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-3">
         <div className="space-y-4">
           {filteredActivities.map((activity) => (
             <div key={activity.id} className="flex gap-3">
@@ -220,19 +220,19 @@ const CommentsSection = ({ task }) => {
       </div>
 
       {/* Comment Input */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex gap-3">
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+      <div className="p-3 border-t border-gray-200 flex-shrink-0">
+        <div className="flex gap-2">
+          <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
             JB
           </div>
           <div className="flex-1">
             <div className="flex items-end gap-2">
-              <div className="flex-1 min-h-[40px] max-h-32 border border-gray-200 rounded-lg">
+              <div className="flex-1 min-h-[36px] max-h-24 border border-gray-200 rounded-lg">
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Write a comment..."
-                  className="w-full h-full min-h-[40px] p-3 border-none outline-none resize-none rounded-lg text-sm"
+                  className="w-full h-full min-h-[36px] p-2 border-none outline-none resize-none rounded-lg text-sm"
                   rows={1}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -245,7 +245,7 @@ const CommentsSection = ({ task }) => {
               <button
                 onClick={handleAddComment}
                 disabled={!newComment.trim()}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-1.5 rounded-lg transition-colors ${
                   newComment.trim()
                     ? "bg-blue-500 text-white hover:bg-blue-600"
                     : "bg-gray-100 text-gray-400 cursor-not-allowed"
