@@ -10,14 +10,10 @@ import {
   User,
   MoreHorizontal,
   Activity,
-  ChevronDown,
-  Filter,
-  Settings,
-  HelpCircle,
 } from "lucide-react";
-import { StatCard, Card, Badge } from "@xtrawrkx/ui";
+import { StatCard, Card } from "@xtrawrkx/ui";
 
-export default function TaskDetail({ params }) {
+export default function TaskDetail() {
   // Mock data for the dashboard matching the image
   const stats = [
     {
@@ -188,32 +184,6 @@ export default function TaskDetail({ params }) {
     },
   ];
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-100 text-red-700 border-red-200";
-      case "medium":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "low":
-        return "bg-green-100 text-green-700 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "in_progress":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "pending":
-        return "bg-gray-100 text-gray-700 border-gray-200";
-      case "review":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
@@ -299,7 +269,7 @@ export default function TaskDetail({ params }) {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* New Project Card */}
-              <div className="p-4 bg-white/15 rounded-xl border border-white/20 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 shadow-card group cursor-pointer border-dashed border-white/30">
+              <div className="p-4 bg-white/15 rounded-xl border-dashed border-white/30 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 shadow-card group cursor-pointer">
                 <div className="flex items-center justify-center h-20">
                   <Plus className="w-8 h-8 text-brand-text-light" />
                 </div>
@@ -307,7 +277,7 @@ export default function TaskDetail({ params }) {
                   New Project
                 </p>
               </div>
-              
+
               {projects.map((project) => (
                 <div
                   key={project.id}
