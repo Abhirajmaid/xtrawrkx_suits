@@ -1,4 +1,8 @@
 export { default as ProjectHeader } from './ProjectHeader';
+export { default as ProjectTimeline } from './ProjectTimeline';
+export { default as ProjectFiles } from './ProjectFiles';
+export { default as ProjectComments } from './ProjectComments';
+export { default as ProjectChat } from './ProjectChat';
 export { default as Timeline } from './Timeline';
 export { default as FileRepository } from './FileRepository';
 export { default as CommentsSection } from './CommentsSection';

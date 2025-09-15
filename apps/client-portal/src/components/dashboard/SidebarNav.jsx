@@ -56,12 +56,15 @@ export default function SidebarNav({
   };
 
   return (
-    <div className={`h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 border-r border-neutral-200 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'} ${className}`}>
+    <div className={`h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 border-r border-neutral-200 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} ${className}`}>
       {/* Header */}
-      <div className="p-6 border-b border-neutral-200">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold text-sm">C</span>
+      <div className={`border-b border-neutral-200 ${isCollapsed ? 'p-4' : 'p-6'}`}>
+        <div 
+          className={`flex items-center cursor-pointer hover:opacity-80 transition-opacity ${isCollapsed ? 'justify-center mb-3' : 'gap-3 mb-4'}`}
+          onClick={() => router.push("/dashboard")}
+        >
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+            <span className="text-white font-bold text-lg">C</span>
           </div>
           {!isCollapsed && (
             <h1 className="text-lg font-bold text-neutral-900">
@@ -73,7 +76,7 @@ export default function SidebarNav({
         {/* Toggle Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="w-full flex items-center justify-center p-2 bg-white/50 hover:bg-white/70 rounded-lg transition-colors"
+          className={`flex items-center justify-center bg-white/50 hover:bg-white/70 rounded-lg transition-colors ${isCollapsed ? 'w-12 h-8 mx-auto' : 'w-full p-2'}`}
         >
           {isCollapsed ? (
             <ChevronRight className="w-4 h-4 text-neutral-600" />
@@ -84,7 +87,7 @@ export default function SidebarNav({
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 p-4 space-y-2">
+      <div className={`flex-1 space-y-2 ${isCollapsed ? 'p-3' : 'p-4'}`}>
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeItem === item.id;
@@ -93,15 +96,15 @@ export default function SidebarNav({
             <button
               key={item.id}
               onClick={() => handleItemClick(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group ${
-                isActive
-                  ? "bg-blue-50 border border-blue-200 text-blue-700 shadow-sm"
-                  : "text-neutral-600 hover:bg-white/70 hover:text-neutral-900"
+              className={`flex items-center rounded-xl transition-all duration-300 group ${
+                isCollapsed 
+                  ? `w-12 h-12 justify-center mx-auto ${isActive ? 'bg-blue-100 shadow-md' : 'hover:bg-white/70'}`
+                  : `w-full gap-3 px-3 py-2.5 ${isActive ? 'bg-blue-50 border border-blue-200 text-blue-700 shadow-sm' : 'text-neutral-600 hover:bg-white/70 hover:text-neutral-900'}`
               }`}
               title={isCollapsed ? item.label : undefined}
             >
               <Icon
-                className={`w-5 h-5 ${
+                className={`w-6 h-6 ${
                   isActive 
                     ? "text-blue-600" 
                     : "text-neutral-500 group-hover:text-neutral-700"
@@ -116,10 +119,10 @@ export default function SidebarNav({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-neutral-200">
-        <div className="flex items-center gap-3 p-3 bg-white/50 rounded-xl hover:bg-white/70 transition-colors cursor-pointer">
-          <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">U</span>
+      <div className={`border-t border-neutral-200 ${isCollapsed ? 'p-3' : 'p-4'}`}>
+        <div className={`flex items-center bg-white/50 rounded-xl hover:bg-white/70 transition-colors cursor-pointer ${isCollapsed ? 'w-12 h-12 justify-center mx-auto' : 'gap-3 p-3'}`}>
+          <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg flex items-center justify-center shadow-sm">
+            <span className="text-white font-semibold text-lg">U</span>
           </div>
           {!isCollapsed && (
             <div>

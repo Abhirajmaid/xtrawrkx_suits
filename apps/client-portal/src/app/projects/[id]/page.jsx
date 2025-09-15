@@ -1,284 +1,188 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
-import { useParams } from "next/navigation";
-import {
-  ProjectHeader,
-  Timeline,
-  FileRepository,
-  CommentsSection,
-  ChatThread,
-} from "@/components/projects";
+import Link from "next/link";
+import ProjectHeader from "@/components/projects/ProjectHeader";
+import ProjectTimeline from "@/components/projects/ProjectTimeline";
+import ProjectFiles from "@/components/projects/ProjectFiles";
+import ProjectComments from "@/components/projects/ProjectComments";
+import ProjectChat from "@/components/projects/ProjectChat";
 
-export default function ProjectPage() {
-  const params = useParams();
-  const projectId = params.id;
-  const [activeTab, setActiveTab] = useState("timeline");
-
-  // Mock project data
-  const projectData = {
-    id: projectId,
-    name: "Website Redesign",
-    status: "active",
-    dueDate: "2024-03-15",
-    clientName: "Acme Corporation",
-    clientLogo: null,
+export default function ProjectPage({ params }) {
+  // Project Header
+  const project = {
+    id: 1,
+    title: "Project Apollo Redesign",
+    description: "A complete redesign of the Apollo landing page and dashboard.",
+    status: "Active", // Active | Completed | On Hold
+    owner: "Jane Doe",
+    dueDate: "2025-10-30",
+    completion: 65, // percentage
   };
 
-  // Mock milestones data
+  // Timeline / Milestones
   const milestones = [
     {
       id: 1,
-      title: "Project Kickoff",
-      description: "Initial meeting and requirements gathering",
-      dueDate: "2024-01-15",
-      completed: true,
-      progress: 100,
+      title: "Wireframes Completed",
+      dueDate: "2025-09-01",
+      status: "Completed",
     },
     {
       id: 2,
-      title: "Design Phase",
-      description: "Wireframes and mockups creation",
-      dueDate: "2024-02-01",
-      completed: true,
-      progress: 100,
+      title: "UI Design Finalized",
+      dueDate: "2025-09-15",
+      status: "Completed",
     },
     {
       id: 3,
-      title: "Development Phase",
-      description: "Frontend and backend development",
-      dueDate: "2024-02-28",
-      completed: false,
-      progress: 65,
+      title: "Frontend Development",
+      dueDate: "2025-10-05",
+      status: "In Progress",
     },
     {
       id: 4,
-      title: "Testing & QA",
-      description: "Quality assurance and bug fixes",
-      dueDate: "2024-03-10",
-      completed: false,
-      progress: 0,
-    },
-    {
-      id: 5,
-      title: "Launch",
-      description: "Production deployment and go-live",
-      dueDate: "2024-03-15",
-      completed: false,
-      progress: 0,
+      title: "Beta Release",
+      dueDate: "2025-10-25",
+      status: "Pending",
     },
   ];
 
-  // Mock files data
+  // File Repository
   const files = [
     {
       id: 1,
-      name: "project-brief.pdf",
-      version: "1.2",
-      uploadedBy: "Sarah Johnson",
-      date: "2024-01-10",
-      size: 2048000,
+      name: "wireframes-v1.pdf",
+      uploadedBy: "John Smith",
+      date: "2025-09-01",
+      version: "1.0",
     },
     {
       id: 2,
-      name: "wireframes.fig",
-      version: "2.1",
-      uploadedBy: "Mike Chen",
-      date: "2024-01-20",
-      size: 5120000,
+      name: "ui-design-v2.fig",
+      uploadedBy: "Jane Doe",
+      date: "2025-09-10",
+      version: "2.0",
     },
     {
       id: 3,
-      name: "mockups.png",
-      version: "1.0",
-      uploadedBy: "Sarah Johnson",
-      date: "2024-01-25",
-      size: 1536000,
-    },
-    {
-      id: 4,
-      name: "style-guide.pdf",
-      version: "1.0",
-      uploadedBy: "Mike Chen",
-      date: "2024-02-01",
-      size: 1024000,
+      name: "frontend-specs.docx",
+      uploadedBy: "Mark Lee",
+      date: "2025-09-12",
+      version: "1.2",
     },
   ];
 
-  // Mock comments data
+  // Comments Section (Threaded)
   const comments = [
     {
       id: 1,
-      user: "Sarah Johnson",
-      text: "The wireframes look great! I have a few suggestions for the user flow.",
-      timestamp: "2024-01-20T10:30:00Z",
+      user: "Jane Doe",
+      avatar: "/avatars/jane.png",
+      text: "I think we should revise the header section layout.",
+      time: "2h ago",
       replies: [
         {
-          id: 11,
-          user: "Mike Chen",
-          text: "Thanks Sarah! I'd love to hear your feedback.",
-          timestamp: "2024-01-20T11:15:00Z",
+          id: 2,
+          user: "John Smith",
+          avatar: "/avatars/john.png",
+          text: "Agreed, the navigation bar feels too cluttered.",
+          time: "1h ago",
         },
       ],
-    },
-    {
-      id: 2,
-      user: "Mike Chen",
-      text: "I've uploaded the latest mockups. Please review and let me know your thoughts.",
-      timestamp: "2024-01-25T14:20:00Z",
-      replies: [],
     },
     {
       id: 3,
-      user: "John Doe",
-      text: "The color scheme looks perfect. Can we proceed with development?",
-      timestamp: "2024-02-01T09:45:00Z",
-      replies: [
-        {
-          id: 31,
-          user: "Sarah Johnson",
-          text: "Yes, I agree. Let's move forward with the current design.",
-          timestamp: "2024-02-01T10:30:00Z",
-        },
-      ],
+      user: "Mark Lee",
+      avatar: "/avatars/mark.png",
+      text: "The color scheme works really well with the client's branding.",
+      time: "30m ago",
+      replies: [],
     },
   ];
 
-  // Mock chat messages
+  // Project Chat
   const chatMessages = [
     {
       id: 1,
-      user: "Sarah Johnson",
-      text: "Good morning team! How's the development going?",
-      timestamp: "2024-01-15T09:00:00Z",
-      type: "text",
+      sender: "Jane Doe",
+      text: "Hi team, are we ready for the demo tomorrow?",
+      time: "10:00 AM",
+      isMine: false,
     },
     {
       id: 2,
-      user: "You",
-      text: "Morning Sarah! We're making good progress on the frontend components.",
-      timestamp: "2024-01-15T09:15:00Z",
-      type: "text",
+      sender: "Me",
+      text: "Almost done with final touches. Should be good!",
+      time: "10:05 AM",
+      isMine: true,
     },
     {
       id: 3,
-      user: "Mike Chen",
-      text: "I've finished the responsive design for mobile. Should I start on the backend API?",
-      timestamp: "2024-01-15T10:30:00Z",
-      type: "text",
-    },
-    {
-      id: 4,
-      user: "Sarah Johnson",
-      text: "Yes, that sounds good. Let's sync up this afternoon to discuss the API structure.",
-      timestamp: "2024-01-15T11:00:00Z",
-      type: "text",
+      sender: "Mark Lee",
+      text: "I'll update the docs after today's sync call.",
+      time: "10:07 AM",
+      isMine: false,
     },
   ];
-
-  const tabs = [
-    { id: "timeline", label: "Timeline", icon: "📅" },
-    { id: "files", label: "Files", icon: "📁" },
-    { id: "comments", label: "Comments", icon: "💬" },
-    { id: "chat", label: "Chat", icon: "💭" },
-  ];
-
-  const handleTabChange = useCallback((tabId) => {
-    setActiveTab(tabId);
-  }, []);
-
-  const handleFileUpload = useCallback((uploadedFiles) => {
-    console.log("Files uploaded:", uploadedFiles);
-  }, []);
-
-  const handleFileDownload = useCallback((file) => {
-    console.log("Downloading file:", file);
-  }, []);
-
-  const handleFileView = useCallback((file) => {
-    console.log("Viewing file:", file);
-  }, []);
-
-  const handleAddComment = useCallback((comment) => {
-    console.log("Adding comment:", comment);
-  }, []);
-
-  const handleReplyToComment = useCallback((parentId, reply) => {
-    console.log("Replying to comment:", parentId, reply);
-  }, []);
-
-  const handleSendMessage = useCallback((message) => {
-    console.log("Sending message:", message);
-  }, []);
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "timeline":
-        return <Timeline milestones={milestones} />;
-      case "files":
-        return (
-          <FileRepository
-            files={files}
-            onUpload={handleFileUpload}
-            onDownload={handleFileDownload}
-            onView={handleFileView}
-          />
-        );
-      case "comments":
-        return (
-          <CommentsSection
-            comments={comments}
-            onAddComment={handleAddComment}
-            onReplyToComment={handleReplyToComment}
-          />
-        );
-      case "chat":
-        return (
-          <ChatThread
-            messages={chatMessages}
-            onSendMessage={handleSendMessage}
-            currentUser="You"
-          />
-        );
-      default:
-        return <Timeline milestones={milestones} />;
-    }
-  };
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="min-h-screen bg-gray-50">
       {/* Project Header */}
-      <ProjectHeader
-        projectName={projectData.name}
-        status={projectData.status}
-        dueDate={projectData.dueDate}
-        clientName={projectData.clientName}
-        clientLogo={projectData.clientLogo}
-      />
-
-      {/* Tabs Navigation */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-1">
-        <div className="flex flex-wrap gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
+      <div className="bg-white border-b border-gray-200 px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Back Button */}
+          <Link 
+            href="/projects" 
+            className="inline-flex items-center text-gray-500 hover:text-gray-700 text-sm font-medium mb-6 transition-colors duration-200"
+          >
+            <svg 
+              className="w-4 h-4 mr-2" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
             >
-              <span className="text-base">{tab.icon}</span>
-              <span className="hidden sm:inline">{tab.label}</span>
-            </button>
-          ))}
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M15 19l-7-7 7-7" 
+              />
+            </svg>
+            Back to All Projects
+          </Link>
+          <ProjectHeader 
+            title={project.title}
+            description={project.description}
+            status={project.status}
+            owner={project.owner}
+            dueDate={project.dueDate}
+            completion={project.completion}
+          />
         </div>
       </div>
 
-      {/* Tab Content */}
-      <div className="min-h-96 max-h-full overflow-hidden">
-        {renderTabContent()}
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+          {/* Left Column - Main Content */}
+          <div className="xl:col-span-3 space-y-6">
+            {/* Project Timeline */}
+            <ProjectTimeline milestones={milestones} />
+
+            {/* Project Files */}
+            <ProjectFiles files={files} />
+
+            {/* Project Comments */}
+            <ProjectComments comments={comments} />
+          </div>
+
+          {/* Right Column - Chat */}
+          <div className="xl:col-span-2">
+            <div className="sticky top-6">
+              <ProjectChat messages={chatMessages} />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
