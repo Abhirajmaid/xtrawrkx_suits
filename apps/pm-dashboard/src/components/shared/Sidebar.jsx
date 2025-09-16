@@ -18,15 +18,14 @@ import React, {
   useRef,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useWorkspace } from "../contexts/WorkspaceContext";
-import CreateProjectModal from "./CreateProjectModal";
+import { useWorkspace } from "../../contexts/WorkspaceContext";
 
 const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
-  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [showAllProjects, setShowAllProjects] = useState(false);
   const workspaceDropdownRef = useRef(null);
 
   const { workspaces, activeWorkspace, switchWorkspace } = useWorkspace();
@@ -205,13 +204,20 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
     [switchWorkspace]
   );
 
-  // Handle create project
-  const handleCreateProject = useCallback((projectData) => {
-    // Here you would typically call an API to create the project
-    console.log("Creating project:", projectData);
-    setShowCreateProjectModal(false);
-    // You can add actual project creation logic here
+  // Handle create project - navigate to add project page
+  const handleCreateProject = useCallback(() => {
+    router.push("/projects/add");
+  }, [router]);
+
+  // Handle load more projects
+  const handleLoadMoreProjects = useCallback(() => {
+    setShowAllProjects(true);
   }, []);
+
+  // Get projects to display (limited initially)
+  const displayedProjects = useMemo(() => {
+    return showAllProjects ? projects : projects.slice(0, 3);
+  }, [projects, showAllProjects]);
 
   return (
     <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col">
@@ -296,8 +302,8 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 px-4 py-6">
-        <nav className="space-y-1">
+      <div className="flex-1 px-4 py-6 flex flex-col min-h-0">
+        <nav className="space-y-1 flex-shrink-0">
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeItem === item.id;
@@ -328,13 +334,13 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
         </nav>
 
         {/* Projects Section */}
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4 px-4">
+        <div className="mt-8 flex-1 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-4 px-4 flex-shrink-0">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               Projects
             </h3>
             <button
-              onClick={() => setShowCreateProjectModal(true)}
+              onClick={handleCreateProject}
               className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors group"
               title="Create New Project"
             >
@@ -342,8 +348,8 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
             </button>
           </div>
 
-          <div className="space-y-1">
-            {projects.slice(0, 7).map((project) => {
+          <div className="flex-1 overflow-y-auto space-y-1">
+            {displayedProjects.map((project) => {
               return (
                 <button
                   key={project.id}
@@ -364,6 +370,17 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
                 </button>
               );
             })}
+
+            {/* Load More Button */}
+            {!showAllProjects && projects.length > 3 && (
+              <button
+                onClick={handleLoadMoreProjects}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 group mt-2"
+              >
+                <span className="font-medium">Load More</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -382,13 +399,6 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
           </div>
         </div>
       </div>
-
-      {/* Create Project Modal */}
-      <CreateProjectModal
-        isOpen={showCreateProjectModal}
-        onClose={() => setShowCreateProjectModal(false)}
-        onCreateProject={handleCreateProject}
-      />
     </div>
   );
 });

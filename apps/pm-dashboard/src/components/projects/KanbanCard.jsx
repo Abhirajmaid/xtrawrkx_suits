@@ -2,33 +2,40 @@
 
 import React, { useState } from "react";
 import { MoreHorizontal, User } from "lucide-react";
-import CircularProgress from "./CircularProgress";
-import TaskContextMenu from "./TaskContextMenu";
+import CircularProgress from "../page/CircularProgress";
+import TaskContextMenu from "./TaskContextMenuProject";
 
-const KanbanCard = ({ task, isDragging, onDragStart, onDragEnd, onDelete, onTaskClick }) => {
+const KanbanCard = ({
+  task,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onDelete,
+  onTaskClick,
+}) => {
   const [contextMenu, setContextMenu] = useState({
     isOpen: false,
-    position: { x: 0, y: 0 }
+    position: { x: 0, y: 0 },
   });
 
   const handleContextMenuOpen = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    
+
     const rect = event.currentTarget.getBoundingClientRect();
     setContextMenu({
       isOpen: true,
       position: {
         x: rect.right - 180,
-        y: rect.top + rect.height / 2
-      }
+        y: rect.top + rect.height / 2,
+      },
     });
   };
 
   const handleContextMenuClose = () => {
     setContextMenu({
       isOpen: false,
-      position: { x: 0, y: 0 }
+      position: { x: 0, y: 0 },
     });
   };
 
@@ -41,7 +48,7 @@ const KanbanCard = ({ task, isDragging, onDragStart, onDragEnd, onDelete, onTask
     <>
       <div
         className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-grab hover:shadow-md transition-all duration-200 group ${
-          isDragging ? 'opacity-50 rotate-3 scale-105' : ''
+          isDragging ? "opacity-50 rotate-3 scale-105" : ""
         }`}
         draggable
         onDragStart={(e) => onDragStart(e, task)}
@@ -53,7 +60,7 @@ const KanbanCard = ({ task, isDragging, onDragStart, onDragEnd, onDelete, onTask
           <h4 className="font-medium text-gray-800 text-sm leading-tight flex-1 pr-2">
             {task.name}
           </h4>
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               handleContextMenuOpen(e);
@@ -66,10 +73,14 @@ const KanbanCard = ({ task, isDragging, onDragStart, onDragEnd, onDelete, onTask
 
         {/* Project Info */}
         <div className="flex items-center gap-2 mb-4">
-          <div className={`w-5 h-5 rounded-md bg-gradient-to-br ${task.project.color} flex items-center justify-center text-white text-xs font-bold`}>
+          <div
+            className={`w-5 h-5 rounded-md bg-gradient-to-br ${task.project.color} flex items-center justify-center text-white text-xs font-bold`}
+          >
             {task.project.icon}
           </div>
-          <span className="text-xs text-gray-600 truncate">{task.project.name}</span>
+          <span className="text-xs text-gray-600 truncate">
+            {task.project.name}
+          </span>
         </div>
 
         {/* Bottom Row: Avatar, Date, Progress */}
@@ -90,7 +101,7 @@ const KanbanCard = ({ task, isDragging, onDragStart, onDragEnd, onDelete, onTask
                 <User className="w-3 h-3" />
               </div>
             )}
-            
+
             <span className="text-xs text-gray-500">
               {task.dueDate}
               {task.time && (

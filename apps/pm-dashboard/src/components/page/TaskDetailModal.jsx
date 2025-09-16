@@ -1,27 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { 
-  X, 
-  Maximize2, 
-  Minimize2, 
-  ExternalLink, 
-  User, 
-  Calendar, 
-  BarChart3,
-  FileText,
-  Plus
-} from "lucide-react";
-import SubTasksSection from "./SubTasksSection";
-import CommentsSection from "./CommentsSection";
+import { X, Maximize2, ExternalLink, User, Calendar } from "lucide-react";
+import SubTasksSection from "../shared/SubTasksSection";
+import CommentsSection from "../shared/CommentsSection";
 
-const TaskDetailModal = ({ 
-  isOpen, 
-  onClose, 
-  task, 
-  isFullView = false, 
-  onToggleView,
-  onOpenProject 
+const TaskDetailModal = ({
+  isOpen,
+  onClose,
+  task,
+  onOpenProject,
+  onOpenFullPage,
 }) => {
   const [activeTab, setActiveTab] = useState("subtasks");
 
@@ -44,21 +33,20 @@ const TaskDetailModal = ({
     }
   };
 
-  const modalClasses = isFullView 
-    ? "fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
-    : "fixed inset-y-0 right-0 bg-black/50 backdrop-blur-sm flex items-center justify-end z-[80]";
-
-  const contentClasses = isFullView
-    ? "bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] border border-gray-200"
-    : "bg-white shadow-2xl w-[450px] h-full border-l border-gray-200";
+  const modalClasses =
+    "fixed inset-y-0 right-0 bg-black/50 backdrop-blur-sm flex items-center justify-end z-[80]";
+  const contentClasses =
+    "bg-white shadow-2xl w-[450px] h-screen max-h-screen border-l border-gray-200 flex flex-col";
 
   return (
     <div className={modalClasses}>
       <div className={contentClasses}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h1 className="text-lg font-bold text-gray-900 truncate pr-4">{task.name}</h1>
-          
+          <h1 className="text-lg font-bold text-gray-900 truncate pr-4">
+            {task.name}
+          </h1>
+
           <div className="flex items-center gap-2">
             {/* Open Project Button */}
             <button
@@ -68,25 +56,19 @@ const TaskDetailModal = ({
               <ExternalLink className="w-3 h-3" />
               Open Project
             </button>
-            
-            {/* Full/Half View Toggle */}
+
+            {/* Full Page Button */}
             <button
-              onClick={onToggleView}
+              onClick={() => {
+                console.log("Full button clicked for task:", task);
+                onOpenFullPage?.(task);
+              }}
               className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors border border-gray-200"
             >
-              {isFullView ? (
-                <>
-                  <Minimize2 className="w-3 h-3" />
-                  Half
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-3 h-3" />
-                  Full
-                </>
-              )}
+              <Maximize2 className="w-3 h-3" />
+              Full
             </button>
-            
+
             {/* Close Button */}
             <button
               onClick={onClose}
@@ -110,7 +92,9 @@ const TaskDetailModal = ({
                     Project
                   </label>
                   <div className="flex items-center gap-2">
-                    <div className={`w-5 h-5 bg-gradient-to-br ${task.project.color} rounded-md flex items-center justify-center text-white text-xs font-bold`}>
+                    <div
+                      className={`w-5 h-5 bg-gradient-to-br ${task.project.color} rounded-md flex items-center justify-center text-white text-xs font-bold`}
+                    >
                       {task.project.icon}
                     </div>
                     <span className="text-sm font-medium text-gray-900">
@@ -139,7 +123,11 @@ const TaskDetailModal = ({
                         <User className="w-2.5 h-2.5" />
                       </div>
                     )}
-                    <span className="text-sm text-gray-900">{task.assignee}</span>
+                    <span className="text-sm text-gray-900">
+                      {typeof task.assignee === "object"
+                        ? task.assignee?.name
+                        : task.assignee || "Unassigned"}
+                    </span>
                   </div>
                 </div>
 
@@ -152,7 +140,11 @@ const TaskDetailModal = ({
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-900">
                       {task.dueDate}
-                      {task.time && <span className="text-orange-500 ml-1 font-medium">{task.time}</span>}
+                      {task.time && (
+                        <span className="text-orange-500 ml-1 font-medium">
+                          {task.time}
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -165,7 +157,9 @@ const TaskDetailModal = ({
                   <label className="text-xs font-medium text-gray-500 mb-1 block">
                     Status
                   </label>
-                  <span className={`inline-flex px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)}`}>
+                  <span
+                    className={`inline-flex px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)}`}
+                  >
                     {task.status}
                   </span>
                 </div>
@@ -197,9 +191,9 @@ const TaskDetailModal = ({
               </label>
               <div className="bg-gray-50 rounded-md p-2">
                 <p className="text-xs text-gray-700 leading-relaxed">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
-                  Donec pretium elit nulla, nec malesuada nisl volutpat ut. 
-                  Aliquam suscipit ante et viverra aliquam.
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec
+                  pretium elit nulla, nec malesuada nisl volutpat ut. Aliquam
+                  suscipit ante et viverra aliquam.
                 </p>
               </div>
             </div>

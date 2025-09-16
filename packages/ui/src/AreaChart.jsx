@@ -21,6 +21,18 @@ export function AreaChart({
   showGrid = true,
   ...props
 }) {
+  // Safety checks
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div
+        className={clsx("w-full flex items-center justify-center", className)}
+        style={{ height }}
+      >
+        <div className="text-gray-500 text-sm">No data available</div>
+      </div>
+    );
+  }
+
   return (
     <div className={clsx("w-full", className)} {...props}>
       <ResponsiveContainer width="100%" height={height}>

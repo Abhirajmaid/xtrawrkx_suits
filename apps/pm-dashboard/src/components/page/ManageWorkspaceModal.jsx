@@ -1,12 +1,25 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { X, ArrowLeft, Settings, MoreVertical, UserPlus, Trash2, Mail, Check, User, Shield, UserX } from "lucide-react";
-import { useWorkspace } from "../contexts/WorkspaceContext";
+import {
+  X,
+  ArrowLeft,
+  Settings,
+  MoreVertical,
+  UserPlus,
+  Trash2,
+  Mail,
+  Check,
+  User,
+  Shield,
+  UserX,
+} from "lucide-react";
+import { useWorkspace } from "../../contexts/WorkspaceContext";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 
 const ManageWorkspaceModal = ({ isOpen, onClose }) => {
-  const { workspaces, activeWorkspace, updateWorkspace, deleteWorkspace } = useWorkspace();
+  const { workspaces, activeWorkspace, updateWorkspace, deleteWorkspace } =
+    useWorkspace();
   const [currentView, setCurrentView] = useState("list"); // "list" or "detail"
   const [selectedWorkspace, setSelectedWorkspace] = useState(null);
   const [newMemberEmail, setNewMemberEmail] = useState("");
@@ -23,7 +36,7 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
         email: "marc@gmail.com",
         role: "owner",
         avatar: "MJ",
-        color: "bg-blue-500"
+        color: "bg-blue-500",
       },
       {
         id: 2,
@@ -31,7 +44,7 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
         email: "contact@susandrake.io",
         role: "manager",
         avatar: "SD",
-        color: "bg-purple-500"
+        color: "bg-purple-500",
       },
       {
         id: 3,
@@ -39,9 +52,9 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
         email: "ronaldrichard@gmail.com",
         role: "guest",
         avatar: "RR",
-        color: "bg-orange-500"
-      }
-    ]
+        color: "bg-orange-500",
+      },
+    ],
   };
 
   const getRoleColor = (role) => {
@@ -98,7 +111,7 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
   };
 
   const handleSendInvites = () => {
-    const validEmails = inviteEmails.filter(email => email.trim() !== "");
+    const validEmails = inviteEmails.filter((email) => email.trim() !== "");
     console.log("Sending invites to:", validEmails);
     // TODO: Implement actual invite functionality
     setInviteEmails([""]);
@@ -151,7 +164,9 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
               </button>
             )}
             <h2 className="text-2xl font-bold text-gray-900">
-              {currentView === "list" ? "Manage Workspace" : selectedWorkspace?.name || "Workspace Details"}
+              {currentView === "list"
+                ? "Manage Workspace"
+                : selectedWorkspace?.name || "Workspace Details"}
             </h2>
           </div>
           <button
@@ -173,18 +188,28 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 ${workspace.color} rounded-lg flex items-center justify-center`}>
-                      <span className="text-white font-bold text-lg">{workspace.icon}</span>
+                    <div
+                      className={`w-12 h-12 ${workspace.color} rounded-lg flex items-center justify-center`}
+                    >
+                      <span className="text-white font-bold text-lg">
+                        {workspace.icon}
+                      </span>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{workspace.name}</h3>
+                      <h3 className="font-semibold text-gray-900">
+                        {workspace.name}
+                      </h3>
                       <p className="text-sm text-gray-500">
-                        {workspace.isActive ? "Created by You 2 years ago" : "Invited by Kris Martin Jan 23, 2023"}
+                        {workspace.isActive
+                          ? "Created by You 2 years ago"
+                          : "Invited by Kris Martin Jan 23, 2023"}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(workspace.isActive ? "owner" : "manager")}`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(workspace.isActive ? "owner" : "manager")}`}
+                    >
                       {getRoleLabel(workspace.isActive ? "owner" : "manager")}
                     </span>
                     <button
@@ -205,10 +230,14 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
             <div className="space-y-8">
               {/* Workspace Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Workspace Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Workspace Information
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Workspace</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Workspace
+                    </label>
                     <input
                       type="text"
                       value={selectedWorkspace?.name || ""}
@@ -216,13 +245,21 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Workspace Icon</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Workspace Icon
+                    </label>
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 ${selectedWorkspace?.color} rounded-lg flex items-center justify-center`}>
-                        <span className="text-white font-bold text-lg">{selectedWorkspace?.icon}</span>
+                      <div
+                        className={`w-12 h-12 ${selectedWorkspace?.color} rounded-lg flex items-center justify-center`}
+                      >
+                        <span className="text-white font-bold text-lg">
+                          {selectedWorkspace?.icon}
+                        </span>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500 mb-2">400px, JPG or PNG, max 200kb</p>
+                        <p className="text-sm text-gray-500 mb-2">
+                          400px, JPG or PNG, max 200kb
+                        </p>
                         <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
                           Change Image
                         </button>
@@ -237,23 +274,40 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
                 <h3 className="text-lg font-semibold text-gray-900">Members</h3>
                 <div className="space-y-3">
                   {workspaceDetails.members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                    >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 ${member.color} rounded-full flex items-center justify-center`}>
-                          <span className="text-white font-medium text-sm">{member.avatar}</span>
+                        <div
+                          className={`w-10 h-10 ${member.color} rounded-full flex items-center justify-center`}
+                        >
+                          <span className="text-white font-medium text-sm">
+                            {member.avatar}
+                          </span>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{member.name}</p>
-                          <p className="text-sm text-gray-500">{member.email}</p>
+                          <p className="font-medium text-gray-900">
+                            {member.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {member.email}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(member.role)}`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(member.role)}`}
+                        >
                           {getRoleLabel(member.role)}
                         </span>
                         <div className="relative">
                           <button
-                            onClick={() => setShowMemberMenu(showMemberMenu === member.id ? null : member.id)}
+                            onClick={() =>
+                              setShowMemberMenu(
+                                showMemberMenu === member.id ? null : member.id
+                              )
+                            }
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                           >
                             <MoreVertical className="w-4 h-4 text-gray-500" />
@@ -261,14 +315,21 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
                           {showMemberMenu === member.id && (
                             <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                               <button
-                                onClick={() => handleMemberRoleChange(member.id, "administrator")}
+                                onClick={() =>
+                                  handleMemberRoleChange(
+                                    member.id,
+                                    "administrator"
+                                  )
+                                }
                                 className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 text-sm"
                               >
                                 <Shield className="w-4 h-4" />
                                 Set as Administrator
                               </button>
                               <button
-                                onClick={() => handleMemberRoleChange(member.id, "guest")}
+                                onClick={() =>
+                                  handleMemberRoleChange(member.id, "guest")
+                                }
                                 className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 text-sm"
                               >
                                 <User className="w-4 h-4" />
@@ -292,7 +353,9 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
 
               {/* Invite Members Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Invite Members</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Invite Members
+                </h3>
                 <div className="space-y-3">
                   {inviteEmails.map((email, index) => (
                     <div key={index} className="flex items-center gap-3">
@@ -300,7 +363,9 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
                         type="email"
                         placeholder="Enter email address"
                         value={email}
-                        onChange={(e) => handleInviteEmailChange(index, e.target.value)}
+                        onChange={(e) =>
+                          handleInviteEmailChange(index, e.target.value)
+                        }
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                       />
                       {inviteEmails.length > 1 && (
@@ -317,8 +382,7 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
                     onClick={handleAddInviteEmail}
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-colors"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    + Add
+                    <UserPlus className="w-4 h-4" />+ Add
                   </button>
                 </div>
                 <button
@@ -331,9 +395,12 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
 
               {/* Delete Workspace Section */}
               <div className="space-y-4 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Delete Workspace</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Delete Workspace
+                </h3>
                 <p className="text-sm text-gray-600">
-                  This action cannot be undone. Your workspace will be deleted forever including all the data inside the workspace.
+                  This action cannot be undone. Your workspace will be deleted
+                  forever including all the data inside the workspace.
                 </p>
                 <button
                   onClick={handleDeleteWorkspace}
@@ -350,7 +417,10 @@ const ManageWorkspaceModal = ({ isOpen, onClose }) => {
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <p className="text-sm text-gray-600 text-center">
             Question? Need a hand?{" "}
-            <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
+            <a
+              href="#"
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
               Support Can Help
             </a>
           </p>

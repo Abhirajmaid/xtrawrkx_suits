@@ -2,10 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
-import WorkspaceModal from "./WorkspaceModal";
-import ManageWorkspaceModal from "./ManageWorkspaceModal";
-import GlobalSearchModal from "./GlobalSearchModal";
-import { useWorkspace } from "../contexts/WorkspaceContext";
+import WorkspaceModal from "../page/WorkspaceModal";
+import ManageWorkspaceModal from "../page/ManageWorkspaceModal";
+import GlobalSearchModal from "../page/GlobalSearchModal";
+import { useWorkspace } from "../../contexts/WorkspaceContext";
 import {
   useState,
   useCallback,

@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { InboxHeader, ActivityFeed, NotificationDetail } from "./components";
+import {
+  InboxHeader,
+  ActivityFeed,
+  NotificationDetail,
+} from "../../components/inbox";
 
 export default function Inbox() {
   const [selectedNotification, setSelectedNotification] = useState(null);
@@ -16,7 +20,7 @@ export default function Inbox() {
       action: "Assigned you to",
       project: "Mogo Web Design project",
       timeAgo: "9 hours ago",
-      date: "2024-01-29T15:00:00Z"
+      date: "2024-01-29T15:00:00Z",
     },
     {
       id: 2,
@@ -26,7 +30,7 @@ export default function Inbox() {
       action: "Commented on",
       project: "Logo Options task",
       timeAgo: "1 day ago",
-      date: "2024-01-28T10:00:00Z"
+      date: "2024-01-28T10:00:00Z",
     },
     {
       id: 3,
@@ -35,7 +39,7 @@ export default function Inbox() {
       avatar: null,
       action: "Mentioned you in the",
       project: "About Us Illustration comment",
-      date: "2024-01-28T08:00:00Z"
+      date: "2024-01-28T08:00:00Z",
     },
     {
       id: 4,
@@ -44,7 +48,7 @@ export default function Inbox() {
       avatar: null,
       action: "Invited James Hubner to this workspace",
       project: null,
-      date: "2024-01-26T14:00:00Z"
+      date: "2024-01-26T14:00:00Z",
     },
     {
       id: 5,
@@ -53,7 +57,7 @@ export default function Inbox() {
       avatar: null,
       action: "Marked",
       project: "Homepage Wireframe as Done",
-      date: "2024-01-26T11:00:00Z"
+      date: "2024-01-26T11:00:00Z",
     },
     {
       id: 6,
@@ -62,7 +66,7 @@ export default function Inbox() {
       avatar: null,
       action: "Set",
       project: "Order Flow to be due Feb 13, 2024",
-      date: "2024-01-25T16:00:00Z"
+      date: "2024-01-25T16:00:00Z",
     },
     {
       id: 7,
@@ -71,7 +75,7 @@ export default function Inbox() {
       avatar: null,
       action: "Created",
       project: "Moodboarding Task for Carl UI/UX...",
-      date: "2024-01-24T09:00:00Z"
+      date: "2024-01-24T09:00:00Z",
     },
     {
       id: 8,
@@ -80,7 +84,7 @@ export default function Inbox() {
       avatar: null,
       action: "Invited you to",
       project: "Hajime Illustration project",
-      date: "2024-01-24T13:00:00Z"
+      date: "2024-01-24T13:00:00Z",
     },
     {
       id: 9,
@@ -89,8 +93,8 @@ export default function Inbox() {
       avatar: null,
       action: "Removed you from",
       project: "Pink AI project...",
-      date: "2024-01-23T15:00:00Z"
-    }
+      date: "2024-01-23T15:00:00Z",
+    },
   ];
 
   // Mock data for comments
@@ -100,23 +104,25 @@ export default function Inbox() {
       initials: "JC",
       avatar: null,
       message: "mentioned you in the About Us Illustration comment",
-      date: "2024-01-28T08:00:00Z"
+      date: "2024-01-28T08:00:00Z",
     },
     {
       name: "Jonathan Bustos",
       initials: "JB",
       avatar: null,
-      message: "Hi Jane, please check this and make sure all the URL's is accessible",
-      date: "2024-01-27T10:00:00Z"
+      message:
+        "Hi Jane, please check this and make sure all the URL's is accessible",
+      date: "2024-01-27T10:00:00Z",
     },
     {
       name: "Jane Cooper",
       initials: "JC",
       avatar: null,
-      message: "Hi @Jonathan Bustos, The client's figma file is broken and I need a permission to access the google drive. Could you please assist me with this? 😊",
+      message:
+        "Hi @Jonathan Bustos, The client's figma file is broken and I need a permission to access the google drive. Could you please assist me with this? 😊",
       date: "2024-01-28T08:30:00Z",
-      link: "View Original Comment"
-    }
+      link: "View Original Comment",
+    },
   ];
 
   const handleSelectNotification = (notification) => {

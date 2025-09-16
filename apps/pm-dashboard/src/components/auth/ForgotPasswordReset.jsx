@@ -1,14 +1,28 @@
 import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff } from 'lucide-react';
 
-const ForgotPasswordRequest = ({ onStateChange }) => {
-  const [email, setEmail] = useState('');
+const ForgotPasswordReset = ({ onStateChange }) => {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendReset = async (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
-      alert('Please enter a valid email address');
+    
+    if (!newPassword || !confirmPassword) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      alert('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      alert('Passwords do not match');
       return;
     }
 
@@ -16,7 +30,7 @@ const ForgotPasswordRequest = ({ onStateChange }) => {
     
     setTimeout(() => {
       setIsLoading(false);
-      onStateChange('forgot-reset');
+      onStateChange('forgot-success');
     }, 1000);
   };
 
@@ -49,33 +63,66 @@ const ForgotPasswordRequest = ({ onStateChange }) => {
       {/* Main content */}
       <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          {/* Main forgot password card */}
+          {/* Main reset password card */}
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Forgot your password?</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Reset Password</h2>
               <p className="text-sm text-gray-600">
-                Enter your email address to reset your password. We&apos;ll send you a link.
+                Create a new password for your xtrawrkx account.
               </p>
             </div>
 
-            <form onSubmit={handleSendReset} className="space-y-6">
-              <div>
+            <form onSubmit={handleResetPassword} className="space-y-6">
+              <div className="relative">
                 <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
+                  type={showNewPassword ? 'text' : 'password'}
+                  placeholder="New Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
                   disabled={isLoading}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
               </div>
 
               <button
                 type="submit"
-                disabled={isLoading || !email}
+                disabled={isLoading || !newPassword || !confirmPassword}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Sending...' : 'Send Reset Request'}
+                {isLoading ? 'Resetting...' : 'Reset Password'}
               </button>
             </form>
 
@@ -114,4 +161,4 @@ const ForgotPasswordRequest = ({ onStateChange }) => {
   );
 };
 
-export default ForgotPasswordRequest;
+export default ForgotPasswordReset;

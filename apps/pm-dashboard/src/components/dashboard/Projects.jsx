@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   MoreHorizontal,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 
 const Projects = ({ data }) => {
+  const router = useRouter();
   const [selectedProject, setSelectedProject] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -29,7 +31,10 @@ const Projects = ({ data }) => {
   };
 
   const NewProjectCard = () => (
-    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3 hover:bg-gray-100 transition-colors cursor-pointer flex items-center justify-center min-h-[60px]">
+    <div
+      onClick={() => router.push("/projects/add")}
+      className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3 hover:bg-gray-100 transition-colors cursor-pointer flex items-center justify-center min-h-[60px]"
+    >
       <div className="flex items-center space-x-3">
         <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
           <Plus className="h-4 w-4 text-gray-600" />
@@ -400,9 +405,17 @@ const Projects = ({ data }) => {
               {data.length} active project{data.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <MoreHorizontal className="h-4 w-4 text-gray-500" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => router.push("/projects")}
+              className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              View All
+            </button>
+            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <MoreHorizontal className="h-4 w-4 text-gray-500" />
+            </button>
+          </div>
         </div>
       </div>
 

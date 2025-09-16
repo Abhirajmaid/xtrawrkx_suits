@@ -1,5 +1,5 @@
 import "../styles/globals.css";
-import ConditionalLayout from "../components/ConditionalLayout";
+import ConditionalLayout from "../components/shared/ConditionalLayout";
 import { WorkspaceProvider } from "../contexts/WorkspaceContext";
 
 export const metadata = {
@@ -12,9 +12,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="bg-gradient-main min-h-screen">
         <WorkspaceProvider>
-          <ConditionalLayout>
-            {children}
-          </ConditionalLayout>
+          <ConditionalLayout>{children}</ConditionalLayout>
         </WorkspaceProvider>
       </body>
     </html>

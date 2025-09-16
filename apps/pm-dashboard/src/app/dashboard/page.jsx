@@ -8,146 +8,171 @@ import {
   Projects,
   People,
   PrivateNotepad,
-} from "./components";
+} from "../../components/dashboard";
+import {
+  projects,
+  getTasksByAssigneeId,
+  getEnrichedTask,
+  getProjectStats,
+  teamMembers,
+} from "../../data/centralData";
 
 export default function DashboardPage() {
   const [hasData, setHasData] = useState(true); // Default to filled state to show the dashboard with data
 
-  // Mock data state
-  const statsData = {
-    totalProjects: hasData ? 7 : 1,
-    totalTasks: hasData ? 49 : 3,
-    assignedTasks: hasData ? 12 : 0,
-    completedTasks: hasData ? 6 : 0,
-    overdueTasks: hasData ? 3 : 0,
+  // Get real stats from centralized data
+  const getRealStatsData = () => {
+    if (!hasData) {
+      return {
+        totalProjects: 1,
+        totalTasks: 3,
+        assignedTasks: 0,
+        completedTasks: 0,
+        overdueTasks: 0,
+      };
+    }
+
+    const allProjects = Object.values(projects);
+    const currentUserId = 1; // Mark Atenson
+    const userTasks = getTasksByAssigneeId(currentUserId);
+
+    let totalTasks = 0;
+    let completedTasks = 0;
+    let overdueTasks = 0;
+
+    // Calculate stats across all projects
+    allProjects.forEach((project) => {
+      const projectStats = getProjectStats(project.id);
+      totalTasks += projectStats.totalTasks;
+      completedTasks += projectStats.completedTasks;
+      overdueTasks += projectStats.overdueTasks;
+    });
+
+    return {
+      totalProjects: allProjects.length,
+      totalTasks,
+      assignedTasks: userTasks.length,
+      completedTasks,
+      overdueTasks,
+    };
   };
 
-  const assignedTasksData = hasData
-    ? [
-        {
-          id: 1,
-          name: "Web Mockup",
-          project: "Yellow Branding",
-          dueDate: "Due in 20 hours",
-          color: "bg-yellow-500",
-          priority: "high",
-          status: "in_progress",
-        },
-        {
-          id: 2,
-          name: "Carl Landing Page",
-          project: "Carl UI/UX",
-          dueDate: "Due in 3 days",
-          color: "bg-orange-500",
-          priority: "medium",
-          status: "pending",
-        },
-        {
-          id: 3,
-          name: "POS UI/UX",
-          project: "Resto Dashboard",
-          dueDate: "Due in 1 week",
-          color: "bg-pink-500",
-          priority: "low",
-          status: "pending",
-        },
-      ]
-    : [];
+  const statsData = getRealStatsData();
 
-  const projectsData = hasData
-    ? [
-        {
-          id: 1,
-          name: "Yellow Branding",
-          status: "Active",
-          initials: "YB",
-          color: "bg-blue-500",
-          progress: 75,
-          dueDate: "Dec 15",
-          team: [
-            { name: "John Doe", initials: "JD", color: "bg-blue-500" },
-            { name: "Jane Smith", initials: "JS", color: "bg-green-500" },
-            { name: "Mike Wilson", initials: "MW", color: "bg-purple-500" },
-          ],
-        },
-        {
-          id: 2,
-          name: "Mogo Web Design",
-          status: "Completed",
-          initials: "MW",
-          color: "bg-green-500",
-          progress: 100,
-          dueDate: "Completed",
-          team: [
-            { name: "Sarah Connor", initials: "SC", color: "bg-red-500" },
-            { name: "Tom Hardy", initials: "TH", color: "bg-yellow-500" },
-          ],
-        },
-        {
-          id: 3,
-          name: "Futurework",
-          status: "Active",
-          initials: "FW",
-          color: "bg-purple-500",
-          progress: 45,
-          dueDate: "Jan 20",
-          team: [
-            { name: "Alex Chen", initials: "AC", color: "bg-teal-500" },
-            { name: "Lisa Park", initials: "LP", color: "bg-orange-500" },
-            { name: "David Kim", initials: "DK", color: "bg-indigo-500" },
-            { name: "Emma Watson", initials: "EW", color: "bg-pink-500" },
-          ],
-        },
-        {
-          id: 4,
-          name: "Resto Dashboard",
-          status: "Active",
-          initials: "RD",
-          color: "bg-pink-500",
-          progress: 60,
-          dueDate: "Jan 15",
-          team: [
-            { name: "Mark Ruffalo", initials: "MR", color: "bg-green-700" },
-            { name: "Jeremy Renner", initials: "JR", color: "bg-purple-600" },
-          ],
-        },
-        {
-          id: 5,
-          name: "Hajime Illustration",
-          status: "On Hold",
-          initials: "HI",
-          color: "bg-green-500",
-          progress: 30,
-          dueDate: "Feb 05",
-          team: [{ name: "Chris Evans", initials: "CE", color: "bg-blue-600" }],
-        },
-        {
-          id: 6,
-          name: "Carl UI/UX",
-          status: "Overdue",
-          initials: "CU",
-          color: "bg-orange-500",
-          progress: 25,
-          dueDate: "Dec 10",
-          team: [
-            { name: "Anthony Mackie", initials: "AM", color: "bg-gray-600" },
-            { name: "Sebastian Stan", initials: "SS", color: "bg-blue-700" },
-          ],
-        },
-        {
-          id: 7,
-          name: "The Run Branding...",
-          status: "Active",
-          initials: "TR",
-          color: "bg-teal-500",
-          progress: 90,
-          dueDate: "Dec 28",
-          team: [
-            { name: "Robert Downey", initials: "RD", color: "bg-red-600" },
-          ],
-        },
-      ]
-    : [];
+  // Get real assigned tasks data
+  const getRealAssignedTasksData = () => {
+    if (!hasData) return [];
+
+    const currentUserId = 1; // Mark Atenson
+    const userTasks = getTasksByAssigneeId(currentUserId);
+
+    return userTasks.slice(0, 3).map((task) => {
+      const enrichedTask = getEnrichedTask(task.id);
+      const dueDate = new Date(task.dueDate);
+      const now = new Date();
+      const diffTime = dueDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      let dueDateText;
+      if (diffDays < 0) {
+        dueDateText = `Overdue by ${Math.abs(diffDays)} days`;
+      } else if (diffDays === 0) {
+        dueDateText = "Due today";
+      } else if (diffDays === 1) {
+        dueDateText = "Due tomorrow";
+      } else if (diffDays < 7) {
+        dueDateText = `Due in ${diffDays} days`;
+      } else {
+        dueDateText = `Due in ${Math.ceil(diffDays / 7)} weeks`;
+      }
+
+      const getColorByProject = (projectName) => {
+        switch (projectName) {
+          case "Yellow Branding":
+            return "bg-blue-500";
+          case "Mogo Web Design":
+            return "bg-green-500";
+          case "Futurework":
+            return "bg-purple-500";
+          default:
+            return "bg-gray-500";
+        }
+      };
+
+      return {
+        id: task.id,
+        name: task.name,
+        project: enrichedTask.project.name,
+        dueDate: dueDateText,
+        color: getColorByProject(enrichedTask.project.name),
+        priority: task.priority,
+        status: task.status.toLowerCase().replace(" ", "_"),
+      };
+    });
+  };
+
+  const assignedTasksData = getRealAssignedTasksData();
+
+  // Get real projects data
+  const getRealProjectsData = () => {
+    if (!hasData) return [];
+
+    return Object.values(projects).map((project) => {
+      const stats = getProjectStats(project.id);
+      const endDate = new Date(project.endDate);
+      const now = new Date();
+
+      let status = project.status;
+      if (stats.completedTasks === stats.totalTasks && stats.totalTasks > 0) {
+        status = "Completed";
+      } else if (endDate < now && status !== "Completed") {
+        status = "Overdue";
+      } else if (status === "In Progress") {
+        status = "Active";
+      }
+
+      const getProjectColor = (projectName) => {
+        switch (projectName) {
+          case "Yellow Branding":
+            return "bg-blue-500";
+          case "Mogo Web Design":
+            return "bg-green-500";
+          case "Futurework":
+            return "bg-purple-500";
+          default:
+            return "bg-gray-500";
+        }
+      };
+
+      const team = project.teamMemberIds.map((memberId) => {
+        const member = teamMembers[memberId];
+        return {
+          name: member.name,
+          initials: member.avatar,
+          color: member.color,
+        };
+      });
+
+      return {
+        id: project.id,
+        name: project.name,
+        status,
+        initials: project.icon,
+        color: getProjectColor(project.name),
+        progress: project.progress,
+        dueDate:
+          status === "Completed"
+            ? "Completed"
+            : new Date(project.endDate).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              }),
+        team,
+      };
+    });
+  };
+
+  const projectsData = getRealProjectsData();
 
   const peopleData = hasData
     ? [

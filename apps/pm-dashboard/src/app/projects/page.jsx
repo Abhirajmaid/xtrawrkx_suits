@@ -19,13 +19,13 @@ import {
 import { Card } from "@xtrawrkx/ui";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAllProjects } from "./project-data";
+import { projects } from "../../data/centralData";
 
 export default function ProjectsPage() {
   const router = useRouter();
   const [activeView, setActiveView] = useState("grid");
-  
-  const projects = getAllProjects();
+
+  const allProjects = Object.values(projects);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -49,10 +49,10 @@ export default function ProjectsPage() {
 
   const renderGridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {projects.map((project) => (
-        <Card 
-          key={project.id} 
-          glass={true} 
+      {allProjects.map((project) => (
+        <Card
+          key={project.id}
+          glass={true}
           className="cursor-pointer hover:scale-105 transition-all duration-300"
           onClick={() => handleProjectClick(project.slug)}
         >
@@ -119,7 +119,9 @@ export default function ProjectsPage() {
             <div className="mb-4">
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="text-brand-text-light">Progress</span>
-                <span className="font-medium text-brand-foreground">{project.progress}%</span>
+                <span className="font-medium text-brand-foreground">
+                  {project.progress}%
+                </span>
               </div>
               <div className="w-full bg-white/20 rounded-full h-2">
                 <div
@@ -161,18 +163,23 @@ export default function ProjectsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-brand-foreground">Projects</h1>
+          <h1 className="text-2xl font-semibold text-brand-foreground">
+            Projects
+          </h1>
           <p className="text-sm text-brand-text-light">
             Manage and track all your projects
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 transition-all duration-300 text-brand-foreground">
             <Share className="w-4 h-4" />
             Export
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary/80 transition-all duration-300">
+          <button
+            onClick={() => router.push("/projects/add")}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary/80 transition-all duration-300"
+          >
             <Plus className="w-4 h-4" />
             New Project
           </button>
@@ -185,20 +192,26 @@ export default function ProjectsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-brand-text-light">Total Projects</p>
-              <p className="text-2xl font-bold text-brand-foreground">{projects.length}</p>
+              <p className="text-2xl font-bold text-brand-foreground">
+                {allProjects.length}
+              </p>
             </div>
             <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
               <CheckSquare className="w-5 h-5 text-white" />
             </div>
           </div>
         </Card>
-        
+
         <Card glass={true} className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-brand-text-light">Active Projects</p>
               <p className="text-2xl font-bold text-brand-foreground">
-                {projects.filter(p => p.status === "In Progress" || p.status === "Active").length}
+                {
+                  allProjects.filter(
+                    (p) => p.status === "In Progress" || p.status === "Active"
+                  ).length
+                }
               </p>
             </div>
             <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
@@ -206,13 +219,19 @@ export default function ProjectsPage() {
             </div>
           </div>
         </Card>
-        
+
         <Card glass={true} className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-brand-text-light">Team Members</p>
               <p className="text-2xl font-bold text-brand-foreground">
-                {[...new Set(projects.flatMap(p => p.team.map(t => t.id)))].length}
+                {
+                  [
+                    ...new Set(
+                      allProjects.flatMap((p) => p.team.map((t) => t.id))
+                    ),
+                  ].length
+                }
               </p>
             </div>
             <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
@@ -220,13 +239,13 @@ export default function ProjectsPage() {
             </div>
           </div>
         </Card>
-        
+
         <Card glass={true} className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-brand-text-light">Overdue Tasks</p>
               <p className="text-2xl font-bold text-brand-foreground">
-                {projects.reduce((sum, p) => sum + p.stats.overdueTasks, 0)}
+                {allProjects.reduce((sum, p) => sum + p.stats.overdueTasks, 0)}
               </p>
             </div>
             <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
