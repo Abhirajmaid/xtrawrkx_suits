@@ -12,35 +12,35 @@ import { BarChart, AreaChart } from "@xtrawrkx/ui";
 import { projects, tasks, teamMembers } from "../../data/centralData";
 
 // Error boundary component for charts
-class ChartErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+// class ChartErrorBoundary extends React.Component {
+//   constructor(props) {
+//     super(props);
+//     this.state = { hasError: false, error: null };
+//   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
+//   static getDerivedStateFromError(error) {
+//     return { hasError: true, error };
+//   }
 
-  componentDidCatch(error, errorInfo) {
-    console.error("Chart Error:", error, errorInfo);
-  }
+//   componentDidCatch(error, errorInfo) {
+//     console.error("Chart Error:", error, errorInfo);
+//   }
 
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="h-80 flex items-center justify-center bg-red-50 rounded-lg">
-          <div className="text-center">
-            <p className="text-red-600 font-semibold">Chart Error</p>
-            <p className="text-red-500 text-sm">{this.state.error?.message}</p>
-          </div>
-        </div>
-      );
-    }
+//   render() {
+//     if (this.state.hasError) {
+//       return (
+//         <div className="h-80 flex items-center justify-center bg-red-50 rounded-lg">
+//           <div className="text-center">
+//             <p className="text-red-600 font-semibold">Chart Error</p>
+//             <p className="text-red-500 text-sm">{this.state.error?.message}</p>
+//           </div>
+//         </div>
+//       );
+//     }
 
-    return this.props.children;
-  }
-}
+//     return this.props.children;
+//   }
+// }
 
 // Analytics Header Component
 const AnalyticsHeader = () => {

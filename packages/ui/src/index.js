@@ -1,33 +1,33 @@
 ﻿// Base Components
-export { Button } from './Button'
+export { Button } from './Button.jsx'
 export * from './buttons'
-export { Card } from './Card'
-export { StatCard } from './StatCard'
+export { Card } from './Card.jsx'
+export { StatCard } from './StatCard.jsx'
 export { DashboardStatCard } from './DashboardStatCard'
-export { Badge } from './Badge'
-export { Avatar } from './Avatar'
-export { CircularProgress } from './CircularProgress'
+export { Badge } from './Badge.jsx'
+export { Avatar } from './Avatar.jsx'
+export { CircularProgress } from './CircularProgress.jsx'
 
 // Form Components
-export { Input } from './Input'
-export { Select } from './Select'
-export { Checkbox } from './Checkbox'
+export { Input } from './Input.jsx'
+export { Select } from './Select.jsx'
+export { Checkbox } from './Checkbox.jsx'
 
 // Layout Components
-export { Container } from './Container'
+export { Container } from './Container.jsx'
 
 // Data Display
-export { Table } from './Table'
-export { EmptyState } from './EmptyState'
+export { Table } from './Table.jsx'
+export { EmptyState } from './EmptyState.jsx'
 
 // Charts
-export { LineChart } from './LineChart'
-export { BarChart } from './BarChart'
-export { PieChart } from './PieChart'
-export { AreaChart } from './AreaChart'
+export { LineChart } from './LineChart.jsx'
+export { BarChart } from './BarChart.jsx'
+export { PieChart } from './PieChart.jsx'
+export { AreaChart } from './AreaChart.jsx'
 
 // Feedback
-export { Modal } from './Modal'
+export { Modal } from './Modal.jsx'
 
 // Navigation
 export { Tabs } from './Tabs'
