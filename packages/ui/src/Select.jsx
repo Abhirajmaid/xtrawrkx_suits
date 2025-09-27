@@ -9,8 +9,14 @@ export function Select({
   required = false,
   className,
   containerClassName,
+  onChange,
   ...props
 }) {
+  const handleChange = (e) => {
+    if (onChange) {
+      onChange(e.target.value);
+    }
+  };
   return (
     <div className={clsx("w-full", containerClassName)}>
       {label && (
@@ -29,6 +35,7 @@ export function Select({
             error ? "border-red-300" : "border-gray-300",
             className
           )}
+          onChange={handleChange}
           {...props}
         >
           <option value="">{placeholder}</option>

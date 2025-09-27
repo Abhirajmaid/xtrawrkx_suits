@@ -12,6 +12,7 @@ export function Button({
     primary: "btn-primary",
     secondary: "btn-secondary",
     ghost: "btn-ghost",
+    outline: "btn-outline",
   };
 
   const sizes = {

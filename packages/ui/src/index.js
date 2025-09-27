@@ -13,6 +13,7 @@ export { Checkbox } from './Checkbox'
 
 // Layout Components
 export { Container } from './Container'
+export { PageHeader } from './PageHeader'
 
 // Data Display
 export { Table } from './Table'

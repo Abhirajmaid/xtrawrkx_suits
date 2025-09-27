@@ -85,6 +85,16 @@ export const navigation = [
                 ]
             },
             {
+                id: 'clients',
+                label: 'Clients',
+                icon: Building2,
+                href: '/clients',
+                children: [
+                    { id: 'clients-list', label: 'Clients List', href: '/clients' },
+                    { id: 'client-detail', label: 'Client Detail (360° • Activity Timeline)', href: '/clients/[id]' }
+                ]
+            },
+            {
                 id: 'products',
                 label: 'Products & Services',
                 icon: Package,

@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import {
-  Container,
-  PageHeader,
   Card,
   Badge,
   Avatar,
@@ -24,12 +22,31 @@ import {
   User,
   Building2,
   ChevronRight,
+  ChevronDown,
+  Bell,
+  Settings,
 } from "lucide-react";
+// import { useDragDropBoard } from "../../../lib/dragdrop/useDragDropBoard"; // Removed - using react-beautiful-dnd now
+import { DealFilterModal, AddDealModal } from "../../../components/deals";
 
 export default function DealsPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [filters, setFilters] = useState({
+    stage: "",
+    priority: "",
+    assignee: "",
+    company: "",
+    minValue: "",
+    maxValue: "",
+    probability: "",
+    daysInStage: "",
+  });
 
-  const pipelineStages = [
+  // Initial pipeline stages data
+  const initialPipelineStages = [
     {
       id: "discovery",
       name: "Discovery",
@@ -187,6 +204,93 @@ export default function DealsPage() {
     },
   ];
 
+  // Drag-drop functionality
+  const handleDealDrop = (deal, sourceColumnId, targetColumnId, targetIndex) => {
+    console.log('Deal moved:', deal.title, 'from', sourceColumnId, 'to', targetColumnId);
+    // Here you would typically make an API call to update the deal status
+    // For now, we'll just log it
+  };
+
+  // Use the initial pipeline stages directly since we're now using react-beautiful-dnd
+  const [pipelineStages, setPipelineStages] = useState(initialPipelineStages);
+
+  // Filter and search logic
+  const getFilteredDeals = () => {
+    let allDeals = [];
+    
+    // Collect all deals from all stages
+    pipelineStages.forEach(stage => {
+      stage.deals.forEach(deal => {
+        allDeals.push({ ...deal, stage: stage.id });
+      });
+    });
+
+    // Apply search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      allDeals = allDeals.filter(deal =>
+        deal.title.toLowerCase().includes(query) ||
+        deal.company.toLowerCase().includes(query) ||
+        deal.assignee.toLowerCase().includes(query) ||
+        deal.nextAction.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply filters
+    if (filters.stage) {
+      allDeals = allDeals.filter(deal => deal.stage === filters.stage);
+    }
+    if (filters.priority) {
+      allDeals = allDeals.filter(deal => deal.priority === filters.priority);
+    }
+    if (filters.assignee) {
+      allDeals = allDeals.filter(deal => deal.assignee === filters.assignee);
+    }
+    if (filters.company) {
+      allDeals = allDeals.filter(deal => 
+        deal.company.toLowerCase().includes(filters.company.toLowerCase())
+      );
+    }
+    if (filters.minValue) {
+      allDeals = allDeals.filter(deal => deal.value >= parseFloat(filters.minValue));
+    }
+    if (filters.maxValue) {
+      allDeals = allDeals.filter(deal => deal.value <= parseFloat(filters.maxValue));
+    }
+    if (filters.probability) {
+      const [min, max] = filters.probability.split('-').map(Number);
+      allDeals = allDeals.filter(deal => deal.probability >= min && deal.probability <= max);
+    }
+    if (filters.daysInStage) {
+      if (filters.daysInStage === "91+") {
+        allDeals = allDeals.filter(deal => deal.daysInStage >= 91);
+      } else {
+        const [min, max] = filters.daysInStage.split('-').map(Number);
+        allDeals = allDeals.filter(deal => deal.daysInStage >= min && deal.daysInStage <= max);
+      }
+    }
+
+    return allDeals;
+  };
+
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  const handleAddDeal = (newDeal) => {
+    // Add the new deal to the appropriate stage
+    setPipelineStages(prev => {
+      const updated = [...prev];
+      const targetStage = updated.find(stage => stage.id === newDeal.stage);
+      if (targetStage) {
+        const deals = targetStage.deals || targetStage.items || [];
+        const itemsKey = targetStage.deals ? 'deals' : 'items';
+        targetStage[itemsKey] = [newDeal, ...deals];
+      }
+      return updated;
+    });
+  };
+
   const chartData = [
     { name: "Jan", value: 320000 },
     { name: "Feb", value: 450000 },
@@ -212,29 +316,6 @@ export default function DealsPage() {
     return colors[priority] || "default";
   };
 
-  const headerActions = (
-    <div className="flex items-center gap-3">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search deals..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      <button className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-        <Filter className="w-4 h-4" />
-        Filter
-      </button>
-      <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors">
-        <Plus className="w-4 h-4" />
-        New Deal
-      </button>
-    </div>
-  );
-
   const totalPipelineValue = pipelineStages.reduce(
     (sum, stage) => sum + stage.value,
     0
@@ -245,19 +326,148 @@ export default function DealsPage() {
   const avgDealSize = Math.round(totalPipelineValue / (openDealsCount || 1));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Deals Pipeline"
-        subtitle="Manage your sales opportunities"
-        breadcrumbs={[
-          { label: "Dashboard", href: "/" },
-          { label: "Sales" },
-          { label: "Deals" },
-        ]}
-        actions={headerActions}
-      />
+    <div className="space-y-4">
+      {/* Page Header - Dashboard Style */}
+      <Card glass={true}>
+        <div className="flex items-center justify-between">
+          <div>
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-brand-text-light mb-2">
+              <span>Dashboard</span>
+              <ChevronRight className="w-4 h-4" />
+              <span>Sales</span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="text-brand-foreground font-medium">
+                Deals
+              </span>
+            </div>
 
-      <Container className="py-6">
+            {/* Title and Subtitle */}
+            <h1 className="text-5xl font-light text-brand-foreground mb-1 tracking-tight">
+              Deals Pipeline
+            </h1>
+            <p className="text-brand-text-light">
+              Manage your sales opportunities
+            </p>
+          </div>
+
+          {/* Right side enhanced UI */}
+          <div className="flex items-center gap-4">
+            {/* Search Bar */}
+            <div className="relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-brand-text-light" />
+              <input
+                type="text"
+                placeholder="Search deals..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-64 pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/15 transition-all duration-300 placeholder:text-brand-text-light shadow-lg"
+              />
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2">
+              {/* Add New */}
+              <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-brand-primary rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
+              >
+                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+              </button>
+
+              {/* Filter */}
+              <button 
+                onClick={() => setIsFilterModalOpen(true)}
+                className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
+              >
+                <Filter className="w-5 h-5 text-brand-text-light" />
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-8 bg-brand-border"></div>
+
+            {/* User Profile */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button 
+                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
+                  onMouseEnter={() => setShowProfileDropdown(true)}
+                  onMouseLeave={() => setShowProfileDropdown(false)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
+                      <User className="w-5 h-5 text-brand-primary" />
+                    </div>
+                    <div className="text-left hidden lg:block">
+                      <p className="text-sm font-semibold text-brand-foreground">
+                        Alex Johnson
+                      </p>
+                      <p className="text-xs text-brand-text-light">
+                        Sales Manager
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Profile Dropdown */}
+                {showProfileDropdown && (
+                  <>
+                    {/* Backdrop to close dropdown when clicking outside */}
+                    <div 
+                      className="fixed inset-0 z-[99998]"
+                      onClick={() => setShowProfileDropdown(false)}
+                    />
+                    <div 
+                      className="fixed right-6 top-20 w-56 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
+                      onMouseEnter={() => setShowProfileDropdown(true)}
+                      onMouseLeave={() => setShowProfileDropdown(false)}
+                    >
+                      <div className="p-4 border-b border-white/20">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center shadow-lg">
+                            <User className="w-6 h-6 text-brand-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-brand-foreground">
+                              Alex Johnson
+                            </p>
+                            <p className="text-sm text-brand-text-light">
+                              alex.johnson@company.com
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-2">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
+                          <User className="w-4 h-4 text-brand-text-light" />
+                          <span className="text-sm text-brand-foreground">
+                            View Profile
+                          </span>
+                        </button>
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
+                          <Settings className="w-4 h-4 text-brand-text-light" />
+                          <span className="text-sm text-brand-foreground">
+                            Settings
+                          </span>
+                        </button>
+                        <div className="h-px bg-brand-border my-2 mx-3"></div>
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600">
+                          <Bell className="w-4 h-4" />
+                          <span className="text-sm">Sign Out</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <div className="px-3">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <StatCard
@@ -311,8 +521,9 @@ export default function DealsPage() {
         </Card>
 
         {/* Pipeline Board */}
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max">
+        <div className="w-full">
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-6 min-w-max">
             {pipelineStages.map((stage) => (
               <div key={stage.id} className="w-80 flex-shrink-0">
                 <div className="bg-white rounded-lg border border-gray-200">
@@ -335,13 +546,16 @@ export default function DealsPage() {
                   </div>
 
                   {/* Deals */}
-                  <div className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
+                  <div
+                    className="p-4 space-y-3 max-h-[600px] overflow-y-auto transition-all duration-200"
+                  >
                     {stage.deals.length > 0 ? (
-                      stage.deals.map((deal) => (
+                      stage.deals.map((deal, dealIndex) => (
                         <Card
                           key={deal.id}
-                          className="p-3 cursor-pointer"
+                          className="p-3 cursor-move transition-all duration-200 hover:shadow-md"
                           hoverable
+                          // Drag functionality temporarily disabled - will use PipelineBoard component with react-beautiful-dnd
                         >
                           <div className="flex items-start justify-between mb-2">
                             <Badge
@@ -437,7 +651,10 @@ export default function DealsPage() {
 
                   {/* Add Deal Button */}
                   <div className="p-4 border-t border-gray-200">
-                    <button className="w-full py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <button 
+                      onClick={() => setIsAddModalOpen(true)}
+                      className="w-full py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
                       <Plus className="w-4 h-4" />
                       Add Deal
                     </button>
@@ -445,9 +662,25 @@ export default function DealsPage() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         </div>
-      </Container>
+      </div>
+
+      {/* Modals */}
+      <DealFilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        onApplyFilters={handleApplyFilters}
+        filters={filters}
+        setFilters={setFilters}
+      />
+
+      <AddDealModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAddDeal={handleAddDeal}
+      />
     </div>
   );
 }
