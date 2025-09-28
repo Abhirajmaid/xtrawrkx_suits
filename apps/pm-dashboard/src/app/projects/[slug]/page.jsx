@@ -23,6 +23,8 @@ import {
   MoreVertical,
   ExternalLink,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import {
@@ -418,23 +420,41 @@ export default function ProjectDetail({ params }) {
       {/* Main Content Area */}
       <div className="flex-1 p-4 lg:p-6 overflow-auto bg-gray-50">
         {/* Project Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6 mb-6">
           {stats.map((stat, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg p-6 shadow-sm border border-gray-100"
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200"
             >
-              <div className="flex items-center justify-between">
+              <div className="space-y-3">
+                {/* Header with title and trend */}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-500 font-medium">
+                    {stat.title}
+                  </p>
+                  <div
+                    className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                      stat.changeType === "increase"
+                        ? "bg-green-50 text-green-600"
+                        : stat.changeType === "decrease"
+                          ? "bg-red-50 text-red-600"
+                          : "bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {stat.changeType === "increase" ? (
+                      <ArrowUp className="h-3 w-3" />
+                    ) : stat.changeType === "decrease" ? (
+                      <ArrowDown className="h-3 w-3" />
+                    ) : null}
+                    <span>{stat.change}</span>
+                  </div>
+                </div>
+
+                {/* Main value */}
                 <div>
-                  <p className="text-sm text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-3xl font-bold text-gray-900">
                     {stat.value}
                   </p>
-                </div>
-                <div
-                  className={`text-sm ${stat.changeType === "positive" ? "text-green-600" : "text-red-600"}`}
-                >
-                  {stat.change}
                 </div>
               </div>
             </div>

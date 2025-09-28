@@ -1,46 +1,52 @@
 "use client";
 
 import { useState } from "react";
+import {
+  FileText,
+  Image,
+  File,
+  BarChart3,
+  Presentation,
+  Archive,
+} from "lucide-react";
 
 export default function FileTable({ files, onHistoryClick }) {
   const [selectedFile, setSelectedFile] = useState(null);
 
   const getFileIcon = (fileName) => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
+    const extension = fileName.split(".").pop()?.toLowerCase();
     switch (extension) {
-      case 'pdf':
-        return '📄';
-      case 'doc':
-      case 'docx':
-        return '📝';
-      case 'xls':
-      case 'xlsx':
-        return '📊';
-      case 'ppt':
-      case 'pptx':
-        return '📋';
-      case 'fig':
-        return '🎨';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return '🖼️';
-      case 'zip':
-      case 'rar':
-        return '📦';
+      case "pdf":
+      case "doc":
+      case "docx":
+        return <FileText className="w-5 h-5 text-blue-600" />;
+      case "xls":
+      case "xlsx":
+        return <BarChart3 className="w-5 h-5 text-green-600" />;
+      case "ppt":
+      case "pptx":
+        return <Presentation className="w-5 h-5 text-orange-600" />;
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "fig":
+        return <Image className="w-5 h-5 text-purple-600" />;
+      case "zip":
+      case "rar":
+        return <Archive className="w-5 h-5 text-gray-600" />;
       default:
-        return '📄';
+        return <File className="w-5 h-5 text-gray-600" />;
     }
   };
 
   const handleDownload = (file) => {
-    console.log('Downloading:', file.name);
+    console.log("Downloading:", file.name);
     // Placeholder for download functionality
   };
 
   const handleView = (file) => {
-    console.log('Viewing:', file.name);
+    console.log("Viewing:", file.name);
     // Placeholder for view functionality
   };
 
@@ -54,7 +60,7 @@ export default function FileTable({ files, onHistoryClick }) {
       <div className="px-6 py-4 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900">Files</h2>
         <p className="text-sm text-gray-500 mt-1">
-          {files.length} file{files.length !== 1 ? 's' : ''} total
+          {files.length} file{files.length !== 1 ? "s" : ""} total
         </p>
       </div>
 
@@ -84,18 +90,22 @@ export default function FileTable({ files, onHistoryClick }) {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {files.map((file) => (
-              <tr 
-                key={file.id} 
+              <tr
+                key={file.id}
                 className="hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => handleView(file)}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <span className="text-2xl mr-3">{getFileIcon(file.name)}</span>
+                    <span className="text-2xl mr-3">
+                      {getFileIcon(file.name)}
+                    </span>
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{file.name}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {file.name}
+                      </div>
                       <div className="text-sm text-gray-500">
-                        {file.name.split('.').pop()?.toUpperCase() || 'FILE'}
+                        {file.name.split(".").pop()?.toUpperCase() || "FILE"}
                       </div>
                     </div>
                   </div>
@@ -108,7 +118,9 @@ export default function FileTable({ files, onHistoryClick }) {
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3">
                       {file.uploadedBy.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-sm text-gray-900">{file.uploadedBy}</span>
+                    <span className="text-sm text-gray-900">
+                      {file.uploadedBy}
+                    </span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -120,7 +132,10 @@ export default function FileTable({ files, onHistoryClick }) {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex space-x-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -159,8 +174,12 @@ export default function FileTable({ files, onHistoryClick }) {
       {files.length === 0 && (
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📁</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No files found</h3>
-          <p className="text-gray-500">Upload your first file to get started.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No files found
+          </h3>
+          <p className="text-gray-500">
+            Upload your first file to get started.
+          </p>
         </div>
       )}
     </div>

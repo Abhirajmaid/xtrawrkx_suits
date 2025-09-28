@@ -19,20 +19,19 @@
           800: '#9A3412',
           900: '#7C2D12',
         },
-        
-        // Neutral colors based on Taskhub design
-        neutral: {
-          0: '#FFFFFF',
-          50: '#FAFAFA',  // Background
-          100: '#F4F4F5',
-          200: '#E4E4E7',
-          300: '#D4D4D8',
-          400: '#A1A1AA',
-          500: '#71717A',
-          600: '#52525B',
-          700: '#3F3F46',
-          800: '#27272A',
-          900: '#18181B',
+
+        // Gray colors matching PM dashboard
+        gray: {
+          50: '#F9FAFB',
+          100: '#F3F4F6',
+          200: '#E5E7EB',
+          300: '#D1D5DB',
+          400: '#9CA3AF',
+          500: '#6B7280',
+          600: '#4B5563',
+          700: '#374151',
+          800: '#1F2937',
+          900: '#111827',
         },
 
         // Status colors
@@ -88,19 +87,19 @@
         }
       },
       fontFamily: {
-        primary: ['Inter', 'system-ui', 'sans-serif'],
-        heading: ['Inter', 'system-ui', 'sans-serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        primary: ['Host Grotesk', 'system-ui', 'sans-serif'],
+        heading: ['Host Grotesk', 'system-ui', 'sans-serif'],
+        sans: ['Host Grotesk', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        'xs': ['12px', { lineHeight: '16px' }],
-        'sm': ['13px', { lineHeight: '18px' }],
-        'base': ['14px', { lineHeight: '20px' }],
-        'lg': ['16px', { lineHeight: '24px' }],
-        'xl': ['18px', { lineHeight: '28px' }],
-        '2xl': ['20px', { lineHeight: '28px' }],
-        '3xl': ['24px', { lineHeight: '32px' }],
-        '4xl': ['28px', { lineHeight: '36px' }],
+        'xs': ['0.75rem', { lineHeight: '1rem' }],
+        'sm': ['0.875rem', { lineHeight: '1.25rem' }],
+        'base': ['1rem', { lineHeight: '1.5rem' }],
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
+        'xl': ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
       },
       borderRadius: {
         'lg': '12px',

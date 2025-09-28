@@ -9,8 +9,6 @@ import {
   Lock,
   Save,
   MoreHorizontal,
-  Type,
-  Palette,
 } from "lucide-react";
 
 const PrivateNotepad = () => {
