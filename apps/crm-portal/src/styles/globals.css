@@ -176,6 +176,10 @@
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-brand-text-light bg-transparent rounded-lg transition-all duration-200 hover:bg-brand-hover hover:text-brand-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
+  .btn-outline {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-brand-primary bg-transparent border border-brand-primary rounded-lg transition-all duration-200 hover:bg-brand-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
   .btn-gradient {
     @apply inline-flex items-center justify-between gap-3 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-pink-400 via-pink-500 to-red-400 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
   }

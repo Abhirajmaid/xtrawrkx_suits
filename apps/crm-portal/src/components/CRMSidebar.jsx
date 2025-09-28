@@ -33,6 +33,7 @@ import {
   UserPlus,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Search,
   Bell,
   Star,
@@ -40,7 +41,7 @@ import {
 } from "lucide-react";
 import SubSidebar from "./SubSidebar";
 
-export default function CRMSidebar() {
+export default function CRMSidebar({ collapsed = false, onToggle }) {
   const [collapsedSections, setCollapsedSections] = useState({
     sales: false,
     delivery: false,
@@ -65,6 +66,14 @@ export default function CRMSidebar() {
   const isActive = (href) => {
     if (!href || href === "/") return pathname === "/";
     return pathname.startsWith(href);
+  };
+
+  const isSalesActive = () => {
+    return pathname.startsWith('/sales/');
+  };
+
+  const isDeliveryActive = () => {
+    return pathname.startsWith('/delivery/');
   };
 
   const handleTopLevelClick = (sectionId, sectionLabel) => {
@@ -663,40 +672,58 @@ export default function CRMSidebar() {
 
   return (
     <>
-      <div className="w-64 h-full bg-white/30 backdrop-blur-xl border-r border-white/30 flex flex-col shadow-xl overflow-y-auto">
+      <div className={`${collapsed ? 'w-16' : 'w-64'} h-full bg-white/30 backdrop-blur-xl border-r border-white/30 flex flex-col shadow-xl overflow-y-auto transition-[width] duration-300 flex-shrink-0`}>
         {/* Header */}
         <div className="p-4 border-b border-white/20">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="font-bold text-xl text-brand-foreground">
-              Xtrawrkx CRM
-            </span>
+          <div className="flex items-center justify-between mb-4">
+            {!collapsed && (
+              <span className="font-bold text-xl text-brand-foreground">
+                Xtrawrkx CRM
+              </span>
+            )}
+            <button
+              onClick={onToggle}
+              className="p-2 rounded-lg"
+            >
+              {collapsed ? (
+                <ChevronRight className="w-5 h-5 text-brand-foreground" />
+              ) : (
+                <ChevronLeft className="w-5 h-5 text-brand-foreground" />
+              )}
+            </button>
           </div>
 
           {/* Search Bar */}
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-light" />
-            <input
-              type="text"
-              placeholder="Search here..."
-              className="w-full pl-10 pr-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/25 transition-all duration-300 text-sm placeholder:text-brand-text-light shadow-lg"
-            />
-          </div>
+          {!collapsed && (
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-light" />
+              <input
+                type="text"
+                placeholder="Search here..."
+                className="w-full pl-10 pr-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/25 transition-[background-color,border-color,box-shadow] duration-300 text-sm placeholder:text-brand-text-light shadow-lg"
+              />
+            </div>
+          )}
 
           {/* Quick Actions Button */}
           <div className="relative">
             <button
               onClick={toggleQuickActions}
-              className="w-full bg-white/15 backdrop-blur-md border border-white/25 text-brand-foreground hover:bg-white/25 hover:border-white/35 rounded-xl py-3 px-4 flex items-center justify-center gap-2 transition-all duration-300 shadow-lg group"
+              className={`w-full bg-white/15 backdrop-blur-md border border-white/25 text-brand-foreground rounded-xl py-3 px-4 flex items-center ${collapsed ? 'justify-center' : 'justify-center gap-2'} shadow-lg`}
             >
-              <Plus className="w-4 h-4 text-brand-primary group-hover:scale-110 transition-transform duration-300" />
-              <span className="text-sm font-medium">Quick Actions</span>
-              <ChevronDown
-                className={`w-4 h-4 text-brand-text-light transition-transform duration-300 ${quickActionsOpen ? "rotate-180" : ""}`}
-              />
+              <Plus className="w-4 h-4 text-brand-primary" />
+              {!collapsed && (
+                <>
+                  <span className="text-sm font-medium">Quick Actions</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-brand-text-light transition-transform duration-300 ${quickActionsOpen ? "rotate-180" : ""}`}
+                  />
+                </>
+              )}
             </button>
 
             {/* Quick Actions Dropdown */}
-            {quickActionsOpen && (
+            {quickActionsOpen && !collapsed && (
               <div className="absolute left-0 top-full mt-2 w-full bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-50 overflow-hidden">
                 <div className="p-2">
                   {quickActionItems.map((item, index) => {
@@ -706,9 +733,9 @@ export default function CRMSidebar() {
                         key={index}
                         href={item.href}
                         onClick={() => setQuickActionsOpen(false)}
-                        className="flex items-center gap-3 p-3 text-sm text-brand-foreground hover:bg-white/50 rounded-lg transition-all duration-200 group"
+                        className="flex items-center gap-3 p-3 text-sm text-brand-foreground rounded-lg"
                       >
-                        <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-lg flex items-center justify-center shadow-sm group-hover:bg-white/50 transition-all duration-200">
+                        <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-lg flex items-center justify-center shadow-sm">
                           <Icon className="w-4 h-4 text-brand-primary" />
                         </div>
                         <span className="font-medium">{item.label}</span>
@@ -724,24 +751,33 @@ export default function CRMSidebar() {
         {/* Main Navigation Grid */}
         <div className="p-4 space-y-4">
           {/* Primary Navigation - Top 4 */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${collapsed ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {mainNavigationItems
               .filter((item) => item.priority === "high")
               .map((item) => {
                 const Icon = item.icon;
                 const active = item.href ? isActive(item.href) : false;
+                const isSalesSection = item.id === 'sales' && isSalesActive();
+                const isDeliverySection = item.id === 'delivery' && isDeliveryActive();
 
                 if (item.hasSubNav) {
                   return (
                     <button
                       key={item.id}
                       onClick={() => handleTopLevelClick(item.id, item.label)}
-                      className="bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40 rounded-xl p-4 flex flex-col items-center gap-3 transition-all duration-300 shadow-lg group"
+                      className={`${
+                        isSalesSection || isDeliverySection
+                          ? 'bg-gradient-to-br from-yellow-400/30 to-yellow-500/20 border-yellow-300/50 text-yellow-800' 
+                          : 'bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40'
+                      } rounded-xl p-4 flex flex-col items-center gap-3 transition-[background-color,border-color] duration-300 shadow-lg group`}
+                      title={collapsed ? item.label : undefined}
                     >
                       <Icon className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
-                      <span className="text-xs font-medium text-center">
-                        {item.label}
-                      </span>
+                      {!collapsed && (
+                        <span className="text-xs font-medium text-center">
+                          {item.label}
+                        </span>
+                      )}
                     </button>
                   );
                 }
@@ -751,12 +787,15 @@ export default function CRMSidebar() {
                     key={item.id}
                     href={item.href || "/"}
                     className={`${active ? "bg-brand-primary text-white border-brand-primary/50" : "bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40"} 
-                      rounded-xl p-4 flex flex-col items-center gap-3 transition-all duration-300 shadow-lg group`}
+                      rounded-xl p-4 flex flex-col items-center gap-3 transition-[background-color,border-color,color] duration-300 shadow-lg group`}
+                    title={collapsed ? item.label : undefined}
                   >
                     <Icon className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="text-xs font-medium text-center">
-                      {item.label}
-                    </span>
+                    {!collapsed && (
+                      <span className="text-xs font-medium text-center">
+                        {item.label}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -764,50 +803,54 @@ export default function CRMSidebar() {
         </div>
 
         {/* CRM Tools Section */}
-        <div className="flex-1">
-          <div className="px-4 mb-4">
-            <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 shadow-lg">
-              <div className="flex items-center justify-between text-sm font-medium text-brand-foreground mb-3">
-                <span className="flex items-center gap-2">
-                  <Target className="w-4 h-4" />
-                  Tools
-                </span>
-                <ChevronDown className="w-4 h-4" />
-              </div>
+        {!collapsed && (
+          <div className="flex-1">
+            <div className="px-4 mb-4">
+              <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 shadow-lg">
+                <div className="flex items-center justify-between text-sm font-medium text-brand-foreground mb-3">
+                  <span className="flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    Tools
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </div>
 
-              <div className="space-y-2">
-                {crmTools.map((item, index) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={index}
-                      href={item.href}
-                      className="flex items-center gap-3 text-xs text-brand-text-light hover:text-brand-foreground p-2 rounded-lg hover:bg-white/20 transition-all duration-300 group"
-                    >
-                      <Icon className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                      <span className="font-medium">{item.label}</span>
-                    </Link>
-                  );
-                })}
+                <div className="space-y-2">
+                  {crmTools.map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={index}
+                        href={item.href}
+                        className="flex items-center gap-3 text-xs text-brand-text-light p-2 rounded-lg"
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="font-medium">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* System Navigation - Bottom Section */}
         <div className="mt-auto">
           <div className="px-4 mb-4">
             {/* Divider */}
-            <div className="flex items-center gap-4 px-2 mb-4">
-              <div className="flex-1 h-px bg-white/20"></div>
-              <span className="text-xs text-brand-text-light font-medium">
-                System
-              </span>
-              <div className="flex-1 h-px bg-white/20"></div>
-            </div>
+            {!collapsed && (
+              <div className="flex items-center gap-4 px-2 mb-4">
+                <div className="flex-1 h-px bg-white/20"></div>
+                <span className="text-xs text-brand-text-light font-medium">
+                  System
+                </span>
+                <div className="flex-1 h-px bg-white/20"></div>
+              </div>
+            )}
 
             {/* System Navigation Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${collapsed ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {mainNavigationItems
                 .filter((item) => item.priority === "low")
                 .map((item) => {
@@ -818,12 +861,15 @@ export default function CRMSidebar() {
                     <button
                       key={item.id}
                       onClick={() => handleTopLevelClick(item.id, item.label)}
-                      className="bg-white/15 backdrop-blur-md border border-white/25 text-brand-text-light hover:bg-white/25 hover:border-white/35 hover:text-brand-foreground rounded-xl p-3 flex flex-col items-center gap-2 transition-all duration-300 shadow-md group"
+                      className="bg-white/15 backdrop-blur-md border border-white/25 text-brand-text-light rounded-xl p-3 flex flex-col items-center gap-2 shadow-md"
+                      title={collapsed ? item.label : undefined}
                     >
-                      <Icon className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                      <span className="text-xs font-medium text-center">
-                        {item.label}
-                      </span>
+                      <Icon className="w-5 h-5" />
+                      {!collapsed && (
+                        <span className="text-xs font-medium text-center">
+                          {item.label}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -832,23 +878,27 @@ export default function CRMSidebar() {
 
           {/* Footer - User Profile */}
           <div className="p-4 border-t border-white/20">
-            <div className="flex items-center gap-3 p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-lg">
+            <div className={`flex items-center gap-3 p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-lg ${collapsed ? 'justify-center' : ''}`}>
               <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-full flex items-center justify-center shadow-lg">
                 <span className="text-brand-primary text-sm font-medium">
                   OC
                 </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-brand-foreground truncate">
-                  Oscar Carol
-                </p>
-                <p className="text-xs text-brand-text-light truncate">
-                  Lead Manager
-                </p>
-              </div>
-              <button className="text-brand-text-light hover:text-brand-foreground transition-colors duration-300">
-                <ChevronDown className="w-4 h-4" />
-              </button>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-brand-foreground truncate">
+                      Oscar Carol
+                    </p>
+                    <p className="text-xs text-brand-text-light truncate">
+                      Lead Manager
+                    </p>
+                  </div>
+                  <button className="text-brand-text-light">
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

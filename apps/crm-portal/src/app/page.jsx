@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Users,
   DollarSign,
@@ -23,6 +24,8 @@ import { StatCard, Card, Badge, LineChart, AreaChart } from "@xtrawrkx/ui";
 import Button from "../components/Button";
 
 export default function Home() {
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
   const stats = [
     {
       title: "Total Leads",
@@ -355,7 +358,7 @@ export default function Home() {
   return (
     <div className="space-y-4">
       {/* Page Header */}
-      <Card glass={true}>
+      <Card glass={true} className="relative z-50">
         <div className="flex items-center justify-between">
           <div>
             {/* Breadcrumb */}
@@ -419,8 +422,12 @@ export default function Home() {
 
             {/* User Profile */}
             <div className="flex items-center gap-3">
-              <div className="relative group">
-                <button className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300">
+              <div className="relative">
+                <button
+                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
+                  onMouseEnter={() => setShowProfileDropdown(true)}
+                  onMouseLeave={() => setShowProfileDropdown(false)}
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
                       <User className="w-5 h-5 text-brand-primary" />
@@ -434,71 +441,67 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-brand-text-light group-hover:rotate-180 transition-transform" />
+                  <ChevronDown
+                    className={`w-4 h-4 text-brand-text-light transition-transform ${showProfileDropdown ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 {/* Profile Dropdown */}
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="p-4 border-b border-white/20">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center shadow-lg">
-                        <User className="w-6 h-6 text-brand-primary" />
+                {showProfileDropdown && (
+                  <>
+                    {/* Backdrop to close dropdown when clicking outside */}
+                    <div
+                      className="fixed inset-0 z-[99998]"
+                      onClick={() => setShowProfileDropdown(false)}
+                    />
+                    <div
+                      className="fixed right-6 top-20 w-72 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
+                      onMouseEnter={() => setShowProfileDropdown(true)}
+                      onMouseLeave={() => setShowProfileDropdown(false)}
+                      style={{ zIndex: 99999 }}
+                    >
+                      <div className="p-4 border-b border-white/20">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center shadow-lg">
+                            <User className="w-6 h-6 text-brand-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-brand-foreground">
+                              Alex Johnson
+                            </p>
+                            <p className="text-sm text-brand-text-light">
+                              alex.johnson@company.com
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-brand-foreground">
-                          Alex Johnson
-                        </p>
-                        <p className="text-sm text-brand-text-light">
-                          alex.johnson@company.com
-                        </p>
+                      <div className="p-2">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
+                          <User className="w-4 h-4 text-brand-text-light" />
+                          <span className="text-sm text-brand-foreground">
+                            View Profile
+                          </span>
+                        </button>
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
+                          <Settings className="w-4 h-4 text-brand-text-light" />
+                          <span className="text-sm text-brand-foreground">
+                            Settings
+                          </span>
+                        </button>
+                        <div className="h-px bg-brand-border my-2 mx-3"></div>
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600">
+                          <Share className="w-4 h-4" />
+                          <span className="text-sm">Sign Out</span>
+                        </button>
                       </div>
                     </div>
-                  </div>
-                  <div className="p-2">
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
-                      <User className="w-4 h-4 text-brand-text-light" />
-                      <span className="text-sm text-brand-foreground">
-                        View Profile
-                      </span>
-                    </button>
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
-                      <Settings className="w-4 h-4 text-brand-text-light" />
-                      <span className="text-sm text-brand-foreground">
-                        Settings
-                      </span>
-                    </button>
-                    <div className="h-px bg-brand-border my-2 mx-3"></div>
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600">
-                      <Share className="w-4 h-4" />
-                      <span className="text-sm">Sign Out</span>
-                    </button>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
       </Card>
-
-      {/* Button Demo */}
-      {/* <Card glass={true}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-brand-foreground mb-2">
-              Button Styles Demo
-            </h2>
-            <p className="text-brand-text-light">
-              All button variants with consistent design system:
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button text="GET STARTED" type="gradient" />
-            <Button text="Primary Button" type="primary" />
-            <Button text="Secondary" type="secondary" />
-            <Button text="Tertiary" type="tertiary" size="sm" />
-          </div>
-        </div>
-      </Card> */}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

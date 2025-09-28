@@ -14,7 +14,8 @@ export { Select } from './Select.jsx'
 export { Checkbox } from './Checkbox.jsx'
 
 // Layout Components
-export { Container } from './Container.jsx'
+export { Container } from './Container'
+export { PageHeader } from './PageHeader'
 
 // Data Display
 export { Table } from './Table.jsx'

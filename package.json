@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-beautiful-dnd": "^13.1.1",
+    "react-dom": "^18.3.0",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "turbo": "^2.5.6"
