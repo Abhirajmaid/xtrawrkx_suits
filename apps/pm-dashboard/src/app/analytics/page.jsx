@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Filter, MoreVertical, ArrowUp, ArrowDown } from "lucide-react";
-import Header from "../../components/dashboard/Header";
+import Header from "../../components/shared/Header";
 
 // Error boundary component for charts
 // class ChartErrorBoundary extends React.Component {

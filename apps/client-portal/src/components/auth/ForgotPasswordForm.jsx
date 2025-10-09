@@ -6,10 +6,10 @@ import AuthInput from "./AuthInput";
 import AuthButton from "./AuthButton";
 import AuthToggle from "./AuthToggle";
 
-export default function ForgotPasswordForm({ 
-  onSignIn, 
+export default function ForgotPasswordForm({
+  onSignIn,
   onSubmit,
-  className = "" 
+  className = "",
 }) {
   const [formData, setFormData] = useState({
     email: "",
@@ -20,15 +20,15 @@ export default function ForgotPasswordForm({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ""
+        [name]: "",
       }));
     }
   };
@@ -40,7 +40,7 @@ export default function ForgotPasswordForm({
 
     // Basic validation
     const newErrors = {};
-    
+
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -60,11 +60,14 @@ export default function ForgotPasswordForm({
       } else {
         // Default behavior - just log for now
         console.log("Password reset attempt:", formData);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
         setSuccess(true);
       }
     } catch (error) {
-      setErrors({ general: error.message || "Failed to send reset link. Please try again." });
+      setErrors({
+        general:
+          error.message || "Failed to send reset link. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -72,31 +75,39 @@ export default function ForgotPasswordForm({
 
   if (success) {
     return (
-      <div className={`w-full max-w-md mx-auto ${className}`}>
+      <div className={`w-full ${className}`}>
         <AuthCard
           title="Check Your Email"
           subtitle="We've sent password reset instructions to your email address."
         >
           <div className="text-center space-y-6">
             <div className="w-16 h-16 bg-success-100 rounded-full flex items-center justify-center mx-auto">
-              <svg className="w-8 h-8 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="w-8 h-8 text-success-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
             </div>
-            
+
             <div className="space-y-2">
               <p className="text-neutral-600 text-sm">
-                If an account with <strong>{formData.email}</strong> exists, you'll receive an email with reset instructions shortly.
+                If an account with <strong>{formData.email}</strong> exists,
+                you'll receive an email with reset instructions shortly.
               </p>
               <p className="text-neutral-500 text-xs">
                 Didn't receive the email? Check your spam folder or try again.
               </p>
             </div>
 
-            <AuthButton
-              onClick={() => setSuccess(false)}
-              variant="secondary"
-            >
+            <AuthButton onClick={() => setSuccess(false)} variant="secondary">
               Try Different Email
             </AuthButton>
 
@@ -113,14 +124,14 @@ export default function ForgotPasswordForm({
   }
 
   return (
-    <div className={`w-full max-w-md mx-auto ${className}`}>
+    <div className={`w-full ${className}`}>
       <AuthCard
         title="Reset Your Password"
         subtitle="Enter your email and we'll send reset instructions"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           {errors.general && (
-            <div className="bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {errors.general}
             </div>
           )}
@@ -136,11 +147,7 @@ export default function ForgotPasswordForm({
             required
           />
 
-          <AuthButton
-            type="submit"
-            loading={loading}
-            disabled={loading}
-          >
+          <AuthButton type="submit" loading={loading} disabled={loading}>
             Send Reset Link
           </AuthButton>
 

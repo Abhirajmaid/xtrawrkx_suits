@@ -24,7 +24,7 @@ import {
   TaskCalendar,
   TaskDetailModal,
 } from "../../components/my-task";
-import Header from "../../components/dashboard/Header";
+import Header from "../../components/shared/Header";
 import { getAllTasksForMyTask, getEnrichedTask } from "../../data/centralData";
 
 export default function MyTasks() {
@@ -159,6 +159,15 @@ export default function MyTasks() {
       ...prev,
       [filterType]: value,
     }));
+  };
+
+  // Handle task completion
+  const handleTaskComplete = (taskId, newStatus) => {
+    setAllTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
   };
 
   const handleDateChange = (direction) => {
@@ -674,6 +683,7 @@ export default function MyTasks() {
                   project={null}
                   onTaskClick={(task) => handleTaskClick(task)}
                   onContextMenuOpen={handleContextMenuOpen}
+                  onTaskComplete={handleTaskComplete}
                 />
               )}
               {activeView === "kanban" && (

@@ -21,12 +21,6 @@ export { PageHeader } from './PageHeader'
 export { Table } from './Table.jsx'
 export { EmptyState } from './EmptyState.jsx'
 
-// Charts
-export { LineChart } from './LineChart.jsx'
-export { BarChart } from './BarChart.jsx'
-export { PieChart } from './PieChart.jsx'
-export { AreaChart } from './AreaChart.jsx'
-
 // Feedback
 export { Modal } from './Modal.jsx'
 

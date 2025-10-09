@@ -33,7 +33,7 @@ export function Table({
   return (
     <div className={clsx("overflow-x-auto", className)} {...props}>
       <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+        <thead className="bg-white/40 backdrop-blur-sm border-b border-white/30">
           <tr>
             {selectable && (
               <th className="px-6 py-3 text-left">
@@ -64,7 +64,7 @@ export function Table({
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
           {data.length === 0 ? (
             <tr>
               <td
@@ -79,9 +79,10 @@ export function Table({
               <tr
                 key={row.id || rowIndex}
                 className={clsx(
-                  "hover:bg-gray-50 transition-colors",
+                  "hover:bg-white/40 hover:backdrop-blur-sm transition-all duration-200",
                   onRowClick && "cursor-pointer",
-                  selectedRows.includes(row.id) && "bg-blue-50"
+                  selectedRows.includes(row.id) &&
+                    "bg-blue-50/50 backdrop-blur-sm"
                 )}
                 onClick={() => onRowClick && onRowClick(row)}
               >

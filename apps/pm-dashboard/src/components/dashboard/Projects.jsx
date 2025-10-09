@@ -33,13 +33,18 @@ const Projects = ({ data }) => {
   const NewProjectCard = () => (
     <div
       onClick={() => router.push("/projects/add")}
-      className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3 hover:bg-gray-100 transition-colors cursor-pointer flex items-center justify-center min-h-[60px]"
+      className="bg-gradient-to-br from-primary-50 to-primary-100/50 backdrop-blur-sm border-2 border-dashed border-primary-200 rounded-xl p-4 hover:from-primary-100 hover:to-primary-200/50 hover:border-primary-300 transition-all duration-300 cursor-pointer flex items-center justify-center min-h-[80px] group"
     >
       <div className="flex items-center space-x-3">
-        <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-          <Plus className="h-4 w-4 text-gray-600" />
+        <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center group-hover:bg-primary-600 transition-colors duration-300">
+          <Plus className="h-5 w-5 text-white" />
         </div>
-        <span className="text-sm font-medium text-gray-700">New Project</span>
+        <div>
+          <span className="text-sm font-semibold text-primary-700 group-hover:text-primary-800">
+            Create New Project
+          </span>
+          <p className="text-xs text-primary-600">Start a new project</p>
+        </div>
       </div>
     </div>
   );
@@ -64,13 +69,13 @@ const Projects = ({ data }) => {
     const teamMembers = project.team || [];
 
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer group">
-        <div className="space-y-3">
+      <div className="card card-hover p-5 cursor-pointer group">
+        <div className="space-y-4">
           {/* Header with icon, title and actions */}
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-3">
               <div
-                className={`w-10 h-10 rounded-lg ${project.color} flex items-center justify-center flex-shrink-0`}
+                className={`w-12 h-12 rounded-xl ${project.color} flex items-center justify-center flex-shrink-0 shadow-sm`}
               >
                 <span className="text-white text-sm font-bold">
                   {project.initials}
@@ -82,7 +87,7 @@ const Projects = ({ data }) => {
                 </h4>
                 <div className="flex items-center space-x-2 mt-1">
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(project.status)}`}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(project.status)}`}
                   >
                     {project.status}
                   </span>
@@ -94,68 +99,47 @@ const Projects = ({ data }) => {
             <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
               <button
                 onClick={() => handleViewProject(project)}
-                className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+                className="p-2 hover:bg-primary-50 rounded-lg transition-colors"
                 title="View project"
               >
-                <Eye className="h-3.5 w-3.5 text-gray-500" />
+                <Eye className="h-4 w-4 text-primary-600" />
               </button>
               <button
-                className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+                className="p-2 hover:bg-primary-50 rounded-lg transition-colors"
                 title="Edit project"
               >
-                <Edit className="h-3.5 w-3.5 text-gray-500" />
+                <Edit className="h-4 w-4 text-primary-600" />
               </button>
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600 font-medium">Progress</span>
-              <span className="text-gray-900 font-semibold">{progress}%</span>
+              <span className="text-gray-900 font-bold">{progress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
               <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-primary-500 to-primary-600 h-2.5 rounded-full transition-all duration-500 shadow-sm"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
           </div>
 
           {/* Footer with team and due date */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
             <div className="flex items-center space-x-2">
-              {teamMembers.length > 0 && (
-                <div className="flex items-center space-x-1">
-                  <Users className="h-3.5 w-3.5 text-gray-400" />
-                  <div className="flex -space-x-1">
-                    {teamMembers.slice(0, 3).map((member, index) => (
-                      <div
-                        key={index}
-                        className={`w-6 h-6 rounded-full ${member.color} border-2 border-white flex items-center justify-center`}
-                        title={member.name}
-                      >
-                        <span className="text-white text-xs font-medium">
-                          {member.initials}
-                        </span>
-                      </div>
-                    ))}
-                    {teamMembers.length > 3 && (
-                      <div className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center">
-                        <span className="text-gray-600 text-xs font-medium">
-                          +{teamMembers.length - 3}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <Users className="h-4 w-4 text-gray-400" />
+              <span className="text-sm text-gray-600 font-medium">
+                {teamMembers.length} members
+              </span>
             </div>
 
             {project.dueDate && (
-              <div className="flex items-center space-x-1 text-xs text-gray-500">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>{project.dueDate}</span>
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="font-medium">{project.dueDate}</span>
               </div>
             )}
           </div>
@@ -396,7 +380,7 @@ const Projects = ({ data }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div className="card flex flex-col h-full">
       <div className="px-6 py-5 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
@@ -408,7 +392,7 @@ const Projects = ({ data }) => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => router.push("/projects")}
-              className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
             >
               View All
             </button>

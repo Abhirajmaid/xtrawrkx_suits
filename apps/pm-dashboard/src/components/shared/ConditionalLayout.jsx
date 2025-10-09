@@ -70,7 +70,7 @@ export default function ConditionalLayout({ children }) {
 
   // For all other pages, render with sidebar and header
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen relative z-10">
       <Sidebar
         onOpenWorkspaceModal={openWorkspaceModal}
         onOpenManageWorkspaceModal={openManageWorkspaceModal}

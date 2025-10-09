@@ -71,11 +71,11 @@ const AssignedTasks = ({ data }) => {
     };
 
     return (
-      <div className="group bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md hover:border-gray-200 transition-all duration-200 cursor-pointer">
+      <div className="group card card-hover p-4 cursor-pointer">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-3 mb-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0"></div>
               <h4 className="font-semibold text-gray-900 text-lg truncate">
                 {task.name}
               </h4>
@@ -351,7 +351,7 @@ const AssignedTasks = ({ data }) => {
 
   return (
     <>
-      <div className="bg-gray-100 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
+      <div className="card flex flex-col h-full">
         <div className="px-6 py-5 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -386,9 +386,9 @@ const AssignedTasks = ({ data }) => {
               </div>
               {data.length > 0 && (
                 <div className="pt-4 border-t border-gray-200 mt-auto">
-                  <button className="w-full flex items-center justify-center space-x-2 text-blue-600 hover:text-blue-800 py-3 px-4 font-semibold hover:bg-blue-50 rounded-xl border border-blue-200 hover:border-blue-300 transition-all duration-200 group">
+                  <button className="w-full flex items-center justify-center space-x-2 text-primary-600 hover:text-primary-800 py-3 px-4 font-semibold hover:bg-primary-50 rounded-xl border border-primary-200 hover:border-primary-300 transition-all duration-200 group">
                     <span>Show All Tasks</span>
-                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold group-hover:bg-blue-200">
+                    <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-xs font-bold group-hover:bg-primary-200">
                       {data.length}
                     </span>
                   </button>

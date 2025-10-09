@@ -6,11 +6,11 @@ import AuthInput from "./AuthInput";
 import AuthButton from "./AuthButton";
 import AuthToggle from "./AuthToggle";
 
-export default function SignInForm({ 
-  onForgotPassword, 
-  onSignUp, 
+export default function SignInForm({
+  onForgotPassword,
+  onSignUp,
   onSubmit,
-  className = "" 
+  className = "",
 }) {
   const [formData, setFormData] = useState({
     email: "",
@@ -21,15 +21,15 @@ export default function SignInForm({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ""
+        [name]: "",
       }));
     }
   };
@@ -62,24 +62,23 @@ export default function SignInForm({
       } else {
         // Default behavior - just log for now
         console.log("Sign in attempt:", formData);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
       }
     } catch (error) {
-      setErrors({ general: error.message || "Sign in failed. Please try again." });
+      setErrors({
+        general: error.message || "Sign in failed. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className={`w-full max-w-md mx-auto ${className}`}>
-      <AuthCard
-        title="Welcome Back"
-        subtitle="Sign in to access your projects"
-      >
+    <div className={`w-full ${className}`}>
+      <AuthCard title="Welcome Back" subtitle="Sign in to access your projects">
         <form onSubmit={handleSubmit} className="space-y-6">
           {errors.general && (
-            <div className="bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {errors.general}
             </div>
           )}
@@ -110,17 +109,13 @@ export default function SignInForm({
             <button
               type="button"
               onClick={onForgotPassword}
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium transition-colors"
             >
               Forgot Password?
             </button>
           </div>
 
-          <AuthButton
-            type="submit"
-            loading={loading}
-            disabled={loading}
-          >
+          <AuthButton type="submit" loading={loading} disabled={loading}>
             Login
           </AuthButton>
 

@@ -1,0 +1,54 @@
+{
+    "manifest_version": 3,
+    "name": "Xtrawrkx CRM LinkedIn Extractor",
+    "version": "1.0.0",
+    "description": "Extract LinkedIn profile data and send to Xtrawrkx CRM",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "scripting",
+        "notifications"
+    ],
+    "host_permissions": [
+        "https://www.linkedin.com/*",
+        "http://localhost:3001/*",
+        "https://*.xtrawrkx.com/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://www.linkedin.com/in/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "css": [
+                "content.css"
+            ]
+        }
+    ],
+    "action": {
+        "default_title": "Extract LinkedIn Data"
+    },
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "icons/*",
+                "sidebar.html",
+                "sidebar.css",
+                "sidebar.js"
+            ],
+            "matches": [
+                "https://www.linkedin.com/*"
+            ]
+        }
+    ]
+}

@@ -2,13 +2,14 @@
 
 import React, { useState } from "react";
 import {
-  Header,
   StatsCards,
-  AssignedTasks,
-  Projects,
+  AssignedTasksTable,
+  ProjectsTable,
   People,
   PrivateNotepad,
+  RecentActivity,
 } from "../../components/dashboard";
+import Header from "../../components/shared/Header";
 import {
   projects,
   getTasksByAssigneeId,
@@ -18,7 +19,10 @@ import {
 } from "../../data/centralData";
 
 export default function DashboardPage() {
-  const [hasData, setHasData] = useState(true); // Default to filled state to show the dashboard with data
+  const [hasData] = useState(true); // Default to filled state to show the dashboard with data
+  const [assignedTasks, setAssignedTasks] = useState(() =>
+    getRealAssignedTasksData()
+  );
 
   // Get real stats from centralized data
   const getRealStatsData = () => {
@@ -102,16 +106,32 @@ export default function DashboardPage() {
       return {
         id: task.id,
         name: task.name,
+        description: task.description || "No description available",
         project: enrichedTask.project.name,
-        dueDate: dueDateText,
+        dueDate: task.dueDate, // Keep original date for proper formatting
+        dueDateText: dueDateText, // Human readable format
         color: getColorByProject(enrichedTask.project.name),
         priority: task.priority,
         status: task.status.toLowerCase().replace(" ", "_"),
+        progress: task.progress || 0,
+        assignee: task.assignee || "Unassigned",
+        assigneeId: task.assigneeId,
+        tags: task.tags || [],
+        time: task.time,
+        estimatedHours: task.estimatedHours,
+        subtaskCount: enrichedTask.subtasks ? enrichedTask.subtasks.length : 0,
       };
     });
   };
 
-  const assignedTasksData = getRealAssignedTasksData();
+  // Handle task completion
+  const handleTaskComplete = (taskId, newStatus) => {
+    setAssignedTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
+  };
 
   // Get real projects data
   const getRealProjectsData = () => {
@@ -216,24 +236,49 @@ export default function DashboardPage() {
     : [];
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <Header onToggleData={() => setHasData(!hasData)} />
+    <div className="flex flex-col h-full relative">
+      {/* Gradient Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
 
-      <div className="flex-1 p-4 lg:p-6 overflow-auto bg-gray-50">
-        <div className="max-w-full mx-auto px-2 lg:px-4">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-yellow-400/10 to-orange-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-gradient-to-tr from-blue-500/8 to-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-gradient-to-bl from-green-400/8 to-teal-500/5 rounded-full blur-3xl" />
+      </div>
+
+      <Header
+        title="Dashboard"
+        subtitle="Monitor all of your projects and tasks here"
+      />
+
+      <div className="flex-1 p-6 overflow-auto relative z-10">
+        <div className="max-w-full mx-auto">
           <div className="mb-6">
             <StatsCards data={statsData} />
           </div>
 
-          <div className="space-y-4 lg:space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-              <AssignedTasks data={assignedTasksData} />
-              <Projects data={projectsData.slice(0, 4)} />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <AssignedTasksTable
+                  data={assignedTasks}
+                  onTaskComplete={handleTaskComplete}
+                />
+              </div>
+              <div className="space-y-6">
+                <ProjectsTable data={projectsData.slice(0, 4)} />
+                <RecentActivity />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-              <People data={peopleData} />
-              <PrivateNotepad />
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div>
+                <People data={peopleData} />
+              </div>
+              <div className="xl:col-span-2">
+                <PrivateNotepad />
+              </div>
             </div>
           </div>
         </div>

@@ -26,7 +26,7 @@ const Switch = ({ checked, onChange, disabled = false, size = "md" }) => {
   const sizeClasses = size === "sm" ? "w-8 h-4" : "w-11 h-6";
   const thumbSizeClasses = size === "sm" ? "w-3 h-3" : "w-5 h-5";
   const translateClasses = size === "sm" ? "translate-x-4" : "translate-x-5";
-  
+
   return (
     <button
       type="button"
@@ -58,7 +58,7 @@ export default function NotificationPreferencesForm() {
       timezone: "UTC",
     },
     frequency: "realtime", // realtime, hourly, daily, weekly
-    
+
     // Channel Preferences
     channels: {
       email: {
@@ -137,7 +137,11 @@ export default function NotificationPreferencesForm() {
   });
 
   const frequencyOptions = [
-    { value: "realtime", label: "Real-time", description: "Immediate notifications" },
+    {
+      value: "realtime",
+      label: "Real-time",
+      description: "Immediate notifications",
+    },
     { value: "hourly", label: "Hourly", description: "Batched every hour" },
     { value: "daily", label: "Daily", description: "Once per day" },
     { value: "weekly", label: "Weekly", description: "Once per week" },
@@ -193,23 +197,23 @@ export default function NotificationPreferencesForm() {
   ];
 
   const handlePreferenceChange = (path, value) => {
-    setPreferences(prev => {
-      const keys = path.split('.');
+    setPreferences((prev) => {
+      const keys = path.split(".");
       const newPrefs = { ...prev };
       let current = newPrefs;
-      
+
       for (let i = 0; i < keys.length - 1; i++) {
         current[keys[i]] = { ...current[keys[i]] };
         current = current[keys[i]];
       }
-      
+
       current[keys[keys.length - 1]] = value;
       return newPrefs;
     });
   };
 
   const handleEventTypeChange = (category, event, channel, value) => {
-    setPreferences(prev => ({
+    setPreferences((prev) => ({
       ...prev,
       events: {
         ...prev.events,
@@ -233,12 +237,33 @@ export default function NotificationPreferencesForm() {
     // Reset to default preferences
     setPreferences({
       globalEnabled: true,
-      quietHours: { enabled: false, start: "22:00", end: "08:00", timezone: "UTC" },
+      quietHours: {
+        enabled: false,
+        start: "22:00",
+        end: "08:00",
+        timezone: "UTC",
+      },
       frequency: "realtime",
       channels: {
-        email: { enabled: true, frequency: "realtime", types: ["important", "updates", "reminders"] },
-        inApp: { enabled: true, frequency: "realtime", types: ["all"], sound: true, desktop: true },
-        mobile: { enabled: true, frequency: "realtime", types: ["important", "urgent"], push: true, sms: false },
+        email: {
+          enabled: true,
+          frequency: "realtime",
+          types: ["important", "updates", "reminders"],
+        },
+        inApp: {
+          enabled: true,
+          frequency: "realtime",
+          types: ["all"],
+          sound: true,
+          desktop: true,
+        },
+        mobile: {
+          enabled: true,
+          frequency: "realtime",
+          types: ["important", "urgent"],
+          push: true,
+          sms: false,
+        },
       },
       events: {
         leads: {
@@ -272,8 +297,18 @@ export default function NotificationPreferencesForm() {
         },
       },
       advanced: {
-        digest: { enabled: true, frequency: "daily", time: "09:00", summary: true },
-        filters: { keywords: [], excludeKeywords: [], minimumValue: 0, priority: "all" },
+        digest: {
+          enabled: true,
+          frequency: "daily",
+          time: "09:00",
+          summary: true,
+        },
+        filters: {
+          keywords: [],
+          excludeKeywords: [],
+          minimumValue: 0,
+          priority: "all",
+        },
         templates: { custom: false, signature: "" },
       },
     });
@@ -310,7 +345,9 @@ export default function NotificationPreferencesForm() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Notification Preferences</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Notification Preferences
+          </h3>
           <p className="text-sm text-gray-600">
             Configure how and when you receive notifications
           </p>
@@ -321,14 +358,14 @@ export default function NotificationPreferencesForm() {
             size="sm"
             onClick={() => setShowPreview(!showPreview)}
           >
-            {showPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+            {showPreview ? (
+              <EyeOff className="w-4 h-4 mr-2" />
+            ) : (
+              <Eye className="w-4 h-4 mr-2" />
+            )}
             {showPreview ? "Hide Preview" : "Show Preview"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-          >
+          <Button variant="outline" size="sm" onClick={handleReset}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Reset
           </Button>
@@ -353,16 +390,24 @@ export default function NotificationPreferencesForm() {
 
       {/* Global Settings */}
       <Card className="p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">Global Settings</h4>
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+          Global Settings
+        </h4>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h5 className="font-medium text-gray-900">Enable Notifications</h5>
-              <p className="text-sm text-gray-600">Master switch for all notifications</p>
+              <h5 className="font-medium text-gray-900">
+                Enable Notifications
+              </h5>
+              <p className="text-sm text-gray-600">
+                Master switch for all notifications
+              </p>
             </div>
             <Switch
               checked={preferences.globalEnabled}
-              onChange={(checked) => handlePreferenceChange("globalEnabled", checked)}
+              onChange={(checked) =>
+                handlePreferenceChange("globalEnabled", checked)
+              }
               disabled={!isEditing}
             />
           </div>
@@ -385,7 +430,9 @@ export default function NotificationPreferencesForm() {
               </label>
               <Select
                 value={preferences.quietHours.timezone}
-                onChange={(value) => handlePreferenceChange("quietHours.timezone", value)}
+                onChange={(value) =>
+                  handlePreferenceChange("quietHours.timezone", value)
+                }
                 options={timezoneOptions}
                 disabled={!isEditing}
               />
@@ -395,11 +442,15 @@ export default function NotificationPreferencesForm() {
           <div className="flex items-center justify-between">
             <div>
               <h5 className="font-medium text-gray-900">Quiet Hours</h5>
-              <p className="text-sm text-gray-600">Pause notifications during specific hours</p>
+              <p className="text-sm text-gray-600">
+                Pause notifications during specific hours
+              </p>
             </div>
             <Switch
               checked={preferences.quietHours.enabled}
-              onChange={(checked) => handlePreferenceChange("quietHours.enabled", checked)}
+              onChange={(checked) =>
+                handlePreferenceChange("quietHours.enabled", checked)
+              }
               disabled={!isEditing}
             />
           </div>
@@ -413,7 +464,9 @@ export default function NotificationPreferencesForm() {
                 <input
                   type="time"
                   value={preferences.quietHours.start}
-                  onChange={(e) => handlePreferenceChange("quietHours.start", e.target.value)}
+                  onChange={(e) =>
+                    handlePreferenceChange("quietHours.start", e.target.value)
+                  }
                   disabled={!isEditing}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -425,7 +478,9 @@ export default function NotificationPreferencesForm() {
                 <input
                   type="time"
                   value={preferences.quietHours.end}
-                  onChange={(e) => handlePreferenceChange("quietHours.end", e.target.value)}
+                  onChange={(e) =>
+                    handlePreferenceChange("quietHours.end", e.target.value)
+                  }
                   disabled={!isEditing}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -437,31 +492,49 @@ export default function NotificationPreferencesForm() {
 
       {/* Channel Preferences */}
       <Card className="p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">Channel Preferences</h4>
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+          Channel Preferences
+        </h4>
         <div className="space-y-6">
           {Object.entries(preferences.channels).map(([channel, settings]) => (
-            <div key={channel} className="border border-gray-200 rounded-lg p-4">
+            <div
+              key={channel}
+              className="border border-gray-200 rounded-lg p-4"
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    channel === "email" ? "bg-blue-100" :
-                    channel === "inApp" ? "bg-green-100" :
-                    "bg-purple-100"
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      channel === "email"
+                        ? "bg-blue-100"
+                        : channel === "inApp"
+                          ? "bg-green-100"
+                          : "bg-purple-100"
+                    }`}
+                  >
                     {getChannelIcon(channel)}
                   </div>
                   <div>
-                    <h5 className="font-medium text-gray-900 capitalize">{channel}</h5>
+                    <h5 className="font-medium text-gray-900 capitalize">
+                      {channel}
+                    </h5>
                     <p className="text-sm text-gray-600">
-                      {channel === "email" ? "Email notifications" :
-                       channel === "inApp" ? "In-app notifications" :
-                       "Mobile push notifications"}
+                      {channel === "email"
+                        ? "Email notifications"
+                        : channel === "inApp"
+                          ? "In-app notifications"
+                          : "Mobile push notifications"}
                     </p>
                   </div>
                 </div>
                 <Switch
                   checked={settings.enabled}
-                  onChange={(checked) => handlePreferenceChange(`channels.${channel}.enabled`, checked)}
+                  onChange={(checked) =>
+                    handlePreferenceChange(
+                      `channels.${channel}.enabled`,
+                      checked
+                    )
+                  }
                   disabled={!isEditing}
                 />
               </div>
@@ -475,7 +548,12 @@ export default function NotificationPreferencesForm() {
                       </label>
                       <Select
                         value={settings.frequency}
-                        onChange={(value) => handlePreferenceChange(`channels.${channel}.frequency`, value)}
+                        onChange={(value) =>
+                          handlePreferenceChange(
+                            `channels.${channel}.frequency`,
+                            value
+                          )
+                        }
                         options={frequencyOptions}
                         disabled={!isEditing}
                       />
@@ -486,21 +564,35 @@ export default function NotificationPreferencesForm() {
                           <input
                             type="checkbox"
                             checked={settings.sound}
-                            onChange={(e) => handlePreferenceChange(`channels.${channel}.sound`, e.target.checked)}
+                            onChange={(e) =>
+                              handlePreferenceChange(
+                                `channels.${channel}.sound`,
+                                e.target.checked
+                              )
+                            }
                             disabled={!isEditing}
                             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-700">Sound notifications</span>
+                          <span className="text-sm text-gray-700">
+                            Sound notifications
+                          </span>
                         </label>
                         <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
                             checked={settings.desktop}
-                            onChange={(e) => handlePreferenceChange(`channels.${channel}.desktop`, e.target.checked)}
+                            onChange={(e) =>
+                              handlePreferenceChange(
+                                `channels.${channel}.desktop`,
+                                e.target.checked
+                              )
+                            }
                             disabled={!isEditing}
                             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-700">Desktop notifications</span>
+                          <span className="text-sm text-gray-700">
+                            Desktop notifications
+                          </span>
                         </label>
                       </div>
                     )}
@@ -510,21 +602,35 @@ export default function NotificationPreferencesForm() {
                           <input
                             type="checkbox"
                             checked={settings.push}
-                            onChange={(e) => handlePreferenceChange(`channels.${channel}.push`, e.target.checked)}
+                            onChange={(e) =>
+                              handlePreferenceChange(
+                                `channels.${channel}.push`,
+                                e.target.checked
+                              )
+                            }
                             disabled={!isEditing}
                             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-700">Push notifications</span>
+                          <span className="text-sm text-gray-700">
+                            Push notifications
+                          </span>
                         </label>
                         <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
                             checked={settings.sms}
-                            onChange={(e) => handlePreferenceChange(`channels.${channel}.sms`, e.target.checked)}
+                            onChange={(e) =>
+                              handlePreferenceChange(
+                                `channels.${channel}.sms`,
+                                e.target.checked
+                              )
+                            }
                             disabled={!isEditing}
                             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-700">SMS notifications</span>
+                          <span className="text-sm text-gray-700">
+                            SMS notifications
+                          </span>
                         </label>
                       </div>
                     )}
@@ -538,12 +644,16 @@ export default function NotificationPreferencesForm() {
 
       {/* Event Types */}
       <Card className="p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">Event Types</h4>
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+          Event Types
+        </h4>
         <div className="space-y-6">
           <div className="text-center py-8 text-gray-500">
             <Bell className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <p>Event type configuration will be available soon</p>
-            <p className="text-sm">This section is temporarily simplified for debugging</p>
+            <p className="text-sm">
+              This section is temporarily simplified for debugging
+            </p>
           </div>
         </div>
       </Card>
@@ -551,7 +661,9 @@ export default function NotificationPreferencesForm() {
       {/* Preview */}
       {showPreview && (
         <Card className="p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Notification Preview</h4>
+          <h4 className="text-lg font-semibold text-gray-900 mb-4">
+            Notification Preview
+          </h4>
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-start gap-3">
@@ -559,8 +671,12 @@ export default function NotificationPreferencesForm() {
                   <Bell className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h5 className="font-medium text-blue-900">New Lead Assigned</h5>
-                  <p className="text-sm text-blue-700">Sarah Johnson from Tech Corp has been assigned to you</p>
+                  <h5 className="font-medium text-blue-900">
+                    New Lead Assigned
+                  </h5>
+                  <p className="text-sm text-blue-700">
+                    Sarah Johnson from Tech Corp has been assigned to you
+                  </p>
                   <p className="text-xs text-blue-600 mt-1">2 minutes ago</p>
                 </div>
               </div>
@@ -573,7 +689,9 @@ export default function NotificationPreferencesForm() {
                 </div>
                 <div className="flex-1">
                   <h5 className="font-medium text-green-900">Deal Closed</h5>
-                  <p className="text-sm text-green-700">Enterprise Software License - $125,000</p>
+                  <p className="text-sm text-green-700">
+                    Enterprise Software License - $125,000
+                  </p>
                   <p className="text-xs text-green-600 mt-1">1 hour ago</p>
                 </div>
               </div>
@@ -586,7 +704,9 @@ export default function NotificationPreferencesForm() {
                 </div>
                 <div className="flex-1">
                   <h5 className="font-medium text-yellow-900">Task Due Soon</h5>
-                  <p className="text-sm text-yellow-700">Follow up with Tech Corp lead - Due in 2 hours</p>
+                  <p className="text-sm text-yellow-700">
+                    Follow up with Tech Corp lead - Due in 2 hours
+                  </p>
                   <p className="text-xs text-yellow-600 mt-1">3 hours ago</p>
                 </div>
               </div>
@@ -597,4 +717,3 @@ export default function NotificationPreferencesForm() {
     </div>
   );
 }
-

@@ -1,70 +1,38 @@
-import React from 'react';
-import { cn } from '../../lib/utils';
+import * as React from "react";
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
+import { cn } from "@/lib/utils";
 
-const avatarSizes = {
-  sm: 'avatar-sm',
-  md: 'avatar',
-  lg: 'avatar-lg',
-  xl: 'avatar-xl',
-};
+const Avatar = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
+      className
+    )}
+    {...props}
+  />
+));
+Avatar.displayName = AvatarPrimitive.Root.displayName;
 
-const Avatar = React.forwardRef(({ 
-  className,
-  size = 'md',
-  src,
-  alt,
-  fallback,
-  ...props 
-}, ref) => {
-  const [imageError, setImageError] = React.useState(false);
+const AvatarImage = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Image
+    ref={ref}
+    className={cn("aspect-square h-full w-full", className)}
+    {...props}
+  />
+));
+AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
-  const handleImageError = () => {
-    setImageError(true);
-  };
+const AvatarFallback = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Fallback
+    ref={ref}
+    className={cn(
+      "flex h-full w-full items-center justify-center rounded-full bg-muted",
+      className
+    )}
+    {...props}
+  />
+));
+AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName;
 
-  return (
-    <div
-      ref={ref}
-      className={cn(avatarSizes[size], className)}
-      {...props}
-    >
-      {src && !imageError ? (
-        <img
-          src={src}
-          alt={alt}
-          className="h-full w-full rounded-full object-cover"
-          onError={handleImageError}
-        />
-      ) : (
-        <span className="text-inherit">
-          {fallback || alt?.[0]?.toUpperCase() || '?'}
-        </span>
-      )}
-    </div>
-  );
-});
-
-Avatar.displayName = 'Avatar';
-
-const AvatarGroup = ({ children, max = 3, size = 'md', className }) => {
-  const childrenArray = React.Children.toArray(children);
-  const visibleChildren = childrenArray.slice(0, max);
-  const remainingCount = Math.max(0, childrenArray.length - max);
-
-  return (
-    <div className={cn('flex -space-x-2', className)}>
-      {visibleChildren.map((child, index) => (
-        <div key={index} className="ring-2 ring-white rounded-full">
-          {React.cloneElement(child, { size })}
-        </div>
-      ))}
-      {remainingCount > 0 && (
-        <div className={cn(avatarSizes[size], 'ring-2 ring-white bg-neutral-200 text-neutral-600')}>
-          <span>+{remainingCount}</span>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export { Avatar, AvatarGroup };
+export { Avatar, AvatarImage, AvatarFallback };

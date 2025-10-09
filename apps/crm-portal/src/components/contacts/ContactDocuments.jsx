@@ -211,7 +211,7 @@ export default function ContactDocuments({ contactId }) {
       branding: { color: "badge-gray", label: "Branding" },
       other: { color: "badge-gray", label: "Other" },
     };
-    
+
     const config = categoryConfig[category] || categoryConfig.other;
     return <Badge className={config.color}>{config.label}</Badge>;
   };
@@ -236,7 +236,7 @@ export default function ContactDocuments({ contactId }) {
     const now = new Date();
     const date = new Date(dateString);
     const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return "Today";
     if (diffInDays === 1) return "Yesterday";
     if (diffInDays < 7) return `${diffInDays} days ago`;
@@ -250,7 +250,10 @@ export default function ContactDocuments({ contactId }) {
     }
 
     // Category filter
-    if (selectedFilters.category !== "all" && doc.category !== selectedFilters.category) {
+    if (
+      selectedFilters.category !== "all" &&
+      doc.category !== selectedFilters.category
+    ) {
       return false;
     }
 
@@ -262,8 +265,10 @@ export default function ContactDocuments({ contactId }) {
         doc.description,
         doc.uploadedBy,
         ...doc.tags,
-      ].join(" ").toLowerCase();
-      
+      ]
+        .join(" ")
+        .toLowerCase();
+
       if (!searchableText.includes(query)) {
         return false;
       }
@@ -273,20 +278,24 @@ export default function ContactDocuments({ contactId }) {
   });
 
   const totalSize = filteredDocuments.reduce((sum, doc) => sum + doc.size, 0);
-  const sharedDocuments = filteredDocuments.filter(doc => doc.isShared).length;
-  const starredDocuments = filteredDocuments.filter(doc => doc.isStarred).length;
+  const sharedDocuments = filteredDocuments.filter(
+    (doc) => doc.isShared
+  ).length;
+  const starredDocuments = filteredDocuments.filter(
+    (doc) => doc.isStarred
+  ).length;
 
   const handleDocumentSelect = (docId, isSelected) => {
     if (isSelected) {
-      setSelectedDocuments(prev => [...prev, docId]);
+      setSelectedDocuments((prev) => [...prev, docId]);
     } else {
-      setSelectedDocuments(prev => prev.filter(id => id !== docId));
+      setSelectedDocuments((prev) => prev.filter((id) => id !== docId));
     }
   };
 
   const handleSelectAll = (isSelected) => {
     if (isSelected) {
-      setSelectedDocuments(filteredDocuments.map(doc => doc.id));
+      setSelectedDocuments(filteredDocuments.map((doc) => doc.id));
     } else {
       setSelectedDocuments([]);
     }
@@ -348,7 +357,9 @@ export default function ContactDocuments({ contactId }) {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <FileText className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-gray-600">Total Files</span>
+            <span className="text-sm font-medium text-gray-600">
+              Total Files
+            </span>
           </div>
           <div className="text-2xl font-bold text-gray-900">
             {filteredDocuments.length}
@@ -357,7 +368,9 @@ export default function ContactDocuments({ contactId }) {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Download className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-medium text-gray-600">Total Size</span>
+            <span className="text-sm font-medium text-gray-600">
+              Total Size
+            </span>
           </div>
           <div className="text-2xl font-bold text-gray-900">
             {formatFileSize(totalSize)}
@@ -368,14 +381,18 @@ export default function ContactDocuments({ contactId }) {
             <Share className="w-4 h-4 text-purple-600" />
             <span className="text-sm font-medium text-gray-600">Shared</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{sharedDocuments}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {sharedDocuments}
+          </div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Star className="w-4 h-4 text-yellow-600" />
             <span className="text-sm font-medium text-gray-600">Starred</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{starredDocuments}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {starredDocuments}
+          </div>
         </div>
       </div>
 
@@ -389,7 +406,12 @@ export default function ContactDocuments({ contactId }) {
               </label>
               <select
                 value={selectedFilters.type}
-                onChange={(e) => setSelectedFilters(prev => ({ ...prev, type: e.target.value }))}
+                onChange={(e) =>
+                  setSelectedFilters((prev) => ({
+                    ...prev,
+                    type: e.target.value,
+                  }))
+                }
                 className="input py-2"
               >
                 {documentTypes.map((type) => (
@@ -405,7 +427,12 @@ export default function ContactDocuments({ contactId }) {
               </label>
               <select
                 value={selectedFilters.category}
-                onChange={(e) => setSelectedFilters(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) =>
+                  setSelectedFilters((prev) => ({
+                    ...prev,
+                    category: e.target.value,
+                  }))
+                }
                 className="input py-2"
               >
                 {categories.map((category) => (
@@ -421,7 +448,12 @@ export default function ContactDocuments({ contactId }) {
               </label>
               <select
                 value={selectedFilters.dateRange}
-                onChange={(e) => setSelectedFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                onChange={(e) =>
+                  setSelectedFilters((prev) => ({
+                    ...prev,
+                    dateRange: e.target.value,
+                  }))
+                }
                 className="input py-2"
               >
                 {dateRanges.map((range) => (
@@ -481,9 +513,7 @@ export default function ContactDocuments({ contactId }) {
                 </div>
               </div>
 
-              <div className="mb-3">
-                {getCategoryBadge(doc.category)}
-              </div>
+              <div className="mb-3">{getCategoryBadge(doc.category)}</div>
 
               <p className="text-xs text-gray-600 mb-3 line-clamp-2">
                 {doc.description}
@@ -532,7 +562,10 @@ export default function ContactDocuments({ contactId }) {
                   <th className="px-6 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedDocuments.length === filteredDocuments.length && filteredDocuments.length > 0}
+                      checked={
+                        selectedDocuments.length === filteredDocuments.length &&
+                        filteredDocuments.length > 0
+                      }
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
                     />
@@ -564,7 +597,9 @@ export default function ContactDocuments({ contactId }) {
                       <input
                         type="checkbox"
                         checked={selectedDocuments.includes(doc.id)}
-                        onChange={(e) => handleDocumentSelect(doc.id, e.target.checked)}
+                        onChange={(e) =>
+                          handleDocumentSelect(doc.id, e.target.checked)
+                        }
                         className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
                       />
                     </td>
@@ -625,12 +660,15 @@ export default function ContactDocuments({ contactId }) {
       {filteredDocuments.length === 0 && (
         <div className="text-center py-12">
           <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No documents found
+          </h3>
           <p className="text-gray-500 mb-4">
-            {searchQuery || selectedFilters.type !== "all" || selectedFilters.category !== "all"
+            {searchQuery ||
+            selectedFilters.type !== "all" ||
+            selectedFilters.category !== "all"
               ? "Try adjusting your filters or search terms"
-              : "No documents associated with this contact yet"
-            }
+              : "No documents associated with this contact yet"}
           </p>
           <button className="btn-primary">
             <span>Upload First Document</span>

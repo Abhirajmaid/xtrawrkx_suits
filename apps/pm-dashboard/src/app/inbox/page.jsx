@@ -1,11 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  InboxHeader,
-  ActivityFeed,
-  NotificationDetail,
-} from "../../components/inbox";
+import Header from "../../components/shared/Header";
+import { ActivityFeed, NotificationDetail } from "../../components/inbox";
 
 export default function Inbox() {
   const [selectedNotification, setSelectedNotification] = useState(null);
@@ -135,7 +132,10 @@ export default function Inbox() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <InboxHeader />
+      <Header
+        title="Inbox"
+        subtitle="Stay updated with all your notifications"
+      />
       <div className="flex-1 flex overflow-hidden min-h-0 pt-16 pb-16">
         <div className="flex w-full max-w-7xl mx-auto px-4">
           <ActivityFeed

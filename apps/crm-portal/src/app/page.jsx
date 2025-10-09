@@ -20,7 +20,7 @@ import {
   ChevronDown,
   ArrowUpRight,
 } from "lucide-react";
-import { StatCard, Card, Badge, LineChart, AreaChart } from "@xtrawrkx/ui";
+import { StatCard, Card, Badge } from "@xtrawrkx/ui";
 import Button from "../components/Button";
 
 export default function Home() {
@@ -536,25 +536,14 @@ export default function Home() {
           <div className="space-y-6">
             {/* Chart Section */}
             <div className="h-72 bg-white/15 rounded-xl p-4 backdrop-blur-sm">
-              <LineChart
-                data={weeklyLeadsData}
-                height={280}
-                lines={[
-                  {
-                    dataKey: "leads",
-                    color: "#FDE047",
-                    name: "Total Leads",
-                  },
-                  {
-                    dataKey: "qualified",
-                    color: "#10B981",
-                    name: "Qualified Leads",
-                  },
-                ]}
-                showGrid={true}
-                showLegend={true}
-                className="text-brand-foreground"
-              />
+              <div className="flex items-center justify-center h-full text-brand-text-light">
+                <div className="text-center">
+                  <div className="text-lg font-medium mb-2">
+                    Weekly Leads Chart
+                  </div>
+                  <div className="text-sm">Chart component coming soon</div>
+                </div>
+              </div>
             </div>
 
             {/* KPI Cards */}

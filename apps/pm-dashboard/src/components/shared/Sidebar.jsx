@@ -220,21 +220,21 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
   }, [projects, showAllProjects]);
 
   return (
-    <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col">
+    <div className="w-64 h-screen bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 backdrop-blur-sm border border-white/50 shadow-2xl flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-white/20">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">📋</span>
           </div>
-          <h1 className="text-xl font-bold text-gray-900">taskhub</h1>
+          <h1 className="text-xl font-bold text-gray-900">PM Dashboard</h1>
         </div>
 
         {/* Workspace Dropdown */}
         <div className="relative" ref={workspaceDropdownRef}>
           <button
             onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
-            className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center gap-3 p-3 bg-white/50 backdrop-blur-md rounded-xl hover:bg-white/70 transition-all duration-300 shadow-sm border border-white/20"
           >
             <div
               className={`w-6 h-6 ${activeWorkspace?.color || "bg-green-500"} rounded flex items-center justify-center`}
@@ -253,15 +253,15 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
 
           {/* Workspace Dropdown Menu */}
           {showWorkspaceDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-white/30 z-10">
               <div className="p-2">
                 {workspaces.map((workspace) => (
                   <button
                     key={workspace.id}
                     onClick={() => handleWorkspaceSwitch(workspace.id)}
-                    className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                    className={`w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 ${
                       workspace.isActive
-                        ? "bg-blue-50 text-blue-700"
+                        ? "bg-primary-50 text-primary-700 shadow-sm"
                         : "text-gray-700"
                     }`}
                   >
@@ -276,19 +276,19 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
                       {workspace.name}
                     </span>
                     {workspace.isActive && (
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
                     )}
                   </button>
                 ))}
 
-                <div className="border-t border-gray-200 my-2"></div>
+                <div className="border-t border-white/20 my-2"></div>
 
                 <button
                   onClick={() => {
                     onOpenWorkspaceModal();
                     setShowWorkspaceDropdown(false);
                   }}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-700"
+                  className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 text-gray-700"
                 >
                   <div className="w-5 h-5 bg-gray-300 rounded flex items-center justify-center">
                     <Plus className="w-3 h-3 text-gray-600" />
@@ -313,14 +313,14 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
                 key={item.id}
                 onClick={() => handleNavigation(item.path)}
                 disabled={isNavigating}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer group ${
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer group rounded-xl ${
                   isActive
-                    ? "bg-gray-100 text-gray-900 font-bold shadow-sm rounded-r-lg"
-                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                    ? "bg-white/80 text-primary-700 font-bold shadow-sm border border-primary-200/50"
+                    : "text-gray-700 hover:bg-white/50 hover:text-gray-900"
                 } ${isNavigating ? "opacity-75 cursor-not-allowed" : ""}`}
               >
                 <Icon
-                  className={`w-5 h-5 mr-0 ${isActive ? "text-teal-700" : "text-gray-500 group-hover:text-gray-700"} transition-colors duration-200`}
+                  className={`w-5 h-5 mr-0 ${isActive ? "text-primary-700" : "text-gray-500 group-hover:text-gray-700"} transition-colors duration-200`}
                 />
                 <span>{item.label}</span>
                 {isNavigating && isActive && (
@@ -341,7 +341,7 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
             </h3>
             <button
               onClick={handleCreateProject}
-              className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors group"
+              className="w-6 h-6 bg-white/50 backdrop-blur-md rounded-xl flex items-center justify-center hover:bg-white/70 transition-all duration-200 group shadow-sm border border-white/20"
               title="Create New Project"
             >
               <Plus className="w-3 h-3 text-gray-500 group-hover:text-gray-700 transition-colors" />
@@ -355,7 +355,7 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
                   key={project.id}
                   onClick={() => handleProjectNavigation(project.name)}
                   disabled={isNavigating}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all duration-200 group ${
+                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-600 hover:bg-white/50 hover:text-gray-900 transition-all duration-200 group rounded-xl ${
                     isNavigating ? "opacity-75 cursor-not-allowed" : ""
                   }`}
                 >
@@ -375,7 +375,7 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
             {!showAllProjects && projects.length > 3 && (
               <button
                 onClick={handleLoadMoreProjects}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 group mt-2"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 hover:text-primary-700 transition-all duration-200 group mt-2 rounded-xl"
               >
                 <span className="font-medium">Load More</span>
                 <ChevronDown className="w-4 h-4" />
@@ -386,10 +386,10 @@ const Sidebar = memo(function Sidebar({ onOpenWorkspaceModal }) {
       </div>
 
       {/* Get Started Section */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-200 cursor-pointer group">
+      <div className="p-4 border-t border-white/20">
+        <div className="flex items-center gap-3 p-3 bg-white/50 backdrop-blur-md rounded-xl hover:bg-white/70 transition-all duration-200 cursor-pointer group shadow-sm border border-white/20">
           <div className="relative">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
             </div>
           </div>

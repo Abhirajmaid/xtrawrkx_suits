@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Card } from "@xtrawrkx/ui";
 import { useState } from "react";
+import Header from "../../components/shared/Header";
 import { useRouter } from "next/navigation";
 import { projects } from "../../data/centralData";
 
@@ -159,14 +160,15 @@ export default function ProjectsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full">
+      <Header title="Projects" subtitle="Manage and track all your projects" />
+      <div className="flex-1 p-6">
+        <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold text-brand-foreground">
+          <h1 className="text-2xl font-semibold text-gray-900">
             Projects
           </h1>
-          <p className="text-sm text-brand-text-light">
+          <p className="text-sm text-gray-600">
             Manage and track all your projects
           </p>
         </div>
@@ -312,6 +314,8 @@ export default function ProjectsPage() {
 
       {/* Projects Content */}
       {renderGridView()}
+        </div>
+      </div>
     </div>
   );
 }

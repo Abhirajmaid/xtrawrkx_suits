@@ -59,7 +59,7 @@ const PrivateNotepad = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+    <div className="card flex flex-col h-full">
       <div className="px-6 py-5 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>

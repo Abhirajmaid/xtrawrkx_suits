@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, MoreHorizontal } from "lucide-react";
+import { ChevronDown, MoreHorizontal, GitBranch } from "lucide-react";
 import TaskRowDropdown from "./TaskRowDropdown";
 
 const TaskTable = ({
@@ -9,6 +9,7 @@ const TaskTable = ({
   project = null,
   onTaskClick = () => {},
   onContextMenuOpen = () => {},
+  onTaskComplete = () => {},
   TaskRowDropdownComponent = TaskRowDropdown,
 }) => {
   // Row dropdown state
@@ -23,6 +24,12 @@ const TaskTable = ({
       isOpen: prev.taskId === taskId ? !prev.isOpen : true,
       taskId: taskId,
     }));
+  };
+
+  // Handle task completion
+  const handleTaskComplete = (task, completed) => {
+    const newStatus = completed ? "Done" : "To Do";
+    onTaskComplete(task.id, newStatus);
   };
 
   // Status color function matching my-task page
@@ -88,13 +95,34 @@ const TaskTable = ({
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
+                      checked={task.status === "Done"}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleTaskComplete(task, e.target.checked);
+                      }}
                       className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-sm font-medium text-gray-900 truncate block">
-                      {task.name}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`text-sm font-medium truncate transition-all duration-200 ${
+                          task.status === "Done"
+                            ? "text-gray-500 line-through"
+                            : "text-gray-900"
+                        }`}
+                      >
+                        {task.name}
+                      </span>
+                      {task.subtaskCount && task.subtaskCount > 0 && (
+                        <div className="flex items-center space-x-1 bg-gray-100 rounded-full px-2 py-0.5">
+                          <span className="text-xs text-gray-600 font-medium">
+                            {task.subtaskCount}
+                          </span>
+                          <GitBranch className="h-3 w-3 text-gray-500" />
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     {task.assignee && task.assignee !== "Multiple" ? (

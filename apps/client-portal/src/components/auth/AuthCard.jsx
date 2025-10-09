@@ -1,24 +1,32 @@
-import { Card } from "@xtrawrkx/ui";
+import { motion } from "framer-motion";
 
-export default function AuthCard({ title, subtitle, children, className = "" }) {
+export default function AuthCard({
+  title,
+  subtitle,
+  children,
+  className = "",
+}) {
   return (
-    <div className={`w-full max-w-md mx-auto ${className}`}>
-      <Card 
-        className="p-8 shadow-lg border-0 bg-white/95 backdrop-blur-sm"
-        padding={false}
+    <div className={`w-full ${className}`}>
+      {/* Header */}
+      <motion.div
+        className="mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
       >
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-neutral-900 mb-2">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="text-neutral-600 text-sm">
-              {subtitle}
-            </p>
-          )}
-        </div>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">{title}</h1>
+        {subtitle && <p className="text-gray-600 text-base">{subtitle}</p>}
+      </motion.div>
+
+      {/* Form Content */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+      >
         {children}
-      </Card>
+      </motion.div>
     </div>
   );
 }

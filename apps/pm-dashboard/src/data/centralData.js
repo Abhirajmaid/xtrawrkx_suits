@@ -623,7 +623,28 @@ export const subtasks = {
         assigneeId: 1,
         dueDate: "Jan 6 2024",
         description: "Research current social media design trends",
-        priority: "medium"
+        priority: "medium",
+        progress: 100,
+        subtasks: [
+            {
+                id: 101,
+                name: "Analyze competitor designs",
+                status: "Done",
+                assigneeId: 1,
+                dueDate: "Jan 5 2024",
+                progress: 100,
+                priority: "medium"
+            },
+            {
+                id: 102,
+                name: "Create mood board",
+                status: "Done",
+                assigneeId: 1,
+                dueDate: "Jan 6 2024",
+                progress: 100,
+                priority: "medium"
+            }
+        ]
     },
     2: {
         id: 2,
@@ -633,7 +654,8 @@ export const subtasks = {
         assigneeId: 1,
         dueDate: "Jan 7 2024",
         description: "Create rough sketches for illustration concepts",
-        priority: "high"
+        priority: "high",
+        progress: 100
     },
     3: {
         id: 3,
@@ -643,7 +665,37 @@ export const subtasks = {
         assigneeId: 1,
         dueDate: "Jan 8 2024",
         description: "Create final digital illustration",
-        priority: "high"
+        priority: "high",
+        progress: 60,
+        subtasks: [
+            {
+                id: 103,
+                name: "Create base illustration",
+                status: "Done",
+                assigneeId: 1,
+                dueDate: "Jan 7 2024",
+                progress: 100,
+                priority: "high"
+            },
+            {
+                id: 104,
+                name: "Add color and effects",
+                status: "In Progress",
+                assigneeId: 1,
+                dueDate: "Jan 8 2024",
+                progress: 40,
+                priority: "high"
+            },
+            {
+                id: 105,
+                name: "Final review and export",
+                status: "To Do",
+                assigneeId: 1,
+                dueDate: "Jan 8 2024",
+                progress: 0,
+                priority: "medium"
+            }
+        ]
     },
 
     // Task 5: Ads Illustration - Subtasks
@@ -1082,11 +1134,17 @@ export const getProjectBySlug = (slug) => {
 
 // Get all tasks for my-task page with proper date formatting
 export const getAllTasksForMyTask = () => {
-    return Object.values(tasks).map(task => ({
-        ...task,
-        dueDate: task.dueDate, // Keep existing format
-        time: task.time || null
-    }));
+    return Object.values(tasks).map(task => {
+        // Get subtasks for this task
+        const taskSubtasks = Object.values(subtasks).filter(subtask => subtask.taskId === task.id);
+
+        return {
+            ...task,
+            dueDate: task.dueDate, // Keep existing format
+            time: task.time || null,
+            subtaskCount: taskSubtasks.length
+        };
+    });
 };
 
 // Get tasks for specific month

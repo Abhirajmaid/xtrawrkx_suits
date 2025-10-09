@@ -19,6 +19,9 @@
 export { default as Header } from './Header';
 export { default as StatsCards } from './StatsCards';
 export { default as AssignedTasks } from './AssignedTasks';
+export { default as AssignedTasksTable } from './AssignedTasksTable';
 export { default as Projects } from './Projects';
+export { default as ProjectsTable } from './ProjectsTable';
 export { default as People } from './People';
 export { default as PrivateNotepad } from './PrivateNotepad';
+export { default as RecentActivity } from './RecentActivity';

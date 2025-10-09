@@ -6,31 +6,26 @@ import AuthInput from "./AuthInput";
 import AuthButton from "./AuthButton";
 import AuthToggle from "./AuthToggle";
 
-export default function SignUpForm({ 
-  onSignIn, 
-  onSubmit,
-  className = "" 
-}) {
+export default function SignUpForm({ onSignIn, onSubmit, className = "" }) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    password: "",
-    confirmPassword: "",
+    phone: "",
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ""
+        [name]: "",
       }));
     }
   };
@@ -42,27 +37,21 @@ export default function SignUpForm({
 
     // Basic validation
     const newErrors = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = "Name is required";
     }
-    
+
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email is invalid";
     }
-    
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-    }
-    
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
+
+    if (!formData.phone) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phone)) {
+      newErrors.phone = "Phone number is invalid";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -77,24 +66,26 @@ export default function SignUpForm({
       } else {
         // Default behavior - just log for now
         console.log("Sign up attempt:", formData);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
       }
     } catch (error) {
-      setErrors({ general: error.message || "Sign up failed. Please try again." });
+      setErrors({
+        general: error.message || "Sign up failed. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className={`w-full max-w-md mx-auto ${className}`}>
+    <div className={`w-full ${className}`}>
       <AuthCard
         title="Create Your Account"
-        subtitle="Join the portal to collaborate on projects"
+        subtitle="Enter your details to get started with OTP verification"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           {errors.general && (
-            <div className="bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {errors.general}
             </div>
           )}
@@ -122,33 +113,18 @@ export default function SignUpForm({
           />
 
           <AuthInput
-            type="password"
-            name="password"
-            label="Password"
-            placeholder="Create a password"
-            value={formData.password}
+            type="tel"
+            name="phone"
+            label="Phone Number"
+            placeholder="Enter your phone number"
+            value={formData.phone}
             onChange={handleInputChange}
-            error={errors.password}
+            error={errors.phone}
             required
           />
 
-          <AuthInput
-            type="password"
-            name="confirmPassword"
-            label="Confirm Password"
-            placeholder="Confirm your password"
-            value={formData.confirmPassword}
-            onChange={handleInputChange}
-            error={errors.confirmPassword}
-            required
-          />
-
-          <AuthButton
-            type="submit"
-            loading={loading}
-            disabled={loading}
-          >
-            Sign Up
+          <AuthButton type="submit" loading={loading} disabled={loading}>
+            {loading ? "Processing..." : "Continue to Verification"}
           </AuthButton>
 
           <AuthToggle

@@ -43,10 +43,7 @@ const StatsCards = ({ data }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
       {stats.map((stat, index) => (
-        <div
-          key={index}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200"
-        >
+        <div key={index} className="card card-hover p-6">
           <div className="space-y-3">
             {/* Header with title and trend */}
             <div className="flex items-center justify-between">
@@ -54,8 +51,8 @@ const StatsCards = ({ data }) => {
               <div
                 className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold ${
                   stat.isPositive
-                    ? "bg-green-50 text-green-600"
-                    : "bg-red-50 text-red-600"
+                    ? "bg-success-50 text-success-600"
+                    : "bg-error-50 text-error-600"
                 }`}
               >
                 {stat.isPositive ? (
