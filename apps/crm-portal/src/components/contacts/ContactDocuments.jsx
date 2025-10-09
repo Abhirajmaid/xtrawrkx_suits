@@ -7,7 +7,7 @@ import {
   File,
   Image,
   FileSpreadsheet,
-  FilePdf,
+  FileText as FilePdf,
   Download,
   Eye,
   Edit,

@@ -12,6 +12,7 @@ export { CircularProgress } from './CircularProgress.jsx'
 export { Input } from './Input.jsx'
 export { Select } from './Select.jsx'
 export { Checkbox } from './Checkbox.jsx'
+export { Textarea } from './Textarea.jsx'
 
 // Layout Components
 export { Container } from './Container'
@@ -20,6 +21,8 @@ export { PageHeader } from './PageHeader'
 // Data Display
 export { Table } from './Table.jsx'
 export { EmptyState } from './EmptyState.jsx'
+export { AreaChart } from './AreaChart.jsx'
+export { Progress } from './Progress.jsx'
 
 // Feedback
 export { Modal } from './Modal.jsx'

@@ -6,7 +6,7 @@ import {
   Bell,
   Mail,
   Smartphone,
-  Desktop,
+  Monitor as Desktop,
   Settings,
   Save,
   RefreshCw,

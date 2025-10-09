@@ -7,7 +7,7 @@ import {
   File,
   Image,
   FileSpreadsheet,
-  FilePdf,
+  FileText as FilePdf,
   Download,
   Eye,
   Edit,
@@ -27,7 +27,7 @@ import {
   ExternalLink,
   Plus,
   History,
-  Version,
+  GitBranch as Version,
 } from "lucide-react";
 
 export default function ClientDocuments({ clientId }) {
