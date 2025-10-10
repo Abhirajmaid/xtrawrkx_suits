@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { TopNavbar } from "./TopNavbar";
 import { FloatingChatWidget } from "../chat/FloatingChatWidget";
@@ -11,6 +11,14 @@ export function MainLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Handle redirect from root protected route to dashboard
+  useEffect(() => {
+    if (pathname === "/") {
+      router.replace("/dashboard");
+    }
+  }, [pathname, router]);
 
   // Determine active section based on pathname
   const getActiveSection = () => {
