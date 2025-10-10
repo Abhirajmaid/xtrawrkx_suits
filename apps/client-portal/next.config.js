@@ -7,9 +7,6 @@ const nextConfig = {
     },
     // Optimize for Vercel deployment
     swcMinify: true,
-    compiler: {
-        removeConsole: process.env.NODE_ENV === 'production',
-    },
     // Ensure proper static optimization
     poweredByHeader: false,
     reactStrictMode: true,
