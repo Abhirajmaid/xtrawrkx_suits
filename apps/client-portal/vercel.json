@@ -2,10 +2,8 @@
     "framework": "nextjs",
     "buildCommand": "npm run build",
     "outputDirectory": ".next",
-    "installCommand": "npm install",
+    "installCommand": "npm install --production=false",
     "devCommand": "npm run dev",
-    "cleanUrls": true,
-    "trailingSlash": false,
     "rewrites": [
         {
             "source": "/(.*)",

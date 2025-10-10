@@ -7,6 +7,7 @@ const nextConfig = {
     },
     // Optimize for Vercel deployment
     swcMinify: true,
+
     // Ensure proper static optimization
     poweredByHeader: false,
     reactStrictMode: true,
