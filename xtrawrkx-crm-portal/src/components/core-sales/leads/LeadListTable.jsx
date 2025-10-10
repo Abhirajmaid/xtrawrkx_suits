@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DataGrid, Button, Badge } from "../../../../../../../../../components/ui";
+import { DataGrid, Button, Badge } from "../../../components/ui";
 import {
   Search,
   Filter,

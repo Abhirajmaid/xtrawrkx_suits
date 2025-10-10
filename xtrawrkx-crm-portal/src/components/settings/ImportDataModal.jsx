@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Select } from "../../../../../../../../components/ui";
+import { Button, Select } from "../../components/ui";
 import { X, Upload, FileText, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react";
 import { BaseModal } from "../ui";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Avatar, Badge } from "../../../../../../../../components/ui";
+import { Avatar, Badge } from "../../components/ui";
 import {
   Mail,
   Phone,

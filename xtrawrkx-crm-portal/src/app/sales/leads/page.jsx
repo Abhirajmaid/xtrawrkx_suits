@@ -17,6 +17,17 @@ import {
 import { formatNumber } from "../../../lib/utils";
 // import { formatDate } from "@xtrawrkx/utils";
 // import { useDragDropBoard } from "../../../lib/dragdrop"; // Removed - using react-beautiful-dnd now
+
+// Local utility function to replace @xtrawrkx/utils formatDate
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
 import {
   leadsData as initialLeadsData,
   leadSources,

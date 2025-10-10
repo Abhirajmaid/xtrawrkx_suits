@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, Badge } from "../../../../../../../../components/ui";
+import { Card, Badge } from "../../components/ui";
 import { formatDate } from "../../lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Users } from "lucide-react";
 

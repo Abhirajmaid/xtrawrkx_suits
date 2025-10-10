@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Badge } from "../../../../../../../../components/ui";
+import { Badge } from "../../components/ui";
 import {
   FolderOpen,
   Calendar,

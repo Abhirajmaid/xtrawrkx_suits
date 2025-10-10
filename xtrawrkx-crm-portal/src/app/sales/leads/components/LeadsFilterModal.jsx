@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Filter, Calendar, User, Building2, DollarSign } from 'lucide-react';
-import { Card, Button, Input, Select } from "../../../../../../../../../../components/ui";
+import { Card, Button, Input, Select } from "../../../../components/ui";
 
 export default function LeadsFilterModal({ 
   isOpen, 

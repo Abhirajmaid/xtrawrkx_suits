@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input, Select, Button } from "../../ui";
+import { Input, Select, Button } from "../ui";
 import { X, Filter } from "lucide-react";
 import { BaseModal } from "../ui";
 

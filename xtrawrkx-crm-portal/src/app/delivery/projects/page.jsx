@@ -9,7 +9,7 @@ import {
   StatCard,
   BarChart,
   EmptyState,
-} from "../../../../../../../../../components/ui";
+} from "../../../components/ui";
 import {
   FolderOpen,
   Clock,
@@ -28,18 +28,18 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout";
 import { format } from "date-fns";
-import { 
-  projectsData as initialProjectsData, 
-  getProjectsByStatus, 
-  getProjectStats, 
-  searchProjects, 
-  filterProjects 
+import {
+  projectsData as initialProjectsData,
+  getProjectsByStatus,
+  getProjectStats,
+  searchProjects,
+  filterProjects,
 } from "../../../lib/data/projectsData";
-import { 
-  ProjectKanbanView, 
-  ProjectGanttView, 
-  ProjectFilterModal, 
-  NewProjectModal 
+import {
+  ProjectKanbanView,
+  ProjectGanttView,
+  ProjectFilterModal,
+  NewProjectModal,
 } from "../../../components/projects";
 
 export default function ProjectsPage() {
@@ -80,8 +80,8 @@ export default function ProjectsPage() {
   };
 
   const handleProjectMove = (project, newStage) => {
-    setProjectsData(prev => 
-      prev.map(p => p.id === project.id ? { ...p, stage: newStage } : p)
+    setProjectsData((prev) =>
+      prev.map((p) => (p.id === project.id ? { ...p, stage: newStage } : p))
     );
   };
 
@@ -122,8 +122,8 @@ export default function ProjectsPage() {
       <PageHeader
         title="Projects"
         subtitle="Manage and track all your projects"
-        breadcrumbs={['Dashboard', 'Delivery', 'Projects']}
-        actions={['filter', 'new']}
+        breadcrumbs={["Dashboard", "Delivery", "Projects"]}
+        actions={["filter", "new"]}
         searchPlaceholder="Search projects..."
         onSearch={setSearchQuery}
         onFilter={() => setIsFilterModalOpen(true)}
@@ -158,7 +158,9 @@ export default function ProjectsPage() {
         />
         <StatCard
           title="Budget Utilized"
-          value={`${Math.round((projectStats.totalSpent / projectStats.totalBudget) * 100)}%`}
+          value={`${Math.round(
+            (projectStats.totalSpent / projectStats.totalBudget) * 100
+          )}%`}
           subtitle={`$${(projectStats.totalSpent / 1000).toFixed(0)}K spent`}
           icon={TrendingUp}
           iconBg="bg-yellow-100"
@@ -173,8 +175,12 @@ export default function ProjectsPage() {
           {[
             { key: "all", label: "All Projects", count: projectStats.total },
             { key: "active", label: "Active", count: projectStats.active },
-            { key: "completed", label: "Completed", count: projectStats.completed },
-            { key: "on-hold", label: "On Hold", count: projectStats.onHold }
+            {
+              key: "completed",
+              label: "Completed",
+              count: projectStats.completed,
+            },
+            { key: "on-hold", label: "On Hold", count: projectStats.onHold },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -235,17 +241,24 @@ export default function ProjectsPage() {
       {activeView === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project) => (
-            <Card key={project.id} className="p-6 hover:shadow-lg transition-shadow">
+            <Card
+              key={project.id}
+              className="p-6 hover:shadow-lg transition-shadow"
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{project.name}</h3>
-                  <p className="text-sm text-gray-600 truncate">{project.client}</p>
+                  <h3 className="font-semibold text-gray-900 truncate">
+                    {project.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 truncate">
+                    {project.client}
+                  </p>
                 </div>
                 <Badge className={getPriorityIcon(project.priority)}>
                   {project.priority}
                 </Badge>
               </div>
-              
+
               <div className="mb-4">
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-gray-600">Progress</span>
@@ -262,7 +275,9 @@ export default function ProjectsPage() {
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  <span>{format(new Date(project.endDate), "MMM dd, yyyy")}</span>
+                  <span>
+                    {format(new Date(project.endDate), "MMM dd, yyyy")}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
@@ -270,7 +285,10 @@ export default function ProjectsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
-                  <span>${(project.spent / 1000).toFixed(0)}K / ${(project.budget / 1000).toFixed(0)}K</span>
+                  <span>
+                    ${(project.spent / 1000).toFixed(0)}K / $
+                    {(project.budget / 1000).toFixed(0)}K
+                  </span>
                 </div>
               </div>
 
@@ -291,11 +309,11 @@ export default function ProjectsPage() {
 
       {activeView === "kanban" && (
         <div className="w-full">
-        <ProjectKanbanView
-          projects={filteredProjects}
-          onProjectMove={handleProjectMove}
-          onAddProject={() => setIsNewProjectModalOpen(true)}
-        />
+          <ProjectKanbanView
+            projects={filteredProjects}
+            onProjectMove={handleProjectMove}
+            onAddProject={() => setIsNewProjectModalOpen(true)}
+          />
         </div>
       )}
 

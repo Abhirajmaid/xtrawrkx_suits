@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Button, Card, Table, Badge, Modal } from "../../../../../../../../../components/ui";
+import { Button, Card, Table, Badge, Modal } from "../../../components/ui";
 import {
   Upload,
   FileText,

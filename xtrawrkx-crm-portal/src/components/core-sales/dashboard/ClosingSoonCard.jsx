@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Badge, Button } from "../../../../../../../../../components/ui";
+import { Card, Badge, Button } from "../../../components/ui";
 import {
   Clock,
   DollarSign,

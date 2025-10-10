@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Select, Button } from "../../../../../../../../components/ui";
+import { Input, Select, Button } from "../../components/ui";
 import { X, Calendar, Clock, MapPin, Users, Video } from "lucide-react";
 import { BaseModal } from "../ui";
 

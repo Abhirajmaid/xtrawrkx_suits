@@ -10,6 +10,7 @@ export { default as Button } from './Button';
 export { default as Input } from './Input';
 export { default as Select } from './Select';
 export { default as Checkbox } from './Checkbox';
+export { default as Textarea } from './Textarea';
 
 // Layout Components
 export { default as Container } from './Container';
@@ -18,21 +19,8 @@ export { default as Modal } from './Modal';
 // Data Display
 export { default as Table } from './Table';
 export { default as EmptyState } from './EmptyState';
+export { default as Progress } from './Progress';
+export { default as AreaChart } from './AreaChart';
 
 // Navigation  
 export { default as Tabs } from './Tabs';
-
-// Named exports for compatibility
-export { Card } from './Card';
-export { Badge } from './Badge';
-export { StatCard } from './StatCard';
-export { Avatar } from './Avatar';
-export { Button } from './Button';
-export { Input } from './Input';
-export { Select } from './Select';
-export { Checkbox } from './Checkbox';
-export { Container } from './Container';
-export { Modal } from './Modal';
-export { Table } from './Table';
-export { EmptyState } from './EmptyState';
-export { Tabs } from './Tabs';

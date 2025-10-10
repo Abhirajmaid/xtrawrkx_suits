@@ -2,12 +2,19 @@
 
 import React, { useState } from "react";
 import KanbanBoard from "../../../../components/kanban/KanbanBoard";
-import {
-  Card,
-  Avatar,
-  Badge,
-} from "../../../../../../../../../../components/ui";
+import { Card, Avatar, Badge } from "../../../../components/ui";
 // import { formatDate } from '@xtrawrkx/utils';
+
+// Local utility function to replace @xtrawrkx/utils formatDate
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
 import { CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { PageHeader } from "../../../../components/layout";
 import { TaskFilterModal, NewTaskModal } from "../../../../components/tasks";

@@ -11,7 +11,7 @@ import {
   Tabs,
   StatCard,
   Table,
-} from "../../../../../../../../../../components/ui";
+} from "../../../../components/ui";
 import {
   ArrowLeft,
   Building2,
@@ -63,7 +63,8 @@ export default function AccountDetailPage() {
     website: "techsolutions.com",
     employees: "500-1000",
     location: "San Francisco, CA",
-    description: "Leading technology solutions provider specializing in enterprise software and cloud infrastructure.",
+    description:
+      "Leading technology solutions provider specializing in enterprise software and cloud infrastructure.",
     founded: "2015",
     headquarters: "San Francisco, CA",
     phone: "+1 (555) 123-4567",
@@ -122,9 +123,7 @@ export default function AccountDetailPage() {
     {
       key: "lastContact",
       label: "Last Contact",
-      render: (value) => (
-        <span className="text-sm text-gray-600">{value}</span>
-      ),
+      render: (value) => <span className="text-sm text-gray-600">{value}</span>,
     },
     {
       key: "actions",
@@ -168,10 +167,10 @@ export default function AccountDetailPage() {
       label: "Stage",
       render: (value) => {
         const variants = {
-          "Prospecting": "default",
-          "Qualification": "warning",
-          "Proposal": "info",
-          "Negotiation": "warning",
+          Prospecting: "default",
+          Qualification: "warning",
+          Proposal: "info",
+          Negotiation: "warning",
           "Closed Won": "success",
           "Closed Lost": "destructive",
         };
@@ -196,9 +195,7 @@ export default function AccountDetailPage() {
     {
       key: "closeDate",
       label: "Close Date",
-      render: (value) => (
-        <span className="text-sm text-gray-600">{value}</span>
-      ),
+      render: (value) => <span className="text-sm text-gray-600">{value}</span>,
     },
     {
       key: "actions",
@@ -334,9 +331,13 @@ export default function AccountDetailPage() {
           <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
             <Building2 className="w-8 h-8 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Account not found</h2>
-          <p className="text-gray-600 mb-4">The account you're looking for doesn't exist.</p>
-          <Button onClick={() => router.push('/sales/accounts')}>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Account not found
+          </h2>
+          <p className="text-gray-600 mb-4">
+            The account you're looking for doesn't exist.
+          </p>
+          <Button onClick={() => router.push("/sales/accounts")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Accounts
           </Button>
@@ -354,7 +355,7 @@ export default function AccountDetailPage() {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={() => router.push('/sales/accounts')}
+                onClick={() => router.push("/sales/accounts")}
                 className="p-2"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -365,19 +366,29 @@ export default function AccountDetailPage() {
                     {account.name.charAt(0)}
                   </div>
                   <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">{account.name}</h1>
+                    <h1 className="text-2xl font-semibold text-gray-900">
+                      {account.name}
+                    </h1>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="success">{account.type}</Badge>
-                      <span className="text-sm text-gray-500">{account.industry}</span>
+                      <span className="text-sm text-gray-500">
+                        {account.industry}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <nav className="flex items-center space-x-2 text-sm text-gray-500">
-                  <a href="/" className="hover:text-gray-700">Dashboard</a>
+                  <a href="/" className="hover:text-gray-700">
+                    Dashboard
+                  </a>
                   <span>/</span>
-                  <a href="/sales" className="hover:text-gray-700">Sales</a>
+                  <a href="/sales" className="hover:text-gray-700">
+                    Sales
+                  </a>
                   <span>/</span>
-                  <a href="/sales/accounts" className="hover:text-gray-700">Accounts</a>
+                  <a href="/sales/accounts" className="hover:text-gray-700">
+                    Accounts
+                  </a>
                   <span>/</span>
                   <span className="text-gray-900">{account.name}</span>
                 </nav>
@@ -464,24 +475,34 @@ export default function AccountDetailPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Industry</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Industry
+                      </label>
                       <p className="text-gray-900">{account.industry}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Founded</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Founded
+                      </label>
                       <p className="text-gray-900">{account.founded}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Employees</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Employees
+                      </label>
                       <p className="text-gray-900">{account.employees}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Headquarters</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Headquarters
+                      </label>
                       <p className="text-gray-900">{account.headquarters}</p>
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <label className="text-sm font-medium text-gray-500">
+                      Description
+                    </label>
                     <p className="text-gray-900 mt-1">{account.description}</p>
                   </div>
                 </div>
@@ -494,7 +515,10 @@ export default function AccountDetailPage() {
                     <Globe className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="text-sm text-gray-500">Website</p>
-                      <a href={`https://${account.website}`} className="text-blue-600 hover:underline">
+                      <a
+                        href={`https://${account.website}`}
+                        className="text-blue-600 hover:underline"
+                      >
                         {account.website}
                       </a>
                     </div>
@@ -530,7 +554,9 @@ export default function AccountDetailPage() {
                 <div className="flex items-center gap-3">
                   <Avatar name={account.owner} size="lg" />
                   <div>
-                    <h3 className="font-medium text-gray-900">{account.owner}</h3>
+                    <h3 className="font-medium text-gray-900">
+                      {account.owner}
+                    </h3>
                     <p className="text-sm text-gray-500">Account Manager</p>
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="w-4 h-4 text-yellow-400 fill-current" />
@@ -544,8 +570,12 @@ export default function AccountDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Health Score</span>
-                      <span className="text-sm font-semibold text-gray-900">{account.health}%</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        Health Score
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {account.health}%
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
@@ -563,7 +593,9 @@ export default function AccountDetailPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Last Activity</span>
-                      <span className="text-gray-900">{account.lastActivity}</span>
+                      <span className="text-gray-900">
+                        {account.lastActivity}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Total Revenue</span>
@@ -609,7 +641,9 @@ export default function AccountDetailPage() {
         {activeTab === "activity" && (
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Activity Timeline</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Activity Timeline
+              </h3>
               <Button size="sm">
                 <Plus className="w-4 h-4 mr-2" />
                 Log Activity
@@ -617,27 +651,51 @@ export default function AccountDetailPage() {
             </div>
             <div className="space-y-4">
               {activityItems.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    activity.type === 'email' ? 'bg-blue-100' :
-                    activity.type === 'call' ? 'bg-green-100' :
-                    activity.type === 'meeting' ? 'bg-purple-100' :
-                    'bg-yellow-100'
-                  }`}>
-                    {activity.type === 'email' && <Mail className="w-4 h-4 text-blue-600" />}
-                    {activity.type === 'call' && <Phone className="w-4 h-4 text-green-600" />}
-                    {activity.type === 'meeting' && <Calendar className="w-4 h-4 text-purple-600" />}
-                    {activity.type === 'deal' && <Briefcase className="w-4 h-4 text-yellow-600" />}
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg"
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      activity.type === "email"
+                        ? "bg-blue-100"
+                        : activity.type === "call"
+                        ? "bg-green-100"
+                        : activity.type === "meeting"
+                        ? "bg-purple-100"
+                        : "bg-yellow-100"
+                    }`}
+                  >
+                    {activity.type === "email" && (
+                      <Mail className="w-4 h-4 text-blue-600" />
+                    )}
+                    {activity.type === "call" && (
+                      <Phone className="w-4 h-4 text-green-600" />
+                    )}
+                    {activity.type === "meeting" && (
+                      <Calendar className="w-4 h-4 text-purple-600" />
+                    )}
+                    {activity.type === "deal" && (
+                      <Briefcase className="w-4 h-4 text-yellow-600" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-gray-900">{activity.title}</h4>
-                      <span className="text-sm text-gray-500">{activity.timestamp}</span>
+                      <h4 className="font-medium text-gray-900">
+                        {activity.title}
+                      </h4>
+                      <span className="text-sm text-gray-500">
+                        {activity.timestamp}
+                      </span>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {activity.description}
+                    </p>
                     <div className="flex items-center gap-2 mt-2">
                       <Avatar name={activity.user} size="xs" />
-                      <span className="text-xs text-gray-500">{activity.user}</span>
+                      <span className="text-xs text-gray-500">
+                        {activity.user}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -658,7 +716,9 @@ export default function AccountDetailPage() {
             <div className="text-center py-8 text-gray-500">
               <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
               <p>No documents uploaded yet</p>
-              <p className="text-sm">Upload contracts, proposals, and other important files</p>
+              <p className="text-sm">
+                Upload contracts, proposals, and other important files
+              </p>
             </div>
           </Card>
         )}

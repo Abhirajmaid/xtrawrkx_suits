@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Modal } from "../../../../../../../../components/ui";
+import { Modal } from "../../components/ui";
 import { CloudUpload, FileText, CheckCircle, AlertCircle, X } from "lucide-react";
 
 export default function ImportAccountsModal({ isOpen, onClose, onImportAccounts }) {

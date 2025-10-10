@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Modal, Input, Textarea, Select, Card } from "../../../../../../../../../components/ui";
+import { Button, Modal, Input, Textarea, Select, Card } from "../../../components/ui";
 import {
   Phone,
   Mail,

@@ -1,4 +1,4 @@
-import { Modal, Button, Input, Select } from "../../../../../../../../../../components/ui";
+import { Modal, Button, Input, Select } from "../../../../components/ui";
 import { X } from 'lucide-react';
 
 export default function LeadsModal({ 

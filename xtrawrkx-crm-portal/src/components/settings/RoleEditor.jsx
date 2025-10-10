@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Input, Select, Badge, Textarea } from "../../../../../../../../components/ui";
+import { Card, Button, Input, Select, Badge, Textarea } from "../../components/ui";
 import {
   Save,
   X,

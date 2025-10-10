@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Input, Select } from "../../../../../../../../components/ui";
+import { Card, Button, Input, Select } from "../../components/ui";
 import { X, Filter } from "lucide-react";
 
 export default function AccountFilterModal({ isOpen, onClose, onApplyFilters, filters, setFilters }) {

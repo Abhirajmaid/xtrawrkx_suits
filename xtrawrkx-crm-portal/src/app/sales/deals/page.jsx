@@ -8,7 +8,7 @@ import {
   StatCard,
   AreaChart,
   EmptyState,
-} from "../../../../../../../../../components/ui";
+} from "../../../components/ui";
 import {
   Plus,
   Search,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Modal, Avatar } from "../../../../../../../../components/ui";
+import { Modal, Avatar } from "../../components/ui";
 import { 
   Mail, 
   Send, 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, Avatar } from "../../../../../../../../components/ui";
+import { Card, Badge, Avatar } from "../../components/ui";
 import { formatCurrency, formatDate } from "../../lib/utils";
 import { Calendar, Users, DollarSign, Target, Clock, Plus } from "lucide-react";
 import KanbanBoard from "../kanban/KanbanBoard";

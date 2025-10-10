@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { PageHeader } from "../../../../../../../../../components/ui";
+import { PageHeader } from "../../../components/layout";
 import ContactTabs from "../../../components/contacts/ContactTabs";
 import ContactOverview from "../../../components/contacts/ContactOverview";
 import ContactTimeline from "../../../components/contacts/ContactTimeline";
@@ -10,34 +10,38 @@ import ContactDeals from "../../../components/contacts/ContactDeals";
 import ContactProjects from "../../../components/contacts/ContactProjects";
 import ContactDocuments from "../../../components/contacts/ContactDocuments";
 import QuickActionBar from "../../../components/contacts/QuickActionBar";
-import { 
-  SendEmailModal, 
-  LogCallModal, 
-  ScheduleMeetingModal, 
+import {
+  SendEmailModal,
+  LogCallModal,
+  ScheduleMeetingModal,
   AddNoteModal,
   DuplicateContactModal,
-  ShareContactModal
+  ShareContactModal,
 } from "../../../components/contacts/modals";
-import { 
+import {
   UploadDocumentModal,
   CreateDealModal,
-  CreateProjectModal
+  CreateProjectModal,
 } from "../../../components/clients/modals";
 
 export default function ContactDetailPage() {
   const params = useParams();
   const contactId = params.id;
   const [activeTab, setActiveTab] = useState("overview");
-  
+
   // Modal states
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
   const [isLogCallModalOpen, setIsLogCallModalOpen] = useState(false);
-  const [isScheduleMeetingModalOpen, setIsScheduleMeetingModalOpen] = useState(false);
+  const [isScheduleMeetingModalOpen, setIsScheduleMeetingModalOpen] =
+    useState(false);
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
-  const [isUploadDocumentModalOpen, setIsUploadDocumentModalOpen] = useState(false);
+  const [isUploadDocumentModalOpen, setIsUploadDocumentModalOpen] =
+    useState(false);
   const [isCreateDealModalOpen, setIsCreateDealModalOpen] = useState(false);
-  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
-  const [isDuplicateContactModalOpen, setIsDuplicateContactModalOpen] = useState(false);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
+    useState(false);
+  const [isDuplicateContactModalOpen, setIsDuplicateContactModalOpen] =
+    useState(false);
   const [isShareContactModalOpen, setIsShareContactModalOpen] = useState(false);
 
   // Mock contact data - replace with actual API call
@@ -62,27 +66,28 @@ export default function ContactDetailPage() {
     avatar: null,
     birthday: "1985-03-15",
     region: "North America",
-    notes: "Highly interested in our enterprise solution. Prefers email communication.",
+    notes:
+      "Highly interested in our enterprise solution. Prefers email communication.",
     // Additional fields
     address: {
       street: "123 Business Ave",
       city: "San Francisco",
       state: "CA",
       zip: "94105",
-      country: "USA"
+      country: "USA",
     },
     socialProfiles: {
       linkedin: "https://linkedin.com/in/sarahjohnson",
       twitter: "@sarahjohnson",
       facebook: null,
-      instagram: null
+      instagram: null,
     },
     customFields: {
       industry: "Technology",
       companySize: "500-1000",
       annualRevenue: "$10M-$50M",
-      preferredContactMethod: "Email"
-    }
+      preferredContactMethod: "Email",
+    },
   };
 
   const tabs = [
@@ -123,16 +128,16 @@ export default function ContactDetailPage() {
       <PageHeader
         title={contact.name}
         subtitle="View and manage this contact's details and activity"
-        breadcrumbs={['Dashboard', 'Contacts', contact.name]}
-        actions={['filter', 'new']}
+        breadcrumbs={["Dashboard", "Contacts", contact.name]}
+        actions={["filter", "new"]}
         searchPlaceholder="Search within contact..."
-        onSearch={(query) => console.log('Search within contact:', query)}
-        onFilter={() => console.log('Filter contact data')}
-        onNew={() => console.log('Add new item for contact')}
+        onSearch={(query) => console.log("Search within contact:", query)}
+        onFilter={() => console.log("Filter contact data")}
+        onNew={() => console.log("Add new item for contact")}
       />
 
       {/* Quick Action Bar */}
-      <QuickActionBar 
+      <QuickActionBar
         contactId={contactId}
         onSendEmail={() => setIsSendEmailModalOpen(true)}
         onLogCall={() => setIsLogCallModalOpen(true)}
@@ -144,7 +149,7 @@ export default function ContactDetailPage() {
         onDuplicateContact={() => setIsDuplicateContactModalOpen(true)}
         onStarContact={() => {
           // Simple function to toggle star status
-          console.log('Toggling star status for contact:', contactId);
+          console.log("Toggling star status for contact:", contactId);
           // TODO: Implement actual star toggle logic
         }}
         onShareContact={() => setIsShareContactModalOpen(true)}
@@ -157,7 +162,7 @@ export default function ContactDetailPage() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
-        
+
         {/* Tab Content */}
         <div className="border-t border-brand-border/50">
           {renderTabContent()}

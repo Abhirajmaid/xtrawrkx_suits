@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Badge } from "../../../../../../../../../components/ui";
+import { Card, Badge } from "../../../components/ui";
 import {
   Users,
   TrendingUp,
