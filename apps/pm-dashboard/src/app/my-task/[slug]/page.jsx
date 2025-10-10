@@ -1,7 +1,8 @@
 "use client";
 
 import { Plus, Eye, User, MoreHorizontal, Activity } from "lucide-react";
-import { StatCard, Card } from "@xtrawrkx/ui";
+import { StatCard } from "../../../components/ui/StatCard.jsx";
+import { Card } from "../../../components/ui/Card.jsx";
 import {
   dashboardStats as stats,
   assignedTasks,

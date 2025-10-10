@@ -12,13 +12,13 @@ import {
   Star,
   Share,
   Search,
-  Grid3X3,
+  LayoutGrid as Grid3X3,
   List,
   TrendingUp,
   Users,
   AlertCircle,
 } from "lucide-react";
-import { Card } from "@xtrawrkx/ui";
+import { Card } from "../../components/ui";
 import { useState } from "react";
 import Header from "../../components/shared/Header";
 import { useRouter } from "next/navigation";

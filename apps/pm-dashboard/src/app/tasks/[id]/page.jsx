@@ -18,7 +18,7 @@ import {
   X,
   GitBranch,
 } from "lucide-react";
-import { Card } from "@xtrawrkx/ui";
+import { Card } from "../../../components/ui";
 import { getEnrichedTask, teamMembers, tasks } from "../../../data/centralData";
 
 export default function TaskDetailPage({ params }) {

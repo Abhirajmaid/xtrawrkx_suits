@@ -10,7 +10,9 @@ import {
   Target,
   Building2,
 } from "lucide-react";
-import { Card, Input, Select } from "@xtrawrkx/ui";
+import { Card } from "../../../components/ui/Card.jsx";
+import { Input } from "../../../components/ui/Input.jsx";
+import { Select } from "../../../components/ui/Select.jsx";
 import { teamMembers, clients } from "../../../data/centralData";
 
 export default function AddProjectPage() {

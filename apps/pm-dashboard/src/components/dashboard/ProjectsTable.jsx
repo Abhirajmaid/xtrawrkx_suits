@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Table } from "@xtrawrkx/ui";
+import { Table } from "../ui";
 import ModernButton from "../shared/ModernButton";
 import {
   Plus,

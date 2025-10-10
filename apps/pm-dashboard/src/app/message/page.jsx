@@ -10,7 +10,7 @@ import {
   Send,
   MoreHorizontal,
 } from "lucide-react";
-import { Card } from "@xtrawrkx/ui";
+import { Card } from "../../components/ui";
 import { useState } from "react";
 import Header from "../../components/shared/Header";
 
