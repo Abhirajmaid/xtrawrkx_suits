@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import ModernButton from "@/components/ui/ModernButton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 
 // Mock project data
 const projectData = {

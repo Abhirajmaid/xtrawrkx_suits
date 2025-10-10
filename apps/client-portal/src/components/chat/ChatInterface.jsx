@@ -13,8 +13,8 @@ import {
   Archive,
   Trash2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/Button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 import { ChatWindow } from "./ChatWindow";
 import { useChat } from "@/components/providers/ChatProvider";
 import ModernButton from "@/components/ui/ModernButton";

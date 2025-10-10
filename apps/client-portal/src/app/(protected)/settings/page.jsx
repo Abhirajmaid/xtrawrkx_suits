@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion";
 import { User, Bell, Shield, Palette, Globe, Save } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/Button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 
 const settingsCategories = [
   {

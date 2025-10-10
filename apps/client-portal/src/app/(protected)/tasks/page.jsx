@@ -23,7 +23,7 @@ import {
   FileText,
 } from "lucide-react";
 import ModernButton from "@/components/ui/ModernButton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 import TaskDetailSidebar from "@/components/tasks/TaskDetailSidebar";
 

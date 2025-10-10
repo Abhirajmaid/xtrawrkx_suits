@@ -35,7 +35,7 @@ import Link from "next/link";
 import ModernButton from "@/components/ui/ModernButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 
 // Mock service data - this would come from props or API
 const serviceData = {
