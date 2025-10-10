@@ -1,18 +1,20 @@
 ﻿// Base Components
 export { Button } from './Button.jsx'
 export * from './buttons'
-export { Card } from './Card.jsx'
+export { Card, CardHeader, CardTitle, CardContent } from './Card.jsx'
 export { StatCard } from './StatCard.jsx'
 export { DashboardStatCard } from './DashboardStatCard'
 export { Badge } from './Badge.jsx'
-export { Avatar } from './Avatar.jsx'
+export { Avatar, AvatarImage, AvatarFallback } from './Avatar.jsx'
 export { CircularProgress } from './CircularProgress.jsx'
+export * from './ModernButton.jsx'
 
 // Form Components
 export { Input } from './Input.jsx'
 export { Select } from './Select.jsx'
 export { Checkbox } from './Checkbox.jsx'
 export { Textarea } from './Textarea.jsx'
+export { Label } from './Label.jsx'
 
 // Layout Components
 export { Container } from './Container'

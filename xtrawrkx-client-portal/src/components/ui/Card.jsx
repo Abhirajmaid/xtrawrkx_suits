@@ -32,18 +32,47 @@ export function Card({
       {...props}
     >
       {(title || subtitle || actions) && (
-        <div className="flex items-start justify-between mb-6">
+        <CardHeader>
           <div>
-            {title && (
-              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            )}
+            {title && <CardTitle>{title}</CardTitle>}
             {subtitle && (
               <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
             )}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
-        </div>
+        </CardHeader>
       )}
+      <CardContent>{children}</CardContent>
+    </div>
+  );
+}
+
+// Card sub-components for compatibility
+export function CardHeader({ children, className, ...props }) {
+  return (
+    <div
+      className={clsx("flex items-start justify-between mb-6", className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function CardTitle({ children, className, ...props }) {
+  return (
+    <h3
+      className={clsx("text-lg font-semibold text-gray-900", className)}
+      {...props}
+    >
+      {children}
+    </h3>
+  );
+}
+
+export function CardContent({ children, className, ...props }) {
+  return (
+    <div className={className} {...props}>
       {children}
     </div>
   );

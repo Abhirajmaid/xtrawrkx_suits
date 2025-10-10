@@ -212,3 +212,6 @@ export const WarningButton = (props) => (
 export const DangerButton = (props) => (
   <ModernButton type="danger" {...props} />
 );
+
+// Named export for compatibility
+export { ModernButton };

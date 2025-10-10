@@ -52,15 +52,19 @@ export function Avatar({
         {...props}
       >
         {src ? (
-          <img
+          <AvatarImage
             src={src}
             alt={alt || name}
             className="w-full h-full object-cover"
           />
         ) : name || initials ? (
-          <span className="font-semibold text-white">{getInitials(name)}</span>
+          <AvatarFallback className="font-semibold text-white">
+            {getInitials(name)}
+          </AvatarFallback>
         ) : (
-          <User className="w-1/2 h-1/2 text-gray-400" />
+          <AvatarFallback>
+            <User className="w-1/2 h-1/2 text-gray-400" />
+          </AvatarFallback>
         )}
       </div>
       {status && (
@@ -77,6 +81,19 @@ export function Avatar({
         />
       )}
     </div>
+  );
+}
+
+// Avatar sub-components for compatibility
+export function AvatarImage({ src, alt, className, ...props }) {
+  return <img src={src} alt={alt} className={className} {...props} />;
+}
+
+export function AvatarFallback({ children, className, ...props }) {
+  return (
+    <span className={className} {...props}>
+      {children}
+    </span>
   );
 }
 
