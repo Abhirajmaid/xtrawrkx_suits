@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Avatar, Badge } from "@xtrawrkx/ui";
+import { Avatar, Badge } from "../../../../../../../../components/ui";
 import {
   User,
   Mail,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DataGrid, Button, Badge, Card } from "@xtrawrkx/ui";
+import { DataGrid, Button, Badge, Card } from "../../../../../../../../../components/ui";
 import {
   Search,
   Filter,

@@ -1,14 +1,14 @@
-import { Card, Table, EmptyState, Button } from '@xtrawrkx/ui';
-import { Plus } from 'lucide-react';
+import { Card, Table, EmptyState, Button } from "../../../../components/ui";
+import { Plus } from "lucide-react";
 
-export default function LeadsListView({ 
-  filteredLeads, 
-  leadColumnsTable, 
-  selectedLeads, 
-  setSelectedLeads, 
-  searchQuery, 
-  setSearchQuery, 
-  setIsModalOpen 
+export default function LeadsListView({
+  filteredLeads,
+  leadColumnsTable,
+  selectedLeads,
+  setSelectedLeads,
+  searchQuery,
+  setSearchQuery,
+  setIsModalOpen,
 }) {
   return (
     <div>
@@ -40,16 +40,13 @@ export default function LeadsListView({
             <EmptyState
               title="No leads found"
               description={
-                searchQuery.trim() 
+                searchQuery.trim()
                   ? `No leads match your search "${searchQuery}"`
                   : `No leads found for the selected status`
               }
               action={
                 searchQuery.trim() ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => setSearchQuery("")}
-                  >
+                  <Button variant="outline" onClick={() => setSearchQuery("")}>
                     Clear Search
                   </Button>
                 ) : (

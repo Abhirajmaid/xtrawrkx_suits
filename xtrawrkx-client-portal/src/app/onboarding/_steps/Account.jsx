@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input, Label } from "@/components/ui";
-import { BlueButton, PurpleButton, WhiteButton } from "@xtrawrkx/ui";
+import { BlueButton, PurpleButton, WhiteButton } from "@/components/ui";
 import { CheckCircle, Mail, Phone, Shield, Clock, Check } from "lucide-react";
 
 export function AccountStep({ onNext, initialData }) {

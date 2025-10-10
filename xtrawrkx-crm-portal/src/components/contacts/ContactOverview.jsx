@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, StatCard, Badge } from "@xtrawrkx/ui";
+import { Card, StatCard, Badge } from "../../../../../../../../components/ui";
 import {
   DollarSign,
   Briefcase,

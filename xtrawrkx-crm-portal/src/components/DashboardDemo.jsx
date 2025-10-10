@@ -7,7 +7,7 @@ import {
   Button,
   CircularProgress,
   BarChart,
-} from "@xtrawrkx/ui";
+} from "../../../../../../../components/ui";
 import {
   Users,
   Briefcase,

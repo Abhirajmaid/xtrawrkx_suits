@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Modal } from "@xtrawrkx/ui";
+import { Modal } from "../../../../../../../../components/ui";
 import { Target, Plus, Trash2, Save, RotateCcw, Info } from "lucide-react";
 
 export default function AccountScoringModal({ isOpen, onClose, onSaveRules }) {

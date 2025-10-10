@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Checkbox } from "@xtrawrkx/ui";
+import { Button, Checkbox } from "../../../../../../../../components/ui";
 import { X, Download, FileText, FileSpreadsheet, File } from "lucide-react";
 import { BaseModal } from "../ui";
 

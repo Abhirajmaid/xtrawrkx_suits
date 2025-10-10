@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Input, Select } from "@xtrawrkx/ui";
+import { Card, Button, Input, Select } from "../../../../../../../../components/ui";
 import { X, Plus } from "lucide-react";
 
 export default function AddAccountModal({ isOpen, onClose, onAddAccount }) {

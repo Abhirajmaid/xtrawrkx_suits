@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Card } from "@xtrawrkx/ui";
+import { Card } from "./Card";
 
 export default function BaseModal({
   isOpen,

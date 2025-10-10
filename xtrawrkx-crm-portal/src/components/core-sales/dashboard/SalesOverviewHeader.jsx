@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@xtrawrkx/ui";
+import { Button } from "../../../../../../../../../components/ui";
 import {
   Plus,
   Users,

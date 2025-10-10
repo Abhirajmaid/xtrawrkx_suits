@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input, Select, Button } from "@xtrawrkx/ui";
+import { Input, Select, Button } from "../../../../../../../../components/ui";
 import { X, Plus } from "lucide-react";
 import { BaseModal } from "../ui";
 import { clients, teamMembers } from "../../lib/data/projectsData";

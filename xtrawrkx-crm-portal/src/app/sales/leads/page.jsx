@@ -13,28 +13,28 @@ import {
   Modal,
   Tabs,
   EmptyState,
-} from "@xtrawrkx/ui";
+} from "../../../components/ui";
 import { formatNumber } from "../../../lib/utils";
-import { formatDate } from "@xtrawrkx/utils";
+// import { formatDate } from "@xtrawrkx/utils";
 // import { useDragDropBoard } from "../../../lib/dragdrop"; // Removed - using react-beautiful-dnd now
-import { 
-  leadsData as initialLeadsData, 
-  leadSources, 
-  assignees, 
-  getLeadsByStatus, 
-  getLeadStats, 
-  searchLeads, 
-  filterLeads
+import {
+  leadsData as initialLeadsData,
+  leadSources,
+  assignees,
+  getLeadsByStatus,
+  getLeadStats,
+  searchLeads,
+  filterLeads,
 } from "../../../lib/data/leadsData";
 
-import LeadsHeader from './components/LeadsHeader';
-import LeadsKPIs from './components/LeadsKPIs';
-import LeadsTabs from './components/LeadsTabs';
-import LeadsListView from './components/LeadsListView';
-import LeadsBoardView from './components/LeadsBoardView';
-import LeadsModal from './components/LeadsModal';
-import LeadsFilterModal from './components/LeadsFilterModal';
-import LeadsImportModal from './components/LeadsImportModal';
+import LeadsHeader from "./components/LeadsHeader";
+import LeadsKPIs from "./components/LeadsKPIs";
+import LeadsTabs from "./components/LeadsTabs";
+import LeadsListView from "./components/LeadsListView";
+import LeadsBoardView from "./components/LeadsBoardView";
+import LeadsModal from "./components/LeadsModal";
+import LeadsFilterModal from "./components/LeadsFilterModal";
+import LeadsImportModal from "./components/LeadsImportModal";
 import {
   Plus,
   Search,
@@ -60,13 +60,13 @@ import {
   ChevronDown,
   List,
   Grid3X3,
-  DollarSign
+  DollarSign,
 } from "lucide-react";
 
 export default function LeadsPage() {
   // State management
   const [leads, setLeads] = useState(initialLeadsData);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [activeView, setActiveView] = useState("list");
@@ -89,50 +89,62 @@ export default function LeadsPage() {
     source: "",
     value: "",
     status: "new",
-    notes: ""
+    notes: "",
   });
   const [formErrors, setFormErrors] = useState({});
   const exportDropdownRef = useRef(null);
 
   // Create columns for drag and drop board
   const createBoardColumns = (leadsData) => {
-    const statuses = ['new', 'contacted', 'qualified', 'lost'];
-    return statuses.map(status => ({
+    const statuses = ["new", "contacted", "qualified", "lost"];
+    return statuses.map((status) => ({
       id: status,
       title: status.charAt(0).toUpperCase() + status.slice(1),
-      leads: leadsData.filter(lead => lead.status === status)
+      leads: leadsData.filter((lead) => lead.status === status),
     }));
   };
 
   const boardColumns = createBoardColumns(leads);
 
   // Drag and drop functionality for the new KanbanBoard component
-  const handleItemDrop = (draggedItem, destinationColumnId, destinationIndex, sourceColumnId, sourceIndex) => {
+  const handleItemDrop = (
+    draggedItem,
+    destinationColumnId,
+    destinationIndex,
+    sourceColumnId,
+    sourceIndex
+  ) => {
     // Update the lead's status when moved between columns
-    setLeads(prevLeads =>
-      prevLeads.map(lead =>
-        lead.id.toString() === draggedItem.id.toString() ? { ...lead, status: destinationColumnId } : lead
+    setLeads((prevLeads) =>
+      prevLeads.map((lead) =>
+        lead.id.toString() === draggedItem.id.toString()
+          ? { ...lead, status: destinationColumnId }
+          : lead
       )
     );
   };
 
   const handleItemClick = (item) => {
-    console.log('Lead clicked:', item);
+    console.log("Lead clicked:", item);
   };
 
   const updatedColumns = boardColumns;
 
   // Filter leads based on search and active tab
-  const filteredLeads = leads.filter(lead => {
+  const filteredLeads = leads.filter((lead) => {
     if (!lead) return false;
-    
-    const matchesSearch = searchQuery === "" || 
-      (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (lead.company && lead.company.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
+    const matchesSearch =
+      searchQuery === "" ||
+      (lead.name &&
+        lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (lead.company &&
+        lead.company.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (lead.email &&
+        lead.email.toLowerCase().includes(searchQuery.toLowerCase()));
+
     const matchesTab = activeTab === "all" || lead.status === activeTab;
-    
+
     return matchesSearch && matchesTab;
   });
 
@@ -145,7 +157,7 @@ export default function LeadsPage() {
       color: "bg-blue-50",
       borderColor: "border-blue-200",
       iconColor: "text-blue-600",
-      icon: User
+      icon: User,
     },
     {
       label: "Contacted",
@@ -153,7 +165,7 @@ export default function LeadsPage() {
       color: "bg-yellow-50",
       borderColor: "border-yellow-200",
       iconColor: "text-yellow-600",
-      icon: PhoneCall
+      icon: PhoneCall,
     },
     {
       label: "Qualified",
@@ -161,7 +173,7 @@ export default function LeadsPage() {
       color: "bg-green-50",
       borderColor: "border-green-200",
       iconColor: "text-green-600",
-      icon: CheckCircle
+      icon: CheckCircle,
     },
     {
       label: "Lost",
@@ -169,16 +181,24 @@ export default function LeadsPage() {
       color: "bg-red-50",
       borderColor: "border-red-200",
       iconColor: "text-red-600",
-      icon: XCircle
-    }
+      icon: XCircle,
+    },
   ];
 
   // Tab items for navigation
   const tabItems = [
     { key: "all", label: "All Leads", badge: leads.length.toString() },
     { key: "new", label: "New", badge: leadStats.new.toString() },
-    { key: "contacted", label: "Contacted", badge: leadStats.contacted.toString() },
-    { key: "qualified", label: "Qualified", badge: leadStats.qualified.toString() },
+    {
+      key: "contacted",
+      label: "Contacted",
+      badge: leadStats.contacted.toString(),
+    },
+    {
+      key: "qualified",
+      label: "Qualified",
+      badge: leadStats.qualified.toString(),
+    },
     { key: "lost", label: "Lost", badge: leadStats.lost.toString() },
   ];
 
@@ -191,11 +211,13 @@ export default function LeadsPage() {
         <div className="flex items-center gap-3 min-w-[200px]">
           <Avatar name={lead.name} size="sm" className="flex-shrink-0" />
           <div className="min-w-0">
-            <div className="font-medium text-gray-900 truncate">{lead.name}</div>
+            <div className="font-medium text-gray-900 truncate">
+              {lead.name}
+            </div>
             <div className="text-sm text-gray-500 truncate">{lead.company}</div>
           </div>
         </div>
-      )
+      ),
     },
     {
       key: "contact",
@@ -211,31 +233,37 @@ export default function LeadsPage() {
             <span className="truncate">{lead.phone}</span>
           </div>
         </div>
-      )
+      ),
     },
     {
       key: "status",
       label: "STATUS",
       render: (_, lead) => (
         <div className="min-w-[100px]">
-          <Badge 
-            variant={lead.status === 'new' ? 'default' : 
-                    lead.status === 'contacted' ? 'warning' : 
-                    lead.status === 'qualified' ? 'success' : 'destructive'}
+          <Badge
+            variant={
+              lead.status === "new"
+                ? "default"
+                : lead.status === "contacted"
+                ? "warning"
+                : lead.status === "qualified"
+                ? "success"
+                : "destructive"
+            }
           >
             {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
           </Badge>
         </div>
-      )
+      ),
     },
     {
       key: "source",
       label: "SOURCE",
       render: (_, lead) => (
         <span className="text-sm text-gray-600 capitalize whitespace-nowrap min-w-[100px]">
-          {lead.source.replace('_', ' ')}
+          {lead.source.replace("_", " ")}
         </span>
-      )
+      ),
     },
     {
       key: "value",
@@ -244,7 +272,7 @@ export default function LeadsPage() {
         <span className="font-semibold text-gray-900 whitespace-nowrap min-w-[100px]">
           ${formatNumber(lead.value)}
         </span>
-      )
+      ),
     },
     {
       key: "assignedTo",
@@ -252,9 +280,11 @@ export default function LeadsPage() {
       render: (_, lead) => (
         <div className="flex items-center gap-2 min-w-[140px]">
           <Avatar name={lead.assignedTo} size="xs" className="flex-shrink-0" />
-          <span className="text-sm text-gray-600 truncate">{lead.assignedTo}</span>
+          <span className="text-sm text-gray-600 truncate">
+            {lead.assignedTo}
+          </span>
         </div>
-      )
+      ),
     },
     {
       key: "createdAt",
@@ -262,9 +292,11 @@ export default function LeadsPage() {
       render: (_, lead) => (
         <div className="flex items-center gap-2 text-sm text-gray-500 min-w-[120px]">
           <Calendar className="w-4 h-4 flex-shrink-0" />
-          <span className="whitespace-nowrap">{formatDate(lead.createdAt)}</span>
+          <span className="whitespace-nowrap">
+            {formatDate(lead.createdAt)}
+          </span>
         </div>
-      )
+      ),
     },
     {
       key: "actions",
@@ -274,7 +306,7 @@ export default function LeadsPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleStatusUpdate(lead.id, 'contacted')}
+            onClick={() => handleStatusUpdate(lead.id, "contacted")}
             className="text-blue-600 hover:text-blue-700 p-1"
             title="Mark as Contacted"
           >
@@ -283,7 +315,7 @@ export default function LeadsPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleStatusUpdate(lead.id, 'qualified')}
+            onClick={() => handleStatusUpdate(lead.id, "qualified")}
             className="text-green-600 hover:text-green-700 p-1"
             title="Mark as Qualified"
           >
@@ -292,23 +324,23 @@ export default function LeadsPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleStatusUpdate(lead.id, 'lost')}
+            onClick={() => handleStatusUpdate(lead.id, "lost")}
             className="text-red-600 hover:text-red-700 p-1"
             title="Mark as Lost"
           >
             <XCircle className="w-4 h-4" />
           </Button>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   // Handle status updates
   const handleStatusUpdate = (leadId, newStatus) => {
     if (!leadId) return;
-    
-    setLeads(prevLeads => 
-      prevLeads.map(lead => 
+
+    setLeads((prevLeads) =>
+      prevLeads.map((lead) =>
         lead?.id === leadId ? { ...lead, status: newStatus } : lead
       )
     );
@@ -318,9 +350,9 @@ export default function LeadsPage() {
 
   // Handle form input changes
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: "" }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -328,7 +360,7 @@ export default function LeadsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     // Basic validation
     const errors = {};
     if (!formData.firstName.trim()) errors.firstName = "First name is required";
@@ -359,10 +391,10 @@ export default function LeadsPage() {
       status: formData.status,
       assignedTo: "John Doe", // Default assignee
       createdAt: new Date().toISOString(),
-      score: Math.floor(Math.random() * 100) + 1
+      score: Math.floor(Math.random() * 100) + 1,
     };
 
-    setLeads(prev => [newLead, ...prev]);
+    setLeads((prev) => [newLead, ...prev]);
     setFormData({
       firstName: "",
       lastName: "",
@@ -373,7 +405,7 @@ export default function LeadsPage() {
       source: "",
       value: "",
       status: "new",
-      notes: ""
+      notes: "",
     });
     setFormErrors({});
     setIsModalOpen(false);
@@ -395,7 +427,7 @@ export default function LeadsPage() {
       source: "",
       value: "",
       status: "new",
-      notes: ""
+      notes: "",
     });
     setFormErrors({});
   };
@@ -409,25 +441,28 @@ export default function LeadsPage() {
   // Handle filter application
   const handleApplyFilters = (filters) => {
     setAppliedFilters(filters);
-    console.log('Applied filters:', filters);
+    console.log("Applied filters:", filters);
   };
 
   // Handle import
   const handleImport = (file) => {
-    console.log('Importing file:', file);
+    console.log("Importing file:", file);
   };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target)
+      ) {
         setShowExportDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -439,15 +474,15 @@ export default function LeadsPage() {
           Lead status updated successfully!
         </div>
       )}
-      
+
       {showAddSuccessMessage && (
         <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
           New lead added successfully!
         </div>
       )}
-      
+
       {/* Custom Header */}
-      <LeadsHeader 
+      <LeadsHeader
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         setIsFilterModalOpen={setIsFilterModalOpen}
@@ -461,47 +496,46 @@ export default function LeadsPage() {
 
       <div className="px-3">
         <div className="space-y-4">
-        {/* Stats Overview */}
-        <LeadsKPIs statusStats={statusStats} />
+          {/* Stats Overview */}
+          <LeadsKPIs statusStats={statusStats} />
 
-        {/* View Toggle */}
-        <LeadsTabs
-          tabItems={tabItems}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          activeView={activeView}
-          setActiveView={setActiveView}
-        />
+          {/* View Toggle */}
+          <LeadsTabs
+            tabItems={tabItems}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            activeView={activeView}
+            setActiveView={setActiveView}
+          />
 
-        {/* Single Horizontal Scroll Container */}
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-          {/* Leads Table/Board */}
-          {activeView === "list" && (
-            <LeadsListView
-              filteredLeads={filteredLeads}
-              leadColumnsTable={leadColumnsTable}
-              selectedLeads={selectedLeads}
-              setSelectedLeads={setSelectedLeads}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              setIsModalOpen={setIsModalOpen}
-            />
-          )}
-          {activeView === "board" && (
-            <LeadsBoardView
-              updatedColumns={boardColumns}
-              formatNumber={formatNumber}
-              onItemDrop={handleItemDrop}
-              onItemClick={handleItemClick}
-            />
-          )}
-        </div>
-
+          {/* Single Horizontal Scroll Container */}
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {/* Leads Table/Board */}
+            {activeView === "list" && (
+              <LeadsListView
+                filteredLeads={filteredLeads}
+                leadColumnsTable={leadColumnsTable}
+                selectedLeads={selectedLeads}
+                setSelectedLeads={setSelectedLeads}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                setIsModalOpen={setIsModalOpen}
+              />
+            )}
+            {activeView === "board" && (
+              <LeadsBoardView
+                updatedColumns={boardColumns}
+                formatNumber={formatNumber}
+                onItemDrop={handleItemDrop}
+                onItemClick={handleItemClick}
+              />
+            )}
+          </div>
         </div>
       </div>
 
       {/* Add Lead Modal */}
-      <LeadsModal 
+      <LeadsModal
         isModalOpen={isModalOpen}
         handleModalClose={handleModalClose}
         formData={formData}

@@ -1,17 +1,31 @@
-import { useState } from 'react';
-import { Search, Filter, Upload, Download, ChevronDown, Plus, FileText, FileSpreadsheet, ChevronRight, Calendar, Bell, Settings, User } from 'lucide-react';
-import { Card } from '@xtrawrkx/ui';
+import { useState } from "react";
+import {
+  Search,
+  Filter,
+  Upload,
+  Download,
+  ChevronDown,
+  Plus,
+  FileText,
+  FileSpreadsheet,
+  ChevronRight,
+  Calendar,
+  Bell,
+  Settings,
+  User,
+} from "lucide-react";
+import { Card } from "../../../../components/ui";
 
-export default function LeadsHeader({ 
-  searchQuery, 
-  setSearchQuery, 
-  setIsFilterModalOpen, 
-  setIsImportModalOpen, 
-  showExportDropdown, 
-  setShowExportDropdown, 
-  exportDropdownRef, 
-  handleExport, 
-  setIsModalOpen 
+export default function LeadsHeader({
+  searchQuery,
+  setSearchQuery,
+  setIsFilterModalOpen,
+  setIsImportModalOpen,
+  showExportDropdown,
+  setShowExportDropdown,
+  exportDropdownRef,
+  handleExport,
+  setIsModalOpen,
 }) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
@@ -25,9 +39,7 @@ export default function LeadsHeader({
             <ChevronRight className="w-4 h-4" />
             <span>Sales</span>
             <ChevronRight className="w-4 h-4" />
-            <span className="text-brand-foreground font-medium">
-              Leads
-            </span>
+            <span className="text-brand-foreground font-medium">Leads</span>
           </div>
 
           {/* Title and Subtitle */}
@@ -56,7 +68,7 @@ export default function LeadsHeader({
           {/* Quick Actions */}
           <div className="flex items-center gap-2">
             {/* Add New */}
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
               className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-brand-primary rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
             >
@@ -64,7 +76,7 @@ export default function LeadsHeader({
             </button>
 
             {/* Filter */}
-            <button 
+            <button
               onClick={() => setIsFilterModalOpen(true)}
               className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
             >
@@ -72,7 +84,7 @@ export default function LeadsHeader({
             </button>
 
             {/* Import */}
-            <button 
+            <button
               onClick={() => setIsImportModalOpen(true)}
               className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
             >
@@ -81,7 +93,7 @@ export default function LeadsHeader({
 
             {/* Export Dropdown */}
             <div className="relative" ref={exportDropdownRef}>
-              <button 
+              <button
                 onClick={() => setShowExportDropdown(!showExportDropdown)}
                 className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
               >
@@ -91,21 +103,21 @@ export default function LeadsHeader({
                 <div className="absolute right-0 mt-2 w-48 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-50">
                   <div className="py-1">
                     <button
-                      onClick={() => handleExport('pdf')}
+                      onClick={() => handleExport("pdf")}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-white/20 rounded-lg transition-colors"
                     >
                       <FileText className="w-4 h-4 mr-3 text-red-500" />
                       PDF
                     </button>
                     <button
-                      onClick={() => handleExport('excel')}
+                      onClick={() => handleExport("excel")}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-white/20 rounded-lg transition-colors"
                     >
                       <FileSpreadsheet className="w-4 h-4 mr-3 text-green-500" />
                       Excel
                     </button>
                     <button
-                      onClick={() => handleExport('csv')}
+                      onClick={() => handleExport("csv")}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-white/20 rounded-lg transition-colors"
                     >
                       <FileSpreadsheet className="w-4 h-4 mr-3 text-blue-500" />
@@ -123,7 +135,7 @@ export default function LeadsHeader({
           {/* User Profile */}
           <div className="flex items-center gap-3">
             <div className="relative">
-              <button 
+              <button
                 className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
                 onMouseEnter={() => setShowProfileDropdown(true)}
                 onMouseLeave={() => setShowProfileDropdown(false)}
@@ -141,18 +153,22 @@ export default function LeadsHeader({
                     </p>
                   </div>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                <ChevronDown
+                  className={`w-4 h-4 text-brand-text-light transition-transform ${
+                    showProfileDropdown ? "rotate-180" : ""
+                  }`}
+                />
               </button>
 
               {/* Profile Dropdown */}
               {showProfileDropdown && (
                 <>
                   {/* Backdrop to close dropdown when clicking outside */}
-                  <div 
+                  <div
                     className="fixed inset-0 z-[99998]"
                     onClick={() => setShowProfileDropdown(false)}
                   />
-                  <div 
+                  <div
                     className="fixed right-6 top-20 w-72 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
                     onMouseEnter={() => setShowProfileDropdown(true)}
                     onMouseLeave={() => setShowProfileDropdown(false)}

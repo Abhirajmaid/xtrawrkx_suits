@@ -1,20 +1,20 @@
-import React from 'react';
-import { Card, Avatar, Badge } from '@xtrawrkx/ui';
-import { User, Star, Phone, Mail, Calendar, DollarSign } from 'lucide-react';
-import { formatDate } from '@xtrawrkx/utils';
-import KanbanBoard from '../../../../components/kanban/KanbanBoard';
+import React from "react";
+import { Card, Avatar, Badge } from "../../../../components/ui";
+import { User, Star, Phone, Mail, Calendar, DollarSign } from "lucide-react";
+// import { formatDate } from '@xtrawrkx/utils';
+import KanbanBoard from "../../../../components/kanban/KanbanBoard";
 
 export default function LeadsBoardView({
   updatedColumns,
-  formatNumber = (value) => value?.toLocaleString() || '0',
+  formatNumber = (value) => value?.toLocaleString() || "0",
   onItemDrop,
-  onItemClick
+  onItemClick,
 }) {
   // Transform data to match KanbanBoard expected format
   const transformedData = {};
 
   if (updatedColumns && Array.isArray(updatedColumns)) {
-    updatedColumns.forEach(column => {
+    updatedColumns.forEach((column) => {
       transformedData[column.id] = (column.leads || []).map((lead, index) => ({
         ...lead,
         id: lead.id ? lead.id.toString() : `${column.id}-${index}`, // Ensure unique, stable IDs
@@ -30,10 +30,18 @@ export default function LeadsBoardView({
 
     // Find the dragged lead
     const sourceCards = transformedData[source.droppableId];
-    const draggedLead = sourceCards.find(lead => lead.id.toString() === draggableId);
+    const draggedLead = sourceCards.find(
+      (lead) => lead.id.toString() === draggableId
+    );
 
     if (draggedLead && onItemDrop) {
-      onItemDrop(draggedLead, destination.droppableId, destination.index, source.droppableId, source.index);
+      onItemDrop(
+        draggedLead,
+        destination.droppableId,
+        destination.index,
+        source.droppableId,
+        source.index
+      );
     }
   };
 
@@ -45,13 +53,13 @@ export default function LeadsBoardView({
     >
       {/* Header with Avatar and Name */}
       <div className="flex items-center gap-3 mb-3">
-        <Avatar name={lead?.name || 'Unknown'} size="sm" />
+        <Avatar name={lead?.name || "Unknown"} size="sm" />
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-gray-900 text-sm truncate">
-            {lead?.name || 'Unknown'}
+            {lead?.name || "Unknown"}
           </h4>
           <p className="text-xs text-gray-500 truncate">
-            {lead?.company || 'N/A'}
+            {lead?.company || "N/A"}
           </p>
         </div>
       </div>
@@ -59,13 +67,11 @@ export default function LeadsBoardView({
       {/* Value and Score */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-semibold text-gray-900">
-          ${lead?.value ? formatNumber(lead.value) : '0'}
+          ${lead?.value ? formatNumber(lead.value) : "0"}
         </span>
         <div className="flex items-center gap-1">
           <Star className="w-3 h-3 text-yellow-500 fill-current" />
-          <span className="text-xs text-gray-600">
-            {lead?.score || '0'}
-          </span>
+          <span className="text-xs text-gray-600">{lead?.score || "0"}</span>
         </div>
       </div>
 
@@ -73,11 +79,11 @@ export default function LeadsBoardView({
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />
-          <span className="truncate">{lead?.phone || 'N/A'}</span>
+          <span className="truncate">{lead?.phone || "N/A"}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />
-          <span className="truncate">{lead?.email || 'N/A'}</span>
+          <span className="truncate">{lead?.email || "N/A"}</span>
         </div>
       </div>
 
@@ -91,7 +97,7 @@ export default function LeadsBoardView({
         </div>
         <div className="flex items-center gap-1">
           <DollarSign className="w-3 h-3" />
-          <span className="truncate">{lead?.source || 'N/A'}</span>
+          <span className="truncate">{lead?.source || "N/A"}</span>
         </div>
       </div>
     </Card>
@@ -100,18 +106,34 @@ export default function LeadsBoardView({
   // Render column headers
   const renderColumnHeader = (columnId, cardsCount) => {
     const columnConfig = {
-      'new': { title: 'New', color: 'border-blue-500', bg: 'bg-blue-50' },
-      'contacted': { title: 'Contacted', color: 'border-yellow-500', bg: 'bg-yellow-50' },
-      'qualified': { title: 'Qualified', color: 'border-green-500', bg: 'bg-green-50' },
-      'lost': { title: 'Lost', color: 'border-red-500', bg: 'bg-red-50' }
+      new: { title: "New", color: "border-blue-500", bg: "bg-blue-50" },
+      contacted: {
+        title: "Contacted",
+        color: "border-yellow-500",
+        bg: "bg-yellow-50",
+      },
+      qualified: {
+        title: "Qualified",
+        color: "border-green-500",
+        bg: "bg-green-50",
+      },
+      lost: { title: "Lost", color: "border-red-500", bg: "bg-red-50" },
     };
 
-    const config = columnConfig[columnId] || { title: columnId, color: 'border-gray-500', bg: 'bg-gray-50' };
+    const config = columnConfig[columnId] || {
+      title: columnId,
+      color: "border-gray-500",
+      bg: "bg-gray-50",
+    };
 
     return (
-      <div className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}>
+      <div
+        className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}
+      >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800 text-sm">{config.title}</h3>
+          <h3 className="font-semibold text-gray-800 text-sm">
+            {config.title}
+          </h3>
           <span className="bg-white text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
             {cardsCount}
           </span>

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
 // Custom button components available for future use
-// import { BlueButton, PurpleButton, WhiteButton } from "@xtrawrkx/ui";
+// import { BlueButton, PurpleButton, WhiteButton } from "@/components/ui";
 import { motion } from "framer-motion";
 import { useEffect } from "react";
 import confetti from "canvas-confetti";

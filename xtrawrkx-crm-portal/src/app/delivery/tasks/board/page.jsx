@@ -2,9 +2,13 @@
 
 import React, { useState } from "react";
 import KanbanBoard from "../../../../components/kanban/KanbanBoard";
-import { Card, Avatar, Badge } from '@xtrawrkx/ui';
-import { formatDate } from '@xtrawrkx/utils';
-import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import {
+  Card,
+  Avatar,
+  Badge,
+} from "../../../../../../../../../../components/ui";
+// import { formatDate } from '@xtrawrkx/utils';
+import { CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { PageHeader } from "../../../../components/layout";
 import { TaskFilterModal, NewTaskModal } from "../../../../components/tasks";
 
@@ -25,7 +29,8 @@ export default function TasksBoardPage() {
       {
         id: "t1",
         title: "Design new landing page",
-        description: "Create wireframes and mockups for the new landing page design",
+        description:
+          "Create wireframes and mockups for the new landing page design",
         status: "todo",
         priority: "high",
         project: "Website Redesign",
@@ -49,7 +54,8 @@ export default function TasksBoardPage() {
       {
         id: "t3",
         title: "Review client feedback",
-        description: "Analyze and categorize feedback from the latest client survey",
+        description:
+          "Analyze and categorize feedback from the latest client survey",
         status: "todo",
         priority: "low",
         project: "Client Portal",
@@ -89,7 +95,8 @@ export default function TasksBoardPage() {
       {
         id: "t6",
         title: "Code review for payment module",
-        description: "Review the implementation of the new payment processing module",
+        description:
+          "Review the implementation of the new payment processing module",
         status: "review",
         priority: "high",
         project: "Payment System",
@@ -155,7 +162,9 @@ export default function TasksBoardPage() {
 
     // Find the dragged task
     const sourceTasks = tasksData[source.droppableId];
-    const draggedTask = sourceTasks.find(task => task.id.toString() === draggableId);
+    const draggedTask = sourceTasks.find(
+      (task) => task.id.toString() === draggableId
+    );
 
     if (draggedTask) {
       console.log("Task moved:", {
@@ -209,7 +218,7 @@ export default function TasksBoardPage() {
     return (
       <Card
         className={`p-4 cursor-move bg-white border border-gray-200 hover:shadow-md transition-all ${
-          isOverdue(task?.dueDate) ? 'border-red-200 bg-red-50' : ''
+          isOverdue(task?.dueDate) ? "border-red-200 bg-red-50" : ""
         }`}
         onClick={() => handleTaskClick(task)}
       >
@@ -219,7 +228,7 @@ export default function TasksBoardPage() {
             {getStatusIcon(task?.status)}
             <div className="flex-1 min-w-0">
               <h4 className="font-medium text-gray-900 truncate mb-1">
-                {task?.title || 'Unknown'}
+                {task?.title || "Unknown"}
               </h4>
               {task?.description && (
                 <p className="text-sm text-gray-600 line-clamp-2">
@@ -229,8 +238,12 @@ export default function TasksBoardPage() {
             </div>
           </div>
           <div className="text-right">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task?.priority)}`}>
-              {task?.priority || 'N/A'}
+            <span
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+                task?.priority
+              )}`}
+            >
+              {task?.priority || "N/A"}
             </span>
           </div>
         </div>
@@ -254,9 +267,11 @@ export default function TasksBoardPage() {
           {task?.dueDate && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Due:</span>
-              <span className={`font-medium ${
-                isOverdue(task.dueDate) ? 'text-red-600' : 'text-gray-900'
-              }`}>
+              <span
+                className={`font-medium ${
+                  isOverdue(task.dueDate) ? "text-red-600" : "text-gray-900"
+                }`}
+              >
                 {formatDate(task.dueDate)}
               </span>
             </div>
@@ -266,14 +281,15 @@ export default function TasksBoardPage() {
         {/* Task Footer */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {task?.tags && task.tags.slice(0, 2).map((tag, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
-              >
-                {tag}
-              </span>
-            ))}
+            {task?.tags &&
+              task.tags.slice(0, 2).map((tag, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                >
+                  {tag}
+                </span>
+              ))}
             {task?.tags && task.tags.length > 2 && (
               <span className="text-xs text-gray-400">
                 +{task.tags.length - 2}
@@ -299,18 +315,38 @@ export default function TasksBoardPage() {
   // Render column headers
   const renderColumnHeader = (columnId, cardsCount) => {
     const columnConfig = {
-      'todo': { title: 'To Do', color: 'border-gray-500', bg: 'bg-gray-50' },
-      'in-progress': { title: 'In Progress', color: 'border-blue-500', bg: 'bg-blue-50' },
-      'review': { title: 'Review', color: 'border-yellow-500', bg: 'bg-yellow-50' },
-      'completed': { title: 'Completed', color: 'border-green-500', bg: 'bg-green-50' }
+      todo: { title: "To Do", color: "border-gray-500", bg: "bg-gray-50" },
+      "in-progress": {
+        title: "In Progress",
+        color: "border-blue-500",
+        bg: "bg-blue-50",
+      },
+      review: {
+        title: "Review",
+        color: "border-yellow-500",
+        bg: "bg-yellow-50",
+      },
+      completed: {
+        title: "Completed",
+        color: "border-green-500",
+        bg: "bg-green-50",
+      },
     };
 
-    const config = columnConfig[columnId] || { title: columnId, color: 'border-gray-500', bg: 'bg-gray-50' };
+    const config = columnConfig[columnId] || {
+      title: columnId,
+      color: "border-gray-500",
+      bg: "bg-gray-50",
+    };
 
     return (
-      <div className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}>
+      <div
+        className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}
+      >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800 text-sm">{config.title}</h3>
+          <h3 className="font-semibold text-gray-800 text-sm">
+            {config.title}
+          </h3>
           <span className="bg-white text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
             {cardsCount}
           </span>
@@ -324,8 +360,8 @@ export default function TasksBoardPage() {
       <PageHeader
         title="Tasks Board"
         subtitle="Organize and track your team's tasks"
-        breadcrumbs={['Dashboard', 'Delivery', 'Tasks', 'Board']}
-        actions={['filter', 'new']}
+        breadcrumbs={["Dashboard", "Delivery", "Tasks", "Board"]}
+        actions={["filter", "new"]}
         searchPlaceholder="Search tasks..."
         onFilter={() => setIsFilterModalOpen(true)}
         onNew={handleNewTask}
@@ -361,7 +397,7 @@ export default function TasksBoardPage() {
           className="min-w-[1600px]"
         />
       </div>
-      
+
       {/* Filter Modal */}
       <TaskFilterModal
         isOpen={isFilterModalOpen}

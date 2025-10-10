@@ -2,9 +2,13 @@
 
 import React, { useState } from "react";
 import KanbanBoard from "../../../../components/kanban/KanbanBoard";
-import { Card, Avatar, Badge } from '@xtrawrkx/ui';
-import { formatDate } from '@xtrawrkx/utils';
-import { Calendar, Users, Clock } from 'lucide-react';
+import {
+  Card,
+  Avatar,
+  Badge,
+} from "../../../../../../../../../../components/ui";
+// import { formatDate } from '@xtrawrkx/utils';
+import { Calendar, Users, Clock } from "lucide-react";
 import { PageHeader } from "../../../../components/layout";
 import { ProjectFilterModal } from "../../../../components/projects";
 
@@ -121,7 +125,9 @@ export default function ProjectsBoardPage() {
 
     // Find the dragged project
     const sourceProjects = projectsData[source.droppableId];
-    const draggedProject = sourceProjects.find(project => project.id.toString() === draggableId);
+    const draggedProject = sourceProjects.find(
+      (project) => project.id.toString() === draggableId
+    );
 
     if (draggedProject) {
       console.log("Project moved:", {
@@ -177,10 +183,10 @@ export default function ProjectsBoardPage() {
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-gray-900 truncate mb-1">
-              {project?.name || 'Unknown'}
+              {project?.name || "Unknown"}
             </h4>
             <p className="text-sm text-gray-600 truncate">
-              {project?.client || 'N/A'}
+              {project?.client || "N/A"}
             </p>
           </div>
           <div className="text-right">
@@ -188,7 +194,7 @@ export default function ProjectsBoardPage() {
               {project?.progress || 0}%
             </div>
             <div className="text-xs text-gray-500">
-              {project?.health || 'N/A'}
+              {project?.health || "N/A"}
             </div>
           </div>
         </div>
@@ -207,12 +213,16 @@ export default function ProjectsBoardPage() {
         <div className="space-y-2 mb-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Manager:</span>
-            <span className="font-medium text-gray-900">{project?.manager || 'N/A'}</span>
+            <span className="font-medium text-gray-900">
+              {project?.manager || "N/A"}
+            </span>
           </div>
 
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Team:</span>
-            <span className="font-medium text-gray-900">{project?.teamSize || 0} members</span>
+            <span className="font-medium text-gray-900">
+              {project?.teamSize || 0} members
+            </span>
           </div>
 
           {project?.dueDate && (
@@ -228,11 +238,19 @@ export default function ProjectsBoardPage() {
         {/* Status and Tags */}
         <div className="flex items-center justify-between">
           <div className="flex flex-wrap gap-1">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project?.status)}`}>
-              {project?.status || 'N/A'}
+            <span
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                project?.status
+              )}`}
+            >
+              {project?.status || "N/A"}
             </span>
             {project?.priority && (
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(project.priority)}`}>
+              <span
+                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+                  project.priority
+                )}`}
+              >
                 {project.priority}
               </span>
             )}
@@ -250,18 +268,42 @@ export default function ProjectsBoardPage() {
   // Render column headers
   const renderColumnHeader = (columnId, cardsCount) => {
     const columnConfig = {
-      'planning': { title: 'Planning', color: 'border-yellow-500', bg: 'bg-yellow-50' },
-      'in-progress': { title: 'In Progress', color: 'border-blue-500', bg: 'bg-blue-50' },
-      'review': { title: 'Review', color: 'border-purple-500', bg: 'bg-purple-50' },
-      'completed': { title: 'Completed', color: 'border-green-500', bg: 'bg-green-50' }
+      planning: {
+        title: "Planning",
+        color: "border-yellow-500",
+        bg: "bg-yellow-50",
+      },
+      "in-progress": {
+        title: "In Progress",
+        color: "border-blue-500",
+        bg: "bg-blue-50",
+      },
+      review: {
+        title: "Review",
+        color: "border-purple-500",
+        bg: "bg-purple-50",
+      },
+      completed: {
+        title: "Completed",
+        color: "border-green-500",
+        bg: "bg-green-50",
+      },
     };
 
-    const config = columnConfig[columnId] || { title: columnId, color: 'border-gray-500', bg: 'bg-gray-50' };
+    const config = columnConfig[columnId] || {
+      title: columnId,
+      color: "border-gray-500",
+      bg: "bg-gray-50",
+    };
 
     return (
-      <div className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}>
+      <div
+        className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}
+      >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800 text-sm">{config.title}</h3>
+          <h3 className="font-semibold text-gray-800 text-sm">
+            {config.title}
+          </h3>
           <span className="bg-white text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
             {cardsCount}
           </span>
@@ -275,8 +317,8 @@ export default function ProjectsBoardPage() {
       <PageHeader
         title="Projects Board"
         subtitle="Visualize and manage your project workflows"
-        breadcrumbs={['Dashboard', 'Delivery', 'Projects', 'Board']}
-        actions={['filter']}
+        breadcrumbs={["Dashboard", "Delivery", "Projects", "Board"]}
+        actions={["filter"]}
         searchPlaceholder="Search projects..."
         onFilter={() => setIsFilterModalOpen(true)}
       />
@@ -313,7 +355,7 @@ export default function ProjectsBoardPage() {
           />
         </div>
       </div>
-      
+
       {/* Filter Modal */}
       <ProjectFilterModal
         isOpen={isFilterModalOpen}

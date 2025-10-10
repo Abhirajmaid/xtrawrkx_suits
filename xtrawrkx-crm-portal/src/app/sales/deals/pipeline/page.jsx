@@ -7,7 +7,7 @@ import {
   Button,
   Input,
   Select,
-} from "@xtrawrkx/ui";
+} from "../../../../components/ui";
 import {
   Plus,
   Search,
@@ -30,8 +30,8 @@ import {
   Calendar,
 } from "lucide-react";
 import KanbanBoard from "../../../../components/kanban/KanbanBoard";
-import { Card as UICard, Avatar, Badge } from '@xtrawrkx/ui';
-import { formatDate } from '@xtrawrkx/utils';
+import { Card as UICard, Avatar, Badge } from "../../../../components/ui";
+// import { formatDate } from '@xtrawrkx/utils';
 
 export default function DealsPipelinePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,7 +122,7 @@ export default function DealsPipelinePage() {
     ],
   };
 
-  const formatNumber = (value) => value?.toLocaleString() || '0';
+  const formatNumber = (value) => value?.toLocaleString() || "0";
 
   // Handle drag end - update deal status
   const handleDragEnd = (result) => {
@@ -132,7 +132,9 @@ export default function DealsPipelinePage() {
 
     // Find the dragged deal
     const sourceDeals = dealsData[source.droppableId];
-    const draggedDeal = sourceDeals.find(deal => deal.id.toString() === draggableId);
+    const draggedDeal = sourceDeals.find(
+      (deal) => deal.id.toString() === draggableId
+    );
 
     if (draggedDeal) {
       console.log("Deal moved:", {
@@ -169,17 +171,21 @@ export default function DealsPipelinePage() {
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-gray-900 truncate mb-1">
-              {deal?.name || 'Unknown'}
+              {deal?.name || "Unknown"}
             </h4>
             <p className="text-sm text-gray-600 truncate">
-              {deal?.company || 'N/A'}
+              {deal?.company || "N/A"}
             </p>
           </div>
           <div className="text-right">
             <div className="text-lg font-semibold text-gray-900">
-              ${deal?.value ? formatNumber(deal.value) : '0'}
+              ${deal?.value ? formatNumber(deal.value) : "0"}
             </div>
-            <div className={`text-sm font-medium ${getProbabilityColor(deal?.probability || 0)}`}>
+            <div
+              className={`text-sm font-medium ${getProbabilityColor(
+                deal?.probability || 0
+              )}`}
+            >
               {deal?.probability || 0}%
             </div>
           </div>
@@ -189,7 +195,9 @@ export default function DealsPipelinePage() {
         <div className="space-y-2 mb-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Owner:</span>
-            <span className="font-medium text-gray-900">{deal?.owner || 'N/A'}</span>
+            <span className="font-medium text-gray-900">
+              {deal?.owner || "N/A"}
+            </span>
           </div>
 
           {deal?.closeDate && (
@@ -222,14 +230,15 @@ export default function DealsPipelinePage() {
 
         {/* Tags */}
         <div className="flex flex-wrap gap-1">
-          {deal?.tags && deal.tags.slice(0, 2).map((tag, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
-            >
-              {tag}
-            </span>
-          ))}
+          {deal?.tags &&
+            deal.tags.slice(0, 2).map((tag, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+              >
+                {tag}
+              </span>
+            ))}
           {deal?.tags && deal.tags.length > 2 && (
             <span className="text-xs text-gray-400">
               +{deal.tags.length - 2}
@@ -243,19 +252,47 @@ export default function DealsPipelinePage() {
   // Render column headers
   const renderColumnHeader = (columnId, cardsCount) => {
     const columnConfig = {
-      'prospecting': { title: 'Prospecting', color: 'border-yellow-500', bg: 'bg-yellow-50' },
-      'qualification': { title: 'Qualification', color: 'border-blue-500', bg: 'bg-blue-50' },
-      'proposal': { title: 'Proposal', color: 'border-purple-500', bg: 'bg-purple-50' },
-      'negotiation': { title: 'Negotiation', color: 'border-orange-500', bg: 'bg-orange-50' },
-      'closed-won': { title: 'Closed Won', color: 'border-green-500', bg: 'bg-green-50' }
+      prospecting: {
+        title: "Prospecting",
+        color: "border-yellow-500",
+        bg: "bg-yellow-50",
+      },
+      qualification: {
+        title: "Qualification",
+        color: "border-blue-500",
+        bg: "bg-blue-50",
+      },
+      proposal: {
+        title: "Proposal",
+        color: "border-purple-500",
+        bg: "bg-purple-50",
+      },
+      negotiation: {
+        title: "Negotiation",
+        color: "border-orange-500",
+        bg: "bg-orange-50",
+      },
+      "closed-won": {
+        title: "Closed Won",
+        color: "border-green-500",
+        bg: "bg-green-50",
+      },
     };
 
-    const config = columnConfig[columnId] || { title: columnId, color: 'border-gray-500', bg: 'bg-gray-50' };
+    const config = columnConfig[columnId] || {
+      title: columnId,
+      color: "border-gray-500",
+      bg: "bg-gray-50",
+    };
 
     return (
-      <div className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}>
+      <div
+        className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}
+      >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800 text-sm">{config.title}</h3>
+          <h3 className="font-semibold text-gray-800 text-sm">
+            {config.title}
+          </h3>
           <span className="bg-white text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
             {cardsCount}
           </span>
@@ -309,7 +346,7 @@ export default function DealsPipelinePage() {
             {/* Quick Actions */}
             <div className="flex items-center gap-2">
               {/* Add New Deal */}
-              <button 
+              <button
                 onClick={() => setIsAddDealModalOpen(true)}
                 className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-brand-primary rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
               >
@@ -317,7 +354,7 @@ export default function DealsPipelinePage() {
               </button>
 
               {/* Filter */}
-              <button 
+              <button
                 onClick={() => setIsFilterModalOpen(true)}
                 className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
               >
@@ -325,7 +362,7 @@ export default function DealsPipelinePage() {
               </button>
 
               {/* Export */}
-              <button 
+              <button
                 onClick={() => setIsExportModalOpen(true)}
                 className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
               >
@@ -339,7 +376,7 @@ export default function DealsPipelinePage() {
             {/* User Profile */}
             <div className="flex items-center gap-3">
               <div className="relative">
-                <button 
+                <button
                   className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
                   onMouseEnter={() => setShowProfileDropdown(true)}
                   onMouseLeave={() => setShowProfileDropdown(false)}
@@ -357,18 +394,22 @@ export default function DealsPipelinePage() {
                       </p>
                     </div>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 text-brand-text-light transition-transform ${
+                      showProfileDropdown ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
 
                 {/* Profile Dropdown */}
                 {showProfileDropdown && (
                   <>
                     {/* Backdrop to close dropdown when clicking outside */}
-                    <div 
+                    <div
                       className="fixed inset-0 z-[99998]"
                       onClick={() => setShowProfileDropdown(false)}
                     />
-                    <div 
+                    <div
                       className="fixed right-6 top-20 w-56 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
                       onMouseEnter={() => setShowProfileDropdown(true)}
                       onMouseLeave={() => setShowProfileDropdown(false)}
@@ -474,8 +515,12 @@ export default function DealsPipelinePage() {
         {/* Pipeline Board */}
         <Card className="p-0 overflow-hidden">
           <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Pipeline Board</h2>
-            <p className="text-sm text-gray-600">Drag and drop deals between stages</p>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Pipeline Board
+            </h2>
+            <p className="text-sm text-gray-600">
+              Drag and drop deals between stages
+            </p>
           </div>
           <div className="p-4">
             <KanbanBoard
@@ -490,17 +535,17 @@ export default function DealsPipelinePage() {
       </div>
 
       {/* Modals */}
-      <FilterModal 
-        isOpen={isFilterModalOpen} 
-        onClose={() => setIsFilterModalOpen(false)} 
+      <FilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
       />
-      <ExportModal 
-        isOpen={isExportModalOpen} 
-        onClose={() => setIsExportModalOpen(false)} 
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
       />
-      <AddDealModal 
-        isOpen={isAddDealModalOpen} 
-        onClose={() => setIsAddDealModalOpen(false)} 
+      <AddDealModal
+        isOpen={isAddDealModalOpen}
+        onClose={() => setIsAddDealModalOpen(false)}
       />
     </div>
   );
@@ -513,7 +558,7 @@ function FilterModal({ isOpen, onClose }) {
     priority: "",
     company: "",
     minValue: "",
-    maxValue: ""
+    maxValue: "",
   });
 
   const handleApply = () => {
@@ -527,7 +572,7 @@ function FilterModal({ isOpen, onClose }) {
       priority: "",
       company: "",
       minValue: "",
-      maxValue: ""
+      maxValue: "",
     });
   };
 
@@ -535,7 +580,7 @@ function FilterModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card 
+      <Card
         glass={true}
         className="w-full max-w-md bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl max-h-[85vh] flex flex-col"
       >
@@ -547,7 +592,9 @@ function FilterModal({ isOpen, onClose }) {
                 <Filter className="w-4 h-4 text-yellow-600" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Filter Deals</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Filter Deals
+                </h2>
                 <p className="text-xs text-gray-600">Refine your deals</p>
               </div>
             </div>
@@ -565,58 +612,84 @@ function FilterModal({ isOpen, onClose }) {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Stage</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Stage
+                </label>
                 <Select
                   value={filters.stage}
-                  onChange={(value) => setFilters(prev => ({ ...prev, stage: value }))}
+                  onChange={(value) =>
+                    setFilters((prev) => ({ ...prev, stage: value }))
+                  }
                   options={[
                     { value: "", label: "All Stages" },
                     { value: "discovery", label: "Discovery" },
                     { value: "proposal", label: "Proposal" },
-                    { value: "negotiation", label: "Negotiation" }
+                    { value: "negotiation", label: "Negotiation" },
                   ]}
                   placeholder="Stage"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
                 <Select
                   value={filters.priority}
-                  onChange={(value) => setFilters(prev => ({ ...prev, priority: value }))}
+                  onChange={(value) =>
+                    setFilters((prev) => ({ ...prev, priority: value }))
+                  }
                   options={[
                     { value: "", label: "All Priorities" },
                     { value: "high", label: "High" },
                     { value: "medium", label: "Medium" },
-                    { value: "low", label: "Low" }
+                    { value: "low", label: "Low" },
                   ]}
                   placeholder="Priority"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Company</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Company
+              </label>
               <Input
                 value={filters.company}
-                onChange={(e) => setFilters(prev => ({ ...prev, company: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, company: e.target.value }))
+                }
                 placeholder="Enter company name"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Min Value ($)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Min Value ($)
+                </label>
                 <Input
                   type="number"
                   value={filters.minValue}
-                  onChange={(e) => setFilters(prev => ({ ...prev, minValue: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      minValue: e.target.value,
+                    }))
+                  }
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Max Value ($)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Max Value ($)
+                </label>
                 <Input
                   type="number"
                   value={filters.maxValue}
-                  onChange={(e) => setFilters(prev => ({ ...prev, maxValue: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      maxValue: e.target.value,
+                    }))
+                  }
                   placeholder="1000000"
                 />
               </div>
@@ -627,10 +700,14 @@ function FilterModal({ isOpen, onClose }) {
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-end gap-3">
-            <Button variant="outline" onClick={handleClear} className="px-4 py-2 text-sm">
+            <Button
+              variant="outline"
+              onClick={handleClear}
+              className="px-4 py-2 text-sm"
+            >
               Clear All
             </Button>
-            <Button 
+            <Button
               onClick={handleApply}
               className="px-4 py-2 text-sm bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border-0 shadow-lg"
             >
@@ -657,7 +734,7 @@ function ExportModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card 
+      <Card
         glass={true}
         className="w-full max-w-md bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl"
       >
@@ -669,7 +746,9 @@ function ExportModal({ isOpen, onClose }) {
                 <Download className="w-4 h-4 text-yellow-600" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Export Deals</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Export Deals
+                </h2>
                 <p className="text-xs text-gray-600">Choose export format</p>
               </div>
             </div>
@@ -684,14 +763,16 @@ function ExportModal({ isOpen, onClose }) {
           {/* Content */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Export Format
+              </label>
               <Select
                 value={exportFormat}
                 onChange={(value) => setExportFormat(value)}
                 options={[
                   { value: "pdf", label: "PDF Document" },
                   { value: "excel", label: "Excel Spreadsheet" },
-                  { value: "csv", label: "CSV File" }
+                  { value: "csv", label: "CSV File" },
                 ]}
               />
             </div>
@@ -703,7 +784,10 @@ function ExportModal({ isOpen, onClose }) {
                 onChange={(e) => setIncludeCharts(e.target.checked)}
                 className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
               />
-              <label htmlFor="includeCharts" className="ml-2 text-sm text-gray-700">
+              <label
+                htmlFor="includeCharts"
+                className="ml-2 text-sm text-gray-700"
+              >
                 Include charts and graphs
               </label>
             </div>
@@ -711,10 +795,14 @@ function ExportModal({ isOpen, onClose }) {
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="px-4 py-2 text-sm">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="px-4 py-2 text-sm"
+            >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleExport}
               className="px-4 py-2 text-sm bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border-0 shadow-lg"
             >
@@ -734,53 +822,53 @@ function AddDealModal({ isOpen, onClose }) {
     company: "",
     value: "",
     stage: "discovery",
-    priority: "medium"
+    priority: "medium",
   });
 
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: "" }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.title.trim()) {
       errors.title = "Deal title is required";
     }
-    
+
     if (!formData.company.trim()) {
       errors.company = "Company name is required";
     }
-    
+
     if (!formData.value || parseFloat(formData.value) <= 0) {
       errors.value = "Deal value must be greater than 0";
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Add deal logic here
-      console.log('New deal:', formData);
+      console.log("New deal:", formData);
       handleClose();
     } catch (error) {
-      console.error('Error adding deal:', error);
+      console.error("Error adding deal:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -792,7 +880,7 @@ function AddDealModal({ isOpen, onClose }) {
       company: "",
       value: "",
       stage: "discovery",
-      priority: "medium"
+      priority: "medium",
     });
     setFormErrors({});
     onClose();
@@ -802,7 +890,7 @@ function AddDealModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card 
+      <Card
         glass={true}
         className="w-full max-w-md bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl"
       >
@@ -814,8 +902,12 @@ function AddDealModal({ isOpen, onClose }) {
                 <Plus className="w-4 h-4 text-yellow-600" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Add New Deal</h2>
-                <p className="text-xs text-gray-600">Create a new sales opportunity</p>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Add New Deal
+                </h2>
+                <p className="text-xs text-gray-600">
+                  Create a new sales opportunity
+                </p>
               </div>
             </div>
             <button
@@ -828,55 +920,65 @@ function AddDealModal({ isOpen, onClose }) {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Deal Title *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Deal Title *
+              </label>
               <Input
                 value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
+                onChange={(e) => handleInputChange("title", e.target.value)}
                 placeholder="Enter deal title"
                 error={formErrors.title}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company *
+              </label>
               <Input
                 value={formData.company}
-                onChange={(e) => handleInputChange('company', e.target.value)}
+                onChange={(e) => handleInputChange("company", e.target.value)}
                 placeholder="Enter company name"
                 error={formErrors.company}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Deal Value *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Deal Value *
+              </label>
               <Input
                 type="number"
                 value={formData.value}
-                onChange={(e) => handleInputChange('value', e.target.value)}
+                onChange={(e) => handleInputChange("value", e.target.value)}
                 placeholder="Enter deal value"
                 error={formErrors.value}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Stage
+                </label>
                 <Select
                   value={formData.stage}
-                  onChange={(value) => handleInputChange('stage', value)}
+                  onChange={(value) => handleInputChange("stage", value)}
                   options={[
                     { value: "discovery", label: "Discovery" },
                     { value: "proposal", label: "Proposal" },
-                    { value: "negotiation", label: "Negotiation" }
+                    { value: "negotiation", label: "Negotiation" },
                   ]}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
                 <Select
                   value={formData.priority}
-                  onChange={(value) => handleInputChange('priority', value)}
+                  onChange={(value) => handleInputChange("priority", value)}
                   options={[
                     { value: "high", label: "High" },
                     { value: "medium", label: "Medium" },
-                    { value: "low", label: "Low" }
+                    { value: "low", label: "Low" },
                   ]}
                 />
               </div>
@@ -884,7 +986,11 @@ function AddDealModal({ isOpen, onClose }) {
 
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-3 mt-4">
-              <Button variant="outline" onClick={handleClose} className="px-4 py-2 text-sm">
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                className="px-4 py-2 text-sm"
+              >
                 Cancel
               </Button>
               <Button

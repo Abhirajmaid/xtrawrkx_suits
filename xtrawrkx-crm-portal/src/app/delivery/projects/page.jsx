@@ -9,7 +9,7 @@ import {
   StatCard,
   BarChart,
   EmptyState,
-} from "@xtrawrkx/ui";
+} from "../../../../../../../../../components/ui";
 import {
   FolderOpen,
   Clock,

@@ -8,7 +8,7 @@ import {
   PurpleButton,
   WhiteButton,
   GreenButton,
-} from "@xtrawrkx/ui";
+} from "@/components/ui";
 import { Icon } from "@iconify/react";
 import {
   Building,
@@ -342,7 +342,9 @@ export function CommunitiesStep({ onNext, onBack }) {
               >
                 {selectedCommunities.length === 0
                   ? "Select at least one community"
-                  : `Continue with ${selectedCommunities.length} communit${selectedCommunities.length === 1 ? "y" : "ies"}`}
+                  : `Continue with ${selectedCommunities.length} communit${
+                      selectedCommunities.length === 1 ? "y" : "ies"
+                    }`}
               </PurpleButton>
             </motion.div>
           </motion.div>
@@ -372,8 +374,8 @@ export function CommunitiesStep({ onNext, onBack }) {
                         index + 1 < currentFormStep
                           ? "bg-green-500 text-white"
                           : index + 1 === currentFormStep
-                            ? "bg-purple-500 text-white"
-                            : "bg-gray-200 text-gray-500"
+                          ? "bg-purple-500 text-white"
+                          : "bg-gray-200 text-gray-500"
                       }`}
                     >
                       {index + 1 < currentFormStep ? "✓" : index + 1}
@@ -792,26 +794,24 @@ export function CommunitiesStep({ onNext, onBack }) {
                                   {option.includes("Network")
                                     ? "🤝"
                                     : option.includes("Funding")
-                                      ? "💰"
-                                      : option.includes("Debt")
-                                        ? "🏦"
-                                        : option.includes("consultant")
-                                          ? "💼"
-                                          : option.includes("services")
-                                            ? "🛠️"
-                                            : option.includes("Learning")
-                                              ? "📚"
-                                              : option.includes("Business")
-                                                ? "🏢"
-                                                : option.includes("Parts")
-                                                  ? "⚙️"
-                                                  : option.includes("Talent")
-                                                    ? "👥"
-                                                    : option.includes(
-                                                          "Co-founders"
-                                                        )
-                                                      ? "🤝"
-                                                      : "💼"}
+                                    ? "💰"
+                                    : option.includes("Debt")
+                                    ? "🏦"
+                                    : option.includes("consultant")
+                                    ? "💼"
+                                    : option.includes("services")
+                                    ? "🛠️"
+                                    : option.includes("Learning")
+                                    ? "📚"
+                                    : option.includes("Business")
+                                    ? "🏢"
+                                    : option.includes("Parts")
+                                    ? "⚙️"
+                                    : option.includes("Talent")
+                                    ? "👥"
+                                    : option.includes("Co-founders")
+                                    ? "🤝"
+                                    : "💼"}
                                 </span>
                               </div>
                               <div className="flex-1">

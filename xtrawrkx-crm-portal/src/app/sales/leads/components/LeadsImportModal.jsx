@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Upload, FileSpreadsheet, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
-import { Card, Button } from '@xtrawrkx/ui';
+import { Card, Button } from "../../../../../../../../../../components/ui";
 
 export default function LeadsImportModal({ 
   isOpen, 

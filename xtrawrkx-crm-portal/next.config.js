@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    transpilePackages: ['@xtrawrkx/ui', '@xtrawrkx/utils'],
+    // transpilePackages: ['@xtrawrkx/ui', '@xtrawrkx/utils'],
     experimental: {
         externalDir: true,
     },

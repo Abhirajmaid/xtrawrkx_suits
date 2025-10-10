@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Input } from "@xtrawrkx/ui";
+import { Button, Input } from "../../../../../../../../components/ui";
 import { X, AlertTriangle, Trash2 } from "lucide-react";
 import { BaseModal } from "../ui";
 

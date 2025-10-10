@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Select, Badge } from "@xtrawrkx/ui";
+import { Card, Button, Select, Badge } from "../../../components/ui";
 import {
   Bell,
   Mail,
@@ -508,8 +508,8 @@ export default function NotificationPreferencesForm() {
                       channel === "email"
                         ? "bg-blue-100"
                         : channel === "inApp"
-                          ? "bg-green-100"
-                          : "bg-purple-100"
+                        ? "bg-green-100"
+                        : "bg-purple-100"
                     }`}
                   >
                     {getChannelIcon(channel)}
@@ -522,8 +522,8 @@ export default function NotificationPreferencesForm() {
                       {channel === "email"
                         ? "Email notifications"
                         : channel === "inApp"
-                          ? "In-app notifications"
-                          : "Mobile push notifications"}
+                        ? "In-app notifications"
+                        : "Mobile push notifications"}
                     </p>
                   </div>
                 </div>

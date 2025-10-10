@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, Button, Avatar } from "@xtrawrkx/ui";
+import { Card, Badge, Button, Avatar } from "../../../../../../../../../components/ui";
 import {
   Plus,
   MoreHorizontal,

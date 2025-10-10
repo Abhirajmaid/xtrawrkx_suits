@@ -10,14 +10,14 @@ import {
   Avatar,
   StatCard,
   Tabs,
-} from "@xtrawrkx/ui";
-import { 
-  AccountFilterModal, 
-  AddAccountModal, 
-  ImportAccountsModal, 
-  AccountScoringModal, 
-  ActivityTimelineModal, 
-  EmailCampaignsModal 
+} from "../../../components/ui";
+import {
+  AccountFilterModal,
+  AddAccountModal,
+  ImportAccountsModal,
+  AccountScoringModal,
+  ActivityTimelineModal,
+  EmailCampaignsModal,
 } from "../../../components/accounts";
 import {
   Plus,
@@ -264,40 +264,52 @@ export default function AccountsPage() {
     // Apply search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(account =>
-        account.name.toLowerCase().includes(query) ||
-        account.industry.toLowerCase().includes(query) ||
-        account.owner.toLowerCase().includes(query) ||
-        account.type.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (account) =>
+          account.name.toLowerCase().includes(query) ||
+          account.industry.toLowerCase().includes(query) ||
+          account.owner.toLowerCase().includes(query) ||
+          account.type.toLowerCase().includes(query)
       );
     }
 
     // Apply filters
     if (filters.type) {
-      filtered = filtered.filter(account => account.type === filters.type);
+      filtered = filtered.filter((account) => account.type === filters.type);
     }
     if (filters.industry) {
-      filtered = filtered.filter(account => account.industry === filters.industry);
+      filtered = filtered.filter(
+        (account) => account.industry === filters.industry
+      );
     }
     if (filters.owner) {
-      filtered = filtered.filter(account => account.owner === filters.owner);
+      filtered = filtered.filter((account) => account.owner === filters.owner);
     }
     if (filters.minRevenue) {
-      filtered = filtered.filter(account => account.revenue >= parseFloat(filters.minRevenue));
+      filtered = filtered.filter(
+        (account) => account.revenue >= parseFloat(filters.minRevenue)
+      );
     }
     if (filters.maxRevenue) {
-      filtered = filtered.filter(account => account.revenue <= parseFloat(filters.maxRevenue));
+      filtered = filtered.filter(
+        (account) => account.revenue <= parseFloat(filters.maxRevenue)
+      );
     }
     if (filters.healthScore) {
-      const [min, max] = filters.healthScore.split('-').map(Number);
-      filtered = filtered.filter(account => account.health >= min && account.health <= max);
+      const [min, max] = filters.healthScore.split("-").map(Number);
+      filtered = filtered.filter(
+        (account) => account.health >= min && account.health <= max
+      );
     }
 
     // Apply tab filter
     if (activeTab !== "all") {
-      if (activeTab === "customers") filtered = filtered.filter(a => a.type === "Customer");
-      if (activeTab === "prospects") filtered = filtered.filter(a => a.type === "Prospect");
-      if (activeTab === "partners") filtered = filtered.filter(a => a.type === "Partner");
+      if (activeTab === "customers")
+        filtered = filtered.filter((a) => a.type === "Customer");
+      if (activeTab === "prospects")
+        filtered = filtered.filter((a) => a.type === "Prospect");
+      if (activeTab === "partners")
+        filtered = filtered.filter((a) => a.type === "Partner");
     }
 
     return filtered;
@@ -310,15 +322,15 @@ export default function AccountsPage() {
   };
 
   const handleAddAccount = (newAccount) => {
-    setAccountsData(prev => [newAccount, ...prev]);
+    setAccountsData((prev) => [newAccount, ...prev]);
   };
 
   const handleImportAccounts = (importedAccounts) => {
-    setAccountsData(prev => [...importedAccounts, ...prev]);
+    setAccountsData((prev) => [...importedAccounts, ...prev]);
   };
 
   const handleSaveScoringRules = (rules) => {
-    console.log('Saving scoring rules:', rules);
+    console.log("Saving scoring rules:", rules);
     // Here you would typically save to backend
   };
 
@@ -384,7 +396,7 @@ export default function AccountsPage() {
             {/* Quick Actions */}
             <div className="flex items-center gap-2">
               {/* Add New */}
-              <button 
+              <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-brand-primary rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
               >
@@ -392,7 +404,7 @@ export default function AccountsPage() {
               </button>
 
               {/* Filter */}
-              <button 
+              <button
                 onClick={() => setIsFilterModalOpen(true)}
                 className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
               >
@@ -406,7 +418,7 @@ export default function AccountsPage() {
             {/* User Profile */}
             <div className="flex items-center gap-3">
               <div className="relative">
-                <button 
+                <button
                   className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
                   onMouseEnter={() => setShowProfileDropdown(true)}
                   onMouseLeave={() => setShowProfileDropdown(false)}
@@ -424,18 +436,22 @@ export default function AccountsPage() {
                       </p>
                     </div>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 text-brand-text-light transition-transform ${
+                      showProfileDropdown ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
 
                 {/* Profile Dropdown */}
                 {showProfileDropdown && (
                   <>
                     {/* Backdrop to close dropdown when clicking outside */}
-                    <div 
+                    <div
                       className="fixed inset-0 z-[99998]"
                       onClick={() => setShowProfileDropdown(false)}
                     />
-                    <div 
+                    <div
                       className="fixed right-6 top-20 w-56 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
                       onMouseEnter={() => setShowProfileDropdown(true)}
                       onMouseLeave={() => setShowProfileDropdown(false)}
@@ -506,7 +522,9 @@ export default function AccountsPage() {
           />
           <StatCard
             title="Total Revenue"
-            value={`$${accountsData.reduce((sum, a) => sum + a.revenue, 0).toFixed(1)}M`}
+            value={`$${accountsData
+              .reduce((sum, a) => sum + a.revenue, 0)
+              .toFixed(1)}M`}
             change="+18%"
             changeType="increase"
             icon={DollarSign}
@@ -515,7 +533,10 @@ export default function AccountsPage() {
           />
           <StatCard
             title="Avg Health Score"
-            value={`${Math.round(accountsData.reduce((sum, a) => sum + a.health, 0) / accountsData.length)}%`}
+            value={`${Math.round(
+              accountsData.reduce((sum, a) => sum + a.health, 0) /
+                accountsData.length
+            )}%`}
             change="+3%"
             changeType="increase"
             icon={TrendingUp}
@@ -575,7 +596,7 @@ export default function AccountsPage() {
 
         {/* Quick Actions */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card 
+          <Card
             className="p-4 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => setIsImportModalOpen(true)}
           >
@@ -591,7 +612,7 @@ export default function AccountsPage() {
               </div>
             </div>
           </Card>
-          <Card 
+          <Card
             className="p-4 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => setIsScoringModalOpen(true)}
           >
@@ -607,7 +628,7 @@ export default function AccountsPage() {
               </div>
             </div>
           </Card>
-          <Card 
+          <Card
             className="p-4 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => setIsTimelineModalOpen(true)}
           >
@@ -623,7 +644,7 @@ export default function AccountsPage() {
               </div>
             </div>
           </Card>
-          <Card 
+          <Card
             className="p-4 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => setIsEmailModalOpen(true)}
           >

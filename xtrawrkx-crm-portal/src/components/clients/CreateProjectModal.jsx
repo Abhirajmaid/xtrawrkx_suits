@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Select, Button } from "@xtrawrkx/ui";
+import { Input, Select, Button } from "../../../../../../../../components/ui";
 import { X, FolderOpen, User, DollarSign, Calendar, FileText } from "lucide-react";
 import { BaseModal } from "../ui";
 

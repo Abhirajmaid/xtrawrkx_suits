@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Avatar, Badge } from "@xtrawrkx/ui";
+import { Avatar, Badge } from "../../../../../../../../components/ui";
 import { formatCurrency, formatDate } from "../../lib/utils";
 import { Calendar, DollarSign, User, MoreHorizontal, Star, AlertCircle } from "lucide-react";
 

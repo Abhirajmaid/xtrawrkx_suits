@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card } from "@xtrawrkx/ui";
+import { Card } from "../../../../../../../../components/ui";
 import {
   MessageSquare,
   Phone,

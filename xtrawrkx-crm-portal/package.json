@@ -15,8 +15,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@headlessui/react": "^2.2.7",
     "@types/react-beautiful-dnd": "^13.1.8",
-    "@xtrawrkx/ui": "file:../../packages/ui",
-    "@xtrawrkx/utils": "file:../../packages/utils",
     "busboy": "^1.6.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

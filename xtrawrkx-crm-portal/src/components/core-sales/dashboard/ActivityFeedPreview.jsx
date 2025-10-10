@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Button, Badge } from "@xtrawrkx/ui";
+import { Card, Button, Badge } from "../../../../../../../../../components/ui";
 import {
   Phone,
   Mail,

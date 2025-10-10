@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Modal, Input, Select, Checkbox } from "@xtrawrkx/ui";
+import { Button, Modal, Input, Select, Checkbox } from "../../../../../../../../../components/ui";
 import {
   X,
   User,

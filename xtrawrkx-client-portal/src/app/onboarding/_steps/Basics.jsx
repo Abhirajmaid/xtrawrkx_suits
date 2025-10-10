@@ -8,7 +8,7 @@ import { userBasicsSchema } from "@/lib/onboarding-schemas";
 import { ROLE_OPTIONS, INTEREST_OPTIONS } from "@/lib/onboarding-config";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
 import { Input, Label } from "@/components/ui";
-import { BlueButton, PurpleButton, WhiteButton } from "@xtrawrkx/ui";
+import { BlueButton, PurpleButton, WhiteButton } from "@/components/ui";
 import { X, Plus, User, MapPin, Heart } from "lucide-react";
 
 export function BasicsStep({
@@ -131,7 +131,11 @@ export function BasicsStep({
             {...register("name")}
             placeholder="Enter your full name"
             aria-describedby={errors.name ? "name-error" : undefined}
-            className={`h-12 text-lg ${errors.name ? "border-red-500" : "border-gray-300 focus:border-indigo-500"}`}
+            className={`h-12 text-lg ${
+              errors.name
+                ? "border-red-500"
+                : "border-gray-300 focus:border-indigo-500"
+            }`}
           />
           {errors.name && (
             <p id="name-error" className="text-sm text-red-600">
@@ -218,7 +222,11 @@ export function BasicsStep({
             {...register("location")}
             placeholder="e.g. San Francisco, CA"
             aria-describedby={errors.location ? "location-error" : undefined}
-            className={`h-12 text-lg ${errors.location ? "border-red-500" : "border-gray-300 focus:border-indigo-500"}`}
+            className={`h-12 text-lg ${
+              errors.location
+                ? "border-red-500"
+                : "border-gray-300 focus:border-indigo-500"
+            }`}
           />
           {errors.location && (
             <p id="location-error" className="text-sm text-red-600">

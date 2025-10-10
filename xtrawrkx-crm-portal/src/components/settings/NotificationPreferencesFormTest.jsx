@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Checkbox, Select, Badge } from "@xtrawrkx/ui";
+import { Card, Button, Checkbox, Select, Badge } from "../../../../../../../../components/ui";
 
 export default function NotificationPreferencesFormTest() {
   const [isEditing, setIsEditing] = useState(false);

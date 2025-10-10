@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@xtrawrkx/ui";
+import { Button } from "../../../../../../../../components/ui";
 import { X, FileText } from "lucide-react";
 import { BaseModal } from "../ui";
 

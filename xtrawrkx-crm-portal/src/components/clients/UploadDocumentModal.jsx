@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Button } from "@xtrawrkx/ui";
+import { Input, Button } from "../../../../../../../../components/ui";
 import { X, Upload, FileText, Cloud } from "lucide-react";
 import { BaseModal } from "../ui";
 

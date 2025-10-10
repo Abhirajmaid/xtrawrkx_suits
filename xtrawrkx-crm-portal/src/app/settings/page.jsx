@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Input, Select, Badge, Tabs } from "@xtrawrkx/ui";
+import { Card, Button, Input, Select, Badge, Tabs } from "../../components/ui";
 import { PageHeader } from "../../components/layout";
-import { AddRoleModal, ExportDataModal, ImportDataModal, DeleteAllDataModal } from "../../components/settings/modals";
+import {
+  AddRoleModal,
+  ExportDataModal,
+  ImportDataModal,
+  DeleteAllDataModal,
+} from "../../components/settings/modals";
 import {
   Building2,
   Mail,
@@ -42,7 +47,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
   const [isEditing, setIsEditing] = useState(false);
   const [showRolePreview, setShowRolePreview] = useState(false);
-  
+
   // Modal states
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -88,34 +93,108 @@ export default function SettingsPage() {
     { id: "role_viewer", name: "Viewer", users: 12, color: "bg-gray-500" },
   ];
 
-  const modules = ["Leads", "Contacts", "Deals", "Activities", "Files", "Settings"];
-  const permissionActions = ["create", "read", "update", "delete", "share", "export"];
+  const modules = [
+    "Leads",
+    "Contacts",
+    "Deals",
+    "Activities",
+    "Files",
+    "Settings",
+  ];
+  const permissionActions = [
+    "create",
+    "read",
+    "update",
+    "delete",
+    "share",
+    "export",
+  ];
 
   const permissionMatrix = [
     {
       roleId: "role_admin",
       module: "Leads",
-      actions: { create: true, read: true, update: true, delete: true, share: true, export: true },
+      actions: {
+        create: true,
+        read: true,
+        update: true,
+        delete: true,
+        share: true,
+        export: true,
+      },
     },
     {
       roleId: "role_viewer",
       module: "Deals",
-      actions: { create: false, read: true, update: false, delete: false, share: false, export: false },
+      actions: {
+        create: false,
+        read: true,
+        update: false,
+        delete: false,
+        share: false,
+        export: false,
+      },
     },
   ];
 
   const integrations = [
-    { id: "gdrive", name: "Google Drive", connected: false, description: "Sync files and documents" },
-    { id: "gcal", name: "Google Calendar", connected: true, description: "Schedule meetings and events" },
-    { id: "mailchimp", name: "Mailchimp", connected: false, description: "Email marketing campaigns" },
-    { id: "slack", name: "Slack", connected: true, description: "Team communication" },
-    { id: "zapier", name: "Zapier", connected: false, description: "Automate workflows" },
+    {
+      id: "gdrive",
+      name: "Google Drive",
+      connected: false,
+      description: "Sync files and documents",
+    },
+    {
+      id: "gcal",
+      name: "Google Calendar",
+      connected: true,
+      description: "Schedule meetings and events",
+    },
+    {
+      id: "mailchimp",
+      name: "Mailchimp",
+      connected: false,
+      description: "Email marketing campaigns",
+    },
+    {
+      id: "slack",
+      name: "Slack",
+      connected: true,
+      description: "Team communication",
+    },
+    {
+      id: "zapier",
+      name: "Zapier",
+      connected: false,
+      description: "Automate workflows",
+    },
   ];
 
   const auditLogs = [
-    { id: "log1", user: "Jane Admin", action: "Role Created", entity: "Role", date: "2025-01-20 10:15", ip: "192.168.1.1" },
-    { id: "log2", user: "John Smith", action: "Permission Changed", entity: "Leads", date: "2025-01-20 11:00", ip: "192.168.1.2" },
-    { id: "log3", user: "Sarah Wilson", action: "Integration Connected", entity: "Google Calendar", date: "2025-01-20 14:30", ip: "192.168.1.3" },
+    {
+      id: "log1",
+      user: "Jane Admin",
+      action: "Role Created",
+      entity: "Role",
+      date: "2025-01-20 10:15",
+      ip: "192.168.1.1",
+    },
+    {
+      id: "log2",
+      user: "John Smith",
+      action: "Permission Changed",
+      entity: "Leads",
+      date: "2025-01-20 11:00",
+      ip: "192.168.1.2",
+    },
+    {
+      id: "log3",
+      user: "Sarah Wilson",
+      action: "Integration Connected",
+      entity: "Google Calendar",
+      date: "2025-01-20 14:30",
+      ip: "192.168.1.3",
+    },
   ];
 
   const tabItems = [
@@ -227,10 +306,7 @@ export default function SettingsPage() {
         <div className="flex justify-end gap-3 mt-6">
           {isEditing ? (
             <>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-              >
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
                 Cancel
               </Button>
               <Button onClick={() => setIsEditing(false)}>
@@ -256,9 +332,14 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div>
               <h4 className="font-medium text-gray-900">Export Data</h4>
-              <p className="text-sm text-gray-600">Download all your CRM data in CSV format</p>
+              <p className="text-sm text-gray-600">
+                Download all your CRM data in CSV format
+              </p>
             </div>
-            <Button variant="outline" onClick={() => setIsExportModalOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsExportModalOpen(true)}
+            >
               <FileText className="w-4 h-4 mr-2" />
               Export
             </Button>
@@ -266,9 +347,14 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div>
               <h4 className="font-medium text-gray-900">Import Data</h4>
-              <p className="text-sm text-gray-600">Import contacts, leads, and deals from CSV</p>
+              <p className="text-sm text-gray-600">
+                Import contacts, leads, and deals from CSV
+              </p>
             </div>
-            <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsImportModalOpen(true)}
+            >
               <FileText className="w-4 h-4 mr-2" />
               Import
             </Button>
@@ -276,10 +362,12 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
             <div>
               <h4 className="font-medium text-red-900">Delete All Data</h4>
-              <p className="text-sm text-red-600">Permanently delete all CRM data (cannot be undone)</p>
+              <p className="text-sm text-red-600">
+                Permanently delete all CRM data (cannot be undone)
+              </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="text-red-600 border-red-300 hover:bg-red-50"
               onClick={() => setIsDeleteAllModalOpen(true)}
             >
@@ -297,15 +385,23 @@ export default function SettingsPage() {
       <Card title="Users & Roles" className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Role Management</h3>
-            <p className="text-sm text-gray-600">Manage user roles and permissions</p>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Role Management
+            </h3>
+            <p className="text-sm text-gray-600">
+              Manage user roles and permissions
+            </p>
           </div>
           <div className="flex gap-3">
             <Button
               variant="outline"
               onClick={() => setShowRolePreview(!showRolePreview)}
             >
-              {showRolePreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {showRolePreview ? (
+                <EyeOff className="w-4 h-4 mr-2" />
+              ) : (
+                <Eye className="w-4 h-4 mr-2" />
+              )}
               {showRolePreview ? "Hide Preview" : "Preview Role"}
             </Button>
             <Button onClick={() => setIsAddRoleModalOpen(true)}>
@@ -317,9 +413,9 @@ export default function SettingsPage() {
 
         <RoleList roles={roles} />
         <RoleEditor />
-        <PermissionMatrix 
-          roles={roles} 
-          modules={modules} 
+        <PermissionMatrix
+          roles={roles}
+          modules={modules}
           permissionActions={permissionActions}
           permissionMatrix={permissionMatrix}
         />
@@ -327,7 +423,7 @@ export default function SettingsPage() {
         <FieldLevelSecurityForm />
         <TeamVisibilitySettings />
         <UserPermissionsAssignment />
-        
+
         {showRolePreview && <SimulateRolePreview />}
       </Card>
     </div>
@@ -376,9 +472,9 @@ export default function SettingsPage() {
       <PageHeader
         title="Settings"
         subtitle="Manage your account and application preferences"
-        breadcrumbs={['Dashboard', 'Settings']}
+        breadcrumbs={["Dashboard", "Settings"]}
       />
-      
+
       <div>
         <div className="mb-6">
           <Tabs
@@ -419,4 +515,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

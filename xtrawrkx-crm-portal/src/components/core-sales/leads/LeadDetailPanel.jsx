@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Badge, Card, Tabs } from "@xtrawrkx/ui";
+import { Button, Badge, Card, Tabs } from "../../../../../../../../../components/ui";
 import {
   ArrowLeft,
   Edit,

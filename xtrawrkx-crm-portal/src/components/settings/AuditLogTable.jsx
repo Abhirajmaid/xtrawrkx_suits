@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Badge, Avatar, Input, Select } from "@xtrawrkx/ui";
+import { Card, Button, Badge, Avatar, Input, Select } from "../../../../../../../../components/ui";
 import {
   Search,
   Filter,

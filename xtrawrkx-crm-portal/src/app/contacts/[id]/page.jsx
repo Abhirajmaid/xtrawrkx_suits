@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { PageHeader } from "@xtrawrkx/ui";
+import { PageHeader } from "../../../../../../../../../components/ui";
 import ContactTabs from "../../../components/contacts/ContactTabs";
 import ContactOverview from "../../../components/contacts/ContactOverview";
 import ContactTimeline from "../../../components/contacts/ContactTimeline";

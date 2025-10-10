@@ -20,7 +20,7 @@ import {
   ChevronDown,
   ArrowUpRight,
 } from "lucide-react";
-import { StatCard, Card, Badge } from "@xtrawrkx/ui";
+import { StatCard, Card, Badge } from "../components/ui";
 import Button from "../components/Button";
 
 export default function Home() {
@@ -442,7 +442,9 @@ export default function Home() {
                     </div>
                   </div>
                   <ChevronDown
-                    className={`w-4 h-4 text-brand-text-light transition-transform ${showProfileDropdown ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 text-brand-text-light transition-transform ${
+                      showProfileDropdown ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
 
@@ -636,8 +638,8 @@ export default function Home() {
                       task.priority === "High"
                         ? "bg-red-100 border-red-300 text-red-800"
                         : task.priority === "Medium"
-                          ? "bg-yellow-100 border-yellow-300 text-yellow-800"
-                          : "bg-green-100 border-green-300 text-green-800"
+                        ? "bg-yellow-100 border-yellow-300 text-yellow-800"
+                        : "bg-green-100 border-green-300 text-green-800"
                     }`}
                   >
                     {task.priority}

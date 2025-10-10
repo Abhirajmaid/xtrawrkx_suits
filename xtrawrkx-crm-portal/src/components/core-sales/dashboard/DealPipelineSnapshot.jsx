@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Badge } from "@xtrawrkx/ui";
+import { Card, Badge } from "../../../../../../../../../components/ui";
 import { DollarSign, TrendingUp, Target } from "lucide-react";
 
 export default function DealPipelineSnapshot() {

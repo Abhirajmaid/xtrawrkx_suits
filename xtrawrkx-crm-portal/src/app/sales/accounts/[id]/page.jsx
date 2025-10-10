@@ -11,7 +11,7 @@ import {
   Tabs,
   StatCard,
   Table,
-} from "@xtrawrkx/ui";
+} from "../../../../../../../../../../components/ui";
 import {
   ArrowLeft,
   Building2,

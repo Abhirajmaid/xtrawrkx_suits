@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Input, Select, Button } from "@xtrawrkx/ui";
+import { Input, Select, Button } from "../../ui";
 import { X, Filter } from "lucide-react";
 import { BaseModal } from "../ui";
 
-export default function TaskFilterModal({ isOpen, onClose, onApplyFilters, filters, setFilters }) {
+export default function TaskFilterModal({
+  isOpen,
+  onClose,
+  onApplyFilters,
+  filters,
+  setFilters,
+}) {
   const handleApplyFilters = () => {
     onApplyFilters(filters);
     onClose();
@@ -21,13 +27,25 @@ export default function TaskFilterModal({ isOpen, onClose, onApplyFilters, filte
   };
 
   const assignees = [
-    "Sarah Johnson", "Mike Chen", "Jane Doe", "John Smith", 
-    "Alex Wilson", "Lisa Brown", "Tom Davis", "Emily Davis"
+    "Sarah Johnson",
+    "Mike Chen",
+    "Jane Doe",
+    "John Smith",
+    "Alex Wilson",
+    "Lisa Brown",
+    "Tom Davis",
+    "Emily Davis",
   ];
 
   const projects = [
-    "Website Redesign", "API Development", "Client Portal", "CRM System",
-    "Performance", "Payment System", "DevOps", "UI/UX"
+    "Website Redesign",
+    "API Development",
+    "Client Portal",
+    "CRM System",
+    "Performance",
+    "Payment System",
+    "DevOps",
+    "UI/UX",
   ];
 
   if (!isOpen) return null;
@@ -42,7 +60,12 @@ export default function TaskFilterModal({ isOpen, onClose, onApplyFilters, filte
               <Filter className="w-4 h-4 text-yellow-600" />
             </div>
             <div>
-              <h2 id="modal-title" className="text-xl font-semibold text-gray-900">Filter Tasks</h2>
+              <h2
+                id="modal-title"
+                className="text-xl font-semibold text-gray-900"
+              >
+                Filter Tasks
+              </h2>
               <p className="text-xs text-gray-600">Refine your tasks</p>
             </div>
           </div>
@@ -62,28 +85,39 @@ export default function TaskFilterModal({ isOpen, onClose, onApplyFilters, filte
           {/* Essential Filters Only */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Assignee</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Assignee
+              </label>
               <Select
                 value={filters.assignee}
-                onChange={(value) => setFilters({ ...filters, assignee: value })}
+                onChange={(value) =>
+                  setFilters({ ...filters, assignee: value })
+                }
                 options={[
                   { value: "", label: "All Assignees" },
-                  ...assignees.map(assignee => ({ value: assignee, label: assignee }))
+                  ...assignees.map((assignee) => ({
+                    value: assignee,
+                    label: assignee,
+                  })),
                 ]}
                 placeholder="Assignee"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Priority
+              </label>
               <Select
                 value={filters.priority}
-                onChange={(value) => setFilters({ ...filters, priority: value })}
+                onChange={(value) =>
+                  setFilters({ ...filters, priority: value })
+                }
                 options={[
                   { value: "", label: "All Priorities" },
                   { value: "urgent", label: "Urgent" },
                   { value: "high", label: "High" },
                   { value: "medium", label: "Medium" },
-                  { value: "low", label: "Low" }
+                  { value: "low", label: "Low" },
                 ]}
                 placeholder="Priority"
               />
@@ -91,7 +125,9 @@ export default function TaskFilterModal({ isOpen, onClose, onApplyFilters, filte
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Status
+            </label>
             <Select
               value={filters.status}
               onChange={(value) => setFilters({ ...filters, status: value })}
@@ -100,20 +136,25 @@ export default function TaskFilterModal({ isOpen, onClose, onApplyFilters, filte
                 { value: "todo", label: "To Do" },
                 { value: "in-progress", label: "In Progress" },
                 { value: "review", label: "Review" },
-                { value: "completed", label: "Completed" }
+                { value: "completed", label: "Completed" },
               ]}
               placeholder="Status"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Project</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Project
+            </label>
             <Select
               value={filters.project}
               onChange={(value) => setFilters({ ...filters, project: value })}
               options={[
                 { value: "", label: "All Projects" },
-                ...projects.map(project => ({ value: project, label: project }))
+                ...projects.map((project) => ({
+                  value: project,
+                  label: project,
+                })),
               ]}
               placeholder="Project"
             />
