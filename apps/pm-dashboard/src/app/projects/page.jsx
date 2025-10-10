@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import {
   Plus,
   Calendar,
@@ -26,7 +28,12 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [activeView, setActiveView] = useState("grid");
 
-  const allProjects = Object.values(projects);
+  const allProjects = projects ? Object.values(projects) : [];
+
+  const handleSearchClick = () => {
+    // Search functionality can be implemented later
+    console.log("Search clicked");
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -161,160 +168,164 @@ export default function ProjectsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Projects" subtitle="Manage and track all your projects" />
+      <Header
+        title="Projects"
+        subtitle="Manage and track all your projects"
+        onSearchClick={handleSearchClick}
+      />
       <div className="flex-1 p-6">
         <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            Projects
-          </h1>
-          <p className="text-sm text-gray-600">
-            Manage and track all your projects
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 transition-all duration-300 text-brand-foreground">
-            <Share className="w-4 h-4" />
-            Export
-          </button>
-          <button
-            onClick={() => router.push("/projects/add")}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary/80 transition-all duration-300"
-          >
-            <Plus className="w-4 h-4" />
-            New Project
-          </button>
-        </div>
-      </div>
-
-      {/* Project Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card glass={true} className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-brand-text-light">Total Projects</p>
-              <p className="text-2xl font-bold text-brand-foreground">
-                {allProjects.length}
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-              <CheckSquare className="w-5 h-5 text-white" />
-            </div>
-          </div>
-        </Card>
-
-        <Card glass={true} className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-brand-text-light">Active Projects</p>
-              <p className="text-2xl font-bold text-brand-foreground">
-                {
-                  allProjects.filter(
-                    (p) => p.status === "In Progress" || p.status === "Active"
-                  ).length
-                }
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-white" />
-            </div>
-          </div>
-        </Card>
-
-        <Card glass={true} className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-brand-text-light">Team Members</p>
-              <p className="text-2xl font-bold text-brand-foreground">
-                {
-                  [
-                    ...new Set(
-                      allProjects.flatMap((p) => p.team.map((t) => t.id))
-                    ),
-                  ].length
-                }
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-              <Users className="w-5 h-5 text-white" />
-            </div>
-          </div>
-        </Card>
-
-        <Card glass={true} className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-brand-text-light">Overdue Tasks</p>
-              <p className="text-2xl font-bold text-brand-foreground">
-                {allProjects.reduce((sum, p) => sum + p.stats.overdueTasks, 0)}
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-white" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-brand-text-light" />
-            <input
-              type="text"
-              placeholder="Search projects..."
-              className="pl-10 pr-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-brand-foreground placeholder:text-brand-text-light focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-            />
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
+            <p className="text-sm text-gray-600">
+              Manage and track all your projects
+            </p>
           </div>
 
-          {/* Filter */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg">
-            <Filter className="w-4 h-4 text-brand-text-light" />
-            <span className="text-sm text-brand-foreground">All Status</span>
-            <ChevronDown className="w-4 h-4 text-brand-text-light" />
-          </div>
-
-          {/* Date Filter */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg">
-            <Calendar className="w-4 h-4 text-brand-text-light" />
-            <span className="text-sm text-brand-foreground">This Month</span>
-            <ChevronDown className="w-4 h-4 text-brand-text-light" />
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 transition-all duration-300 text-brand-foreground">
+              <Share className="w-4 h-4" />
+              Export
+            </button>
+            <button
+              onClick={() => router.push("/projects/add")}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary/80 transition-all duration-300"
+            >
+              <Plus className="w-4 h-4" />
+              New Project
+            </button>
           </div>
         </div>
 
-        {/* View Toggle */}
-        <div className="flex space-x-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1">
-          <button
-            onClick={() => setActiveView("grid")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-              activeView === "grid"
-                ? "bg-white/25 text-brand-foreground shadow-lg"
-                : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10"
-            }`}
-          >
-            <Grid3X3 className="w-4 h-4" />
-            Grid
-          </button>
-          <button
-            onClick={() => setActiveView("list")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-              activeView === "list"
-                ? "bg-white/25 text-brand-foreground shadow-lg"
-                : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10"
-            }`}
-          >
-            <List className="w-4 h-4" />
-            List
-          </button>
-        </div>
-      </div>
+        {/* Project Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card glass={true} className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-brand-text-light">Total Projects</p>
+                <p className="text-2xl font-bold text-brand-foreground">
+                  {allProjects.length}
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <CheckSquare className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </Card>
 
-      {/* Projects Content */}
-      {renderGridView()}
+          <Card glass={true} className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-brand-text-light">Active Projects</p>
+                <p className="text-2xl font-bold text-brand-foreground">
+                  {
+                    allProjects.filter(
+                      (p) => p.status === "In Progress" || p.status === "Active"
+                    ).length
+                  }
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </Card>
+
+          <Card glass={true} className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-brand-text-light">Team Members</p>
+                <p className="text-2xl font-bold text-brand-foreground">
+                  {
+                    [
+                      ...new Set(
+                        allProjects.flatMap((p) => p.team.map((t) => t.id))
+                      ),
+                    ].length
+                  }
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </Card>
+
+          <Card glass={true} className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-brand-text-light">Overdue Tasks</p>
+                <p className="text-2xl font-bold text-brand-foreground">
+                  {allProjects.reduce(
+                    (sum, p) => sum + p.stats.overdueTasks,
+                    0
+                  )}
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </Card>
         </div>
+
+        {/* Controls */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-brand-text-light" />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                className="pl-10 pr-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-brand-foreground placeholder:text-brand-text-light focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+              />
+            </div>
+
+            {/* Filter */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg">
+              <Filter className="w-4 h-4 text-brand-text-light" />
+              <span className="text-sm text-brand-foreground">All Status</span>
+              <ChevronDown className="w-4 h-4 text-brand-text-light" />
+            </div>
+
+            {/* Date Filter */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg">
+              <Calendar className="w-4 h-4 text-brand-text-light" />
+              <span className="text-sm text-brand-foreground">This Month</span>
+              <ChevronDown className="w-4 h-4 text-brand-text-light" />
+            </div>
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex space-x-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1">
+            <button
+              onClick={() => setActiveView("grid")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                activeView === "grid"
+                  ? "bg-white/25 text-brand-foreground shadow-lg"
+                  : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10"
+              }`}
+            >
+              <Grid3X3 className="w-4 h-4" />
+              Grid
+            </button>
+            <button
+              onClick={() => setActiveView("list")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                activeView === "list"
+                  ? "bg-white/25 text-brand-foreground shadow-lg"
+                  : "text-brand-text-light hover:text-brand-foreground hover:bg-white/10"
+              }`}
+            >
+              <List className="w-4 h-4" />
+              List
+            </button>
+          </div>
+        </div>
+
+        {/* Projects Content */}
+        {renderGridView()}
       </div>
     </div>
   );

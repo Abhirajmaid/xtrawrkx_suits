@@ -3,9 +3,18 @@
 import Header from "../../components/shared/Header";
 
 export default function Settings() {
+  const handleSearchClick = () => {
+    // Search functionality can be implemented later
+    console.log("Search clicked");
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <Header title="Settings" subtitle="Manage your account and preferences" />
+      <Header
+        title="Settings"
+        subtitle="Manage your account and preferences"
+        onSearchClick={handleSearchClick}
+      />
       <div className="flex-1 p-6">
         <div className="card p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">

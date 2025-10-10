@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useState } from "react";
 import {
   StatsCards,
@@ -13,13 +15,74 @@ import Header from "../../components/shared/Header";
 import {
   projects,
   getTasksByAssigneeId,
-  getEnrichedTask,
   getProjectStats,
   teamMembers,
 } from "../../data/centralData";
 
 export default function DashboardPage() {
   const [hasData] = useState(true); // Default to filled state to show the dashboard with data
+
+  // Get real assigned tasks data
+  const getRealAssignedTasksData = () => {
+    if (!hasData) return [];
+
+    const currentUserId = 1; // Mark Atenson
+    const userTasks = getTasksByAssigneeId(currentUserId);
+
+    return userTasks.slice(0, 3).map((task) => {
+      const dueDate = new Date(task.dueDate);
+      const now = new Date();
+      const diffTime = dueDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      let dueDateText;
+      if (diffDays < 0) {
+        dueDateText = `Overdue by ${Math.abs(diffDays)} days`;
+      } else if (diffDays === 0) {
+        dueDateText = "Due today";
+      } else if (diffDays === 1) {
+        dueDateText = "Due tomorrow";
+      } else if (diffDays < 7) {
+        dueDateText = `Due in ${diffDays} days`;
+      } else {
+        dueDateText = `Due in ${Math.ceil(diffDays / 7)} weeks`;
+      }
+
+      const getColorByProject = (projectName) => {
+        switch (projectName) {
+          case "Yellow Branding":
+            return "bg-blue-500";
+          case "Mogo Web Design":
+            return "bg-green-500";
+          case "Futurework":
+            return "bg-purple-500";
+          case "Resto Dashboard":
+            return "bg-pink-500";
+          case "Hajime Illustration":
+            return "bg-yellow-500";
+          case "Carl UI/UX":
+            return "bg-orange-500";
+          case "Fitness App Design":
+            return "bg-purple-500";
+          default:
+            return "bg-gray-500";
+        }
+      };
+
+      return {
+        id: task.id,
+        name: task.name,
+        project: task.project.name,
+        projectColor: getColorByProject(task.project.name),
+        dueDate: dueDateText,
+        priority: task.priority,
+        progress: task.progress,
+        assignee: task.assignee,
+        status: task.status,
+      };
+    });
+  };
+
   const [assignedTasks, setAssignedTasks] = useState(() =>
     getRealAssignedTasksData()
   );
@@ -62,67 +125,6 @@ export default function DashboardPage() {
   };
 
   const statsData = getRealStatsData();
-
-  // Get real assigned tasks data
-  const getRealAssignedTasksData = () => {
-    if (!hasData) return [];
-
-    const currentUserId = 1; // Mark Atenson
-    const userTasks = getTasksByAssigneeId(currentUserId);
-
-    return userTasks.slice(0, 3).map((task) => {
-      const enrichedTask = getEnrichedTask(task.id);
-      const dueDate = new Date(task.dueDate);
-      const now = new Date();
-      const diffTime = dueDate - now;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      let dueDateText;
-      if (diffDays < 0) {
-        dueDateText = `Overdue by ${Math.abs(diffDays)} days`;
-      } else if (diffDays === 0) {
-        dueDateText = "Due today";
-      } else if (diffDays === 1) {
-        dueDateText = "Due tomorrow";
-      } else if (diffDays < 7) {
-        dueDateText = `Due in ${diffDays} days`;
-      } else {
-        dueDateText = `Due in ${Math.ceil(diffDays / 7)} weeks`;
-      }
-
-      const getColorByProject = (projectName) => {
-        switch (projectName) {
-          case "Yellow Branding":
-            return "bg-blue-500";
-          case "Mogo Web Design":
-            return "bg-green-500";
-          case "Futurework":
-            return "bg-purple-500";
-          default:
-            return "bg-gray-500";
-        }
-      };
-
-      return {
-        id: task.id,
-        name: task.name,
-        description: task.description || "No description available",
-        project: enrichedTask.project.name,
-        dueDate: task.dueDate, // Keep original date for proper formatting
-        dueDateText: dueDateText, // Human readable format
-        color: getColorByProject(enrichedTask.project.name),
-        priority: task.priority,
-        status: task.status.toLowerCase().replace(" ", "_"),
-        progress: task.progress || 0,
-        assignee: task.assignee || "Unassigned",
-        assigneeId: task.assigneeId,
-        tags: task.tags || [],
-        time: task.time,
-        estimatedHours: task.estimatedHours,
-        subtaskCount: enrichedTask.subtasks ? enrichedTask.subtasks.length : 0,
-      };
-    });
-  };
 
   // Handle task completion
   const handleTaskComplete = (taskId, newStatus) => {
@@ -250,6 +252,7 @@ export default function DashboardPage() {
       <Header
         title="Dashboard"
         subtitle="Monitor all of your projects and tasks here"
+        onSearchClick={() => console.log("Search clicked")}
       />
 
       <div className="flex-1 p-6 overflow-auto relative z-10">

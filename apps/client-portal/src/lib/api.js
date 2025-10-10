@@ -38,8 +38,8 @@ export async function verifyOTP(email, phone, otp, name = '') {
         name
     });
 
-    // Store token in localStorage
-    if (response.token) {
+    // Store token in localStorage (client-side only)
+    if (response.token && typeof window !== 'undefined') {
         localStorage.setItem('auth_token', response.token);
     }
 
@@ -58,8 +58,8 @@ export async function login(email, password) {
         password
     });
 
-    // Store token in localStorage
-    if (response.token) {
+    // Store token in localStorage (client-side only)
+    if (response.token && typeof window !== 'undefined') {
         localStorage.setItem('auth_token', response.token);
     }
 
@@ -71,14 +71,16 @@ export async function login(email, password) {
  * @returns {Promise<any>}
  */
 export async function getCurrentUser() {
-    // Check if this is a demo user
-    const demoUser = localStorage.getItem('demo_user');
-    if (demoUser) {
-        try {
-            return JSON.parse(demoUser);
-        } catch (error) {
-            console.error('Error parsing demo user:', error);
-            localStorage.removeItem('demo_user');
+    // Check if this is a demo user (client-side only)
+    if (typeof window !== 'undefined') {
+        const demoUser = localStorage.getItem('demo_user');
+        if (demoUser) {
+            try {
+                return JSON.parse(demoUser);
+            } catch (error) {
+                console.error('Error parsing demo user:', error);
+                localStorage.removeItem('demo_user');
+            }
         }
     }
 
@@ -91,8 +93,10 @@ export async function getCurrentUser() {
  * @returns {Promise<void>}
  */
 export async function logout() {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('demo_user'); // Also remove demo user data
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('demo_user'); // Also remove demo user data
+    }
     return Promise.resolve();
 }
 
@@ -105,19 +109,21 @@ export async function logout() {
  * @returns {Promise<{email: string, phone: string, name: string}>}
  */
 export async function getOnboardingAccount() {
-    // Check if this is a demo user
-    const demoUser = localStorage.getItem('demo_user');
-    if (demoUser) {
-        try {
-            const user = JSON.parse(demoUser);
-            return {
-                email: user.email,
-                phone: user.phone,
-                name: user.name
-            };
-        } catch (error) {
-            console.error('Error parsing demo user for onboarding:', error);
-            localStorage.removeItem('demo_user');
+    // Check if this is a demo user (client-side only)
+    if (typeof window !== 'undefined') {
+        const demoUser = localStorage.getItem('demo_user');
+        if (demoUser) {
+            try {
+                const user = JSON.parse(demoUser);
+                return {
+                    email: user.email,
+                    phone: user.phone,
+                    name: user.name
+                };
+            } catch (error) {
+                console.error('Error parsing demo user for onboarding:', error);
+                localStorage.removeItem('demo_user');
+            }
         }
     }
 
