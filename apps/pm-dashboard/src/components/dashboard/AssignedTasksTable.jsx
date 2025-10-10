@@ -44,6 +44,7 @@ const AssignedTasksTable = ({ data, onTaskComplete = () => {} }) => {
   };
 
   const getUrgencyColor = (dueDate) => {
+    if (!dueDate || typeof dueDate !== "string") return "text-gray-600";
     if (dueDate.includes("Overdue")) return "text-red-600";
     if (dueDate.includes("Due today") || dueDate.includes("Due tomorrow"))
       return "text-yellow-600";

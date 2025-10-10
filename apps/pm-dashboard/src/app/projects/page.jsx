@@ -105,19 +105,19 @@ export default function ProjectsPage() {
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center">
                 <div className="text-lg font-bold text-brand-foreground">
-                  {project.stats.totalTasks}
+                  {project.stats?.totalTasks || 0}
                 </div>
                 <div className="text-xs text-brand-text-light">Total Tasks</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-green-600">
-                  {project.stats.completedTasks}
+                  {project.stats?.completedTasks || 0}
                 </div>
                 <div className="text-xs text-brand-text-light">Completed</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-red-600">
-                  {project.stats.overdueTasks}
+                  {project.stats?.overdueTasks || 0}
                 </div>
                 <div className="text-xs text-brand-text-light">Overdue</div>
               </div>
@@ -142,7 +142,7 @@ export default function ProjectsPage() {
             {/* Team Members */}
             <div className="flex items-center justify-between">
               <div className="flex -space-x-2">
-                {project.team.slice(0, 3).map((member) => (
+                {(project.team || []).slice(0, 3).map((member) => (
                   <div
                     key={member.id}
                     className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/50`}
@@ -150,9 +150,9 @@ export default function ProjectsPage() {
                     {member.avatar}
                   </div>
                 ))}
-                {project.team.length > 3 && (
+                {(project.team || []).length > 3 && (
                   <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/50">
-                    +{project.team.length - 3}
+                    +{(project.team || []).length - 3}
                   </div>
                 )}
               </div>
@@ -239,7 +239,9 @@ export default function ProjectsPage() {
                   {
                     [
                       ...new Set(
-                        allProjects.flatMap((p) => p.team.map((t) => t.id))
+                        allProjects.flatMap((p) =>
+                          (p.team || []).map((t) => t.id)
+                        )
                       ),
                     ].length
                   }
@@ -257,7 +259,7 @@ export default function ProjectsPage() {
                 <p className="text-sm text-brand-text-light">Overdue Tasks</p>
                 <p className="text-2xl font-bold text-brand-foreground">
                   {allProjects.reduce(
-                    (sum, p) => sum + p.stats.overdueTasks,
+                    (sum, p) => sum + (p.stats?.overdueTasks || 0),
                     0
                   )}
                 </p>

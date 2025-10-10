@@ -166,12 +166,12 @@ export default function DashboardPage() {
         }
       };
 
-      const team = project.teamMemberIds.map((memberId) => {
+      const team = (project.teamMemberIds || []).map((memberId) => {
         const member = teamMembers[memberId];
         return {
-          name: member.name,
-          initials: member.avatar,
-          color: member.color,
+          name: member?.name || "Unknown",
+          initials: member?.avatar || "?",
+          color: member?.color || "bg-gray-500",
         };
       });
 
