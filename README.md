@@ -1,441 +1,128 @@
-# Xtrawrkx Suite
+# Xtrawrkx Suite - Separated Repositories
 
-A comprehensive business management suite built with Next.js, Strapi, and modern web technologies. The suite consists of multiple applications for CRM, client portal, project management, and more.
+This directory now serves as a parent directory containing separate, independent repositories for the Xtrawrkx suite of applications.
 
-## 🚀 Overview
+## Architecture Overview
 
-Xtrawrkx Suite is a monorepo-based application suite designed to handle various business operations:
+The Xtrawrkx Suite has been completely separated from a monorepo structure into individual repositories for better maintainability, deployment, and development workflow.
 
-- **CRM Portal** - Customer relationship management with sales, leads, and account management
-- **Client Portal** - Client-facing interface for project collaboration and communication
-- **PM Dashboard** - Project management dashboard for tracking tasks and project progress
-- **Strapi Backend** - Headless CMS and API backend for data management
-
-## 🏗️ Architecture
-
-This project uses a monorepo structure powered by:
-
-- **Turbo** - Build system and task runner for monorepos
-- **Next.js 14** - React framework for all frontend applications
-- **Strapi 5** - Headless CMS and API backend
-- **Tailwind CSS** - Utility-first CSS framework
-- **Shared Packages** - Reusable UI components and utilities
-
-## 📁 Project Structure
+### Repositories Structure
 
 ```
-xtrawrkx_suits/
-├── apps/                          # Frontend applications
-│   ├── crm-portal/               # CRM application (Port: 3001)
-│   │   ├── src/
-│   │   │   ├── app/              # Next.js App Router pages
-│   │   │   │   ├── sales/        # Sales module (leads, deals, accounts)
-│   │   │   │   └── delivery/     # Delivery module (projects)
-│   │   │   ├── components/       # React components
-│   │   │   ├── lib/              # Utilities and configurations
-│   │   │   └── styles/           # Global styles
-│   │   ├── next.config.js
-│   │   ├── tailwind.config.js
-│   │   └── package.json
-│   ├── client-portal/            # Client-facing portal (Port: 3002)
-│   │   ├── src/
-│   │   │   ├── app/              # Next.js App Router pages
-│   │   │   ├── components/       # React components
-│   │   │   └── styles/           # Global styles
-│   │   └── package.json
-│   └── pm-dashboard/             # Project management dashboard (Port: 3003)
-│       ├── src/
-│       │   ├── app/
-│       │   │   ├── projects/     # Project management pages
-│       │   │   └── my-task/      # Task management pages
-│       │   ├── components/       # React components
-│       │   └── styles/           # Global styles
-│       └── package.json
-├── backend/                      # Backend services
-│   └── strapi/                   # Strapi CMS (Port: 1337)
-│       ├── config/               # Strapi configuration
-│       ├── src/
-│       │   ├── api/              # API routes and controllers
-│       │   ├── admin/            # Admin panel customizations
-│       │   └── extensions/       # Strapi extensions
-│       ├── database/             # Database migrations
-│       └── package.json
-├── packages/                     # Shared packages
-│   ├── ui/                       # Shared UI components
-│   │   └── src/
-│   │       ├── AreaChart.jsx     # Chart components
-│   │       ├── Avatar.jsx        # User interface components
-│   │       ├── Button.jsx        # Form components
-│   │       ├── Card.jsx          # Layout components
-│   │       ├── Table.jsx         # Data display components
-│   │       └── index.js          # Package exports
-│   └── utils/                    # Shared utilities
-├── infra/                        # Infrastructure and deployment
-│   ├── docker/                   # Docker configurations
-│   ├── k8s/                      # Kubernetes manifests
-│   └── db/                       # Database scripts
-├── scripts/                      # Development and deployment scripts
-│   ├── dev-all.ps1              # Start all dev servers (Windows)
-│   └── bootstrap_local_postgres.ps1  # PostgreSQL setup
-├── turbo.json                    # Turbo configuration
-├── package.json                  # Root package.json with workspaces
-└── README.md                     # This file
+xtrawrkx-suits/
+├── .github/                    # GitHub workflows and templates
+├── xtrawrkx-backend/           # Backend API (Next.js API Routes)
+├── xtrawrkx-accounts/          # Accounts Management App
+├── xtrawrkx-client-portal/     # Client Portal App
+├── xtrawrkx-crm-portal/        # CRM Portal App
+├── xtrawrkx-pm-dashboard/      # Project Management Dashboard
+├── .gitattributes              # Git attributes configuration
+├── .gitignore                  # Git ignore rules
+└── README.md                   # This file
 ```
 
-## 🛠️ Prerequisites
+## Individual Repository Details
 
-Before setting up the project, ensure you have the following installed:
+### 🔧 Backend API (`xtrawrkx-backend/`)
 
-### Required
+- **Technology**: Next.js API Routes, Prisma, PostgreSQL
+- **Purpose**: Centralized API for all frontend applications
+- **Port**: 3004
+- **Deployment**: Railway/Vercel
+- **Features**: Authentication, User Management, Database Operations
 
-- **Node.js 18+** (LTS recommended)
-- **npm** (comes with Node.js)
-- **Git**
-- **PostgreSQL** (for Strapi backend)
+### 👥 Accounts App (`xtrawrkx-accounts/`)
 
-### Recommended
+- **Technology**: Next.js, React, Tailwind CSS
+- **Purpose**: User account management and authentication
+- **Port**: 3003
+- **Features**: User registration, profile management, security settings
 
-- **Visual Studio Code** (with recommended extensions)
-- **PostgreSQL client** (pgAdmin, DBeaver, or CLI tools)
+### 🏢 Client Portal (`xtrawrkx-client-portal/`)
 
-## ⚡ Quick Start
+- **Technology**: Next.js, React, Tailwind CSS, MSW (Mock Service Worker)
+- **Purpose**: Client-facing portal for project collaboration
+- **Port**: 3001
+- **Features**: Project tracking, communication, document sharing
 
-### 1. Clone and Install
+### 💼 CRM Portal (`xtrawrkx-crm-portal/`)
+
+- **Technology**: Next.js, React, Tailwind CSS
+- **Purpose**: Customer relationship management system
+- **Port**: 3002
+- **Features**: Lead management, sales pipeline, contact management
+
+### 📊 PM Dashboard (`xtrawrkx-pm-dashboard/`)
+
+- **Technology**: Next.js, React, Tailwind CSS
+- **Purpose**: Project management and task tracking
+- **Port**: 3000
+- **Features**: Task management, project boards, team collaboration
+
+## Development Setup
+
+Each repository is now completely independent. To set up any application:
+
+1. Navigate to the specific repository directory
+2. Install dependencies: `npm install`
+3. Set up environment variables (see each repo's `.env.example`)
+4. Run development server: `npm run dev`
+
+## Deployment
+
+Each repository can be deployed independently:
+
+- **Backend**: Deploy to Railway or Vercel
+- **Frontend Apps**: Deploy to Vercel, Netlify, or any static hosting service
+
+## Key Benefits of Separation
+
+✅ **Independent Deployments**: Each app can be deployed separately
+✅ **Isolated Dependencies**: No shared dependency conflicts
+✅ **Team Autonomy**: Different teams can work on different apps
+✅ **Scalability**: Each service can scale independently
+✅ **Technology Flexibility**: Each app can use different tech stacks if needed
+✅ **Simplified CI/CD**: Separate build and deployment pipelines
+
+## Shared Components
+
+Previously shared UI components have been copied into each application under:
+
+- `src/components/ui/` - Shared UI components
+- `src/lib/utils/` - Shared utility functions
+
+This ensures complete independence while maintaining consistency.
+
+## Next Steps
+
+1. Create separate GitHub repositories for each application
+2. Set up individual CI/CD pipelines
+3. Configure separate deployment environments
+4. Update documentation for each repository
+
+## Migration Notes
+
+- All shared dependencies have been localized to each application
+- Import statements have been updated to use local components
+- Each application has its own `package.json` with standalone dependencies
+- No workspace references remain
+- Monorepo infrastructure completely removed
+
+## Manual Cleanup (If Needed)
+
+If you encounter a stubborn `node_modules/` directory in the root that cannot be deleted due to file permissions:
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd xtrawrkx_suits
+# On Windows (run as Administrator):
+takeown /f node_modules /r /d y
+icacls node_modules /grant administrators:F /t
+rmdir /s /q node_modules
 
-# Install all dependencies
-npm install
+# On macOS/Linux:
+sudo rm -rf node_modules
 ```
-
-### 2. Database Setup
-
-#### Option A: Automated Setup (Windows)
-
-```powershell
-# Run the PostgreSQL bootstrap script
-.\scripts\bootstrap_local_postgres.ps1
-```
-
-#### Option B: Manual Setup
-
-```sql
--- Connect to PostgreSQL and create database and user
-CREATE DATABASE xtrawrkx;
-CREATE USER strapi WITH ENCRYPTED PASSWORD 'strapi';
-GRANT ALL PRIVILEGES ON DATABASE xtrawrkx TO strapi;
-```
-
-### 3. Backend Setup (Strapi)
-
-```bash
-# Navigate to Strapi directory
-cd backend/strapi
-
-# Create environment file
-cp .env.example .env
-# Edit .env with your database credentials
-
-# Install dependencies and start
-npm install
-npm run develop
-```
-
-**Strapi Environment Configuration** (`.env`):
-
-```env
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_NAME=xtrawrkx
-DATABASE_USERNAME=strapi
-DATABASE_PASSWORD=strapi
-DATABASE_SSL=false
-
-STRAPI_ADMIN_JWT_SECRET=your_jwt_secret_here
-API_TOKEN_SALT=your_api_token_salt_here
-```
-
-### 4. Start Frontend Applications
-
-#### Option A: Start All Apps (Windows)
-
-```powershell
-# Start all frontend apps in separate windows
-.\scripts\dev-all.ps1
-```
-
-#### Option B: Start Individual Apps
-
-```bash
-# Start CRM Portal (http://localhost:3001)
-npm --workspace=apps/crm-portal run dev
-
-# Start Client Portal (http://localhost:3002)
-npm --workspace=apps/client-portal run dev
-
-# Start PM Dashboard (http://localhost:3003)
-npm --workspace=apps/pm-dashboard run dev
-```
-
-#### Option C: Start All Apps with Turbo
-
-```bash
-# Start all apps simultaneously
-npm run dev
-```
-
-## 🔧 Development Workflow
-
-### Available Scripts
-
-```bash
-# Development
-npm run dev          # Start all apps in development mode
-npm run build        # Build all applications
-npm run lint         # Lint all applications
-npm run test         # Run tests for all applications
-
-# Individual workspace commands
-npm --workspace=apps/crm-portal run dev
-npm --workspace=apps/client-portal run dev
-npm --workspace=apps/pm-dashboard run dev
-npm --workspace=backend/strapi run develop
-```
-
-### Working with Shared Packages
-
-The project includes shared packages for common functionality:
-
-- **`@xtrawrkx/ui`** - Shared React components (buttons, charts, forms, etc.)
-- **`@xtrawrkx/utils`** - Common utility functions
-
-To add a new shared component:
-
-1. Create the component in `packages/ui/src/`
-2. Export it in `packages/ui/src/index.js`
-3. Use it in any app: `import { ComponentName } from '@xtrawrkx/ui'`
-
-### Adding New Dependencies
-
-```bash
-# Add to specific workspace
-npm --workspace=apps/crm-portal install package-name
-
-# Add to shared package
-npm --workspace=packages/ui install package-name
-
-# Add to root (affects all workspaces)
-npm install package-name
-```
-
-## 🌐 Application URLs
-
-When running in development mode:
-
-- **CRM Portal**: http://localhost:3001
-- **Client Portal**: http://localhost:3002
-- **PM Dashboard**: http://localhost:3003
-- **Strapi Admin**: http://localhost:1337/admin
-- **Strapi API**: http://localhost:1337/api
-
-## 🎨 UI Components
-
-The `@xtrawrkx/ui` package provides a comprehensive set of reusable components:
-
-### Charts
-
-- `AreaChart`, `BarChart`, `LineChart`, `PieChart` - Data visualization components
-
-### UI Elements
-
-- `Button`, `Input`, `Select`, `Checkbox` - Form components
-- `Card`, `Modal`, `Container` - Layout components
-- `Avatar`, `Badge`, `StatCard` - Display components
-- `Table`, `Tabs` - Data organization components
-
-### Usage Example
-
-```jsx
-import { Button, Card, AreaChart } from "@xtrawrkx/ui";
-
-function Dashboard() {
-  return (
-    <Card>
-      <AreaChart data={chartData} />
-      <Button variant="primary">Save Changes</Button>
-    </Card>
-  );
-}
-```
-
-## 🚀 Deployment
-
-### Environment Setup
-
-Each application requires environment configuration:
-
-#### Frontend Apps (.env.local)
-
-```env
-NEXT_PUBLIC_STRAPI_URL=http://localhost:1337
-NEXT_PUBLIC_APP_ENV=development
-```
-
-#### Strapi (.env)
-
-```env
-DATABASE_HOST=your_db_host
-DATABASE_PORT=5432
-DATABASE_NAME=your_db_name
-DATABASE_USERNAME=your_db_user
-DATABASE_PASSWORD=your_db_password
-DATABASE_SSL=true
-
-STRAPI_ADMIN_JWT_SECRET=your_production_jwt_secret
-API_TOKEN_SALT=your_production_api_token_salt
-```
-
-### Build for Production
-
-```bash
-# Build all applications
-npm run build
-
-# Build specific application
-npm --workspace=apps/crm-portal run build
-```
-
-### Docker Deployment
-
-The project includes Docker configurations in the `infra/docker/` directory.
-
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
-```
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-npm run test
-
-# Run tests for specific workspace
-npm --workspace=apps/crm-portal run test
-```
-
-## 📝 Code Style
-
-The project uses:
-
-- **ESLint** - JavaScript/React linting
-- **Prettier** - Code formatting
-- **Tailwind CSS** - Utility-first styling
-
-### Recommended VS Code Extensions
-
-- ES7+ React/Redux/React-Native snippets
-- Tailwind CSS IntelliSense
-- ESLint
-- Prettier - Code formatter
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-#### 1. Database Connection Issues
-
-```bash
-# Check PostgreSQL service status
-pg_ctl status
-
-# Test connection
-psql -h localhost -U strapi -d xtrawrkx
-```
-
-#### 2. Port Conflicts
-
-If ports are already in use, update the port numbers in respective `package.json` files:
-
-- CRM Portal: `"dev": "next dev -p 3001"`
-- Client Portal: `"dev": "next dev -p 3002"`
-- PM Dashboard: `"dev": "next dev -p 3003"`
-
-#### 3. Node Modules Issues
-
-```bash
-# Clean install
-rm -rf node_modules package-lock.json
-npm install
-
-# Clean workspace node_modules
-npx turbo clean
-npm install
-```
-
-#### 4. Turbo Cache Issues
-
-```bash
-# Clear Turbo cache
-npx turbo clean
-```
-
-## 🤝 Contributing
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Development Guidelines
-
-- Follow the existing code style and conventions
-- Write meaningful commit messages
-- Add tests for new features
-- Update documentation as needed
-- Use TypeScript where applicable
-
-## 📊 Tech Stack
-
-### Frontend
-
-- **Next.js 14** - React framework with App Router
-- **React 18** - UI library
-- **Tailwind CSS** - Styling
-- **Headless UI** - Accessible UI components
-- **Framer Motion** - Animations
-- **Lucide React** - Icons
-- **Recharts** - Data visualization
-
-### Backend
-
-- **Strapi 5** - Headless CMS
-- **PostgreSQL** - Database
-- **Node.js** - Runtime environment
-
-### Development Tools
-
-- **Turbo** - Monorepo build system
-- **ESLint** - Code linting
-- **Prettier** - Code formatting
-- **Autoprefixer** - CSS post-processing
-
-## 📄 License
-
-This project is proprietary and confidential. All rights reserved.
-
-## 📞 Support
-
-For support and questions:
-
-- Create an issue in the repository
-- Contact the development team
-- Check the troubleshooting section above
 
 ---
 
-**Happy coding! 🎉**
+**Last Updated**: October 2025
+**Migration Status**: ✅ Complete
