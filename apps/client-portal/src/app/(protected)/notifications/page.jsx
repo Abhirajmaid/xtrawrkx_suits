@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Bell, CheckCircle2, AlertCircle, Info, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 
 const notifications = [
   {
@@ -187,5 +187,3 @@ export default function NotificationsPage() {
     </div>
   );
 }
-
-

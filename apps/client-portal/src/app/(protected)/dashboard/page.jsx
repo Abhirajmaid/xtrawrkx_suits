@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 // import { Button } from "@/components/ui/button";
 import ModernButton from "@/components/ui/ModernButton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 
 // Dashboard Stats
 const dashboardStats = [

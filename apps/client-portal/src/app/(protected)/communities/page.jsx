@@ -8,7 +8,6 @@ import {
   Search,
   Filter,
   Crown,
-  Star,
   Calendar,
   MessageCircle,
   TrendingUp,
@@ -17,18 +16,9 @@ import {
   Grid3X3,
   Columns,
   MoreVertical,
-  ArrowRight,
   CheckCircle,
-  Clock,
-  Zap,
 } from "lucide-react";
-import {
-  BlueButton,
-  PurpleButton,
-  WhiteButton,
-  GreenButton,
-} from "@xtrawrkx/ui";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ModernButton } from "../../../components/ui";
 
 // Communities data
 const communitiesData = [
@@ -218,10 +208,12 @@ export default function CommunitiesPage() {
                 </p>
               </div>
               <div className="flex items-center space-x-3">
-                <PurpleButton size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Join Community
-                </PurpleButton>
+                <ModernButton
+                  type="gradient"
+                  size="sm"
+                  text="Join Community"
+                  icon={Plus}
+                />
               </div>
             </div>
 
@@ -340,13 +332,12 @@ export default function CommunitiesPage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <WhiteButton
+              <ModernButton
+                type="secondary"
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center"
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-              </WhiteButton>
+                text="Filters"
+                icon={Filter}
+              />
 
               <div className="flex items-center space-x-2">
                 <button
@@ -539,21 +530,29 @@ export default function CommunitiesPage() {
                     {community.isMember ? (
                       <div className="flex items-center space-x-3">
                         <Link href={`/communities/${community.id}`}>
-                          <BlueButton size="sm" className="flex items-center">
-                            View Community
-                            <ArrowRight className="w-4 h-4 ml-1" />
-                          </BlueButton>
+                          <ModernButton
+                            type="primary"
+                            size="sm"
+                            text="View Community"
+                            hideArrow={false}
+                          />
                         </Link>
                         {community.canUpgrade && (
-                          <PurpleButton size="sm" variant="outline">
-                            Upgrade
-                          </PurpleButton>
+                          <ModernButton
+                            type="tertiary"
+                            size="sm"
+                            text="Upgrade"
+                            className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                          />
                         )}
                       </div>
                     ) : (
-                      <PurpleButton size="sm" className="w-full">
-                        Join Community
-                      </PurpleButton>
+                      <ModernButton
+                        type="gradient"
+                        size="sm"
+                        text="Join Community"
+                        className="w-full"
+                      />
                     )}
                   </div>
                 </div>
@@ -631,19 +630,28 @@ export default function CommunitiesPage() {
                       {community.isMember ? (
                         <div className="flex items-center space-x-3">
                           <Link href={`/communities/${community.id}`}>
-                            <BlueButton size="sm" className="flex items-center">
-                              View Community
-                              <ArrowRight className="w-4 h-4 ml-1" />
-                            </BlueButton>
+                            <ModernButton
+                              type="primary"
+                              size="sm"
+                              text="View Community"
+                              hideArrow={false}
+                            />
                           </Link>
                           {community.canUpgrade && (
-                            <PurpleButton size="sm" variant="outline">
-                              Upgrade
-                            </PurpleButton>
+                            <ModernButton
+                              type="tertiary"
+                              size="sm"
+                              text="Upgrade"
+                              className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                            />
                           )}
                         </div>
                       ) : (
-                        <PurpleButton size="sm">Join Community</PurpleButton>
+                        <ModernButton
+                          type="gradient"
+                          size="sm"
+                          text="Join Community"
+                        />
                       )}
                     </div>
                   </div>
@@ -669,7 +677,8 @@ export default function CommunitiesPage() {
             <p className="text-gray-600 mb-6">
               Try adjusting your search or filter criteria
             </p>
-            <WhiteButton
+            <ModernButton
+              type="secondary"
               onClick={() => {
                 setSearchTerm("");
                 setSelectedFilters({
@@ -678,9 +687,8 @@ export default function CommunitiesPage() {
                   category: "All",
                 });
               }}
-            >
-              Clear Filters
-            </WhiteButton>
+              text="Clear Filters"
+            />
           </motion.div>
         )}
       </div>

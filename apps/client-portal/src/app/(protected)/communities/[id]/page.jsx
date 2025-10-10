@@ -9,29 +9,18 @@ import {
   Calendar,
   MessageCircle,
   Award,
-  Crown,
-  Star,
-  Clock,
-  TrendingUp,
   Share2,
   Bell,
-  Settings,
   Plus,
   CheckCircle,
-  Zap,
   Target,
   BookOpen,
   Video,
   FileText,
   Download,
 } from "lucide-react";
-import {
-  BlueButton,
-  PurpleButton,
-  WhiteButton,
-  GreenButton,
-} from "@xtrawrkx/ui";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ModernButton } from "../../../../components/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 
 // Mock data for community detail
 const communityData = {
@@ -197,10 +186,12 @@ export default function CommunityDetailPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-4">
                 <Link href="/communities">
-                  <WhiteButton size="sm" className="flex items-center">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Communities
-                  </WhiteButton>
+                  <ModernButton
+                    type="secondary"
+                    size="sm"
+                    text="Back to Communities"
+                    icon={ArrowLeft}
+                  />
                 </Link>
                 <div className="flex items-center space-x-4">
                   <div
@@ -219,18 +210,24 @@ export default function CommunityDetailPage() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <WhiteButton size="sm" className="flex items-center">
-                  <Bell className="w-4 h-4 mr-2" />
-                  Notifications
-                </WhiteButton>
-                <WhiteButton size="sm" className="flex items-center">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share
-                </WhiteButton>
-                <PurpleButton size="sm" className="flex items-center">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Post
-                </PurpleButton>
+                <ModernButton
+                  type="secondary"
+                  size="sm"
+                  text="Notifications"
+                  icon={Bell}
+                />
+                <ModernButton
+                  type="secondary"
+                  size="sm"
+                  text="Share"
+                  icon={Share2}
+                />
+                <ModernButton
+                  type="gradient"
+                  size="sm"
+                  text="Create Post"
+                  icon={Plus}
+                />
               </div>
             </div>
 
@@ -373,9 +370,12 @@ export default function CommunityDetailPage() {
 
               {communityData.canUpgrade && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <PurpleButton size="sm" className="w-full">
-                    Upgrade to {communityData.nextTierName}
-                  </PurpleButton>
+                  <ModernButton
+                    type="gradient"
+                    size="sm"
+                    text={`Upgrade to ${communityData.nextTierName}`}
+                    className="w-full"
+                  />
                 </div>
               )}
 
@@ -478,7 +478,11 @@ export default function CommunityDetailPage() {
                                   <span>{story.readTime}</span>
                                 </div>
                               </div>
-                              <WhiteButton size="sm">Read</WhiteButton>
+                              <ModernButton
+                                type="secondary"
+                                size="sm"
+                                text="Read"
+                              />
                             </div>
                           </div>
                         ))}
@@ -493,10 +497,12 @@ export default function CommunityDetailPage() {
                       <h3 className="text-lg font-semibold text-gray-900">
                         Upcoming Events
                       </h3>
-                      <PurpleButton size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Event
-                      </PurpleButton>
+                      <ModernButton
+                        type="gradient"
+                        size="sm"
+                        text="Create Event"
+                        icon={Plus}
+                      />
                     </div>
 
                     <div className="space-y-4">
@@ -534,8 +540,16 @@ export default function CommunityDetailPage() {
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <WhiteButton size="sm">Details</WhiteButton>
-                              <BlueButton size="sm">Join</BlueButton>
+                              <ModernButton
+                                type="secondary"
+                                size="sm"
+                                text="Details"
+                              />
+                              <ModernButton
+                                type="primary"
+                                size="sm"
+                                text="Join"
+                              />
                             </div>
                           </div>
                         </div>
@@ -550,10 +564,12 @@ export default function CommunityDetailPage() {
                       <h3 className="text-lg font-semibold text-gray-900">
                         Recent Discussions
                       </h3>
-                      <PurpleButton size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Start Discussion
-                      </PurpleButton>
+                      <ModernButton
+                        type="gradient"
+                        size="sm"
+                        text="Start Discussion"
+                        icon={Plus}
+                      />
                     </div>
 
                     <div className="space-y-4">
@@ -586,7 +602,11 @@ export default function CommunityDetailPage() {
                                 <span>{discussion.lastActivity}</span>
                               </div>
                             </div>
-                            <WhiteButton size="sm">View</WhiteButton>
+                            <ModernButton
+                              type="secondary"
+                              size="sm"
+                              text="View"
+                            />
                           </div>
                         </div>
                       ))}
@@ -600,10 +620,12 @@ export default function CommunityDetailPage() {
                       <h3 className="text-lg font-semibold text-gray-900">
                         Community Resources
                       </h3>
-                      <PurpleButton size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Upload Resource
-                      </PurpleButton>
+                      <ModernButton
+                        type="gradient"
+                        size="sm"
+                        text="Upload Resource"
+                        icon={Plus}
+                      />
                     </div>
 
                     <div className="space-y-4">
@@ -634,13 +656,12 @@ export default function CommunityDetailPage() {
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <WhiteButton
+                              <ModernButton
+                                type="secondary"
                                 size="sm"
-                                className="flex items-center"
-                              >
-                                <Download className="w-4 h-4 mr-1" />
-                                Download
-                              </WhiteButton>
+                                text="Download"
+                                icon={Download}
+                              />
                             </div>
                           </div>
                         </div>
