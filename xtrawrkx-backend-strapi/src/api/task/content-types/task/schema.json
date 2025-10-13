@@ -1,0 +1,107 @@
+{
+    "kind": "collectionType",
+    "collectionName": "tasks",
+    "info": {
+        "singularName": "task",
+        "pluralName": "tasks",
+        "displayName": "Task",
+        "description": "Project tasks and work items"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "project": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::project.project",
+            "inversedBy": "tasks"
+        },
+        "title": {
+            "type": "string",
+            "required": true
+        },
+        "description": {
+            "type": "text"
+        },
+        "status": {
+            "type": "enumeration",
+            "enum": [
+                "TODO",
+                "IN_PROGRESS",
+                "IN_REVIEW",
+                "DONE",
+                "BLOCKED"
+            ],
+            "default": "TODO"
+        },
+        "priority": {
+            "type": "enumeration",
+            "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH"
+            ],
+            "default": "MEDIUM"
+        },
+        "progress": {
+            "type": "integer",
+            "default": 0
+        },
+        "dueDate": {
+            "type": "datetime"
+        },
+        "estimatedTime": {
+            "type": "string"
+        },
+        "assignee": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::xtrawrkx-user.xtrawrkx-user",
+            "inversedBy": "assignedTasks"
+        },
+        "section": {
+            "type": "string"
+        },
+        "source": {
+            "type": "enumeration",
+            "enum": [
+                "CLIENT_PORTAL",
+                "PM_DASHBOARD",
+                "CRM"
+            ],
+            "default": "PM_DASHBOARD"
+        },
+        "subtasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::subtask.subtask",
+            "mappedBy": "task"
+        },
+        "activities": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::activity.activity",
+            "mappedBy": "task"
+        },
+        "timeEntries": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::time-entry.time-entry",
+            "mappedBy": "task"
+        },
+        "comments": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task-comment.task-comment",
+            "mappedBy": "task"
+        },
+        "files": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::file.file",
+            "mappedBy": "task"
+        }
+    }
+}

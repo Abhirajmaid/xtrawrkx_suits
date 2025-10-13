@@ -1,0 +1,44 @@
+{
+    "kind": "collectionType",
+    "collectionName": "subtasks",
+    "info": {
+        "singularName": "subtask",
+        "pluralName": "subtasks",
+        "displayName": "Subtask",
+        "description": "Sub-tasks within main tasks"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "task": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::task.task",
+            "inversedBy": "subtasks"
+        },
+        "title": {
+            "type": "string",
+            "required": true
+        },
+        "status": {
+            "type": "enumeration",
+            "enum": [
+                "TODO",
+                "IN_PROGRESS",
+                "DONE"
+            ],
+            "default": "TODO"
+        },
+        "assignee": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::xtrawrkx-user.xtrawrkx-user",
+            "inversedBy": "assignedSubtasks"
+        }
+    }
+}
+
+
+

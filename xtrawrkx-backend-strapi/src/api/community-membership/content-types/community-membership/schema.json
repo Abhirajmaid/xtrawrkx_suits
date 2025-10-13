@@ -1,0 +1,49 @@
+{
+    "kind": "collectionType",
+    "collectionName": "community_memberships",
+    "info": {
+        "singularName": "community-membership",
+        "pluralName": "community-memberships",
+        "displayName": "Community Membership",
+        "description": "Contact memberships in communities"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "contact": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::contact.contact",
+            "inversedBy": "communityMemberships"
+        },
+        "community": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::community.community",
+            "inversedBy": "memberships"
+        },
+        "status": {
+            "type": "enumeration",
+            "enum": [
+                "PENDING",
+                "ACTIVE",
+                "INACTIVE"
+            ],
+            "default": "PENDING"
+        },
+        "joinedAt": {
+            "type": "datetime"
+        },
+        "tier": {
+            "type": "string"
+        },
+        "nextTier": {
+            "type": "string"
+        }
+    }
+}
+
+
+

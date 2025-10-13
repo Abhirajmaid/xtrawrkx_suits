@@ -1,0 +1,105 @@
+{
+    "kind": "collectionType",
+    "collectionName": "deals",
+    "info": {
+        "singularName": "deal",
+        "pluralName": "deals",
+        "displayName": "Deal",
+        "description": "Sales deals and opportunities"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "account": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::account.account",
+            "inversedBy": "deals"
+        },
+        "contact": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::contact.contact",
+            "inversedBy": "deals"
+        },
+        "name": {
+            "type": "string",
+            "required": true
+        },
+        "stage": {
+            "type": "enumeration",
+            "enum": [
+                "DISCOVERY",
+                "PROPOSAL",
+                "NEGOTIATION",
+                "CLOSED_WON",
+                "CLOSED_LOST"
+            ],
+            "default": "DISCOVERY"
+        },
+        "value": {
+            "type": "decimal",
+            "required": true
+        },
+        "probability": {
+            "type": "integer",
+            "default": 50
+        },
+        "priority": {
+            "type": "enumeration",
+            "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH"
+            ],
+            "default": "MEDIUM"
+        },
+        "source": {
+            "type": "enumeration",
+            "enum": [
+                "FROM_ACCOUNT",
+                "FROM_LEAD",
+                "MANUAL"
+            ],
+            "default": "FROM_ACCOUNT"
+        },
+        "assignedTo": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::xtrawrkx-user.xtrawrkx-user",
+            "inversedBy": "ownedDeals"
+        },
+        "closeDate": {
+            "type": "datetime"
+        },
+        "description": {
+            "type": "text"
+        },
+        "projects": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::project.project",
+            "mappedBy": "deal"
+        },
+        "activities": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::activity.activity",
+            "mappedBy": "deal"
+        },
+        "proposals": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::proposal.proposal",
+            "mappedBy": "deal"
+        },
+        "contracts": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::contract.contract",
+            "mappedBy": "deal"
+        }
+    }
+}

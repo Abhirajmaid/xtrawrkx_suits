@@ -1,13 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    experimental: {
-        transpilePackages: ['@xtrawrkx/ui', '@xtrawrkx/utils'],
+    transpilePackages: ['@xtrawrkx/ui', '@xtrawrkx/utils'],
+    env: {
+        NEXT_PUBLIC_STRAPI_URL: process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337',
     },
     async rewrites() {
         return [
             {
                 source: '/api/:path*',
-                destination: 'http://localhost:3004/api/:path*', // Backend API
+                destination: `${process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337'}/api/:path*`,
             },
         ]
     },

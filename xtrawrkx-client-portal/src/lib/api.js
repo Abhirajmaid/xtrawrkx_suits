@@ -1,9 +1,13 @@
 /**
  * API layer with typed functions for all endpoints
- * This provides a clean interface for components to use
+ * Now integrated with Strapi backend via Firebase auth
  */
 
 import backendClient from './backendClient.js';
+import { strapiClient } from './strapiClient.js';
+
+// Use Strapi for data storage, fallback to mock backend for development
+const useStrapi = process.env.NEXT_PUBLIC_USE_STRAPI === 'true' || process.env.NODE_ENV === 'production';
 
 // ============================================================================
 // Authentication & Session
@@ -16,6 +20,7 @@ import backendClient from './backendClient.js';
  * @returns {Promise<{success: boolean, message: string, tempOTP?: string}>}
  */
 export async function sendOTP(email, phone) {
+    // This still uses the mock backend for OTP functionality
     return backendClient.post('/auth/send-otp', {
         email,
         phone
@@ -109,6 +114,22 @@ export async function logout() {
  * @returns {Promise<{email: string, phone: string, name: string}>}
  */
 export async function getOnboardingAccount() {
+    if (useStrapi) {
+        try {
+            const user = await strapiClient.getCurrentUser();
+            if (user) {
+                return {
+                    email: user.email || '',
+                    phone: user.phone || '',
+                    name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                };
+            }
+        } catch (error) {
+            console.error('Error fetching account from Strapi:', error);
+        }
+    }
+
+    // Fallback to mock backend
     // Check if this is a demo user (client-side only)
     if (typeof window !== 'undefined') {
         const demoUser = localStorage.getItem('demo_user');
@@ -137,6 +158,15 @@ export async function getOnboardingAccount() {
  * @returns {Promise<any>}
  */
 export async function saveOnboardingBasics(data) {
+    if (useStrapi) {
+        try {
+            return await strapiClient.saveOnboardingBasics(data);
+        } catch (error) {
+            console.error('Error saving basics to Strapi:', error);
+            throw error;
+        }
+    }
+
     return backendClient.post('/onboarding/basics', data);
 }
 
@@ -146,6 +176,15 @@ export async function saveOnboardingBasics(data) {
  * @returns {Promise<any>}
  */
 export async function saveOnboardingCommunities(data) {
+    if (useStrapi) {
+        try {
+            return await strapiClient.saveCommunitiesSelection(data.selectedCommunities);
+        } catch (error) {
+            console.error('Error saving communities to Strapi:', error);
+            throw error;
+        }
+    }
+
     return backendClient.post('/onboarding/communities', data);
 }
 
@@ -155,6 +194,15 @@ export async function saveOnboardingCommunities(data) {
  * @returns {Promise<any>}
  */
 export async function saveOnboardingSubmission(data) {
+    if (useStrapi) {
+        try {
+            return await strapiClient.submitCommunityApplication(data.community, data.data);
+        } catch (error) {
+            console.error('Error saving submission to Strapi:', error);
+            throw error;
+        }
+    }
+
     return backendClient.post('/onboarding/submission', data);
 }
 
@@ -164,6 +212,15 @@ export async function saveOnboardingSubmission(data) {
  * @returns {Promise<any>}
  */
 export async function completeOnboarding(data) {
+    if (useStrapi) {
+        try {
+            return await strapiClient.completeOnboarding(data);
+        } catch (error) {
+            console.error('Error completing onboarding in Strapi:', error);
+            throw error;
+        }
+    }
+
     return backendClient.post('/onboarding/complete', data);
 }
 
@@ -172,5 +229,17 @@ export async function completeOnboarding(data) {
  * @returns {Promise<any>}
  */
 export async function getOnboardingStatus() {
+    if (useStrapi) {
+        try {
+            const user = await strapiClient.getCurrentUser();
+            return {
+                isComplete: user?.onboardingCompleted || false,
+                completedAt: user?.onboardingCompletedAt || null,
+            };
+        } catch (error) {
+            console.error('Error getting onboarding status from Strapi:', error);
+        }
+    }
+
     return backendClient.get('/onboarding/complete');
 }

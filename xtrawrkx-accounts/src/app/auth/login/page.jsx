@@ -40,71 +40,138 @@ export default function LoginPage() {
     if (error) setError("");
   };
 
+  // Safe error setter that ensures error is always a string
+  const setSafeError = (errorValue) => {
+    console.log("Setting error:", errorValue, typeof errorValue);
+
+    if (!errorValue) {
+      setError("");
+      return;
+    }
+
+    let errorString = "";
+    if (typeof errorValue === "string") {
+      errorString = errorValue;
+    } else if (errorValue.message) {
+      errorString = errorValue.message;
+    } else if (errorValue.error) {
+      if (typeof errorValue.error === "string") {
+        errorString = errorValue.error;
+      } else if (errorValue.error.message) {
+        errorString = errorValue.error.message;
+      }
+    } else {
+      errorString = "An unexpected error occurred";
+    }
+
+    setError(String(errorString));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      // Call our backend API
-      const response = await fetch("http://localhost:3004/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      // Call our Strapi backend API
+      const response = await fetch(
+        "http://localhost:1337/api/auth/internal/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        // Handle non-200 responses
+        let errorMessage = "Login failed. Please try again.";
+        try {
+          const errorData = await response.json();
+          // Handle Strapi error structure
+          if (errorData.error) {
+            if (typeof errorData.error === "string") {
+              errorMessage = errorData.error;
+            } else if (errorData.error.message) {
+              errorMessage = errorData.error.message;
+            } else if (errorData.error.name) {
+              errorMessage = errorData.error.name;
+            }
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        setError(String(errorMessage));
+        return;
+      }
 
       const data = await response.json();
 
-      if (response.ok) {
-        // Map backend roles to frontend roles
-        const roleMapping = {
-          ADMIN: "admin",
-          admin: "admin",
-          SUPER_ADMIN: "super_admin",
-          super_admin: "super_admin",
-          MANAGER: "sales_manager",
-          PROJECT_MANAGER: "project_manager",
-          DEVELOPER: "read_only",
-          SALES_REP: "sales_rep",
-          SALES_MANAGER: "sales_manager",
-        };
-
-        const mappedRole = roleMapping[data.user.role] || "read_only";
-
-        // Store user info and token
-        const userData = {
-          email: data.user.email,
-          role: mappedRole,
-          name:
-            data.user.name || `${data.user.firstName} ${data.user.lastName}`,
-          permissions:
-            mappedRole === "admin" || mappedRole === "super_admin"
-              ? "full"
-              : "limited",
-          loginTime: new Date().toISOString(),
-          token: data.token,
-        };
-
-        // Store in localStorage and context
-        login(userData);
-        localStorage.setItem("authToken", data.token);
-
-        // Redirect to dashboard
-        router.push("/");
-      } else {
-        setError(
-          data.error ||
-            "Invalid email or password. Please check your credentials and try again."
-        );
+      // Ensure we have the expected data structure
+      if (!data || !data.user) {
+        setSafeError("Invalid response from server. Please try again.");
+        return;
       }
+
+      // Map backend roles to frontend roles
+      const roleMapping = {
+        ADMIN: "admin",
+        admin: "admin",
+        SUPER_ADMIN: "super_admin",
+        super_admin: "super_admin",
+        MANAGER: "sales_manager",
+        PROJECT_MANAGER: "project_manager",
+        DEVELOPER: "read_only",
+        SALES_REP: "sales_rep",
+        SALES_MANAGER: "sales_manager",
+      };
+
+      const mappedRole = roleMapping[data.user.role] || "read_only";
+
+      // Store user info and token
+      const userData = {
+        email: data.user.email || formData.email,
+        role: mappedRole,
+        name:
+          data.user.name ||
+          `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim() ||
+          data.user.email,
+        permissions:
+          mappedRole === "admin" || mappedRole === "super_admin"
+            ? "full"
+            : "limited",
+        loginTime: new Date().toISOString(),
+        token: data.token,
+      };
+
+      // Store in localStorage and context
+      login(userData);
+      localStorage.setItem("authToken", data.token);
+
+      // Redirect to dashboard
+      router.push("/");
     } catch (error) {
       console.error("Login error:", error);
-      setError("Unable to connect to server. Please try again.");
+      // Ensure error message is a string, not an object
+      let errorMessage = "Unable to connect to server. Please try again.";
+
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error.toString && typeof error.toString === "function") {
+        errorMessage = error.toString();
+      }
+
+      setSafeError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -249,7 +316,9 @@ export default function LoginPage() {
                 className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3"
               >
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                <p className="text-red-700 text-sm">{error}</p>
+                <p className="text-red-700 text-sm">
+                  {typeof error === "string" ? error : "An error occurred"}
+                </p>
               </motion.div>
             )}
 
@@ -366,7 +435,7 @@ export default function LoginPage() {
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
               <Shield className="w-4 h-4 text-green-600" />
               <span className="text-sm text-green-700">
-                Connected to Backend API
+                Connected to Strapi Backend
               </span>
             </div>
           </motion.div>
