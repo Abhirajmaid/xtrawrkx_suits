@@ -20,9 +20,16 @@ module.exports = ({ env }) => ({
   // Add admin panel configuration
   url: '/admin',
   serveAdminPanel: true,
+  // Add tours configuration to fix the "Cannot read properties of undefined (reading 'tours')" error
+  tours: {
+    enabled: false, // Disable tours to prevent the error
+  },
+  // Add Content-Type Builder configuration
+  'content-type-builder': {
+    tours: {
+      enabled: false, // Disable CTB tours specifically
+    },
+  },
   // Session configuration will be handled by the session middleware
   // No need for custom session config here
-  tours: {
-    enabled: false,
-  },
 });
