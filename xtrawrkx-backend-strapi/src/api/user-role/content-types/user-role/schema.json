@@ -24,14 +24,44 @@
             "type": "boolean",
             "default": false
         },
+        "rank": {
+            "type": "integer",
+            "default": 10,
+            "min": 1,
+            "max": 100
+        },
+        "color": {
+            "type": "string",
+            "default": "from-gray-500 to-gray-600"
+        },
+        "icon": {
+            "type": "string",
+            "default": "Shield"
+        },
+        "permissions": {
+            "type": "json",
+            "default": {}
+        },
+        "visibility": {
+            "type": "enumeration",
+            "enum": [
+                "private",
+                "team",
+                "org"
+            ],
+            "default": "private"
+        },
         "users": {
             "type": "relation",
             "relation": "manyToMany",
             "target": "api::xtrawrkx-user.xtrawrkx-user",
             "inversedBy": "userRoles"
+        },
+        "primaryUsers": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::xtrawrkx-user.xtrawrkx-user",
+            "mappedBy": "primaryRole"
         }
     }
 }
-
-
-

@@ -1,5 +1,5 @@
-// API base URL
-const API_BASE_URL = 'http://localhost:3004';
+// API base URL - Use environment variable or fallback to localhost
+const API_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
 
 // Helper function to get auth token
 const getAuthToken = () => {

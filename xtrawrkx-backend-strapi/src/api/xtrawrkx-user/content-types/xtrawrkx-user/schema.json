@@ -28,6 +28,24 @@
         "phone": {
             "type": "string"
         },
+        "location": {
+            "type": "string"
+        },
+        "timezone": {
+            "type": "string",
+            "default": "America/New_York"
+        },
+        "bio": {
+            "type": "text"
+        },
+        "avatar": {
+            "type": "media",
+            "multiple": false,
+            "required": false,
+            "allowedTypes": [
+                "images"
+            ]
+        },
         "password": {
             "type": "password",
             "required": true
@@ -56,18 +74,11 @@
             "relation": "manyToOne",
             "target": "api::xtrawrkx-user.xtrawrkx-user"
         },
-        "role": {
-            "type": "enumeration",
-            "enum": [
-                "ADMIN",
-                "MANAGER",
-                "SALES_REP",
-                "PROJECT_MANAGER",
-                "DEVELOPER",
-                "DESIGNER"
-            ],
-            "default": "DEVELOPER",
-            "required": true
+        "primaryRole": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::user-role.user-role",
+            "inversedBy": "primaryUsers"
         },
         "department": {
             "type": "enumeration",
@@ -273,7 +284,7 @@
         },
         "userRoles": {
             "type": "relation",
-            "relation": "oneToMany",
+            "relation": "manyToMany",
             "target": "api::user-role.user-role",
             "mappedBy": "users"
         }

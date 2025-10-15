@@ -96,30 +96,7 @@ const AdminLayout = ({ children }) => {
         { id: "all-users", label: "All Users", href: "/users" },
         { id: "add-user", label: "Add User", href: "/users/new" },
         { id: "user-roles", label: "User Roles", href: "/users/roles" },
-      ],
-    },
-    {
-      id: "security",
-      label: "Security",
-      icon: Shield,
-      href: "/security",
-      subItems: [
-        {
-          id: "permissions",
-          label: "Permissions",
-          href: "/coming-soon",
-        },
-        {
-          id: "access-controls",
-          label: "Access Controls",
-          href: "/coming-soon",
-        },
         { id: "audit-logs", label: "Audit Logs", href: "/activity" },
-        {
-          id: "sessions",
-          label: "Active Sessions",
-          href: "/coming-soon",
-        },
       ],
     },
     {
@@ -129,12 +106,6 @@ const AdminLayout = ({ children }) => {
       href: "/auth",
       subItems: [
         { id: "mfa", label: "Multi-Factor Auth", href: "/coming-soon" },
-        { id: "sso", label: "Single Sign-On", href: "/coming-soon" },
-        {
-          id: "password-policy",
-          label: "Password Policy",
-          href: "/coming-soon",
-        },
       ],
     },
     {
@@ -204,7 +175,6 @@ const AdminLayout = ({ children }) => {
         const permissionMap = {
           dashboard: "dashboard",
           users: "users",
-          security: "auditLogs", // Security section includes audit logs
           authentication: "settings", // Auth settings require settings permission
           organization: "teams", // Organization management requires teams permission
           account: "dashboard", // Account is available to all dashboard users
@@ -225,13 +195,8 @@ const AdminLayout = ({ children }) => {
               "all-users": "users",
               "add-user": "users",
               "user-roles": "permissions",
-              permissions: "permissions",
-              "access-controls": "permissions",
               "audit-logs": "auditLogs",
-              sessions: "settings",
               mfa: "settings",
-              sso: "settings",
-              "password-policy": "settings",
               departments: "teams",
               teams: "teams",
               locations: "settings",
@@ -517,7 +482,9 @@ const AdminLayout = ({ children }) => {
 
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col overflow-hidden ${sidebarOpen ? "ml-80" : "ml-4"} transition-all duration-300`}
+        className={`flex-1 flex flex-col overflow-hidden ${
+          sidebarOpen ? "ml-80" : "ml-4"
+        } transition-all duration-300`}
       >
         {/* Header */}
         <header className="glass-card border-b border-white/20 px-6 py-4 mx-4 mt-4 rounded-2xl">

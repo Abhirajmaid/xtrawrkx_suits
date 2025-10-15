@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   Button,
   Input,
@@ -10,33 +12,57 @@ import {
   Modal,
   Table,
 } from "@/components/ui";
-import { Loader2, Plus, Users, Mail, Calendar, Shield } from "lucide-react";
-import { getCurrentUser, createUserWithEmail } from "@/lib/auth";
+import {
+  Loader2,
+  Plus,
+  Users,
+  Mail,
+  Calendar,
+  Shield,
+  UserCheck,
+  UserX,
+  Search,
+  Filter,
+  Edit,
+  Building,
+  Phone,
+  Clock,
+  TrendingUp,
+  AlertTriangle,
+} from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
+import strapiClient from "@/lib/strapiClient";
+import PermissionsService from "@/lib/permissionsService";
+import RouteGuard from "@/components/RouteGuard";
+import Link from "next/link";
 
-export default function UserManagementPage() {
+function UserManagementPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showRolesModal, setShowRolesModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-
-  const [newUserData, setNewUserData] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    phone: "",
-    role: "DEVELOPER",
-    department: "DEVELOPMENT",
-    sendInvitation: true,
+  const [userRoles, setUserRoles] = useState([]);
+  const [availableRoles, setAvailableRoles] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterDepartment, setFilterDepartment] = useState("all");
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    recent: 0,
   });
 
   useEffect(() => {
     checkUserPermissions();
     fetchUsers();
+    fetchAvailableRoles();
   }, []);
 
   const checkUserPermissions = async () => {
@@ -77,8 +103,14 @@ export default function UserManagementPage() {
         return;
       }
 
-      if (user.type !== "internal" || user.user.role !== "ADMIN") {
-        console.log("Access denied - not admin");
+      // Check if user has admin permissions using the new role system
+      const hasAdminAccess =
+        user.user.role === "Super Admin" ||
+        user.user.role === "Admin" ||
+        user.user.role === "ADMIN"; // Fallback for old system
+
+      if (user.type !== "internal" || !hasAdminAccess) {
+        console.log("Access denied - not admin. User role:", user.user.role);
         setError("Access denied. Admin privileges required.");
         setLoading(false);
         return;
@@ -115,118 +147,265 @@ export default function UserManagementPage() {
 
   const fetchUsers = async () => {
     try {
-      console.log("Fetching users...");
+      console.log("Fetching users from Strapi...");
+      setLoading(true);
+      setError("");
 
-      // Get token from currentUser localStorage
-      const currentUserData = localStorage.getItem("currentUser");
-      let token = null;
+      // Use AuthService to get authenticated token
+      const AuthService = (await import("@/lib/authService")).default;
+      const token = await AuthService.refreshTokenIfNeeded();
 
-      if (currentUserData) {
-        const parsedUser = JSON.parse(currentUserData);
-        token = parsedUser.token;
-      }
-
-      console.log("Auth token:", token ? "Present" : "Missing");
       if (!token) {
-        setError("Authentication required");
-        setLoading(false);
-        return;
+        throw new Error("Authentication required. Please login first.");
       }
 
-      console.log("Making API request to fetch users...");
-      const response = await fetch("http://localhost:1337/api/xtrawrkx-users", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      console.log("Auth token obtained successfully");
 
-      console.log("API response status:", response.status);
-      const data = await response.json();
+      // Fetch users using AuthService with populated roles
+      // Use the editable users endpoint to get only users that current user can edit
+      let data;
+      try {
+        // Try to use the hierarchical endpoint first
+        data = await AuthService.apiRequest("/user-management/editable-users");
+
+        // Transform the response from the hierarchical endpoint
+        if (data.success && data.users) {
+          const transformedUsers = data.users.map((user) => ({
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            department: user.department,
+            phone: user.phone,
+            isActive: user.isActive,
+            emailVerified: user.emailVerified,
+            lastLoginAt: user.lastLoginAt,
+            createdAt: user.createdAt,
+            userRoles: [], // Will be populated separately if needed
+            canEdit: user.canEdit || true, // All users from this endpoint are editable
+          }));
+
+          setUsers(transformedUsers);
+          calculateStats(transformedUsers);
+          return;
+        }
+      } catch (hierarchicalError) {
+        console.log(
+          "Hierarchical endpoint not available, falling back to regular endpoint:",
+          hierarchicalError.message
+        );
+      }
+
+      // Fallback to regular endpoint
+      data = await AuthService.apiRequest(
+        "/xtrawrkx-users?populate=primaryRole,userRoles"
+      );
       console.log("API response data:", data);
 
-      if (!response.ok) {
-        throw new Error(data.message || data.error || "Failed to fetch users");
-      }
+      // Transform Strapi data to expected format
+      const transformedUsers = (data.data || []).map((item) => ({
+        id: item.id,
+        email: item.attributes?.email || item.email,
+        firstName: item.attributes?.firstName || item.firstName,
+        lastName: item.attributes?.lastName || item.lastName,
+        role: item.attributes?.primaryRole?.data?.attributes?.name || "No Role",
+        primaryRole: item.attributes?.primaryRole?.data || null,
+        department: item.attributes?.department || item.department,
+        phone: item.attributes?.phone || item.phone,
+        isActive:
+          item.attributes?.isActive !== undefined
+            ? item.attributes.isActive
+            : item.isActive !== undefined
+            ? item.isActive
+            : true,
+        emailVerified:
+          item.attributes?.emailVerified || item.emailVerified || false,
+        lastLoginAt: item.attributes?.lastLoginAt || item.lastLoginAt,
+        createdAt: item.attributes?.createdAt || item.createdAt,
+        userRoles: item.attributes?.userRoles?.data || item.userRoles || [],
+      }));
 
-      console.log("Setting users:", data.data);
-      setUsers(data.data || []);
+      console.log("Transformed users:", transformedUsers);
+      setUsers(transformedUsers);
+
+      // Calculate stats
+      calculateStats(transformedUsers);
+      setError(""); // Clear any previous errors
     } catch (error) {
       console.error("Fetch users error:", error);
-      // For development, use mock data if API fails
-      console.log("Using mock data due to API error");
-      setUsers([
-        {
-          id: 1,
-          email: "admin@xtrawrkx.com",
-          firstName: "Admin",
-          lastName: "User",
-          role: "ADMIN",
-          department: "MANAGEMENT",
-          isActive: true,
-          lastLoginAt: "2024-01-15T10:30:00Z",
-        },
-        {
-          id: 2,
-          email: "john@xtrawrkx.com",
-          firstName: "John",
-          lastName: "Developer",
-          role: "DEVELOPER",
-          department: "DEVELOPMENT",
-          isActive: true,
-          lastLoginAt: "2024-01-14T15:45:00Z",
-        },
-      ]);
-      setError("API temporarily unavailable. Showing demo data.");
+      setError(`Unable to load users: ${error.message}`);
+
+      // Don't show demo data anymore - just show empty state
+      setUsers([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateUser = async (e) => {
-    e.preventDefault();
-    setCreating(true);
-    setError("");
-    setSuccess("");
-
+  const fetchAvailableRoles = async () => {
     try {
-      const result = await createUserWithEmail(
-        newUserData.email,
-        "", // Password will be generated by the backend
-        newUserData
-      );
+      const AuthService = (await import("@/lib/authService")).default;
+      const token = await AuthService.refreshTokenIfNeeded();
 
-      setSuccess(
-        `User created successfully! ${
-          newUserData.sendInvitation
-            ? "Invitation email sent."
-            : `Temporary password: ${result.tempPassword}`
-        }`
-      );
-      setShowCreateModal(false);
-      setNewUserData({
-        email: "",
-        firstName: "",
-        lastName: "",
-        phone: "",
-        role: "DEVELOPER",
-        department: "DEVELOPMENT",
-        sendInvitation: true,
-      });
+      if (!token) {
+        return;
+      }
 
-      // Refresh users list
-      fetchUsers();
+      const data = await AuthService.apiRequest("/user-roles");
+      setAvailableRoles(data.data || []);
     } catch (error) {
-      setError(error.message);
-    } finally {
-      setCreating(false);
+      console.error("Fetch roles error:", error);
     }
   };
 
+  const calculateStats = (usersList) => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const newStats = {
+      total: usersList.length,
+      active: usersList.filter((u) => u.isActive).length,
+      inactive: usersList.filter((u) => !u.isActive).length,
+      recent: usersList.filter((u) => {
+        const createdAt = u.createdAt ? new Date(u.createdAt) : null;
+        return createdAt && createdAt >= sevenDaysAgo;
+      }).length,
+    };
+
+    setStats(newStats);
+  };
+
+  /**
+   * Check if current user can edit a specific user based on role hierarchy
+   */
+  const canEditUser = (targetUser) => {
+    if (!currentUser) return false;
+
+    const currentUserRole = currentUser.role;
+    const targetUserRole = targetUser.role;
+
+    return PermissionsService.canEditUser(currentUserRole, targetUserRole);
+  };
+
+  /**
+   * Check if current user can manage roles for a specific user
+   */
+  const canManageUserRoles = (targetUser) => {
+    if (!currentUser) return false;
+
+    const currentUserRole = currentUser.role;
+    const targetUserRole = targetUser.role;
+
+    return PermissionsService.canManageUserRoles(
+      currentUserRole,
+      targetUserRole
+    );
+  };
+
   const handleEditUser = (user) => {
+    // Check if current user can edit this user
+    if (!canEditUser(user)) {
+      setError("You don't have permission to edit this user");
+      return;
+    }
+
     setEditingUser(user);
     setShowEditModal(true);
+  };
+
+  const handleManageRoles = (user) => {
+    // Check if current user can manage roles for this user
+    if (!canManageUserRoles(user)) {
+      setError("You don't have permission to manage roles for this user");
+      return;
+    }
+
+    setEditingUser(user);
+    // Handle both data structures (attributes.id and direct id)
+    const currentRoleIds =
+      user.userRoles?.map((role) => role.attributes?.id || role.id) || [];
+    setUserRoles(currentRoleIds);
+    setShowRolesModal(true);
+  };
+
+  const handleRoleToggle = (roleId) => {
+    setUserRoles((prev) => {
+      if (prev.includes(roleId)) {
+        return prev.filter((id) => id !== roleId);
+      } else {
+        return [...prev, roleId];
+      }
+    });
+  };
+
+  const handleUpdateUserRoles = async () => {
+    if (!editingUser) return;
+
+    setCreating(true);
+    setError("");
+
+    try {
+      const AuthService = (await import("@/lib/authService")).default;
+
+      // For each role, update the user assignments
+      for (const role of availableRoles) {
+        const shouldHaveRole = userRoles.includes(role.id);
+        const currentlyHasRole = editingUser.userRoles?.some(
+          (ur) => (ur.attributes?.id || ur.id) === role.id
+        );
+
+        if (shouldHaveRole !== currentlyHasRole) {
+          try {
+            // Get current users for this role
+            const roleData = await AuthService.apiRequest(
+              `/user-roles/${role.id}`
+            );
+            const currentUserIds = roleData.data?.users?.map((u) => u.id) || [];
+
+            let updatedUserIds;
+            if (shouldHaveRole) {
+              // Add user to role
+              updatedUserIds = [
+                ...new Set([...currentUserIds, editingUser.id]),
+              ];
+            } else {
+              // Remove user from role
+              updatedUserIds = currentUserIds.filter(
+                (id) => id !== editingUser.id
+              );
+            }
+
+            // Update the role with new user assignments
+            await AuthService.apiRequest(
+              `/user-roles/${role.id}/assign-users`,
+              {
+                method: "POST",
+                body: JSON.stringify({ userIds: updatedUserIds }),
+              }
+            );
+          } catch (roleError) {
+            console.warn(
+              `Failed to update role ${role.name}:`,
+              roleError.message
+            );
+            // Continue with other roles instead of failing completely
+          }
+        }
+      }
+
+      setSuccess("User roles updated successfully!");
+      setShowRolesModal(false);
+      setEditingUser(null);
+      setUserRoles([]);
+      fetchUsers(); // Refresh the users list
+    } catch (error) {
+      console.error("Update user roles error:", error);
+      setError("Failed to update user roles: " + error.message);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleUpdateUser = async (e) => {
@@ -235,52 +414,35 @@ export default function UserManagementPage() {
     setError("");
 
     try {
-      // Get token from currentUser localStorage
-      const currentUserData = localStorage.getItem("currentUser");
-      let token = null;
+      // Use AuthService for authenticated API request
+      const AuthService = (await import("@/lib/authService")).default;
 
-      if (currentUserData) {
-        const parsedUser = JSON.parse(currentUserData);
-        token = parsedUser.token;
-      }
+      const updateData = {
+        data: {
+          firstName: editingUser.firstName,
+          lastName: editingUser.lastName,
+          email: editingUser.email,
+          primaryRole: editingUser.primaryRole?.id || null,
+          department: editingUser.department,
+          phone: editingUser.phone,
+          isActive: editingUser.isActive,
+        },
+      };
 
-      if (!token) {
-        throw new Error("Authentication required");
-      }
-
-      const response = await fetch(
-        `http://localhost:1337/api/xtrawrkx-users/${editingUser.id}`,
+      const response = await AuthService.apiRequest(
+        `/xtrawrkx-users/${editingUser.id}`,
         {
           method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            data: {
-              firstName: editingUser.firstName,
-              lastName: editingUser.lastName,
-              email: editingUser.email,
-              role: editingUser.role,
-              department: editingUser.department,
-              phone: editingUser.phone,
-              isActive: editingUser.isActive,
-            },
-          }),
+          body: JSON.stringify(updateData),
         }
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || "Failed to update user");
-      }
 
       setSuccess("User updated successfully!");
       setShowEditModal(false);
       setEditingUser(null);
       fetchUsers(); // Refresh the users list
     } catch (error) {
+      console.error("User update error:", error);
       setError("Failed to update user: " + error.message);
     } finally {
       setCreating(false);
@@ -289,6 +451,14 @@ export default function UserManagementPage() {
 
   const getRoleBadgeColor = (role) => {
     const colors = {
+      "Super Admin": "bg-red-100 text-red-800",
+      Admin: "bg-red-100 text-red-800",
+      Manager: "bg-purple-100 text-purple-800",
+      "Project Manager": "bg-blue-100 text-blue-800",
+      "Sales Representative": "bg-green-100 text-green-800",
+      Developer: "bg-gray-100 text-gray-800",
+      Designer: "bg-pink-100 text-pink-800",
+      // Legacy enum support
       ADMIN: "bg-red-100 text-red-800",
       MANAGER: "bg-purple-100 text-purple-800",
       PROJECT_MANAGER: "bg-blue-100 text-blue-800",
@@ -310,526 +480,787 @@ export default function UserManagementPage() {
     return colors[department] || "bg-gray-100 text-gray-800";
   };
 
+  // Filter users based on search and filters
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      user.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole = filterRole === "all" || user.role === filterRole;
+    const matchesDepartment =
+      filterDepartment === "all" || user.department === filterDepartment;
+
+    return matchesSearch && matchesRole && matchesDepartment;
+  });
+
   if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-          <p className="text-center mt-4">Checking permissions...</p>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card rounded-2xl p-8 text-center"
+        >
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary-500" />
+          <p className="text-gray-600">Checking permissions...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              User Management
-            </h1>
-            <p className="text-gray-600">
-              Manage internal XtraWrkx users and permissions
-            </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="glass-card rounded-2xl p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                User Management
+              </h1>
+              <p className="text-gray-600">
+                Manage internal XtraWrkx users and permissions
+              </p>
+            </div>
           </div>
 
-          <Button
-            className="flex items-center gap-2"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <Plus className="w-4 h-4" />
-            Create User
-          </Button>
+          <Link href="/users/new">
+            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300">
+              <Plus className="w-4 h-4" />
+              Add User
+            </button>
+          </Link>
+        </div>
+      </div>
 
-          <Modal
-            isOpen={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            title="Create New User"
-            size="md"
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {[
+          {
+            title: "Total Users",
+            value: stats.total,
+            change: "+12%",
+            icon: Users,
+            color: "from-blue-500 to-blue-600",
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-600",
+          },
+          {
+            title: "Active Users",
+            value: stats.active,
+            change: "+8%",
+            icon: UserCheck,
+            color: "from-green-500 to-green-600",
+            bgColor: "bg-green-100",
+            textColor: "text-green-600",
+          },
+          {
+            title: "Inactive Users",
+            value: stats.inactive,
+            change: "0%",
+            icon: UserX,
+            color: "from-red-500 to-red-600",
+            bgColor: "bg-red-100",
+            textColor: "text-red-600",
+          },
+          {
+            title: "New This Week",
+            value: stats.recent,
+            change: "+15%",
+            icon: TrendingUp,
+            color: "from-purple-500 to-purple-600",
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-600",
+          },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="glass-card rounded-2xl p-6"
           >
-            <p className="text-sm text-gray-600 mb-4">
-              Add a new internal user to the XtraWrkx system
-            </p>
-
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label
-                    htmlFor="firstName"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    First Name
-                  </label>
-                  <Input
-                    id="firstName"
-                    value={newUserData.firstName}
-                    onChange={(e) =>
-                      setNewUserData((prev) => ({
-                        ...prev,
-                        firstName: e.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label
-                    htmlFor="lastName"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Last Name
-                  </label>
-                  <Input
-                    id="lastName"
-                    value={newUserData.lastName}
-                    onChange={(e) =>
-                      setNewUserData((prev) => ({
-                        ...prev,
-                        lastName: e.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  {stat.title}
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {stat.value}
+                </p>
+                <p className="text-sm text-green-600 mt-1">
+                  {stat.change} from last month
+                </p>
               </div>
+              <div
+                className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center shadow-lg`}
+              >
+                <stat.icon className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
 
+      {/* Filters and Search */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="glass-card rounded-2xl p-6"
+      >
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Search */}
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search Users
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or email..."
+                className="w-full pl-10 pr-4 py-2 glass-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 border border-gray-200"
+              />
+            </div>
+          </div>
+
+          {/* Role Filter */}
+          <div className="lg:w-48">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Role
+            </label>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="w-full px-3 py-2 glass-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 border border-gray-200"
+            >
+              <option value="all">All Roles</option>
+              {availableRoles.map((role) => (
+                <option key={role.id} value={role.name}>
+                  {role.name}
+                </option>
+              ))}
+              <option value="No Role">No Role</option>
+            </select>
+          </div>
+
+          {/* Department Filter */}
+          <div className="lg:w-48">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Department
+            </label>
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="w-full px-3 py-2 glass-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 border border-gray-200"
+            >
+              <option value="all">All Departments</option>
+              <option value="MANAGEMENT">Management</option>
+              <option value="SALES">Sales</option>
+              <option value="DELIVERY">Delivery</option>
+              <option value="DEVELOPMENT">Development</option>
+              <option value="DESIGN">Design</option>
+            </select>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Alerts */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-4 border-l-4 border-red-500 bg-red-50"
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <p className="text-red-700 font-medium">{error}</p>
+          </div>
+        </motion.div>
+      )}
+
+      {success && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-4 border-l-4 border-green-500 bg-green-50"
+        >
+          <div className="flex items-center gap-3">
+            <UserCheck className="w-5 h-5 text-green-600" />
+            <p className="text-green-700 font-medium">{success}</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Users Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="glass-card rounded-2xl p-6"
+      >
+        <div className="flex items-center gap-2 mb-6">
+          <Users className="w-5 h-5 text-gray-700" />
+          <h3 className="text-lg font-semibold text-gray-900">
+            Internal Users ({filteredUsers.length})
+          </h3>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="text-center py-12">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No users found
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {searchQuery || filterRole !== "all" || filterDepartment !== "all"
+                ? "Try adjusting your filters"
+                : "Get started by adding your first user"}
+            </p>
+            {users.length === 0 && (
+              <Link href="/users/new">
+                <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors">
+                  <Plus className="w-4 h-4" />
+                  Add First User
+                </button>
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    User
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Role
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Department
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Custom Roles
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Status
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Last Login
+                  </th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user, index) => (
+                  <motion.tr
+                    key={user.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="py-4 px-4">
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {user.firstName} {user.lastName}
+                        </div>
+                        <div className="text-sm text-gray-500 flex items-center gap-1">
+                          <Mail className="w-3 h-3" />
+                          {user.email}
+                        </div>
+                        {user.phone && (
+                          <div className="text-sm text-gray-500 flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {user.phone}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(
+                            user.role
+                          )}`}
+                        >
+                          <Shield className="w-3 h-3" />
+                          {user.role}
+                        </span>
+                        {currentUser &&
+                          PermissionsService.getRoleLevel(currentUser.role) <=
+                            PermissionsService.getRoleLevel(user.role) && (
+                            <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full font-medium">
+                              Same/Higher Level
+                            </span>
+                          )}
+                      </div>
+                      {user.primaryRole && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Primary Role
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-4">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getDepartmentBadgeColor(
+                          user.department
+                        )}`}
+                      >
+                        <Building className="w-3 h-3" />
+                        {user.department}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex flex-wrap gap-1">
+                        {user.userRoles && user.userRoles.length > 0 ? (
+                          user.userRoles.slice(0, 2).map((role) => (
+                            <span
+                              key={role.id}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              <Shield className="w-3 h-3" />
+                              {role.attributes?.name || role.name}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            No custom roles
+                          </span>
+                        )}
+                        {user.userRoles && user.userRoles.length > 2 && (
+                          <span className="text-xs text-gray-500">
+                            +{user.userRoles.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                          user.isActive
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {user.isActive ? (
+                          <>
+                            <UserCheck className="w-3 h-3" />
+                            Active
+                          </>
+                        ) : (
+                          <>
+                            <UserX className="w-3 h-3" />
+                            Inactive
+                          </>
+                        )}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="text-sm flex items-center gap-1 text-gray-600">
+                        <Clock className="w-3 h-3" />
+                        {user.lastLoginAt
+                          ? new Date(user.lastLoginAt).toLocaleDateString()
+                          : "Never"}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        {canEditUser(user) && (
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
+                          >
+                            <Edit className="w-3 h-3" />
+                            Edit
+                          </button>
+                        )}
+                        {canManageUserRoles(user) && (
+                          <button
+                            onClick={() => handleManageRoles(user)}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Shield className="w-3 h-3" />
+                            Roles
+                          </button>
+                        )}
+                        {!canEditUser(user) && !canManageUserRoles(user) && (
+                          <span className="text-xs text-gray-400 italic">
+                            No permissions
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingUser(null);
+        }}
+        title="Edit User"
+        size="md"
+      >
+        <p className="text-sm text-gray-600 mb-4">
+          Update user information and permissions
+        </p>
+
+        {editingUser && (
+          <form onSubmit={handleUpdateUser} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label
-                  htmlFor="email"
+                  htmlFor="editFirstName"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Email
+                  First Name
                 </label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={newUserData.email}
+                  id="editFirstName"
+                  value={editingUser.firstName}
                   onChange={(e) =>
-                    setNewUserData((prev) => ({
+                    setEditingUser((prev) => ({
                       ...prev,
-                      email: e.target.value,
+                      firstName: e.target.value,
                     }))
                   }
                   required
                 />
               </div>
+              <div className="space-y-2">
+                <label
+                  htmlFor="editLastName"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Last Name
+                </label>
+                <Input
+                  id="editLastName"
+                  value={editingUser.lastName}
+                  onChange={(e) =>
+                    setEditingUser((prev) => ({
+                      ...prev,
+                      lastName: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="editEmail"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Email
+              </label>
+              <Input
+                id="editEmail"
+                type="email"
+                value={editingUser.email}
+                onChange={(e) =>
+                  setEditingUser((prev) => ({
+                    ...prev,
+                    email: e.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="editPhone"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Phone (Optional)
+              </label>
+              <Input
+                id="editPhone"
+                value={editingUser.phone || ""}
+                onChange={(e) =>
+                  setEditingUser((prev) => ({
+                    ...prev,
+                    phone: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label
+                  htmlFor="editPrimaryRole"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Primary Role
+                </label>
+                <Select
+                  value={editingUser.primaryRole?.id || ""}
+                  onChange={(value) => {
+                    const selectedRole = availableRoles.find(
+                      (role) => role.id === parseInt(value)
+                    );
+                    setEditingUser((prev) => ({
+                      ...prev,
+                      primaryRole: selectedRole || null,
+                      role: selectedRole?.name || "No Role",
+                    }));
+                  }}
+                  options={[
+                    { value: "", label: "No Primary Role" },
+                    ...availableRoles
+                      .filter((role) => {
+                        // Only show roles that current user can assign
+                        const currentUserRole = currentUser?.role;
+                        return PermissionsService.canAssignRole(
+                          currentUserRole,
+                          role.name
+                        );
+                      })
+                      .map((role) => ({
+                        value: role.id.toString(),
+                        label: role.name,
+                      })),
+                  ]}
+                  placeholder="Select primary role"
+                />
+              </div>
 
               <div className="space-y-2">
                 <label
-                  htmlFor="phone"
+                  htmlFor="editDepartment"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Phone (Optional)
+                  Department
                 </label>
-                <Input
-                  id="phone"
-                  value={newUserData.phone}
-                  onChange={(e) =>
-                    setNewUserData((prev) => ({
+                <Select
+                  value={editingUser.department}
+                  onChange={(value) =>
+                    setEditingUser((prev) => ({
                       ...prev,
-                      phone: e.target.value,
+                      department: value,
                     }))
                   }
+                  options={[
+                    { value: "MANAGEMENT", label: "Management" },
+                    { value: "SALES", label: "Sales" },
+                    { value: "DELIVERY", label: "Delivery" },
+                    { value: "DEVELOPMENT", label: "Development" },
+                    { value: "DESIGN", label: "Design" },
+                  ]}
+                  placeholder="Select department"
+                  required
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label
-                    htmlFor="role"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Role
-                  </label>
-                  <Select
-                    value={newUserData.role}
-                    onChange={(value) =>
-                      setNewUserData((prev) => ({ ...prev, role: value }))
-                    }
-                    options={[
-                      { value: "ADMIN", label: "Admin" },
-                      { value: "MANAGER", label: "Manager" },
-                      { value: "PROJECT_MANAGER", label: "Project Manager" },
-                      { value: "SALES_REP", label: "Sales Rep" },
-                      { value: "DEVELOPER", label: "Developer" },
-                      { value: "DESIGNER", label: "Designer" },
-                    ]}
-                    placeholder="Select role"
-                    required
-                  />
-                </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="editIsActive"
+                checked={editingUser.isActive}
+                onChange={(e) =>
+                  setEditingUser((prev) => ({
+                    ...prev,
+                    isActive: e.target.checked,
+                  }))
+                }
+                className="rounded"
+              />
+              <label
+                htmlFor="editIsActive"
+                className="text-sm font-medium text-gray-700"
+              >
+                Active User
+              </label>
+            </div>
 
-                <div className="space-y-2">
-                  <label
-                    htmlFor="department"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Department
-                  </label>
-                  <Select
-                    value={newUserData.department}
-                    onChange={(value) =>
-                      setNewUserData((prev) => ({
-                        ...prev,
-                        department: value,
-                      }))
-                    }
-                    options={[
-                      { value: "MANAGEMENT", label: "Management" },
-                      { value: "SALES", label: "Sales" },
-                      { value: "DELIVERY", label: "Delivery" },
-                      { value: "DEVELOPMENT", label: "Development" },
-                      { value: "DESIGN", label: "Design" },
-                    ]}
-                    placeholder="Select department"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="sendInvitation"
-                  checked={newUserData.sendInvitation}
-                  onChange={(e) =>
-                    setNewUserData((prev) => ({
-                      ...prev,
-                      sendInvitation: e.target.checked,
-                    }))
-                  }
-                  className="rounded"
-                />
-                <label
-                  htmlFor="sendInvitation"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Send invitation email
-                </label>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={creating}>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingUser(null);
+                }}
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={creating}>
                 {creating ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating User...
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
                   </>
                 ) : (
-                  "Create User"
+                  "Update User"
                 )}
               </Button>
-            </form>
-          </Modal>
+            </div>
+          </form>
+        )}
+      </Modal>
 
-          {/* Edit User Modal */}
-          <Modal
-            isOpen={showEditModal}
-            onClose={() => {
-              setShowEditModal(false);
-              setEditingUser(null);
-            }}
-            title="Edit User"
-            size="md"
-          >
-            <p className="text-sm text-gray-600 mb-4">
-              Update user information and permissions
-            </p>
+      {/* Manage User Roles Modal */}
+      <Modal
+        isOpen={showRolesModal}
+        onClose={() => {
+          setShowRolesModal(false);
+          setEditingUser(null);
+          setUserRoles([]);
+        }}
+        title={`Manage Roles - ${editingUser?.firstName} ${editingUser?.lastName}`}
+        size="md"
+      >
+        <p className="text-sm text-gray-600 mb-4">
+          Assign custom roles to enhance or override the user's default role
+          permissions
+        </p>
 
-            {editingUser && (
-              <form onSubmit={handleUpdateUser} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+        {editingUser && (
+          <div className="space-y-4">
+            {/* Current Primary Role */}
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Primary Role</h4>
+              {editingUser.primaryRole ? (
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(
+                    editingUser.primaryRole.name
+                  )}`}
+                >
+                  <Shield className="w-3 h-3" />
+                  {editingUser.primaryRole.name}
+                </span>
+              ) : (
+                <span className="text-sm text-gray-500">
+                  No primary role assigned
+                </span>
+              )}
+              <p className="text-xs text-gray-600 mt-1">
+                The primary role defines the user's main permissions. You can
+                change this in the Edit User dialog.
+              </p>
+            </div>
+
+            {/* Custom Roles */}
+            <div>
+              <h4 className="font-medium text-gray-900 mb-3">Custom Roles</h4>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {availableRoles
+                  .filter((role) => {
+                    // Filter roles based on what current user can assign
+                    const currentUserRole = currentUser?.role;
+                    return PermissionsService.canAssignRole(
+                      currentUserRole,
+                      role.name
+                    );
+                  })
+                  .map((role) => (
                     <label
-                      htmlFor="editFirstName"
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      key={role.id}
+                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
                     >
-                      First Name
+                      <input
+                        type="checkbox"
+                        checked={userRoles.includes(role.id)}
+                        onChange={() => handleRoleToggle(role.id)}
+                        className="rounded"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">
+                            {role.name}
+                          </span>
+                          {role.isSystemRole && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                              System
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          {role.description}
+                        </p>
+                      </div>
                     </label>
-                    <Input
-                      id="editFirstName"
-                      value={editingUser.firstName}
-                      onChange={(e) =>
-                        setEditingUser((prev) => ({
-                          ...prev,
-                          firstName: e.target.value,
-                        }))
-                      }
-                      required
-                    />
+                  ))}
+                {availableRoles.filter((role) => {
+                  const currentUserRole = currentUser?.role;
+                  return PermissionsService.canAssignRole(
+                    currentUserRole,
+                    role.name
+                  );
+                }).length === 0 && (
+                  <div className="text-center py-4 text-gray-500">
+                    <Shield className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm">No roles available for assignment</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      You can only assign roles lower than your current level
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="editLastName"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Last Name
-                    </label>
-                    <Input
-                      id="editLastName"
-                      value={editingUser.lastName}
-                      onChange={(e) =>
-                        setEditingUser((prev) => ({
-                          ...prev,
-                          lastName: e.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </div>
-                </div>
+                )}
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <label
-                    htmlFor="editEmail"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Email
-                  </label>
-                  <Input
-                    id="editEmail"
-                    type="email"
-                    value={editingUser.email}
-                    onChange={(e) =>
-                      setEditingUser((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label
-                    htmlFor="editPhone"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Phone (Optional)
-                  </label>
-                  <Input
-                    id="editPhone"
-                    value={editingUser.phone || ""}
-                    onChange={(e) =>
-                      setEditingUser((prev) => ({
-                        ...prev,
-                        phone: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="editRole"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Role
-                    </label>
-                    <Select
-                      value={editingUser.role}
-                      onChange={(value) =>
-                        setEditingUser((prev) => ({ ...prev, role: value }))
-                      }
-                      options={[
-                        { value: "ADMIN", label: "Admin" },
-                        { value: "MANAGER", label: "Manager" },
-                        { value: "PROJECT_MANAGER", label: "Project Manager" },
-                        { value: "SALES_REP", label: "Sales Rep" },
-                        { value: "DEVELOPER", label: "Developer" },
-                        { value: "DESIGNER", label: "Designer" },
-                      ]}
-                      placeholder="Select role"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="editDepartment"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Department
-                    </label>
-                    <Select
-                      value={editingUser.department}
-                      onChange={(value) =>
-                        setEditingUser((prev) => ({
-                          ...prev,
-                          department: value,
-                        }))
-                      }
-                      options={[
-                        { value: "MANAGEMENT", label: "Management" },
-                        { value: "SALES", label: "Sales" },
-                        { value: "DELIVERY", label: "Delivery" },
-                        { value: "DEVELOPMENT", label: "Development" },
-                        { value: "DESIGN", label: "Design" },
-                      ]}
-                      placeholder="Select department"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="editIsActive"
-                    checked={editingUser.isActive}
-                    onChange={(e) =>
-                      setEditingUser((prev) => ({
-                        ...prev,
-                        isActive: e.target.checked,
-                      }))
-                    }
-                    className="rounded"
-                  />
-                  <label
-                    htmlFor="editIsActive"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Active User
-                  </label>
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setShowEditModal(false);
-                      setEditingUser(null);
-                    }}
-                    className="bg-gray-200 text-gray-800 hover:bg-gray-300"
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={creating}>
-                    {creating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      "Update User"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </Modal>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 border border-red-200 bg-red-50 rounded-lg">
-            <p className="text-red-800">{error}</p>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowRolesModal(false);
+                  setEditingUser(null);
+                  setUserRoles([]);
+                }}
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateUserRoles} disabled={creating}>
+                {creating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Roles"
+                )}
+              </Button>
+            </div>
           </div>
         )}
-
-        {success && (
-          <div className="mb-6 p-4 border border-green-200 bg-green-50 rounded-lg">
-            <p className="text-green-800">{success}</p>
-          </div>
-        )}
-
-        <Card
-          title={
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Internal Users
-            </div>
-          }
-          subtitle="Manage XtraWrkx team members and their access levels"
-        >
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : (
-            <Table
-              columns={[
-                {
-                  key: "user",
-                  label: "User",
-                  render: (value, user) => (
-                    <div>
-                      <div className="font-medium">
-                        {user.firstName} {user.lastName}
-                      </div>
-                      <div className="text-sm text-gray-500 flex items-center gap-1">
-                        <Mail className="w-3 h-3" />
-                        {user.email}
-                      </div>
-                    </div>
-                  ),
-                },
-                {
-                  key: "role",
-                  label: "Role",
-                  render: (value, user) => (
-                    <Badge className={getRoleBadgeColor(user.role)}>
-                      <Shield className="w-3 h-3 mr-1" />
-                      {user.role}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: "department",
-                  label: "Department",
-                  render: (value, user) => (
-                    <Badge className={getDepartmentBadgeColor(user.department)}>
-                      {user.department}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: "status",
-                  label: "Status",
-                  render: (value, user) => (
-                    <Badge
-                      className={
-                        user.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }
-                    >
-                      {user.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: "lastLogin",
-                  label: "Last Login",
-                  render: (value, user) => (
-                    <div className="text-sm flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {user.lastLoginAt
-                        ? new Date(user.lastLoginAt).toLocaleDateString()
-                        : "Never"}
-                    </div>
-                  ),
-                },
-                {
-                  key: "actions",
-                  label: "Actions",
-                  render: (value, user) => (
-                    <Button
-                      className="bg-gray-200 text-gray-800 hover:bg-gray-300 text-sm px-3 py-1"
-                      onClick={() => handleEditUser(user)}
-                    >
-                      Edit
-                    </Button>
-                  ),
-                },
-              ]}
-              data={users}
-            />
-          )}
-        </Card>
-      </div>
+      </Modal>
     </div>
+  );
+}
+
+// Export with route protection - requires Manager level access
+export default function ProtectedUserManagementPage() {
+  return (
+    <RouteGuard requiredLevel="Manager">
+      <UserManagementPage />
+    </RouteGuard>
   );
 }

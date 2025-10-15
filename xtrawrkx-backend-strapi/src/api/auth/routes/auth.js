@@ -22,11 +22,11 @@ module.exports = {
         },
         {
             method: 'POST',
-            path: '/auth/create-user',
+            path: '/auth/create-internal-user',
             handler: 'auth.createInternalUser',
             config: {
                 policies: [],
-                middlewares: ['global::authenticate'],
+                middlewares: [],
             },
         },
         {
@@ -34,8 +34,9 @@ module.exports = {
             path: '/auth/me',
             handler: 'auth.getCurrentUser',
             config: {
+                auth: false,
                 policies: [],
-                middlewares: ['global::authenticate'],
+                middlewares: [],
             },
         },
         {
@@ -60,11 +61,82 @@ module.exports = {
         },
         {
             method: 'GET',
-            path: '/auth/me',
-            handler: 'auth.getCurrentUser',
+            path: '/auth/debug-token',
+            handler: 'auth.debugToken',
             config: {
+                auth: false,
                 policies: [],
-                middlewares: ['global::authenticate'],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'PUT',
+            path: '/auth/update-profile',
+            handler: 'auth.updateProfile',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'POST',
+            path: '/auth/upload-avatar',
+            handler: 'auth.uploadAvatar',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'POST',
+            path: '/auth/change-password',
+            handler: 'auth.changePassword',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'GET',
+            path: '/auth/activities',
+            handler: 'auth.getUserActivities',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'GET',
+            path: '/auth/all-activities',
+            handler: 'auth.getAllActivities',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'GET',
+            path: '/auth/activity-stats',
+            handler: 'auth.getActivityStats',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'POST',
+            path: '/auth/clear-activities',
+            handler: 'auth.clearAllActivities',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
             },
         },
     ],

@@ -1642,10 +1642,13 @@ export interface ApiUserRoleUserRole extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    color: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'from-gray-500 to-gray-600'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.Text;
+    icon: Schema.Attribute.String & Schema.Attribute.DefaultTo<'Shield'>;
     isSystemRole: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -1656,7 +1659,21 @@ export interface ApiUserRoleUserRole extends Struct.CollectionTypeSchema {
     name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
+    permissions: Schema.Attribute.JSON & Schema.Attribute.DefaultTo<{}>;
+    primaryUsers: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
     publishedAt: Schema.Attribute.DateTime;
+    rank: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 1;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<10>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1664,6 +1681,8 @@ export interface ApiUserRoleUserRole extends Struct.CollectionTypeSchema {
       'manyToMany',
       'api::xtrawrkx-user.xtrawrkx-user'
     >;
+    visibility: Schema.Attribute.Enumeration<['private', 'team', 'org']> &
+      Schema.Attribute.DefaultTo<'private'>;
   };
 }
 
@@ -1733,6 +1752,8 @@ export interface ApiXtrawrkxUserXtrawrkxUser
       ['PASSWORD', 'FIREBASE', 'HYBRID']
     > &
       Schema.Attribute.DefaultTo<'PASSWORD'>;
+    avatar: Schema.Attribute.Media<'images'>;
+    bio: Schema.Attribute.Text;
     communityPreferences: Schema.Attribute.JSON;
     createdActivities: Schema.Attribute.Relation<
       'oneToMany',
@@ -1803,6 +1824,7 @@ export interface ApiXtrawrkxUserXtrawrkxUser
       'api::xtrawrkx-user.xtrawrkx-user'
     > &
       Schema.Attribute.Private;
+    location: Schema.Attribute.String;
     managedProjects: Schema.Attribute.Relation<
       'oneToMany',
       'api::project.project'
@@ -1829,19 +1851,11 @@ export interface ApiXtrawrkxUserXtrawrkxUser
     passwordResetExpires: Schema.Attribute.DateTime;
     passwordResetToken: Schema.Attribute.String;
     phone: Schema.Attribute.String;
+    primaryRole: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::user-role.user-role'
+    >;
     publishedAt: Schema.Attribute.DateTime;
-    role: Schema.Attribute.Enumeration<
-      [
-        'ADMIN',
-        'MANAGER',
-        'SALES_REP',
-        'PROJECT_MANAGER',
-        'DEVELOPER',
-        'DESIGNER',
-      ]
-    > &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'DEVELOPER'>;
     taskComments: Schema.Attribute.Relation<
       'oneToMany',
       'api::task-comment.task-comment'
@@ -1850,11 +1864,13 @@ export interface ApiXtrawrkxUserXtrawrkxUser
       'oneToMany',
       'api::time-entry.time-entry'
     >;
+    timezone: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'America/New_York'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     userRoles: Schema.Attribute.Relation<
-      'oneToMany',
+      'manyToMany',
       'api::user-role.user-role'
     >;
     userSessions: Schema.Attribute.Relation<

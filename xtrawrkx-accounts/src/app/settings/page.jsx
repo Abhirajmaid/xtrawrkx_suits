@@ -2,8 +2,9 @@
 
 import { motion } from "framer-motion";
 import { Settings, Shield, Bell, Key, Building } from "lucide-react";
+import RouteGuard from "@/components/RouteGuard";
 
-export default function SettingsPage() {
+function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -84,5 +85,14 @@ export default function SettingsPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+// Export with route protection - requires Manager level access
+export default function ProtectedSettingsPage() {
+  return (
+    <RouteGuard requiredLevel="Manager">
+      <SettingsPage />
+    </RouteGuard>
   );
 }

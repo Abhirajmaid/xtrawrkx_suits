@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import AuthService from "../../lib/authService";
 import {
   Activity,
   User,
@@ -36,13 +37,189 @@ export default function ActivityPage() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [selectedTimeRange, setSelectedTimeRange] = useState("7d");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activities, setActivities] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    auth: 0,
+    profile: 0,
+    security: 0,
+    admin: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch activities from the backend
+  const fetchActivities = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const params = new URLSearchParams();
+      if (selectedFilter !== "all") params.append("type", selectedFilter);
+      if (selectedTimeRange) params.append("timeRange", selectedTimeRange);
+      if (searchQuery.trim()) params.append("search", searchQuery.trim());
+      params.append("limit", "50");
+
+      const response = await AuthService.apiRequest(
+        `/auth/all-activities?${params.toString()}`
+      );
+
+      if (response.success) {
+        const enrichedActivities = response.activities.map((activity) => ({
+          ...activity,
+          // Map backend activity types to frontend display
+          icon: getActivityIcon(activity.type, activity.activityType),
+          color: getActivityColor(activity.type, activity.status),
+          severity: getActivitySeverity(activity.type, activity.status),
+          user: activity.user?.name || `User ${activity.userId}`,
+          userEmail: activity.user?.email || "unknown@example.com",
+          device: getDeviceFromUserAgent(activity.userAgent),
+          location: getLocationFromIP(activity.ipAddress),
+        }));
+
+        setActivities(enrichedActivities);
+        setStats({
+          total: response.stats?.total || 0,
+          auth: response.stats?.auth || 0,
+          profile: response.stats?.profile || 0,
+          security: response.stats?.security || 0,
+          admin: response.stats?.admin || 0,
+        });
+      } else {
+        throw new Error(response.message || "Failed to fetch activities");
+      }
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      setError("Failed to load activities. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper functions to map backend data to frontend display
+  const getActivityIcon = (type, activityType) => {
+    const typeMap = {
+      AUTH: Shield,
+      PROFILE: User,
+      SECURITY: Key,
+      ADMIN: Settings,
+    };
+    return typeMap[type] || Activity;
+  };
+
+  const getActivityColor = (type, status) => {
+    if (status === "FAILED") return "text-red-600 bg-red-100";
+
+    const colorMap = {
+      AUTH: "text-green-600 bg-green-100",
+      PROFILE: "text-indigo-600 bg-indigo-100",
+      SECURITY: "text-blue-600 bg-blue-100",
+      ADMIN: "text-purple-600 bg-purple-100",
+    };
+    return colorMap[type] || "text-gray-600 bg-gray-100";
+  };
+
+  const getActivitySeverity = (type, status) => {
+    if (status === "FAILED") return "critical";
+    if (type === "ADMIN") return "high";
+    if (type === "SECURITY") return "medium";
+    return "info";
+  };
+
+  const getDeviceFromUserAgent = (userAgent) => {
+    if (!userAgent) return "Unknown";
+    if (userAgent.includes("Mobile")) return "Mobile";
+    if (userAgent.includes("Tablet")) return "Tablet";
+    return "Desktop";
+  };
+
+  const getLocationFromIP = (ipAddress) => {
+    // In a real app, you'd use a geolocation service
+    if (!ipAddress) return "Unknown";
+    if (ipAddress.startsWith("192.168")) return "Local Network";
+    return "External";
+  };
+
+  // Export activities to CSV
+  const exportActivities = () => {
+    try {
+      const csvHeaders = [
+        "Timestamp",
+        "User",
+        "Email",
+        "Action",
+        "Description",
+        "Type",
+        "Status",
+        "IP Address",
+        "Device",
+        "Location",
+      ];
+
+      const csvData = activities.map((activity) => [
+        new Date(activity.timestamp).toLocaleString(),
+        activity.user,
+        activity.userEmail,
+        activity.action,
+        activity.description,
+        activity.type,
+        activity.status || "COMPLETED",
+        activity.ipAddress || "Unknown",
+        activity.device,
+        activity.location,
+      ]);
+
+      const csvContent = [
+        csvHeaders.join(","),
+        ...csvData.map((row) =>
+          row
+            .map((cell) =>
+              typeof cell === "string" && cell.includes(",")
+                ? `"${cell.replace(/"/g, '""')}"`
+                : cell
+            )
+            .join(",")
+        ),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `activity-log-${new Date().toISOString().split("T")[0]}.csv`
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error exporting activities:", error);
+      alert("Failed to export activities. Please try again.");
+    }
+  };
+
+  // Fetch activities on component mount and when filters change
+  useEffect(() => {
+    fetchActivities();
+  }, [selectedFilter, selectedTimeRange]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchActivities();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const activityTypes = [
-    { id: "all", label: "All Activities", count: 156 },
-    { id: "auth", label: "Authentication", count: 45 },
-    { id: "profile", label: "Profile Changes", count: 23 },
-    { id: "security", label: "Security", count: 18 },
-    { id: "admin", label: "Admin Actions", count: 70 },
+    { id: "all", label: "All Activities", count: stats.total },
+    { id: "auth", label: "Authentication", count: stats.auth },
+    { id: "profile", label: "Profile Changes", count: stats.profile },
+    { id: "security", label: "Security", count: stats.security },
+    { id: "admin", label: "Admin Actions", count: stats.admin },
   ];
 
   const timeRanges = [
@@ -50,129 +227,6 @@ export default function ActivityPage() {
     { id: "7d", label: "Last 7 days" },
     { id: "30d", label: "Last 30 days" },
     { id: "90d", label: "Last 90 days" },
-  ];
-
-  const activities = [
-    {
-      id: 1,
-      type: "auth",
-      action: "User login",
-      description: "Successful login from Chrome on Windows",
-      user: "John Doe",
-      userEmail: "john.doe@xtrawrkx.com",
-      timestamp: "2024-01-15T14:30:00Z",
-      ip: "192.168.1.100",
-      location: "New York, NY",
-      device: "Desktop",
-      icon: Shield,
-      color: "text-green-600 bg-green-100",
-      severity: "info",
-    },
-    {
-      id: 2,
-      type: "security",
-      action: "Password changed",
-      description: "User changed their password",
-      user: "Jane Smith",
-      userEmail: "jane.smith@xtrawrkx.com",
-      timestamp: "2024-01-15T13:45:00Z",
-      ip: "192.168.1.105",
-      location: "Los Angeles, CA",
-      device: "Mobile",
-      icon: Key,
-      color: "text-blue-600 bg-blue-100",
-      severity: "medium",
-    },
-    {
-      id: 3,
-      type: "admin",
-      action: "User created",
-      description: "New user account created for Sales department",
-      user: "Admin User",
-      userEmail: "admin@xtrawrkx.com",
-      timestamp: "2024-01-15T12:20:00Z",
-      ip: "192.168.1.50",
-      location: "New York, NY",
-      device: "Desktop",
-      icon: UserPlus,
-      color: "text-purple-600 bg-purple-100",
-      severity: "high",
-    },
-    {
-      id: 4,
-      type: "profile",
-      action: "Profile updated",
-      description: "User updated their contact information",
-      user: "Mike Johnson",
-      userEmail: "mike.johnson@xtrawrkx.com",
-      timestamp: "2024-01-15T11:15:00Z",
-      ip: "192.168.1.120",
-      location: "Chicago, IL",
-      device: "Desktop",
-      icon: User,
-      color: "text-indigo-600 bg-indigo-100",
-      severity: "info",
-    },
-    {
-      id: 5,
-      type: "security",
-      action: "Failed login attempt",
-      description: "Multiple failed login attempts detected",
-      user: "Unknown",
-      userEmail: "unknown@example.com",
-      timestamp: "2024-01-15T10:30:00Z",
-      ip: "203.0.113.1",
-      location: "Unknown",
-      device: "Unknown",
-      icon: AlertTriangle,
-      color: "text-red-600 bg-red-100",
-      severity: "critical",
-    },
-    {
-      id: 6,
-      type: "admin",
-      action: "Role permissions updated",
-      description: "Sales Manager role permissions modified",
-      user: "Admin User",
-      userEmail: "admin@xtrawrkx.com",
-      timestamp: "2024-01-15T09:45:00Z",
-      ip: "192.168.1.50",
-      location: "New York, NY",
-      device: "Desktop",
-      icon: Shield,
-      color: "text-orange-600 bg-orange-100",
-      severity: "high",
-    },
-    {
-      id: 7,
-      type: "auth",
-      action: "Two-factor authentication enabled",
-      description: "User enabled 2FA for their account",
-      user: "Sarah Wilson",
-      userEmail: "sarah.wilson@xtrawrkx.com",
-      timestamp: "2024-01-15T08:20:00Z",
-      ip: "192.168.1.85",
-      location: "Austin, TX",
-      device: "Mobile",
-      icon: Shield,
-      color: "text-green-600 bg-green-100",
-      severity: "medium",
-    },
-    {
-      id: 8,
-      type: "admin",
-      action: "Department created",
-      description: "New Marketing department created",
-      user: "Admin User",
-      userEmail: "admin@xtrawrkx.com",
-      timestamp: "2024-01-14T16:30:00Z",
-      ip: "192.168.1.50",
-      location: "New York, NY",
-      device: "Desktop",
-      icon: Building,
-      color: "text-cyan-600 bg-cyan-100",
-      severity: "medium",
-    },
   ];
 
   const formatTimestamp = (timestamp) => {
@@ -208,15 +262,8 @@ export default function ActivityPage() {
     return badges[severity] || badges.info;
   };
 
-  const filteredActivities = activities.filter((activity) => {
-    const matchesFilter =
-      selectedFilter === "all" || activity.type === selectedFilter;
-    const matchesSearch =
-      activity.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      activity.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      activity.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  // Activities are already filtered by the backend, but we can add client-side search if needed
+  const filteredActivities = activities;
 
   return (
     <div className="space-y-6">
@@ -235,7 +282,10 @@ export default function ActivityPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 glass-button rounded-lg font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            <button
+              onClick={exportActivities}
+              className="flex items-center gap-2 px-4 py-2 glass-button rounded-lg font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
               <Download className="w-4 h-4" />
               Export
             </button>
@@ -248,28 +298,28 @@ export default function ActivityPage() {
         {[
           {
             title: "Total Activities",
-            value: "1,234",
+            value: stats.total.toString(),
             change: "+12%",
             icon: Activity,
             color: "from-blue-500 to-blue-600",
           },
           {
             title: "Security Events",
-            value: "89",
+            value: stats.security.toString(),
             change: "-5%",
             icon: Shield,
             color: "from-green-500 to-green-600",
           },
           {
-            title: "Failed Logins",
-            value: "23",
+            title: "Authentication",
+            value: stats.auth.toString(),
             change: "+8%",
-            icon: AlertTriangle,
+            icon: Key,
             color: "from-red-500 to-red-600",
           },
           {
             title: "Admin Actions",
-            value: "156",
+            value: stats.admin.toString(),
             change: "+15%",
             icon: Settings,
             color: "from-purple-500 to-purple-600",
@@ -374,89 +424,158 @@ export default function ActivityPage() {
 
       {/* Activity List */}
       <div className="glass-card rounded-2xl p-6">
-        <div className="space-y-4">
-          {filteredActivities.map((activity, index) => {
-            const DeviceIcon = getDeviceIcon(activity.device);
+        {error && (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Error Loading Activities
+            </h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={fetchActivities}
+              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
 
-            return (
-              <motion.div
-                key={activity.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="flex items-start gap-4 p-4 glass-card rounded-xl hover:shadow-lg transition-all duration-300"
-              >
-                {/* Icon */}
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activity.color}`}
+        {isLoading && !error && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Loading Activities
+            </h3>
+            <p className="text-gray-600">
+              Fetching the latest activity data...
+            </p>
+          </div>
+        )}
+
+        {!isLoading && !error && filteredActivities.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Activity className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No Activities Found
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {selectedFilter === "all" && !searchQuery.trim()
+                ? "No activities have been logged yet. Activities will appear here when users perform actions like logging in, updating profiles, or when admins manage users."
+                : "No activities match your current filters. Try adjusting your search criteria or time range."}
+            </p>
+            {selectedFilter === "all" && !searchQuery.trim() && (
+              <div className="text-sm text-gray-500">
+                <p>Activities are automatically logged when:</p>
+                <ul className="mt-2 space-y-1">
+                  <li>• Users log in or out</li>
+                  <li>• Profile information is updated</li>
+                  <li>• Passwords are changed</li>
+                  <li>• New users are created</li>
+                  <li>• User roles are modified</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isLoading && !error && filteredActivities.length > 0 && (
+          <div className="space-y-4">
+            {filteredActivities.map((activity, index) => {
+              const DeviceIcon = getDeviceIcon(activity.device);
+
+              return (
+                <motion.div
+                  key={activity.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="flex items-start gap-4 p-4 glass-card rounded-xl hover:shadow-lg transition-all duration-300"
                 >
-                  <activity.icon className="w-5 h-5" />
-                </div>
+                  {/* Icon */}
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activity.color}`}
+                  >
+                    <activity.icon className="w-5 h-5" />
+                  </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        {activity.action}
-                      </h4>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {activity.description}
-                      </p>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          {activity.action}
+                        </h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {activity.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityBadge(
+                            activity.severity
+                          )}`}
+                        >
+                          {activity.severity}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatTimestamp(activity.timestamp)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityBadge(activity.severity)}`}
-                      >
-                        {activity.severity}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {formatTimestamp(activity.timestamp)}
-                      </span>
+
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        <span>{activity.user}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        <span>{activity.userEmail}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Globe className="w-3 h-3" />
+                        <span>{activity.ip}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        <span>{activity.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <DeviceIcon className="w-3 h-3" />
+                        <span>{activity.device}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      <span>{activity.user}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      <span>{activity.userEmail}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Globe className="w-3 h-3" />
-                      <span>{activity.ip}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      <span>{activity.location}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <DeviceIcon className="w-3 h-3" />
-                      <span>{activity.device}</span>
-                    </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                      <Eye className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                    <Eye className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Load More */}
-        <div className="mt-8 text-center">
-          <button className="px-6 py-2 glass-button rounded-lg font-medium text-gray-700 hover:text-gray-900 transition-colors">
-            Load More Activities
-          </button>
-        </div>
+        {!isLoading && !error && filteredActivities.length > 0 && (
+          <div className="mt-8 text-center">
+            <button
+              onClick={fetchActivities}
+              className="px-6 py-2 glass-button rounded-lg font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              Refresh Activities
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

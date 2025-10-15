@@ -22,7 +22,7 @@ export default function AuthPage() {
       </div>
 
       {/* Auth Methods */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
         {[
           {
             title: "Multi-Factor Auth",
@@ -30,20 +30,6 @@ export default function AuthPage() {
             icon: Smartphone,
             href: "/auth/mfa",
             status: "Enabled",
-          },
-          {
-            title: "Single Sign-On",
-            description: "SSO configuration and providers",
-            icon: Shield,
-            href: "/auth/sso",
-            status: "Disabled",
-          },
-          {
-            title: "Password Policy",
-            description: "Password requirements and rules",
-            icon: Lock,
-            href: "/auth/password",
-            status: "Active",
           },
         ].map((item, index) => (
           <motion.div

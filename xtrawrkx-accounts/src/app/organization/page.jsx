@@ -2,8 +2,9 @@
 
 import { motion } from "framer-motion";
 import { Building, Users, MapPin, Briefcase } from "lucide-react";
+import RouteGuard from "@/components/RouteGuard";
 
-export default function OrganizationPage() {
+function OrganizationPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -115,5 +116,14 @@ export default function OrganizationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Export with route protection - requires Manager level access
+export default function ProtectedOrganizationPage() {
+  return (
+    <RouteGuard requiredLevel="Manager">
+      <OrganizationPage />
+    </RouteGuard>
   );
 }

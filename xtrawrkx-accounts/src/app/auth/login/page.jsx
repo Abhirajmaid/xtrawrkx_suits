@@ -127,11 +127,22 @@ export default function LoginPage() {
         admin: "admin",
         SUPER_ADMIN: "super_admin",
         super_admin: "super_admin",
-        MANAGER: "sales_manager",
+        "Super Admin": "super_admin", // New role from user-role content type
+        Admin: "admin", // New role from user-role content type
+        MANAGER: "manager",
+        Manager: "manager", // Handle "Manager" role properly
         PROJECT_MANAGER: "project_manager",
-        DEVELOPER: "read_only",
+        "Project Manager": "project_manager",
+        DEVELOPER: "developer",
+        Developer: "developer",
         SALES_REP: "sales_rep",
+        "Sales Representative": "sales_rep",
         SALES_MANAGER: "sales_manager",
+        "Sales Manager": "sales_manager",
+        "Account Manager": "account_manager",
+        "Finance Manager": "finance",
+        "Read-only User": "read_only",
+        READ_ONLY: "read_only",
       };
 
       const mappedRole = roleMapping[data.user.role] || "read_only";
@@ -139,7 +150,10 @@ export default function LoginPage() {
       // Store user info and token
       const userData = {
         email: data.user.email || formData.email,
+        firstName: data.user.firstName || "",
+        lastName: data.user.lastName || "",
         role: mappedRole,
+        department: data.user.department || "",
         name:
           data.user.name ||
           `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim() ||
