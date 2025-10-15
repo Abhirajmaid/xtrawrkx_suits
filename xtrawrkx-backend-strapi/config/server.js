@@ -7,8 +7,8 @@ module.exports = ({ env }) => ({
   webhooks: {
     populateRelations: env.bool('WEBHOOKS_POPULATE_RELATIONS', false),
   },
-  // Trust Railway's proxy
-  proxy: true,
+  // Trust Railway's proxy - this is the key fix for secure cookies (Strapi 5 format)
+  proxy: { koa: true },
   // Configure for Railway's HTTPS termination
-  url: env('RAILWAY_PUBLIC_DOMAIN') ? `https://${env('RAILWAY_PUBLIC_DOMAIN')}` : env('PUBLIC_URL', 'https://xtrawrkxsuits-production.up.railway.app'),
+  url: env('PUBLIC_URL', 'https://xtrawrkxsuits-production.up.railway.app'),
 });

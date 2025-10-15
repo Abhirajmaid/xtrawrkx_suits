@@ -17,8 +17,6 @@ module.exports = ({ env }) => ({
     nps: env.bool('FLAG_NPS', true),
     promoteEE: env.bool('FLAG_PROMOTE_EE', true),
   },
-  // Add session configuration for Railway
-  session: {
-    enabled: false, // Completely disable sessions temporarily
-  },
+  // Session configuration will be handled by the session middleware
+  // No need for custom session config here
 });

@@ -1,6 +1,5 @@
 // Debug script to check environment variables
-console.log('🚀🚀🚀 DEBUG SCRIPT STARTING 🚀🚀🚀');
-console.log('=== Environment Variables Debug ===');
+console.log('=== Railway Environment Debug ===');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('DATABASE_CLIENT:', process.env.DATABASE_CLIENT);
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
@@ -38,12 +37,7 @@ Object.keys(process.env)
     .filter(key => key.includes('DATABASE') || key.includes('PG') || key.includes('NODE'))
     .forEach(key => console.log(`${key}:`, process.env[key]));
 
-console.log('\n=== Configuration Test ===');
-console.log('Testing if configuration files can be loaded...');
-try {
-    const adminConfig = require('./config/admin.js');
-    console.log('Admin config loaded successfully');
-    console.log('Session enabled:', adminConfig({ env: process.env }).session?.enabled);
-} catch (error) {
-    console.log('Error loading admin config:', error.message);
-}
+console.log('\n=== Key Configuration Check ===');
+console.log('PUBLIC_URL:', process.env.PUBLIC_URL);
+console.log('APP_KEYS:', process.env.APP_KEYS ? 'SET' : 'NOT SET');
+console.log('ADMIN_JWT_SECRET:', process.env.ADMIN_JWT_SECRET ? 'SET' : 'NOT SET');
