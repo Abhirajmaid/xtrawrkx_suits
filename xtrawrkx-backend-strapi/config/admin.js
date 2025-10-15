@@ -19,17 +19,6 @@ module.exports = ({ env }) => ({
   },
   // Add session configuration for Railway
   session: {
-    enabled: true,
-    client: 'cookie',
-    key: 'strapi.sid',
-    prefix: 'strapi:sess:',
-    secretKeys: env.array('APP_KEYS'),
-    httpOnly: true,
-    secure: false, // Temporarily disable for Railway testing
-    maxAge: 86400000,
-    overwrite: true,
-    signed: true,
-    rolling: false,
-    renew: false,
+    enabled: false, // Completely disable sessions temporarily
   },
 });

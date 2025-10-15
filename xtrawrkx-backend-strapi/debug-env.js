@@ -36,3 +36,13 @@ console.log('\n=== All Environment Variables ===');
 Object.keys(process.env)
     .filter(key => key.includes('DATABASE') || key.includes('PG') || key.includes('NODE'))
     .forEach(key => console.log(`${key}:`, process.env[key]));
+
+console.log('\n=== Configuration Test ===');
+console.log('Testing if configuration files can be loaded...');
+try {
+    const adminConfig = require('./config/admin.js');
+    console.log('Admin config loaded successfully');
+    console.log('Session enabled:', adminConfig({ env: process.env }).session?.enabled);
+} catch (error) {
+    console.log('Error loading admin config:', error.message);
+}
