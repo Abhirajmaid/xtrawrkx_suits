@@ -25,7 +25,7 @@ module.exports = ({ env }) => ({
     prefix: 'strapi:sess:',
     secretKeys: env.array('APP_KEYS'),
     httpOnly: true,
-    secure: env.bool('NODE_ENV') === 'production',
+    secure: false, // Temporarily disable for Railway testing
     maxAge: 86400000,
     overwrite: true,
     signed: true,

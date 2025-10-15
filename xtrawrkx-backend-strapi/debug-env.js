@@ -18,6 +18,10 @@ console.log('PGPORT:', process.env.PGPORT);
 console.log('PGDATABASE:', process.env.PGDATABASE);
 console.log('PGUSER:', process.env.PGUSER);
 console.log('PGPASSWORD:', process.env.PGPASSWORD ? 'SET' : 'NOT SET');
+console.log('RAILWAY_PUBLIC_DOMAIN:', process.env.RAILWAY_PUBLIC_DOMAIN);
+console.log('RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT);
+console.log('PUBLIC_URL:', process.env.PUBLIC_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
 // Test database URL construction
 const databaseUrl = process.env.DATABASE_URL ||

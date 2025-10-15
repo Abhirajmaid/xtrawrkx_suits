@@ -10,5 +10,5 @@ module.exports = ({ env }) => ({
   // Trust Railway's proxy
   proxy: true,
   // Configure for Railway's HTTPS termination
-  url: env('PUBLIC_URL', 'https://xtrawrkxsuits-production.up.railway.app'),
+  url: env('RAILWAY_PUBLIC_DOMAIN') ? `https://${env('RAILWAY_PUBLIC_DOMAIN')}` : env('PUBLIC_URL', 'https://xtrawrkxsuits-production.up.railway.app'),
 });
