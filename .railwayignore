@@ -1,0 +1,38 @@
+# Ignore frontend applications (not needed for Strapi backend)
+xtrawrkx-accounts/
+xtrawrkx-client-portal/
+xtrawrkx-crm-portal/
+xtrawrkx-pm-dashboard/
+
+# Ignore other backend (Next.js)
+xtrawrkx-backend/
+
+# Ignore development files
+node_modules/
+.git/
+.env*
+*.log
+.DS_Store
+Thumbs.db
+
+# Ignore test files
+test-*.js
+*.test.js
+*.spec.js
+
+# Ignore documentation
+*.md
+docs/
+
+# Ignore Chrome extension files
+**/chrome-extension/
+**/icons/
+**/*.png
+**/*.svg
+**/*.ico
+
+# Ignore build artifacts
+dist/
+build/
+.next/
+out/
