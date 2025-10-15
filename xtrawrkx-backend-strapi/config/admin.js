@@ -1,20 +1,35 @@
 module.exports = ({ env }) => ({
   auth: {
-    secret: 'myAdminJwtSecret123456789012345678901234567890',
+    secret: env('ADMIN_JWT_SECRET', 'myAdminJwtSecret123456789012345678901234567890'),
   },
   apiToken: {
-    salt: 'myApiTokenSalt123456789012345678901234567890',
+    salt: env('API_TOKEN_SALT', 'myApiTokenSalt123456789012345678901234567890'),
   },
   transfer: {
     token: {
-      salt: 'myTransferTokenSalt123456789012345678901234567890',
+      salt: env('TRANSFER_TOKEN_SALT', 'myTransferTokenSalt123456789012345678901234567890'),
     },
   },
   secrets: {
-    encryptionKey: 'myEncryptionKey123456789012345678901234567890',
+    encryptionKey: env('ENCRYPTION_KEY', 'myEncryptionKey123456789012345678901234567890'),
   },
   flags: {
     nps: env.bool('FLAG_NPS', true),
     promoteEE: env.bool('FLAG_PROMOTE_EE', true),
+  },
+  // Add session configuration for Railway
+  session: {
+    enabled: true,
+    client: 'cookie',
+    key: 'strapi.sid',
+    prefix: 'strapi:sess:',
+    secretKeys: env.array('APP_KEYS'),
+    httpOnly: true,
+    secure: env.bool('NODE_ENV') === 'production',
+    maxAge: 86400000,
+    overwrite: true,
+    signed: true,
+    rolling: false,
+    renew: false,
   },
 });
