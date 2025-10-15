@@ -9,7 +9,13 @@ module.exports = ({ env }) => ({
     'content-type-builder': {
         config: {
             tours: {
-                enabled: false, // Disable CTB tours to prevent the error
+                enabled: false,
+                // Add complete tour structure to prevent undefined access
+                defaultTour: {
+                    enabled: false,
+                    steps: [],
+                },
+                tours: [], // Empty array to prevent undefined access
             },
         },
     },
