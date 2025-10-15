@@ -19,6 +19,15 @@ console.log('PGDATABASE:', process.env.PGDATABASE);
 console.log('PGUSER:', process.env.PGUSER);
 console.log('PGPASSWORD:', process.env.PGPASSWORD ? 'SET' : 'NOT SET');
 
+// Test database URL construction
+const databaseUrl = process.env.DATABASE_URL ||
+    (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && process.env.PGDATABASE ?
+        `postgresql://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE}?sslmode=require` :
+        null);
+
+console.log('\n=== Constructed Database URL ===');
+console.log('Database URL:', databaseUrl ? 'CONSTRUCTED' : 'NOT AVAILABLE');
+
 console.log('\n=== All Environment Variables ===');
 Object.keys(process.env)
     .filter(key => key.includes('DATABASE') || key.includes('PG') || key.includes('NODE'))

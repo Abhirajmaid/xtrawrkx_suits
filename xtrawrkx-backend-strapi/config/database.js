@@ -3,6 +3,13 @@ const path = require('path');
 module.exports = ({ env }) => {
   const client = env('DATABASE_CLIENT', 'postgres');
 
+  // Railway provides PostgreSQL connection details through PG* environment variables
+  // Map them to DATABASE_* variables if not already set
+  const databaseUrl = env('DATABASE_URL') ||
+    (env('PGHOST') && env('PGUSER') && env('PGPASSWORD') && env('PGDATABASE') ?
+      `postgresql://${env('PGUSER')}:${env('PGPASSWORD')}@${env('PGHOST')}:${env('PGPORT', 5432)}/${env('PGDATABASE')}?sslmode=require` :
+      null);
+
   const connections = {
     mysql: {
       connection: {
@@ -23,17 +30,17 @@ module.exports = ({ env }) => {
       pool: { min: env.int('DATABASE_POOL_MIN', 2), max: env.int('DATABASE_POOL_MAX', 10) },
     },
     postgres: {
-      connection: env('DATABASE_URL') ? {
-        connectionString: env('DATABASE_URL'),
-        ssl: env.bool('DATABASE_SSL', true) && {
-          rejectUnauthorized: env.bool('DATABASE_SSL_REJECT_UNAUTHORIZED', false),
+      connection: databaseUrl ? {
+        connectionString: databaseUrl,
+        ssl: {
+          rejectUnauthorized: false,
         },
       } : {
-        host: env('DATABASE_HOST', 'localhost'),
-        port: env.int('DATABASE_PORT', 5432),
-        database: env('DATABASE_NAME', 'strapi'),
-        user: env('DATABASE_USERNAME', 'strapi'),
-        password: env('DATABASE_PASSWORD', 'strapi'),
+        host: env('DATABASE_HOST') || env('PGHOST', 'localhost'),
+        port: env.int('DATABASE_PORT') || env.int('PGPORT', 5432),
+        database: env('DATABASE_NAME') || env('PGDATABASE', 'strapi'),
+        user: env('DATABASE_USERNAME') || env('PGUSER', 'strapi'),
+        password: env('DATABASE_PASSWORD') || env('PGPASSWORD', 'strapi'),
         ssl: env.bool('DATABASE_SSL', true) && {
           rejectUnauthorized: env.bool('DATABASE_SSL_REJECT_UNAUTHORIZED', false),
         },
