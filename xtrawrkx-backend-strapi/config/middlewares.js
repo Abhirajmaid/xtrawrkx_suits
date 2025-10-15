@@ -6,7 +6,7 @@ module.exports = [
   'strapi::poweredBy',
   'strapi::query',
   'strapi::body',
-  'strapi::session',
+  // 'strapi::session', // Completely remove session middleware
   'strapi::favicon',
   'strapi::public',
   // 'global::authenticate', // Temporarily disabled to allow admin access

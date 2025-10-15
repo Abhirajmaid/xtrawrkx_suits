@@ -1,4 +1,5 @@
 // Debug script to check environment variables
+console.log('🚀🚀🚀 DEBUG SCRIPT STARTING 🚀🚀🚀');
 console.log('=== Environment Variables Debug ===');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('DATABASE_CLIENT:', process.env.DATABASE_CLIENT);
