@@ -74,19 +74,19 @@ export default function LoginPage() {
 
     try {
       // Call our Strapi backend API
-      const response = await fetch(
-        "http://localhost:1337/api/auth/internal/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        }
-      );
+      const backendUrl =
+        process.env.NEXT_PUBLIC_STRAPI_URL ||
+        "https://xtrawrkxsuits-production.up.railway.app";
+      const response = await fetch(`${backendUrl}/api/auth/internal/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
       if (!response.ok) {
         // Handle non-200 responses
@@ -123,29 +123,29 @@ export default function LoginPage() {
 
       // Map backend roles to frontend roles
       const roleMapping = {
-        ADMIN: "admin",
-        admin: "admin",
-        SUPER_ADMIN: "super_admin",
-        super_admin: "super_admin",
-        "Super Admin": "super_admin", // New role from user-role content type
-        Admin: "admin", // New role from user-role content type
-        MANAGER: "manager",
-        Manager: "manager", // Handle "Manager" role properly
-        PROJECT_MANAGER: "project_manager",
-        "Project Manager": "project_manager",
-        DEVELOPER: "developer",
-        Developer: "developer",
-        SALES_REP: "sales_rep",
-        "Sales Representative": "sales_rep",
-        SALES_MANAGER: "sales_manager",
-        "Sales Manager": "sales_manager",
-        "Account Manager": "account_manager",
-        "Finance Manager": "finance",
-        "Read-only User": "read_only",
-        READ_ONLY: "read_only",
+        ADMIN: "Admin",
+        admin: "Admin",
+        SUPER_ADMIN: "Super Admin",
+        super_admin: "Super Admin",
+        "Super Admin": "Super Admin", // New role from user-role content type
+        Admin: "Admin", // New role from user-role content type
+        MANAGER: "Manager",
+        Manager: "Manager", // Handle "Manager" role properly
+        PROJECT_MANAGER: "Project Manager",
+        "Project Manager": "Project Manager",
+        DEVELOPER: "Developer",
+        Developer: "Developer",
+        SALES_REP: "Sales Representative",
+        "Sales Representative": "Sales Representative",
+        SALES_MANAGER: "Sales Manager",
+        "Sales Manager": "Sales Manager",
+        "Account Manager": "Account Manager",
+        "Finance Manager": "Finance Manager",
+        "Read-only User": "Read-only User",
+        READ_ONLY: "Read-only User",
       };
 
-      const mappedRole = roleMapping[data.user.role] || "read_only";
+      const mappedRole = roleMapping[data.user.role] || "Read-only User";
 
       // Store user info and token
       const userData = {
@@ -159,7 +159,7 @@ export default function LoginPage() {
           `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim() ||
           data.user.email,
         permissions:
-          mappedRole === "admin" || mappedRole === "super_admin"
+          mappedRole === "Admin" || mappedRole === "Super Admin"
             ? "full"
             : "limited",
         loginTime: new Date().toISOString(),
@@ -449,7 +449,7 @@ export default function LoginPage() {
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
               <Shield className="w-4 h-4 text-green-600" />
               <span className="text-sm text-green-700">
-                Connected to Strapi Backend
+                Connected to Railway Backend
               </span>
             </div>
           </motion.div>

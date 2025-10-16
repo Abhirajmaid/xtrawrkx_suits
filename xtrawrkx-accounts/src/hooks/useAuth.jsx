@@ -1,10 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import {
-  onAuthStateChange,
-  getCurrentUserToken,
-  refreshUserToken,
-  signOutUser,
-} from "../lib/auth";
+import { getCurrentUserToken, signOutUser } from "../lib/auth";
 
 const AuthContext = createContext();
 
@@ -18,7 +13,6 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [firebaseUser, setFirebaseUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
 
@@ -32,40 +26,7 @@ export const AuthProvider = ({ children }) => {
       setUser(JSON.parse(storedUser));
     }
 
-    // Listen to Firebase auth state changes
-    const unsubscribe = onAuthStateChange(async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-
-      if (firebaseUser) {
-        try {
-          // Get fresh token and sync with backend
-          const result = await refreshUserToken();
-          if (result) {
-            setUser(result.user);
-            setToken(result.token);
-            localStorage.setItem("authToken", result.token);
-            localStorage.setItem("userData", JSON.stringify(result.user));
-          }
-        } catch (error) {
-          console.error("Error syncing user data:", error);
-          // If sync fails, clear local data
-          setUser(null);
-          setToken(null);
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("userData");
-        }
-      } else {
-        // User signed out
-        setUser(null);
-        setToken(null);
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("userData");
-      }
-
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    setLoading(false);
   }, []);
 
   const login = async (userData, authToken) => {
@@ -79,7 +40,6 @@ export const AuthProvider = ({ children }) => {
     try {
       await signOutUser();
       setUser(null);
-      setFirebaseUser(null);
       setToken(null);
       localStorage.removeItem("authToken");
       localStorage.removeItem("userData");
@@ -90,13 +50,9 @@ export const AuthProvider = ({ children }) => {
 
   const refreshToken = async () => {
     try {
-      const result = await refreshUserToken();
-      if (result) {
-        setUser(result.user);
-        setToken(result.token);
-        localStorage.setItem("authToken", result.token);
-        localStorage.setItem("userData", JSON.stringify(result.user));
-        return result.token;
+      const currentToken = getCurrentUserToken();
+      if (currentToken) {
+        return currentToken;
       }
       return null;
     } catch (error) {
@@ -107,14 +63,12 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
-    firebaseUser,
     token,
     loading,
     login,
     logout,
     refreshToken,
     isAuthenticated: !!user,
-    isFirebaseAuthenticated: !!firebaseUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

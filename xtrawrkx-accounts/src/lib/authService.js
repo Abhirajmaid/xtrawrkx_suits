@@ -6,7 +6,7 @@ class AuthService {
     static TOKEN_KEY = 'currentUser';
     static API_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL
         ? `${process.env.NEXT_PUBLIC_STRAPI_URL}/api`
-        : 'http://localhost:1337/api';
+        : 'https://xtrawrkxsuits-production.up.railway.app/api';
 
     /**
      * Get JWT token from localStorage

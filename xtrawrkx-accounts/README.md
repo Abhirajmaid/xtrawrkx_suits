@@ -6,10 +6,10 @@ A modern Next.js application for managing user accounts, authentication, and per
 
 - **User Management**: Create, read, update, and delete user accounts
 - **Role-Based Access Control (RBAC)**: Granular permissions based on user roles
-- **Authentication**: Secure authentication with JWT tokens
+- **Strapi Authentication**: Secure authentication with JWT tokens via Strapi backend
 - **Organization Management**: Manage departments and organizational structure
 - **Activity Tracking**: Monitor user activities and system events
-- **Settings Management**: Configure application settings and integrations
+- **Settings Management**: Configure application settings and notifications
 - **Responsive Design**: Modern UI built with Tailwind CSS and React components
 
 ## 📋 Prerequisites

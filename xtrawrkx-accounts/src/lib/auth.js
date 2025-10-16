@@ -1,5 +1,5 @@
 // Backend API base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+const API_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'https://xtrawrkxsuits-production.up.railway.app';
 
 // Internal user login (XtraWrkx employees)
 export const signInWithEmail = async (email, password) => {

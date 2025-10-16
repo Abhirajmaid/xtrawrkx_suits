@@ -60,7 +60,8 @@ export default function DashboardPage() {
         console.log("Auth failed, trying without token:", authError.message);
         // Fallback: try without authentication
         const url = `${
-          process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337"
+          process.env.NEXT_PUBLIC_STRAPI_URL ||
+          "https://xtrawrkxsuits-production.up.railway.app"
         }/api/dashboard/stats`;
         console.log("Making unauthenticated request to:", url);
 
@@ -110,7 +111,8 @@ export default function DashboardPage() {
         // Fallback: try without authentication
         response = await fetch(
           `${
-            process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337"
+            process.env.NEXT_PUBLIC_STRAPI_URL ||
+            "https://xtrawrkxsuits-production.up.railway.app"
           }/api/dashboard/recent-activity`,
           {
             method: "GET",
