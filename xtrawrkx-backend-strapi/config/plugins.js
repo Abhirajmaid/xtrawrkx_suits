@@ -6,17 +6,18 @@ module.exports = ({ env }) => ({
             },
         },
     },
+    // Completely disable Content-Type Builder tours
     'content-type-builder': {
         config: {
             tours: {
-                enabled: false,
-                // Add complete tour structure to prevent undefined access
-                defaultTour: {
-                    enabled: false,
-                    steps: [],
-                },
-                tours: [], // Empty array to prevent undefined access
+                enabled: { koa: false },
             },
+        },
+    },
+    // Add documentation plugin
+    'documentation': {
+        config: {
+            restrictedAccess: { koa: false },
         },
     },
 });

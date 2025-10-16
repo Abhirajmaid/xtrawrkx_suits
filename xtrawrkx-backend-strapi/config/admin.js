@@ -17,30 +17,15 @@ module.exports = ({ env }) => ({
     nps: env.bool('FLAG_NPS', true),
     promoteEE: env.bool('FLAG_PROMOTE_EE', true),
   },
-  // Add admin panel configuration
+  // Admin panel configuration
   url: '/admin',
-  serveAdminPanel: true,
-  // Complete tours configuration to prevent undefined access
+  serveAdminPanel: { koa: true },
+  // Completely disable tours - simplified approach
   tours: {
-    enabled: false,
-    // Add all expected tour properties to prevent undefined access
-    defaultTour: {
-      enabled: false,
-      steps: [],
-    },
-    tours: [], // Empty array to prevent undefined access
+    enabled: { koa: false },
   },
-  // Content-Type Builder specific configuration
-  'content-type-builder': {
-    tours: {
-      enabled: false,
-      defaultTour: {
-        enabled: false,
-        steps: [],
-      },
-      tours: [],
-    },
-  },
-  // Session configuration will be handled by the session middleware
-  // No need for custom session config here
+  // Add watch ignore files
+  watchIgnoreFiles: [
+    '**/my-external-scripts/**',
+  ],
 });
