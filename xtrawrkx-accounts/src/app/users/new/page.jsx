@@ -23,14 +23,9 @@ import {
 } from "lucide-react";
 import AuthService from "../../../lib/authService";
 import RouteGuard from "@/components/RouteGuard";
+import PermissionsService from "@/lib/permissionsService";
 
-const DEPARTMENTS = [
-  { value: "MANAGEMENT", label: "Management" },
-  { value: "SALES", label: "Sales" },
-  { value: "DELIVERY", label: "Delivery" },
-  { value: "DEVELOPMENT", label: "Development" },
-  { value: "DESIGN", label: "Design" },
-];
+// Departments will be fetched dynamically from the API
 
 function NewUserPage() {
   const router = useRouter();
@@ -51,26 +46,94 @@ function NewUserPage() {
   });
 
   const [availableRoles, setAvailableRoles] = useState([]);
+  const [filteredRoles, setFilteredRoles] = useState([]);
   const [selectedCustomRoles, setSelectedCustomRoles] = useState([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
+  const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
 
   useEffect(() => {
+    getCurrentUserRole();
     fetchAvailableRoles();
+    fetchAvailableDepartments();
   }, []);
+
+  useEffect(() => {
+    if (currentUserRole && availableRoles.length > 0) {
+      filterRolesForCurrentUser(availableRoles);
+    }
+  }, [currentUserRole, availableRoles]);
+
+  const getCurrentUserRole = () => {
+    try {
+      const userData = localStorage.getItem("currentUser");
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        console.log("Current user role for role filtering:", parsedUser.role);
+        setCurrentUserRole(parsedUser.role);
+      }
+    } catch (error) {
+      console.error("Error getting current user role:", error);
+    }
+  };
 
   const fetchAvailableRoles = async () => {
     try {
       setLoadingRoles(true);
       const data = await AuthService.apiRequest("/user-roles");
-      setAvailableRoles(data.data || []);
+      const allRoles = data.data || [];
+      setAvailableRoles(allRoles);
+
+      // Filter roles based on current user's permissions
+      filterRolesForCurrentUser(allRoles);
     } catch (error) {
       console.error("Error fetching roles:", error);
       setErrors({ roles: "Failed to load available roles" });
     } finally {
       setLoadingRoles(false);
     }
+  };
+
+  const fetchAvailableDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const departments = await AuthService.getDepartments();
+      setAvailableDepartments(departments);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setErrors({ departments: "Failed to load available departments" });
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
+  const filterRolesForCurrentUser = (allRoles) => {
+    if (!currentUserRole) {
+      // If no current user role, show all roles (fallback)
+      setFilteredRoles(allRoles);
+      return;
+    }
+
+    // Get assignable roles based on current user's role level
+    const assignableRoles = allRoles.filter((role) => {
+      // Use PermissionsService to check if current user can assign this role
+      return PermissionsService.canAssignRole(currentUserRole, role.name);
+    });
+
+    console.log("Current user role:", currentUserRole);
+    console.log(
+      "All roles:",
+      allRoles.map((r) => r.name)
+    );
+    console.log(
+      "Assignable roles:",
+      assignableRoles.map((r) => r.name)
+    );
+
+    setFilteredRoles(assignableRoles);
   };
 
   const handleCustomRoleToggle = (roleId) => {
@@ -476,7 +539,7 @@ function NewUserPage() {
                   }`}
                 >
                   <option value="">Select a primary role</option>
-                  {availableRoles.map((role) => (
+                  {filteredRoles.map((role) => (
                     <option key={role.id} value={role.id}>
                       {role.name}
                     </option>
@@ -492,6 +555,14 @@ function NewUserPage() {
                 The primary role defines the user's main permissions and access
                 level.
               </p>
+              {currentUserRole && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700">
+                    <strong>Role Assignment:</strong> As a {currentUserRole},
+                    you can only assign roles at a lower level than your own.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Department */}
@@ -499,24 +570,36 @@ function NewUserPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Department *
               </label>
-              <select
-                value={formData.department}
-                onChange={(e) =>
-                  handleInputChange("department", e.target.value)
-                }
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors ${
-                  errors.department ? "border-red-500" : "border-gray-300"
-                }`}
-              >
-                <option value="">Select a department</option>
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept.value} value={dept.value}>
-                    {dept.label}
-                  </option>
-                ))}
-              </select>
+              {loadingDepartments ? (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-gray-500">Loading departments...</span>
+                </div>
+              ) : (
+                <select
+                  value={formData.department}
+                  onChange={(e) =>
+                    handleInputChange("department", e.target.value)
+                  }
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors ${
+                    errors.department ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <option value="">Select a department</option>
+                  {availableDepartments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               {errors.department && (
                 <p className="mt-1 text-sm text-red-600">{errors.department}</p>
+              )}
+              {errors.departments && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.departments}
+                </p>
               )}
             </div>
           </div>
@@ -552,12 +635,12 @@ function NewUserPage() {
             </div>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {availableRoles.length === 0 ? (
+              {filteredRoles.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  No custom roles available
+                  No roles available for assignment
                 </p>
               ) : (
-                availableRoles.map((role) => (
+                filteredRoles.map((role) => (
                   <label
                     key={role.id}
                     className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
@@ -598,7 +681,7 @@ function NewUserPage() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {selectedCustomRoles.map((roleId) => {
-                  const role = availableRoles.find((r) => r.id === roleId);
+                  const role = filteredRoles.find((r) => r.id === roleId);
                   return role ? (
                     <span
                       key={roleId}

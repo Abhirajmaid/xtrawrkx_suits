@@ -50,7 +50,12 @@ class PermissionsService {
         const currentLevel = this.getRoleLevel(currentUserRole);
         const targetLevel = this.getRoleLevel(targetUserRole);
 
-        // Users can only edit users with lower role levels
+        // Super Admin can edit anyone (including other Super Admins)
+        if (currentLevel > 20) { // Super Admin level
+            return true;
+        }
+
+        // Other users can edit users with same or lower role levels
         return currentLevel > targetLevel;
     }
 
@@ -61,7 +66,12 @@ class PermissionsService {
         const currentLevel = this.getRoleLevel(currentUserRole);
         const targetLevel = this.getRoleLevel(targetUserRole);
 
-        // Users can only manage roles for users with lower role levels
+        // Super Admin can manage roles for anyone (including other Super Admins)
+        if (currentLevel > 20) { // Super Admin level
+            return true;
+        }
+
+        // Other users can manage roles for users with same or lower role levels
         return currentLevel > targetLevel;
     }
 

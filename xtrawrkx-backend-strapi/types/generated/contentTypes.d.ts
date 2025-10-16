@@ -904,6 +904,61 @@ export interface ApiDealDeal extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiDepartmentDepartment extends Struct.CollectionTypeSchema {
+  collectionName: 'departments';
+  info: {
+    description: 'Company departments for user organization';
+    displayName: 'Department';
+    pluralName: 'departments';
+    singularName: 'department';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    code: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 20;
+      }>;
+    color: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 7;
+      }> &
+      Schema.Attribute.DefaultTo<'#3B82F6'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::department.department'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 100;
+      }>;
+    publishedAt: Schema.Attribute.DateTime;
+    sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
+  };
+}
+
 export interface ApiEmailCampaignEmailCampaign
   extends Struct.CollectionTypeSchema {
   collectionName: 'email_campaigns';
@@ -1792,11 +1847,10 @@ export interface ApiXtrawrkxUserXtrawrkxUser
       'oneToMany',
       'api::email-template.email-template'
     >;
-    department: Schema.Attribute.Enumeration<
-      ['MANAGEMENT', 'SALES', 'DELIVERY', 'DEVELOPMENT', 'DESIGN']
-    > &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'DEVELOPMENT'>;
+    department: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::department.department'
+    >;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
@@ -2399,6 +2453,7 @@ declare module '@strapi/strapi' {
       'api::contact.contact': ApiContactContact;
       'api::contract.contract': ApiContractContract;
       'api::deal.deal': ApiDealDeal;
+      'api::department.department': ApiDepartmentDepartment;
       'api::email-campaign.email-campaign': ApiEmailCampaignEmailCampaign;
       'api::email-log.email-log': ApiEmailLogEmailLog;
       'api::email-template.email-template': ApiEmailTemplateEmailTemplate;

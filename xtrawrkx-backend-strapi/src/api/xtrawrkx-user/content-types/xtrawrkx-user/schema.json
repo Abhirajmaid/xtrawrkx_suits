@@ -81,16 +81,10 @@
             "inversedBy": "primaryUsers"
         },
         "department": {
-            "type": "enumeration",
-            "enum": [
-                "MANAGEMENT",
-                "SALES",
-                "DELIVERY",
-                "DEVELOPMENT",
-                "DESIGN"
-            ],
-            "default": "DEVELOPMENT",
-            "required": true
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::department.department",
+            "inversedBy": "users"
         },
         "isActive": {
             "type": "boolean",

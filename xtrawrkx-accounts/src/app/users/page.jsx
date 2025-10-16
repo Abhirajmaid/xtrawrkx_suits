@@ -48,6 +48,8 @@ function UserManagementPage() {
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userRoles, setUserRoles] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
@@ -63,6 +65,7 @@ function UserManagementPage() {
     checkUserPermissions();
     fetchUsers();
     fetchAvailableRoles();
+    fetchDepartments();
   }, []);
 
   const checkUserPermissions = async () => {
@@ -87,7 +90,7 @@ function UserManagementPage() {
             email: parsedUser.email,
             firstName: parsedUser.name.split(" ")[0] || "Admin",
             lastName: parsedUser.name.split(" ")[1] || "User",
-            role: parsedUser.role.toUpperCase(),
+            role: parsedUser.role, // Keep the role as-is (already mapped correctly from login)
             department: "MANAGEMENT",
             isActive: true,
             emailVerified: true,
@@ -199,7 +202,7 @@ function UserManagementPage() {
 
       // Fallback to regular endpoint
       data = await AuthService.apiRequest(
-        "/xtrawrkx-users?populate=primaryRole,userRoles"
+        "/xtrawrkx-users?populate=primaryRole,userRoles,department"
       );
       console.log("API response data:", data);
 
@@ -211,7 +214,7 @@ function UserManagementPage() {
         lastName: item.attributes?.lastName || item.lastName,
         role: item.attributes?.primaryRole?.data?.attributes?.name || "No Role",
         primaryRole: item.attributes?.primaryRole?.data || null,
-        department: item.attributes?.department || item.department,
+        department: item.attributes?.department?.data || item.department,
         phone: item.attributes?.phone || item.phone,
         isActive:
           item.attributes?.isActive !== undefined
@@ -257,6 +260,19 @@ function UserManagementPage() {
       setAvailableRoles(data.data || []);
     } catch (error) {
       console.error("Fetch roles error:", error);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const AuthService = (await import("@/lib/authService")).default;
+      const departments = await AuthService.getDepartments();
+      setDepartments(departments);
+    } catch (error) {
+      console.error("Fetch departments error:", error);
+    } finally {
+      setLoadingDepartments(false);
     }
   };
 
@@ -469,15 +485,34 @@ function UserManagementPage() {
     return colors[role] || "bg-gray-100 text-gray-800";
   };
 
-  const getDepartmentBadgeColor = (department) => {
-    const colors = {
-      MANAGEMENT: "bg-red-100 text-red-800",
-      SALES: "bg-green-100 text-green-800",
-      DELIVERY: "bg-blue-100 text-blue-800",
-      DEVELOPMENT: "bg-purple-100 text-purple-800",
-      DESIGN: "bg-pink-100 text-pink-800",
+  const getDepartmentInfo = (department) => {
+    if (typeof department === "object" && department?.name) {
+      // If department is an object with name property, return it
+      return {
+        name: department.name,
+        color: department.color || "#6B7280",
+      };
+    }
+
+    // Fallback for string department codes (legacy support)
+    const departmentMap = {
+      MANAGEMENT: { name: "Management", color: "#EF4444" },
+      SALES: { name: "Sales", color: "#10B981" },
+      DELIVERY: { name: "Delivery", color: "#3B82F6" },
+      DEVELOPMENT: { name: "Development", color: "#8B5CF6" },
+      DESIGN: { name: "Design", color: "#EC4899" },
     };
-    return colors[department] || "bg-gray-100 text-gray-800";
+    return (
+      departmentMap[department] || {
+        name: department || "Unknown",
+        color: "#6B7280",
+      }
+    );
+  };
+
+  const getDepartmentBadgeColor = (department) => {
+    const deptInfo = getDepartmentInfo(department);
+    return `bg-[${deptInfo.color}]/10 text-[${deptInfo.color}]`;
   };
 
   // Filter users based on search and filters
@@ -490,7 +525,10 @@ function UserManagementPage() {
 
     const matchesRole = filterRole === "all" || user.role === filterRole;
     const matchesDepartment =
-      filterDepartment === "all" || user.department === filterDepartment;
+      filterDepartment === "all" ||
+      (typeof user.department === "object"
+        ? user.department?.id
+        : user.department) === filterDepartment;
 
     return matchesSearch && matchesRole && matchesDepartment;
   });
@@ -524,7 +562,7 @@ function UserManagementPage() {
                 User Management
               </h1>
               <p className="text-gray-600">
-                Manage internal XtraWrkx users and permissions
+                Manage internal Xtrawrkx users and permissions
               </p>
             </div>
           </div>
@@ -661,13 +699,14 @@ function UserManagementPage() {
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
               className="w-full px-3 py-2 glass-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 border border-gray-200"
+              disabled={loadingDepartments}
             >
               <option value="all">All Departments</option>
-              <option value="MANAGEMENT">Management</option>
-              <option value="SALES">Sales</option>
-              <option value="DELIVERY">Delivery</option>
-              <option value="DEVELOPMENT">Development</option>
-              <option value="DESIGN">Design</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -823,7 +862,7 @@ function UserManagementPage() {
                         )}`}
                       >
                         <Building className="w-3 h-3" />
-                        {user.department}
+                        {getDepartmentInfo(user.department).name}
                       </span>
                     </td>
                     <td className="py-4 px-4">
@@ -1059,22 +1098,24 @@ function UserManagementPage() {
                   Department
                 </label>
                 <Select
-                  value={editingUser.department}
+                  value={
+                    typeof editingUser.department === "object"
+                      ? editingUser.department?.id
+                      : editingUser.department
+                  }
                   onChange={(value) =>
                     setEditingUser((prev) => ({
                       ...prev,
                       department: value,
                     }))
                   }
-                  options={[
-                    { value: "MANAGEMENT", label: "Management" },
-                    { value: "SALES", label: "Sales" },
-                    { value: "DELIVERY", label: "Delivery" },
-                    { value: "DEVELOPMENT", label: "Development" },
-                    { value: "DESIGN", label: "Design" },
-                  ]}
+                  options={departments.map((dept) => ({
+                    value: dept.id,
+                    label: dept.name,
+                  }))}
                   placeholder="Select department"
                   required
+                  disabled={loadingDepartments}
                 />
               </div>
             </div>

@@ -103,6 +103,25 @@ module.exports = {
                 return ctx.badRequest('Required fields: email, firstName, lastName, department');
             }
 
+            // Validate department - can be either ID or code
+            let departmentData = null;
+            if (department) {
+                // Try to find department by ID first, then by code
+                departmentData = await strapi.db.query('api::department.department').findOne({
+                    where: {
+                        $or: [
+                            { id: department },
+                            { code: department }
+                        ],
+                        isActive: true
+                    }
+                });
+
+                if (!departmentData) {
+                    return ctx.badRequest('Invalid department specified');
+                }
+            }
+
             // Validate custom password if provided
             if (password && password.length < 8) {
                 return ctx.badRequest('Custom password must be at least 8 characters long');
@@ -156,7 +175,7 @@ module.exports = {
                 lastName,
                 phone,
                 password: hashedPassword,
-                department,
+                department: departmentData.id, // Use department ID for relation
                 authProvider: 'PASSWORD',
                 emailVerified: false,
                 isActive: true,
@@ -176,7 +195,8 @@ module.exports = {
             const user = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').create({
                 data: userData,
                 populate: {
-                    primaryRole: true
+                    primaryRole: true,
+                    department: true
                 }
             });
 

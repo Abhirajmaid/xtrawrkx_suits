@@ -266,6 +266,32 @@ class AuthService {
     static isAdmin() {
         return this.hasRole('ADMIN');
     }
+
+    /**
+     * Fetch all active departments
+     */
+    static async getDepartments() {
+        try {
+            const response = await this.apiRequest('/departments');
+            return response.data || [];
+        } catch (error) {
+            console.error('Error fetching departments:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Fetch department statistics
+     */
+    static async getDepartmentStats() {
+        try {
+            const response = await this.apiRequest('/departments/stats');
+            return response.data || [];
+        } catch (error) {
+            console.error('Error fetching department stats:', error);
+            throw error;
+        }
+    }
 }
 
 export default AuthService;
