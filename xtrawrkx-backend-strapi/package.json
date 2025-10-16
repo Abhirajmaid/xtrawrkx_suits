@@ -18,9 +18,7 @@
     "dev:local": "npm run setup:dev && npm run develop",
     "start:prod": "npm run setup:prod && npm run start",
     "env:check": "echo Current environment: && type .env | findstr NODE_ENV",
-    "debug:env": "node scripts/debug-env.js",
-    "migrate:departments": "node scripts/run-migration.js",
-    "migrate:production": "node scripts/migrate-production.js"
+    "debug:env": "node scripts/debug-env.js"
   },
   "dependencies": {
     "@strapi/plugin-cloud": "5.27.0",

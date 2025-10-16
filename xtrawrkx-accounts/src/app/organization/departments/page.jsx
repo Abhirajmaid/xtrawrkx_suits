@@ -22,6 +22,9 @@ import {
   TrendingUp,
   Calendar,
   DollarSign,
+  User,
+  Shield,
+  Clock,
 } from "lucide-react";
 import AuthService from "@/lib/authService";
 import RouteGuard from "@/components/RouteGuard";
@@ -33,6 +36,9 @@ function DepartmentsPage() {
   const [success, setSuccess] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
+  const [viewingDepartment, setViewingDepartment] = useState(null);
+  const [departmentUsers, setDepartmentUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterActive, setFilterActive] = useState("all");
   const [stats, setStats] = useState({
@@ -181,6 +187,40 @@ function DepartmentsPage() {
     }
   };
 
+  // View department users
+  const handleViewDepartmentUsers = async (department) => {
+    try {
+      setViewingDepartment(department);
+      setLoadingUsers(true);
+
+      // Fetch users in this department
+      const response = await AuthService.apiRequest(
+        `/xtrawrkx-users?filters[department][id][$eq]=${department.id}&populate=primaryRole,department`
+      );
+
+      const users = (response.data || []).map((user) => ({
+        id: user.id,
+        firstName: user.attributes?.firstName || user.firstName,
+        lastName: user.attributes?.lastName || user.lastName,
+        email: user.attributes?.email || user.email,
+        role: user.attributes?.primaryRole?.data?.attributes?.name || "No Role",
+        isActive:
+          user.attributes?.isActive !== undefined
+            ? user.attributes.isActive
+            : user.isActive,
+        lastLoginAt: user.attributes?.lastLoginAt || user.lastLoginAt,
+        createdAt: user.attributes?.createdAt || user.createdAt,
+      }));
+
+      setDepartmentUsers(users);
+    } catch (error) {
+      console.error("Error fetching department users:", error);
+      setError("Failed to load department users");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   // Filter departments
   const filteredDepartments = departments.filter((dept) => {
     const matchesSearch =
@@ -318,7 +358,8 @@ function DepartmentsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="glass-card rounded-2xl p-6"
+              className="glass-card rounded-2xl p-6 cursor-pointer hover:shadow-lg transition-all duration-200"
+              onClick={() => handleViewDepartmentUsers(department)}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -339,15 +380,33 @@ function DepartmentsPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleEditDepartment(department)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewDepartmentUsers(department);
+                    }}
+                    className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="View users"
+                  >
+                    <Users className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditDepartment(department);
+                    }}
                     className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit department"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   {(department.userCount || 0) === 0 && (
                     <button
-                      onClick={() => handleDeleteDepartment(department.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDepartment(department.id);
+                      }}
                       className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete department"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -387,6 +446,14 @@ function DepartmentsPage() {
                   <span className="font-medium text-gray-900">
                     {department.sortOrder || 0}
                   </span>
+                </div>
+              </div>
+
+              {/* Click indicator */}
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Users className="w-3 h-3" />
+                  <span>Click to view users</span>
                 </div>
               </div>
             </motion.div>
@@ -788,6 +855,113 @@ function DepartmentsPage() {
                 ) : (
                   "Save Changes"
                 )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Department Users Modal */}
+      {viewingDepartment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-12 h-12 rounded-lg flex items-center justify-center"
+                  style={{
+                    backgroundColor: viewingDepartment.color || "#3B82F6",
+                  }}
+                >
+                  <Building className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {viewingDepartment.name} Department
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {departmentUsers.length} members
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingDepartment(null)}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+                  <span className="text-gray-600">Loading users...</span>
+                </div>
+              </div>
+            ) : departmentUsers.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No users in this department
+                </h3>
+                <p className="text-gray-600">
+                  This department doesn't have any assigned users yet.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-y-auto max-h-96">
+                <div className="space-y-3">
+                  {departmentUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-semibold text-sm">
+                            {user.firstName?.charAt(0)}
+                            {user.lastName?.charAt(0)}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">
+                            {user.firstName} {user.lastName}
+                          </h4>
+                          <p className="text-sm text-gray-600">{user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900">
+                            {user.role}
+                          </p>
+                          <p
+                            className={`text-xs ${
+                              user.isActive ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {user.isActive ? "Active" : "Inactive"}
+                          </p>
+                        </div>
+                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => setViewingDepartment(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Close
               </button>
             </div>
           </motion.div>
