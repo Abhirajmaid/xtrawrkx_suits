@@ -36,12 +36,14 @@ function NewUserPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successData, setSuccessData] = useState(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
+    password: "",
     primaryRole: "",
     department: "",
     isActive: true,
@@ -52,6 +54,7 @@ function NewUserPage() {
   const [selectedCustomRoles, setSelectedCustomRoles] = useState([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
   const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetchAvailableRoles();
@@ -119,6 +122,11 @@ function NewUserPage() {
       newErrors.department = "Department is required";
     }
 
+    // Validate password if provided
+    if (formData.password && formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters long";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -140,6 +148,11 @@ function NewUserPage() {
         department: formData.department,
         sendInvitation: formData.sendInvitation,
       };
+
+      // Add password if provided
+      if (formData.password && formData.password.trim()) {
+        userData.password = formData.password;
+      }
 
       // Add primary role if selected
       if (formData.primaryRole) {
@@ -195,6 +208,7 @@ function NewUserPage() {
         }
       }
 
+      setSuccessData(response);
       setSuccess(true);
 
       // Redirect after a short delay to show success message
@@ -227,6 +241,42 @@ function NewUserPage() {
             {formData.firstName} {formData.lastName} has been added to the
             system.
           </p>
+          {successData && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
+                  Password Information
+                </span>
+              </div>
+              <p className="text-sm text-blue-700">
+                Password Type:{" "}
+                <span className="font-medium">
+                  {successData.passwordType === "custom"
+                    ? "Custom Password"
+                    : "Auto-Generated"}
+                </span>
+              </p>
+              {successData.tempPassword && (
+                <p className="text-sm text-blue-700 mt-1">
+                  Temporary Password:{" "}
+                  <span className="font-mono font-medium bg-blue-100 px-2 py-1 rounded">
+                    {successData.tempPassword}
+                  </span>
+                </p>
+              )}
+              {successData.passwordType === "custom" && (
+                <p className="text-xs text-blue-600 mt-1">
+                  The custom password you provided has been set for this user.
+                </p>
+              )}
+              {successData.passwordType === "generated" && (
+                <p className="text-xs text-blue-600 mt-1">
+                  A secure password has been auto-generated and sent via email.
+                </p>
+              )}
+            </div>
+          )}
           <p className="text-sm text-gray-500">Redirecting to users list...</p>
         </motion.div>
       </div>
@@ -346,6 +396,44 @@ function NewUserPage() {
                   placeholder="Enter phone number"
                 />
               </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Custom Password (Optional)
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) =>
+                    handleInputChange("password", e.target.value)
+                  }
+                  className={`w-full pl-10 pr-12 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors ${
+                    errors.password ? "border-red-500" : "border-gray-300"
+                  }`}
+                  placeholder="Enter custom password (min 8 characters)"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Leave empty to auto-generate a secure password
+              </p>
             </div>
           </div>
         </motion.div>

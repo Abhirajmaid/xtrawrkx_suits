@@ -262,6 +262,7 @@ module.exports = {
                 primaryRole,
                 department,
                 phone,
+                password,
                 sendInvitation = true
             } = ctx.request.body;
 
@@ -270,6 +271,11 @@ module.exports = {
 
             if (!email || !firstName || !lastName || !department) {
                 return ctx.badRequest('Required fields: email, firstName, lastName, department');
+            }
+
+            // Validate custom password if provided
+            if (password && password.length < 8) {
+                return ctx.badRequest('Custom password must be at least 8 characters long');
             }
 
             // Check if user already exists
@@ -293,8 +299,22 @@ module.exports = {
                 }
             }
 
-            // Generate temporary password and invitation token
-            const tempPassword = crypto.randomBytes(12).toString('hex');
+            // Use custom password if provided, otherwise generate a random one
+            let tempPassword;
+            if (password && password.length >= 8) {
+                tempPassword = password;
+                console.log('=== USING CUSTOM PASSWORD ===');
+                console.log('Email:', email);
+                console.log('Custom Password:', tempPassword);
+                console.log('=============================');
+            } else {
+                tempPassword = crypto.randomBytes(12).toString('hex');
+                console.log('=== GENERATED RANDOM PASSWORD ===');
+                console.log('Email:', email);
+                console.log('Generated Password:', tempPassword);
+                console.log('=================================');
+            }
+
             const hashedPassword = await bcrypt.hash(tempPassword, 12);
             const invitationToken = crypto.randomBytes(32).toString('hex');
             const invitationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -382,7 +402,8 @@ module.exports = {
                 tempPassword: sendInvitation ? null : tempPassword, // Only return password if not sending email
                 message: sendInvitation
                     ? 'User created and invitation email sent'
-                    : 'User created successfully'
+                    : 'User created successfully',
+                passwordType: password ? 'custom' : 'generated'
             });
         } catch (error) {
             console.error('Create internal user error:', error);
