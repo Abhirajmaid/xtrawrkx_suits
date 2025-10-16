@@ -9,7 +9,7 @@ module.exports = {
      */
     async find(ctx) {
         try {
-            const { data, meta } = await strapi.entityService.findMany('api::department.department', {
+            const departments = await strapi.entityService.findMany('api::department.department', {
                 filters: {
                     isActive: true
                 },
@@ -22,8 +22,15 @@ module.exports = {
             });
 
             return ctx.send({
-                data,
-                meta
+                data: departments,
+                meta: {
+                    pagination: {
+                        page: 1,
+                        pageSize: 10,
+                        pageCount: 1,
+                        total: departments.length
+                    }
+                }
             });
         } catch (error) {
             console.error('Error fetching departments:', error);

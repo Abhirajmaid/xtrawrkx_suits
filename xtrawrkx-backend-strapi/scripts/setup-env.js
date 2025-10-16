@@ -110,10 +110,11 @@ STRAPI_DISABLE_TELEMETRY=true
 STRAPI_DISABLE_TUTORIALS=true
 `;
 
-// Create environment files
-fs.writeFileSync('.env.development', devEnv);
-fs.writeFileSync('.env.development.postgres', devPostgresEnv);
-fs.writeFileSync('.env.production', prodEnv);
+// Create environment files in the parent directory (xtrawrkx-backend-strapi root)
+const parentDir = path.join(__dirname, '..');
+fs.writeFileSync(path.join(parentDir, '.env.development'), devEnv);
+fs.writeFileSync(path.join(parentDir, '.env.development.postgres'), devPostgresEnv);
+fs.writeFileSync(path.join(parentDir, '.env.production'), prodEnv);
 
 console.log('✅ Environment files created:');
 console.log('   - .env.development (SQLite - easy local setup)');

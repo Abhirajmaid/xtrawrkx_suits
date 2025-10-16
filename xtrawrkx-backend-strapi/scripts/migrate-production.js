@@ -1,20 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Run department migration script
- * This script creates default departments in the Strapi backend
+ * Production migration script for Railway deployment
+ * This script runs department migration on production
  */
 
 const fetch = (url, options) => import('node-fetch').then(({ default: fetch }) => fetch(url, options));
 
-// Type assertions for JSON responses
-const assertResponse = (data) => data || {};
-const assertError = (data) => data || {};
+// Use production URL from environment
+const API_BASE_URL = process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL}/api` : 'http://localhost:1337/api';
 
-const API_BASE_URL = process.env.STRAPI_URL || 'http://localhost:1337/api';
-
-async function runMigration() {
-    console.log('🚀 Starting department migration...');
+async function runProductionMigration() {
+    console.log('🚀 Starting production department migration...');
     console.log('API Base URL:', API_BASE_URL);
 
     const defaultDepartments = [
@@ -74,17 +71,15 @@ async function runMigration() {
 
             if (response.ok) {
                 const result = await response.json();
-                const resultData = assertResponse(result);
-                console.log(`✅ Created department: ${deptData.name} (ID: ${resultData?.data?.id || 'unknown'})`);
+                console.log(`✅ Created department: ${deptData.name} (ID: ${result?.data?.id || 'unknown'})`);
                 createdCount++;
             } else {
                 const errorData = await response.json().catch(() => ({}));
-                const errorObj = assertError(errorData);
-                if (response.status === 400 && errorObj?.error?.message?.includes('already exists')) {
+                if (response.status === 400 && errorData?.error?.message?.includes('already exists')) {
                     console.log(`⚠️  Department ${deptData.name} already exists, skipping...`);
                     skippedCount++;
                 } else {
-                    console.error(`❌ Error creating department ${deptData.name}:`, errorObj?.error?.message || response.statusText);
+                    console.error(`❌ Error creating department ${deptData.name}:`, errorData?.error?.message || response.statusText);
                 }
             }
         } catch (error) {
@@ -92,28 +87,24 @@ async function runMigration() {
         }
     }
 
-    console.log('\n📊 Migration Summary:');
+    console.log('\n📊 Production Migration Summary:');
     console.log(`✅ Created: ${createdCount} departments`);
     console.log(`⚠️  Skipped: ${skippedCount} departments`);
     console.log(`📋 Total: ${defaultDepartments.length} departments processed`);
 
     if (createdCount > 0) {
-        console.log('\n🎉 Migration completed successfully!');
-        console.log('📋 Next steps:');
-        console.log('1. Restart your Strapi server');
-        console.log('2. Test the user creation flow in the frontend');
-        console.log('3. Verify departments are loading correctly');
+        console.log('\n🎉 Production migration completed successfully!');
     } else {
-        console.log('\n✅ All departments already exist, no migration needed.');
+        console.log('\n✅ All departments already exist in production, no migration needed.');
     }
 }
 
 // Run migration if this script is executed directly
 if (require.main === module) {
-    runMigration().catch(error => {
-        console.error('❌ Migration failed:', error);
+    runProductionMigration().catch(error => {
+        console.error('❌ Production migration failed:', error);
         process.exit(1);
     });
 }
 
-module.exports = { runMigration };
+module.exports = { runProductionMigration };

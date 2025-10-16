@@ -13,11 +13,14 @@
     "strapi": "strapi",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry",
-    "setup:dev": "copy .env.development .env && echo ✅ Switched to development environment",
-    "setup:prod": "copy .env.production .env && echo ✅ Switched to production environment",
+    "setup:dev": "node scripts/setup-env.js && copy .env.development .env && echo ✅ Switched to development environment",
+    "setup:prod": "node scripts/setup-env.js && copy .env.production .env && echo ✅ Switched to production environment",
     "dev:local": "npm run setup:dev && npm run develop",
     "start:prod": "npm run setup:prod && npm run start",
-    "env:check": "echo Current environment: && type .env | findstr NODE_ENV"
+    "env:check": "echo Current environment: && type .env | findstr NODE_ENV",
+    "debug:env": "node scripts/debug-env.js",
+    "migrate:departments": "node scripts/run-migration.js",
+    "migrate:production": "node scripts/migrate-production.js"
   },
   "dependencies": {
     "@strapi/plugin-cloud": "5.27.0",
