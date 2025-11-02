@@ -2,7 +2,11 @@
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const activityLogger = require('../../../services/activityLogger');
+
+// JWT secret - use environment variable or fallback to default
+const JWT_SECRET = process.env.JWT_SECRET || 'myJwtSecret123456789012345678901234567890';
 
 /**
  * Authentication Controller
@@ -84,13 +88,13 @@ module.exports = {
                         }
 
                         // Generate JWT token
-                        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+                        const token = jwt.sign({
                             id: user.id,
                             email: user.email,
                             type: 'internal',
                             role: user.primaryRole?.name || 'ADMIN',
                             department: user.department
-                        });
+                        }, JWT_SECRET, { expiresIn: '7d' });
 
                         console.log('JWT token generated successfully');
 
@@ -117,7 +121,7 @@ module.exports = {
                                 isActive: user.isActive,
                                 emailVerified: user.emailVerified,
                             },
-                            token: jwt,
+                            token: token,
                         });
                     } catch (createError) {
                         console.error('Error creating user:', createError);
@@ -141,13 +145,13 @@ module.exports = {
             });
 
             // Generate JWT token
-            const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+            const token = jwt.sign({
                 id: user.id,
                 email: user.email,
                 type: 'internal',
                 role: user.primaryRole?.name || 'DEVELOPER',
                 department: user.department
-            });
+            }, JWT_SECRET, { expiresIn: '7d' });
 
             // Log the login activity
             try {
@@ -174,11 +178,17 @@ module.exports = {
                     isActive: user.isActive,
                     emailVerified: user.emailVerified,
                 },
-                token: jwt,
+                token: token,
             });
         } catch (error) {
             console.error('Internal login error:', error);
-            ctx.internalServerError('Authentication failed');
+            console.error('Error stack:', error.stack);
+            console.error('Error details:', {
+                message: error.message,
+                name: error.name,
+                ...error
+            });
+            return ctx.internalServerError('Authentication failed: ' + error.message);
         }
     },
 
@@ -224,12 +234,12 @@ module.exports = {
             });
 
             // Generate JWT token
-            const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+            const token = jwt.sign({
                 id: account.id,
                 email: account.email,
                 type: 'client',
                 companyName: account.companyName
-            });
+            }, JWT_SECRET, { expiresIn: '7d' });
 
             ctx.send({
                 account: {
@@ -242,7 +252,7 @@ module.exports = {
                     emailVerified: account.emailVerified,
                 },
                 contacts: account.contacts,
-                token: jwt,
+                token: token,
             });
         } catch (error) {
             console.error('Client login error:', error);
@@ -428,11 +438,16 @@ module.exports = {
 
             let decoded;
             try {
-                decoded = strapi.plugins['users-permissions'].services.jwt.verify(token);
+                decoded = jwt.verify(token, JWT_SECRET);
                 console.log('Token decoded:', decoded);
             } catch (jwtError) {
                 console.log('JWT verification failed:', jwtError.message);
                 return ctx.unauthorized('Invalid token');
+            }
+
+            // Ensure decoded is an object (not a string)
+            if (typeof decoded === 'string' || !decoded) {
+                return ctx.unauthorized('Invalid token format');
             }
 
             if (decoded.type !== 'internal') {
@@ -506,9 +521,14 @@ module.exports = {
 
             let decoded;
             try {
-                decoded = strapi.plugins['users-permissions'].services.jwt.verify(token);
+                decoded = jwt.verify(token, JWT_SECRET);
             } catch (error) {
                 return ctx.unauthorized('Invalid token');
+            }
+
+            // Ensure decoded is an object (not a string)
+            if (typeof decoded === 'string' || !decoded) {
+                return ctx.unauthorized('Invalid token format');
             }
 
             const {
@@ -596,9 +616,14 @@ module.exports = {
 
             let decoded;
             try {
-                decoded = strapi.plugins['users-permissions'].services.jwt.verify(token);
+                decoded = jwt.verify(token, JWT_SECRET);
             } catch (error) {
                 return ctx.unauthorized('Invalid token');
+            }
+
+            // Ensure decoded is an object (not a string)
+            if (typeof decoded === 'string' || !decoded) {
+                return ctx.unauthorized('Invalid token format');
             }
 
             if (decoded.type !== 'internal') {
@@ -693,9 +718,14 @@ module.exports = {
 
             let decoded;
             try {
-                decoded = strapi.plugins['users-permissions'].services.jwt.verify(token);
+                decoded = jwt.verify(token, JWT_SECRET);
             } catch (error) {
                 return ctx.unauthorized('Invalid token');
+            }
+
+            // Ensure decoded is an object (not a string)
+            if (typeof decoded === 'string' || !decoded) {
+                return ctx.unauthorized('Invalid token format');
             }
 
             if (decoded.type !== 'internal') {
@@ -896,7 +926,7 @@ module.exports = {
             }
 
             try {
-                const decoded = strapi.plugins['users-permissions'].services.jwt.verify(token);
+                const decoded = jwt.verify(token, JWT_SECRET);
                 return ctx.send({
                     success: true,
                     decoded: decoded,

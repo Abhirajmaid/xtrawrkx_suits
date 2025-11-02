@@ -2,23 +2,27 @@
 
 import { useState } from "react";
 import { Modal, Avatar } from "../../components/ui";
-import { 
-  Activity, 
-  Search, 
-  Filter, 
-  Calendar, 
-  Phone, 
-  Mail, 
-  FileText, 
-  Users, 
-  Briefcase, 
+import {
+  Activity,
+  Search,
+  Filter,
+  Calendar,
+  Phone,
+  Mail,
+  FileText,
+  Users,
+  Briefcase,
   MessageSquare,
   Clock,
   ChevronDown,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 
-export default function ActivityTimelineModal({ isOpen, onClose, selectedAccounts = [] }) {
+export default function ActivityTimelineModal({
+  isOpen,
+  onClose,
+  selectedAccounts = [],
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [dateRange, setDateRange] = useState("30");
@@ -75,7 +79,8 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
       id: 5,
       type: "note",
       title: "Follow-up note",
-      description: "Client expressed interest in additional modules. Need to prepare custom quote.",
+      description:
+        "Client expressed interest in additional modules. Need to prepare custom quote.",
       account: "Digital Marketing Pro",
       user: "Emily Davis",
       userInitials: "ED",
@@ -154,7 +159,7 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
     const date = new Date(timestamp);
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 24) {
       return `${Math.floor(diffInHours)}h ago`;
     } else if (diffInHours < 168) {
@@ -164,12 +169,12 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
     }
   };
 
-  const filteredActivities = activities.filter(activity => {
+  const filteredActivities = activities.filter((activity) => {
     // Filter by type
     if (selectedFilter !== "all" && activity.type !== selectedFilter) {
       return false;
     }
-    
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -180,13 +185,13 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
         activity.user.toLowerCase().includes(query)
       );
     }
-    
+
     // Filter by date range
     const activityDate = new Date(activity.timestamp);
     const daysAgo = parseInt(dateRange);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
-    
+
     return activityDate >= cutoffDate;
   });
 
@@ -221,7 +226,7 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
               />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
             <select
@@ -229,14 +234,14 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
               onChange={(e) => setSelectedFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {activityTypes.map(type => (
+              {activityTypes.map((type) => (
                 <option key={type.value} value={type.value}>
                   {type.label}
                 </option>
               ))}
             </select>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-500" />
             <select
@@ -260,37 +265,39 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
               <span className="text-sm font-medium text-blue-900">Calls</span>
             </div>
             <div className="text-2xl font-bold text-blue-600 mt-1">
-              {activities.filter(a => a.type === 'call').length}
+              {activities.filter((a) => a.type === "call").length}
             </div>
           </div>
-          
+
           <div className="bg-green-50 rounded-lg p-3">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-green-600" />
               <span className="text-sm font-medium text-green-900">Emails</span>
             </div>
             <div className="text-2xl font-bold text-green-600 mt-1">
-              {activities.filter(a => a.type === 'email').length}
+              {activities.filter((a) => a.type === "email").length}
             </div>
           </div>
-          
+
           <div className="bg-purple-50 rounded-lg p-3">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-purple-600" />
-              <span className="text-sm font-medium text-purple-900">Meetings</span>
+              <span className="text-sm font-medium text-purple-900">
+                Meetings
+              </span>
             </div>
             <div className="text-2xl font-bold text-purple-600 mt-1">
-              {activities.filter(a => a.type === 'meeting').length}
+              {activities.filter((a) => a.type === "meeting").length}
             </div>
           </div>
-          
+
           <div className="bg-orange-50 rounded-lg p-3">
             <div className="flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-orange-600" />
               <span className="text-sm font-medium text-orange-900">Deals</span>
             </div>
             <div className="text-2xl font-bold text-orange-600 mt-1">
-              {activities.filter(a => a.type === 'deal').length}
+              {activities.filter((a) => a.type === "deal").length}
             </div>
           </div>
         </div>
@@ -300,119 +307,139 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
           {Object.keys(groupedActivities).length === 0 ? (
             <div className="text-center py-8">
               <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No activities found</h3>
-              <p className="text-gray-600">Try adjusting your filters or search terms.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No activities found
+              </h3>
+              <p className="text-gray-600">
+                Try adjusting your filters or search terms.
+              </p>
             </div>
           ) : (
             <div className="space-y-6">
-              {Object.entries(groupedActivities).map(([date, dayActivities]) => (
-                <div key={date}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      {new Date(date).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
+              {Object.entries(groupedActivities).map(
+                ([date, dayActivities]) => (
+                  <div key={date}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {new Date(date).toLocaleDateString("en-US", {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </div>
+                      <div className="flex-1 h-px bg-gray-200"></div>
                     </div>
-                    <div className="flex-1 h-px bg-gray-200"></div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {dayActivities.map((activity) => {
-                      const IconComponent = getActivityIcon(activity.type);
-                      const colorClass = getActivityColor(activity.type);
-                      
-                      return (
-                        <div key={activity.id} className="flex gap-4 p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
-                          <div className={`p-2 rounded-lg ${colorClass} flex-shrink-0`}>
-                            <IconComponent className="w-4 h-4" />
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 mb-1">
-                                  {activity.title}
-                                </h4>
-                                <p className="text-sm text-gray-600 mb-2">
-                                  {activity.description}
-                                </p>
-                                
-                                <div className="flex items-center gap-4 text-xs text-gray-500">
-                                  <span className="font-medium text-blue-600">
-                                    {activity.account}
+
+                    <div className="space-y-3">
+                      {dayActivities.map((activity) => {
+                        const IconComponent = getActivityIcon(activity.type);
+                        const colorClass = getActivityColor(activity.type);
+
+                        return (
+                          <div
+                            key={activity.id}
+                            className="flex gap-4 p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow"
+                          >
+                            <div
+                              className={`p-2 rounded-lg ${colorClass} flex-shrink-0`}
+                            >
+                              <IconComponent className="w-4 h-4" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 mb-1">
+                                    {activity.title}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 mb-2">
+                                    {activity.description}
+                                  </p>
+
+                                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                                    <span className="font-medium text-blue-600">
+                                      {activity.account}
+                                    </span>
+                                    <span>•</span>
+                                    <span>
+                                      {formatTimestamp(activity.timestamp)}
+                                    </span>
+
+                                    {activity.duration && (
+                                      <>
+                                        <span>•</span>
+                                        <span>{activity.duration}</span>
+                                      </>
+                                    )}
+
+                                    {activity.value && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="font-medium text-green-600">
+                                          {activity.value}
+                                        </span>
+                                      </>
+                                    )}
+
+                                    {activity.attachments && (
+                                      <>
+                                        <span>•</span>
+                                        <span>
+                                          {activity.attachments} attachments
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <Avatar name={activity.user} size="xs" />
+                                  <span className="text-xs text-gray-600">
+                                    {activity.user}
                                   </span>
-                                  <span>•</span>
-                                  <span>{formatTimestamp(activity.timestamp)}</span>
-                                  
-                                  {activity.duration && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{activity.duration}</span>
-                                    </>
-                                  )}
-                                  
-                                  {activity.value && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="font-medium text-green-600">{activity.value}</span>
-                                    </>
-                                  )}
-                                  
-                                  {activity.attachments && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{activity.attachments} attachments</span>
-                                    </>
-                                  )}
                                 </div>
                               </div>
-                              
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <Avatar 
-                                  name={activity.user} 
-                                  size="xs"
-                                />
-                                <span className="text-xs text-gray-600">{activity.user}</span>
-                              </div>
+
+                              {(activity.outcome ||
+                                activity.status ||
+                                activity.stage) && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  {activity.outcome && (
+                                    <span
+                                      className={`px-2 py-1 text-xs rounded-full ${
+                                        activity.outcome === "Positive"
+                                          ? "bg-green-100 text-green-700"
+                                          : activity.outcome === "Qualified"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : "bg-gray-100 text-gray-700"
+                                      }`}
+                                    >
+                                      {activity.outcome}
+                                    </span>
+                                  )}
+
+                                  {activity.status && (
+                                    <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                                      {activity.status}
+                                    </span>
+                                  )}
+
+                                  {activity.stage && (
+                                    <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">
+                                      {activity.stage}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            
-                            {(activity.outcome || activity.status || activity.stage) && (
-                              <div className="flex items-center gap-2 mt-2">
-                                {activity.outcome && (
-                                  <span className={`px-2 py-1 text-xs rounded-full ${
-                                    activity.outcome === 'Positive' 
-                                      ? 'bg-green-100 text-green-700'
-                                      : activity.outcome === 'Qualified'
-                                      ? 'bg-blue-100 text-blue-700'
-                                      : 'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    {activity.outcome}
-                                  </span>
-                                )}
-                                
-                                {activity.status && (
-                                  <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
-                                    {activity.status}
-                                  </span>
-                                )}
-                                
-                                {activity.stage && (
-                                  <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">
-                                    {activity.stage}
-                                  </span>
-                                )}
-                              </div>
-                            )}
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           )}
         </div>
@@ -420,14 +447,15 @@ export default function ActivityTimelineModal({ isOpen, onClose, selectedAccount
         {/* Action Buttons */}
         <div className="flex justify-between items-center pt-4 border-t border-gray-200">
           <div className="text-sm text-gray-600">
-            Showing {filteredActivities.length} of {activities.length} activities
+            Showing {filteredActivities.length} of {activities.length}{" "}
+            activities
           </div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={() => {
                 // Export functionality
-                console.log('Export activities');
+                console.log("Export activities");
               }}
               className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >

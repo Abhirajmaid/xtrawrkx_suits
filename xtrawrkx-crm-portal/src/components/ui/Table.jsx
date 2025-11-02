@@ -11,34 +11,42 @@ export function Table({
   ...props
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-3xl bg-white/70 backdrop-blur-xl border border-white/40 shadow-2xl hover:shadow-3xl transition-shadow duration-300">
       <table
-        className={clsx("min-w-full divide-y divide-gray-200", className)}
+        className={clsx("min-w-full rounded-3xl overflow-hidden", className)}
         {...props}
       >
-        <thead className={clsx("bg-gray-50", headerClassName)}>
+        <thead
+          className={clsx(
+            "bg-white/90 backdrop-blur-lg border-b border-orange-200/50 shadow-sm",
+            headerClassName
+          )}
+        >
           <tr>
             {columns.map((column, index) => (
               <th
                 key={column.key || index}
                 className={clsx(
-                  "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                  "px-6 py-5 text-left text-xs font-black text-gray-800 uppercase tracking-wider first:rounded-tl-3xl last:rounded-tr-3xl shadow-sm",
                   column.headerClassName
                 )}
               >
-                {column.title}
+                {column.title || column.label || ""}
               </th>
             ))}
           </tr>
         </thead>
         <tbody
-          className={clsx("bg-white divide-y divide-gray-200", bodyClassName)}
+          className={clsx(
+            "bg-white/60 backdrop-blur-sm divide-y divide-white/20",
+            bodyClassName
+          )}
         >
           {data.map((row, rowIndex) => (
             <tr
               key={row.id || rowIndex}
               className={clsx(
-                "hover:bg-gray-50 transition-colors",
+                "hover:bg-orange-50/50 hover:shadow-lg transition-all duration-300 group bg-white/40 shadow-sm hover:shadow-orange-100/50",
                 onRowClick && "cursor-pointer",
                 rowClassName
               )}
@@ -48,7 +56,7 @@ export function Table({
                 <td
                   key={column.key || colIndex}
                   className={clsx(
-                    "px-6 py-4 whitespace-nowrap text-sm text-gray-900",
+                    "px-6 py-4 text-sm text-gray-800 group-hover:text-gray-900 transition-colors duration-300",
                     column.className
                   )}
                 >

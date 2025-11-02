@@ -54,7 +54,7 @@ export default function KanbanBoard({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className={`flex gap-6 overflow-x-auto pb-4 min-h-screen ${className}`}>
+      <div className={`flex gap-6 overflow-x-auto pb-4 ${className}`}>
         {columnOrder.map((columnId) => {
           const columnCards = columns[columnId] || [];
 
@@ -69,7 +69,7 @@ export default function KanbanBoard({
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[200px] p-4 rounded-lg transition-all duration-200 ${
+                    className={`min-h-[200px] max-h-[600px] overflow-y-auto p-4 rounded-lg transition-all duration-200 ${
                       snapshot.isDraggingOver
                         ? "bg-blue-50 border-2 border-dashed border-blue-300"
                         : "bg-gray-50 border-2 border-transparent"

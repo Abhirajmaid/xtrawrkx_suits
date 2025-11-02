@@ -101,14 +101,17 @@
             "target": "api::project.project",
             "inversedBy": "activities"
         },
-        "task": {
+        "leadCompany": {
             "type": "relation",
             "relation": "manyToOne",
-            "target": "api::task.task",
+            "target": "api::lead-company.lead-company",
+            "inversedBy": "activities"
+        },
+        "clientAccount": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::client-account.client-account",
             "inversedBy": "activities"
         }
     }
 }
-
-
-

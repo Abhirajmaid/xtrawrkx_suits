@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
 import {
   LayoutDashboard,
   Users,
@@ -55,6 +56,9 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
   const pathname = usePathname();
+  const router = useRouter();
+  const { user } = useAuth();
+  const quickActionsRef = useRef(null);
 
   const toggleSection = (section) => {
     setCollapsedSections((prev) => ({
@@ -69,11 +73,19 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
   };
 
   const isSalesActive = () => {
-    return pathname.startsWith('/sales/');
+    return pathname.startsWith("/sales/");
   };
 
   const isDeliveryActive = () => {
-    return pathname.startsWith('/delivery/');
+    return pathname.startsWith("/delivery/");
+  };
+
+  const isClientPortalActive = () => {
+    return (
+      pathname.startsWith("/clients/accounts") ||
+      pathname.startsWith("/clients/proposals") ||
+      pathname.startsWith("/clients/invoices")
+    );
   };
 
   const handleTopLevelClick = (sectionId, sectionLabel) => {
@@ -95,18 +107,66 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
     setQuickActionsOpen(!quickActionsOpen);
   };
 
+  // Keep only important quick action items
   const quickActionItems = [
-    { label: "Add Lead", icon: Users, href: "/sales/leads/new" },
-    { label: "Add Deal", icon: Briefcase, href: "/sales/deals/new" },
-    { label: "Add Contact", icon: UserCheck, href: "/sales/contacts/new" },
-    { label: "Add Task", icon: CheckSquare, href: "/sales/tasks/new" },
-    { label: "Add Project", icon: FolderOpen, href: "/delivery/projects/new" },
     {
-      label: "Add Ticket",
-      icon: HeadphonesIcon,
-      href: "/delivery/support/new",
+      label: "Add Lead Company",
+      icon: Users,
+      href: "/sales/lead-companies/new",
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200",
+    },
+    {
+      label: "Add Deal",
+      icon: Briefcase,
+      href: "/sales/deals/new",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+    },
+    {
+      label: "Add Contact",
+      icon: UserCheck,
+      href: "/sales/contacts/new",
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+    },
+    {
+      label: "Add Task",
+      icon: CheckSquare,
+      href: "/sales/tasks/new",
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+      borderColor: "border-purple-200",
     },
   ];
+
+  // Handle quick action navigation
+  const handleQuickActionClick = (href) => {
+    setQuickActionsOpen(false);
+    router.push(href);
+  };
+
+  // Close quick actions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        quickActionsRef.current &&
+        !quickActionsRef.current.contains(event.target)
+      ) {
+        setQuickActionsOpen(false);
+      }
+    };
+
+    if (quickActionsOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [quickActionsOpen]);
 
   const mainNavigationItems = [
     {
@@ -191,26 +251,48 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
       label: "Sales",
       children: [
         {
-          id: "leads",
-          label: "Leads",
+          id: "lead-companies",
+          label: "Lead Companies",
           icon: Users,
-          href: "/sales/leads",
+          href: "/sales/lead-companies",
           children: [
-            { id: "leads-list", label: "List", href: "/sales/leads" },
             {
-              id: "leads-board",
-              label: "Board (Kanban)",
-              href: "/sales/leads/board",
+              id: "lead-companies-list",
+              label: "All Leads",
+              href: "/sales/lead-companies",
             },
             {
-              id: "leads-detail",
-              label: "Lead Detail",
-              href: "/sales/leads/[id]",
+              id: "lead-companies-board",
+              label: "Pipeline Board (Kanban)",
+              href: "/sales/lead-companies/board",
             },
             {
-              id: "leads-import",
-              label: "Import / Segmentation Rules",
-              href: "/sales/leads/import",
+              id: "lead-company-detail",
+              label: "Lead Company Detail",
+              href: "/sales/lead-companies/[id]",
+            },
+            {
+              id: "lead-companies-import",
+              label: "Import / Segmentation",
+              href: "/sales/lead-companies/import",
+            },
+          ],
+        },
+        {
+          id: "contacts",
+          label: "Contacts",
+          icon: UserCheck,
+          href: "/sales/contacts",
+          children: [
+            {
+              id: "contacts-list",
+              label: "Contacts List",
+              href: "/sales/contacts",
+            },
+            {
+              id: "contact-detail",
+              label: "Contact Detail (360° • Client Activity Timeline)",
+              href: "/sales/contacts/[id]",
             },
           ],
         },
@@ -233,42 +315,7 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
             },
           ],
         },
-        {
-          id: "accounts",
-          label: "Accounts",
-          icon: Building2,
-          href: "/sales/accounts",
-          children: [
-            {
-              id: "accounts-list",
-              label: "Accounts List",
-              href: "/sales/accounts",
-            },
-            {
-              id: "account-detail",
-              label: "Account Detail (Overview • People • Activity • Docs)",
-              href: "/sales/accounts/[id]",
-            },
-          ],
-        },
-        {
-          id: "contacts",
-          label: "Contacts",
-          icon: UserCheck,
-          href: "/sales/contacts",
-          children: [
-            {
-              id: "contacts-list",
-              label: "Contacts List",
-              href: "/sales/contacts",
-            },
-            {
-              id: "contact-detail",
-              label: "Contact Detail (360° • Client Activity Timeline)",
-              href: "/sales/contacts/[id]",
-            },
-          ],
-        },
+
         {
           id: "campaigns",
           label: "Campaigns",
@@ -577,20 +624,43 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
       label: "Client Portal",
       children: [
         {
+          id: "accounts",
+          label: "Client Accounts",
+          icon: Building2,
+          href: "/clients/accounts",
+          children: [
+            {
+              id: "accounts-list",
+              label: "All Clients",
+              href: "/clients/accounts",
+            },
+            {
+              id: "account-detail",
+              label: "Client Detail (Overview • Contacts • Activity • Docs)",
+              href: "/clients/accounts/[id]",
+            },
+            {
+              id: "account-deals",
+              label: "Client Deals & Projects",
+              href: "/clients/accounts/[id]/deals",
+            },
+            {
+              id: "account-portals",
+              label: "Client Portal Access",
+              href: "/clients/accounts/[id]/portal",
+            },
+          ],
+        },
+        {
           id: "client-proposals",
           label: "Proposals",
           icon: FileText,
-          href: "/client-portal/proposals",
+          href: "/clients/proposals",
           children: [
             {
               id: "view-proposals",
               label: "View Proposals",
-              href: "/client-portal/proposals",
-            },
-            {
-              id: "proposal-history",
-              label: "Proposal History",
-              href: "/client-portal/proposals/history",
+              href: "/clients/proposals",
             },
           ],
         },
@@ -598,17 +668,12 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "client-invoices",
           label: "Invoices",
           icon: Receipt,
-          href: "/client-portal/invoices",
+          href: "/clients/invoices",
           children: [
             {
               id: "view-invoices",
               label: "View Invoices",
-              href: "/client-portal/invoices",
-            },
-            {
-              id: "payment-history",
-              label: "Payment History",
-              href: "/client-portal/invoices/payments",
+              href: "/clients/invoices",
             },
           ],
         },
@@ -672,7 +737,11 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
 
   return (
     <>
-      <div className={`${collapsed ? 'w-16' : 'w-64'} h-full bg-white/30 backdrop-blur-xl border-r border-white/30 flex flex-col shadow-xl overflow-y-auto transition-[width] duration-300 flex-shrink-0`}>
+      <div
+        className={`${
+          collapsed ? "w-16" : "w-64"
+        } h-full bg-white backdrop-blur-xl border-r border-white/30 flex flex-col shadow-xl overflow-y-auto transition-[width] duration-300 flex-shrink-0`}
+      >
         {/* Header */}
         <div className="p-4 border-b border-white/20">
           <div className="flex items-center justify-between mb-4">
@@ -681,10 +750,7 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
                 Xtrawrkx CRM
               </span>
             )}
-            <button
-              onClick={onToggle}
-              className="p-2 rounded-lg"
-            >
+            <button onClick={onToggle} className="p-2 rounded-lg">
               {collapsed ? (
                 <ChevronRight className="w-5 h-5 text-brand-foreground" />
               ) : (
@@ -706,40 +772,63 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           )}
 
           {/* Quick Actions Button */}
-          <div className="relative">
+          <div className="relative" ref={quickActionsRef}>
             <button
               onClick={toggleQuickActions}
-              className={`w-full bg-white/15 backdrop-blur-md border border-white/25 text-brand-foreground rounded-xl py-3 px-4 flex items-center ${collapsed ? 'justify-center' : 'justify-center gap-2'} shadow-lg`}
+              className={`w-full bg-gradient-to-r from-orange-500/20 to-orange-600/10 backdrop-blur-md border ${
+                quickActionsOpen
+                  ? "border-orange-300/60"
+                  : "border-white/30 hover:border-orange-200/50"
+              } text-brand-foreground rounded-xl py-3 px-4 flex items-center ${
+                collapsed ? "justify-center" : "justify-between gap-2"
+              } shadow-lg hover:shadow-xl transition-all duration-300 group`}
             >
-              <Plus className="w-4 h-4 text-brand-primary" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
+                  <Plus className="w-4 h-4 text-white" />
+                </div>
+                {!collapsed && (
+                  <span className="text-sm font-semibold text-gray-800">
+                    Quick Actions
+                  </span>
+                )}
+              </div>
               {!collapsed && (
-                <>
-                  <span className="text-sm font-medium">Quick Actions</span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-brand-text-light transition-transform duration-300 ${quickActionsOpen ? "rotate-180" : ""}`}
-                  />
-                </>
+                <ChevronDown
+                  className={`w-4 h-4 text-gray-600 transition-transform duration-300 ${
+                    quickActionsOpen ? "rotate-180" : ""
+                  }`}
+                />
               )}
             </button>
 
             {/* Quick Actions Dropdown */}
             {quickActionsOpen && !collapsed && (
-              <div className="absolute left-0 top-full mt-2 w-full bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-50 overflow-hidden">
+              <div className="absolute left-0 top-full mt-2 w-full bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
                 <div className="p-2">
+                  <div className="px-3 py-2 mb-1 border-b border-gray-100">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Quick Create
+                    </p>
+                  </div>
                   {quickActionItems.map((item, index) => {
                     const Icon = item.icon;
                     return (
-                      <Link
+                      <button
                         key={index}
-                        href={item.href}
-                        onClick={() => setQuickActionsOpen(false)}
-                        className="flex items-center gap-3 p-3 text-sm text-brand-foreground rounded-lg"
+                        onClick={() => handleQuickActionClick(item.href)}
+                        className="w-full flex items-center gap-3 p-3.5 text-sm text-gray-800 rounded-xl hover:bg-gray-50 transition-all duration-200 group/item"
                       >
-                        <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-lg flex items-center justify-center shadow-sm">
-                          <Icon className="w-4 h-4 text-brand-primary" />
+                        <div
+                          className={`w-10 h-10 ${item.bgColor} ${item.borderColor} border rounded-xl flex items-center justify-center shadow-sm group-hover/item:scale-110 group-hover/item:shadow-md transition-all duration-200`}
+                        >
+                          <Icon className={`w-5 h-5 ${item.color}`} />
                         </div>
-                        <span className="font-medium">{item.label}</span>
-                      </Link>
+                        <span className="font-medium text-gray-900 flex-1 text-left">
+                          {item.label}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover/item:opacity-100 transition-opacity duration-200" />
+                      </button>
                     );
                   })}
                 </div>
@@ -751,14 +840,21 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
         {/* Main Navigation Grid */}
         <div className="p-4 space-y-4">
           {/* Primary Navigation - Top 4 */}
-          <div className={`grid gap-3 ${collapsed ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          <div
+            className={`grid gap-3 ${
+              collapsed ? "grid-cols-1" : "grid-cols-2"
+            }`}
+          >
             {mainNavigationItems
               .filter((item) => item.priority === "high")
               .map((item) => {
                 const Icon = item.icon;
                 const active = item.href ? isActive(item.href) : false;
-                const isSalesSection = item.id === 'sales' && isSalesActive();
-                const isDeliverySection = item.id === 'delivery' && isDeliveryActive();
+                const isSalesSection = item.id === "sales" && isSalesActive();
+                const isDeliverySection =
+                  item.id === "delivery" && isDeliveryActive();
+                const isClientPortalSection =
+                  item.id === "client-portal" && isClientPortalActive();
 
                 if (item.hasSubNav) {
                   return (
@@ -766,9 +862,11 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
                       key={item.id}
                       onClick={() => handleTopLevelClick(item.id, item.label)}
                       className={`${
-                        isSalesSection || isDeliverySection
-                          ? 'bg-gradient-to-br from-yellow-400/30 to-yellow-500/20 border-yellow-300/50 text-yellow-800' 
-                          : 'bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40'
+                        isSalesSection ||
+                        isDeliverySection ||
+                        isClientPortalSection
+                          ? "bg-gradient-to-br from-yellow-400/30 to-yellow-500/20 border-yellow-300/50 text-yellow-800"
+                          : "bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40"
                       } rounded-xl p-4 flex flex-col items-center gap-3 transition-[background-color,border-color] duration-300 shadow-lg group`}
                       title={collapsed ? item.label : undefined}
                     >
@@ -786,7 +884,11 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
                   <Link
                     key={item.id}
                     href={item.href || "/"}
-                    className={`${active ? "bg-brand-primary text-white border-brand-primary/50" : "bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40"} 
+                    className={`${
+                      active
+                        ? "bg-brand-primary text-white border-brand-primary/50"
+                        : "bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40"
+                    } 
                       rounded-xl p-4 flex flex-col items-center gap-3 transition-[background-color,border-color,color] duration-300 shadow-lg group`}
                     title={collapsed ? item.label : undefined}
                   >
@@ -850,7 +952,11 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
             )}
 
             {/* System Navigation Grid */}
-            <div className={`grid gap-3 ${collapsed ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            <div
+              className={`grid gap-3 ${
+                collapsed ? "grid-cols-1" : "grid-cols-2"
+              }`}
+            >
               {mainNavigationItems
                 .filter((item) => item.priority === "low")
                 .map((item) => {
@@ -878,20 +984,38 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
 
           {/* Footer - User Profile */}
           <div className="p-4 border-t border-white/20">
-            <div className={`flex items-center gap-3 p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-lg ${collapsed ? 'justify-center' : ''}`}>
+            <div
+              className={`flex items-center gap-3 p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-lg ${
+                collapsed ? "justify-center" : ""
+              }`}
+            >
               <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-full flex items-center justify-center shadow-lg">
                 <span className="text-brand-primary text-sm font-medium">
-                  OC
+                  {user
+                    ? (user.firstName?.charAt(0) ||
+                        user.name?.charAt(0) ||
+                        user.email?.charAt(0) ||
+                        "U") +
+                      (user.lastName?.charAt(0) ||
+                        user.name?.split(" ")[1]?.charAt(0) ||
+                        "")
+                    : "U"}
                 </span>
               </div>
               {!collapsed && (
                 <>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-brand-foreground truncate">
-                      Oscar Carol
+                      {user
+                        ? user.firstName && user.lastName
+                          ? `${user.firstName} ${user.lastName}`
+                          : user.name || user.email || "User"
+                        : "User"}
                     </p>
                     <p className="text-xs text-brand-text-light truncate">
-                      Lead Manager
+                      {user
+                        ? user.primaryRole?.name || user.role || "User"
+                        : "User"}
                     </p>
                   </div>
                   <button className="text-brand-text-light">

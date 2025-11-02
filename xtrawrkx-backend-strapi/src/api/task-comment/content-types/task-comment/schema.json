@@ -12,11 +12,8 @@
     },
     "pluginOptions": {},
     "attributes": {
-        "task": {
-            "type": "relation",
-            "relation": "manyToOne",
-            "target": "api::task.task",
-            "inversedBy": "comments"
+        "taskId": {
+            "type": "string"
         },
         "user": {
             "type": "relation",
@@ -30,6 +27,3 @@
         }
     }
 }
-
-
-

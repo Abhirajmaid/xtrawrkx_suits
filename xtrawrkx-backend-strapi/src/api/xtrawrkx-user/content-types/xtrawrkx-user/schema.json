@@ -142,12 +142,6 @@
             "target": "api::activity.activity",
             "mappedBy": "creator"
         },
-        "createdTasks": {
-            "type": "relation",
-            "relation": "oneToMany",
-            "target": "api::task.task",
-            "mappedBy": "creator"
-        },
         "createdProjects": {
             "type": "relation",
             "relation": "oneToMany",
@@ -159,6 +153,18 @@
             "relation": "oneToMany",
             "target": "api::audit-log.audit-log",
             "mappedBy": "user"
+        },
+        "chatMessages": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::chat-message.chat-message",
+            "mappedBy": "createdBy"
+        },
+        "tasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task.task",
+            "mappedBy": "createdBy"
         },
         "notifications": {
             "type": "relation",

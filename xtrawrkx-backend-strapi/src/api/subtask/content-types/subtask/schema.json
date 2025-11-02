@@ -12,11 +12,8 @@
     },
     "pluginOptions": {},
     "attributes": {
-        "task": {
-            "type": "relation",
-            "relation": "manyToOne",
-            "target": "api::task.task",
-            "inversedBy": "subtasks"
+        "taskId": {
+            "type": "string"
         },
         "title": {
             "type": "string",

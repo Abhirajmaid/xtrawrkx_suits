@@ -67,12 +67,6 @@
             "target": "api::xtrawrkx-user.xtrawrkx-user",
             "inversedBy": "managedProjects"
         },
-        "tasks": {
-            "type": "relation",
-            "relation": "oneToMany",
-            "target": "api::task.task",
-            "mappedBy": "project"
-        },
         "activities": {
             "type": "relation",
             "relation": "oneToMany",

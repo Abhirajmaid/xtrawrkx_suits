@@ -120,6 +120,7 @@
 
 /* Component Styles */
 @layer components {
+
   /* Line clamp utilities */
   .line-clamp-1 {
     overflow: hidden;
@@ -315,6 +316,7 @@
 
   /* Float animation */
   @keyframes float {
+
     0%,
     100% {
       transform: translateY(0);

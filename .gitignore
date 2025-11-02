@@ -10,3 +10,4 @@ backend/strapi/.env*
 backend/strapi/public/uploads/
 backend/strapi/.cache/
 .turbo/
+.claude/

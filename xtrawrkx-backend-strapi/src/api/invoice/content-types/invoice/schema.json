@@ -12,10 +12,10 @@
     },
     "pluginOptions": {},
     "attributes": {
-        "account": {
+        "clientAccount": {
             "type": "relation",
             "relation": "manyToOne",
-            "target": "api::account.account",
+            "target": "api::client-account.client-account",
             "inversedBy": "invoices"
         },
         "invoiceNumber": {

@@ -45,11 +45,11 @@
             "enum": [
                 "DECISION_MAKER",
                 "INFLUENCER",
-                "USER",
+                "TECHNICAL_CONTACT",
                 "GATEKEEPER",
                 "PRIMARY_CONTACT"
             ],
-            "default": "USER"
+            "default": "TECHNICAL_CONTACT"
         },
         "portalAccessLevel": {
             "type": "enumeration",
@@ -84,6 +84,18 @@
             "allowedTypes": [
                 "images"
             ]
+        },
+        "leadCompany": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::lead-company.lead-company",
+            "inversedBy": "contacts"
+        },
+        "clientAccount": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::client-account.client-account",
+            "inversedBy": "contacts"
         },
         "linkedIn": {
             "type": "string"
@@ -121,6 +133,18 @@
             "type": "relation",
             "relation": "oneToMany",
             "target": "api::activity.activity",
+            "mappedBy": "contact"
+        },
+        "chatMessages": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::chat-message.chat-message",
+            "mappedBy": "contact"
+        },
+        "tasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task.task",
             "mappedBy": "contact"
         },
         "communityMemberships": {

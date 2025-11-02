@@ -14,7 +14,7 @@ module.exports = (config, { strapi }) => {
                 '/api/auth/reset-password'
             ];
 
-            // Skip authentication for admin, user-roles, xtrawrkx-users, user-management, auth, and dashboard routes (for now)
+            // Skip authentication for admin, user-roles, xtrawrkx-users, user-management, auth, dashboard, and CRM routes (for now)
             if (ctx.request.path.startsWith('/admin') ||
                 ctx.request.path.startsWith('/api/admin') ||
                 ctx.request.path.startsWith('/api/user-roles') ||
@@ -24,10 +24,19 @@ module.exports = (config, { strapi }) => {
                 ctx.request.path.startsWith('/api/dashboard/') ||
                 ctx.request.path.startsWith('/api/upload') ||
                 ctx.request.path.startsWith('/uploads') ||
+                ctx.request.path.startsWith('/api/lead-companies') ||
+                ctx.request.path.startsWith('/api/client-accounts') ||
+                ctx.request.path.startsWith('/api/contacts') ||
+                ctx.request.path.startsWith('/api/deals') ||
+                ctx.request.path.startsWith('/api/activities') ||
+                ctx.request.path.startsWith('/api/proposals') ||
                 publicRoutes.includes(ctx.request.path)) {
+                console.log('Skipping authentication for path:', ctx.request.path);
                 return await next();
             }
 
+            // Chat messages require authentication but are accessible to ALL authenticated users (any level, not just admin)
+            // Continue to authentication check below for chat messages
             const token = ctx.request.headers.authorization?.replace('Bearer ', '');
 
             if (!token) {

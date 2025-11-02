@@ -1,10 +1,6 @@
 module.exports = ({ env }) => ({
     'users-permissions': {
-        config: {
-            jwt: {
-                expiresIn: '30d',
-            },
-        },
+        enabled: false, // Disable users-permissions plugin for now
     },
     // Completely disable Content-Type Builder tours
     'content-type-builder': {

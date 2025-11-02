@@ -12,7 +12,7 @@ import {
   Plus,
   Search,
   Filter,
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   Clock,
   Target,
@@ -462,10 +462,10 @@ export default function DealsPipelinePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard
             title="Total Pipeline"
-            value={`$${(pipelineStats.totalValue / 1000).toFixed(0)}K`}
+            value={`₹${(pipelineStats.totalValue / 1000).toFixed(0)}K`}
             change="+12%"
             changeType="increase"
-            icon={DollarSign}
+            icon={IndianRupee}
             iconBg="bg-green-100"
             iconColor="text-green-600"
             className="hover:bg-yellow-50 hover:border-yellow-200 transition-all duration-200 cursor-pointer group"

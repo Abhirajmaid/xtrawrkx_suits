@@ -18,11 +18,8 @@
             "target": "api::project.project",
             "inversedBy": "timeEntries"
         },
-        "task": {
-            "type": "relation",
-            "relation": "manyToOne",
-            "target": "api::task.task",
-            "inversedBy": "timeEntries"
+        "taskId": {
+            "type": "string"
         },
         "user": {
             "type": "relation",

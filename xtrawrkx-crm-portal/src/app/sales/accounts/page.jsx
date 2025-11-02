@@ -1,706 +1,798 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Container,
-  Card,
-  Table,
-  Badge,
-  Avatar,
-  StatCard,
-  Tabs,
-} from "../../../components/ui";
-import {
-  AccountFilterModal,
-  AddAccountModal,
-  ImportAccountsModal,
-  AccountScoringModal,
-  ActivityTimelineModal,
-  EmailCampaignsModal,
-} from "../../../components/accounts";
+import { Badge, Avatar, Button } from "../../../components/ui";
+import { formatNumber, formatCurrency } from "../../../lib/utils";
+
+// Local utility function to replace @xtrawrkx/utils formatDate
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+import clientAccountService from "../../../lib/api/clientAccountService";
+import PageHeader from "../../../components/PageHeader";
+import ClientAccountsKPIs from "./components/ClientAccountsKPIs";
+import ClientAccountsTabs from "./components/ClientAccountsTabs";
+import ClientAccountsListView from "./components/ClientAccountsListView";
+import ClientAccountsFilterModal from "./components/ClientAccountsFilterModal";
+import ClientAccountsImportModal from "./components/ClientAccountsImportModal";
+
 import {
   Plus,
-  Search,
-  Filter,
-  Building2,
-  Users,
-  DollarSign,
-  TrendingUp,
-  Globe,
-  Phone,
   Mail,
-  MapPin,
+  Phone,
   Calendar,
   MoreVertical,
+  UserPlus,
   Star,
-  Activity,
-  Briefcase,
-  ChevronRight,
-  ChevronDown,
-  Bell,
-  Settings,
+  Clock,
   User,
+  PhoneCall,
+  CheckCircle,
+  XCircle,
+  IndianRupee,
+  Building2,
+  Users,
+  TrendingUp,
+  Eye,
+  Edit,
+  Trash2,
+  DollarSign,
 } from "lucide-react";
 
-export default function AccountsPage() {
+export default function ClientAccountsPage() {
   const router = useRouter();
+
+  // State management
+  const [clientAccounts, setClientAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({});
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [activeView, setActiveView] = useState("list");
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isScoringModalOpen, setIsScoringModalOpen] = useState(false);
-  const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [filters, setFilters] = useState({
-    type: "",
-    industry: "",
-    owner: "",
-    minRevenue: "",
-    maxRevenue: "",
-    healthScore: "",
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showAddSuccessMessage, setShowAddSuccessMessage] = useState(false);
+  const [loadingActions, setLoadingActions] = useState({});
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState(null);
+  const exportDropdownRef = useRef(null);
+
+  // Fetch client accounts from Strapi
+  useEffect(() => {
+    fetchClientAccounts();
+    fetchStats();
+  }, []);
+
+  const fetchClientAccounts = async () => {
+    try {
+      setLoading(true);
+      setError(null); // Clear any previous errors
+
+      console.log("Fetching client accounts...");
+      const response = await clientAccountService.getAll();
+      console.log("Client accounts response:", response);
+
+      // Handle different response structures
+      // The API returns data directly as an array, not wrapped in a data property
+      const accounts = Array.isArray(response)
+        ? response
+        : response?.data || [];
+      setClientAccounts(accounts);
+
+      console.log(`Loaded ${accounts.length} client accounts`);
+    } catch (err) {
+      console.error("Error fetching client accounts:", err);
+      console.error("Error details:", err.response?.data || err.message);
+
+      // Set more specific error message
+      const errorMessage =
+        err.response?.data?.error?.message ||
+        err.message ||
+        "Failed to load client accounts";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const statsData = await clientAccountService.getStats();
+      console.log("Client accounts stats:", statsData);
+      setStats(statsData);
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+      // Set default stats if API fails
+      setStats({
+        byStatus: { ACTIVE: 0, INACTIVE: 0, CHURNED: 0, ON_HOLD: 0 },
+        totalRevenue: 0,
+        averageHealthScore: 0,
+        recentConversions: 0,
+      });
+    }
+  };
+
+  // Filter accounts based on search and active tab
+  const filteredAccounts = clientAccounts.filter((account) => {
+    const matchesSearch =
+      !searchQuery ||
+      account.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      account.industry?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      account.accountManager?.firstName
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      account.accountManager?.lastName
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+    const matchesTab =
+      activeTab === "all" ||
+      (activeTab === "active" && account.status?.toLowerCase() === "active") ||
+      (activeTab === "inactive" &&
+        account.status?.toLowerCase() === "inactive") ||
+      (activeTab === "churned" &&
+        account.status?.toLowerCase() === "churned") ||
+      (activeTab === "on-hold" && account.status?.toLowerCase() === "on_hold");
+
+    return matchesSearch && matchesTab;
   });
-  const accountColumns = [
+
+  // Calculate KPI data
+  const statusStats = [
     {
-      key: "name",
-      label: "Company",
-      sortable: true,
-      render: (value, row) => (
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-            {value.charAt(0)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-medium text-gray-900 truncate">{value}</div>
-            <div className="text-xs text-gray-500 truncate">{row.industry}</div>
+      label: "Total",
+      count: clientAccounts.length,
+      icon: Building2,
+      color: "bg-blue-50",
+      iconColor: "text-blue-600",
+      borderColor: "border-blue-200",
+    },
+    {
+      label: "Active",
+      count: stats.byStatus?.ACTIVE || 0,
+      icon: CheckCircle,
+      color: "bg-green-50",
+      iconColor: "text-green-600",
+      borderColor: "border-green-200",
+    },
+    {
+      label: "Revenue",
+      count: `$${formatNumber(stats.totalRevenue || 0)}`,
+      icon: DollarSign,
+      color: "bg-purple-50",
+      iconColor: "text-purple-600",
+      borderColor: "border-purple-200",
+    },
+  ];
+
+  // Tab configuration
+  const tabsConfig = [
+    { key: "all", label: "All Clients", count: clientAccounts.length },
+    { key: "active", label: "Active", count: stats.byStatus?.ACTIVE || 0 },
+    {
+      key: "inactive",
+      label: "Inactive",
+      count: stats.byStatus?.INACTIVE || 0,
+    },
+    { key: "churned", label: "Churned", count: stats.byStatus?.CHURNED || 0 },
+    {
+      key: "on-hold",
+      label: "On Hold",
+      count: stats.byStatus?.ON_HOLD || 0,
+    },
+  ];
+
+  // Table columns configuration
+  const accountColumnsTable = [
+    {
+      key: "company",
+      label: "COMPANY",
+      render: (_, account) => (
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <Avatar
+            name={account.companyName}
+            size="sm"
+            className="flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="font-medium text-gray-900 truncate">
+              {account.companyName}
+            </div>
+            <div className="text-sm text-gray-500 truncate">
+              {account.contacts && account.contacts.length > 0
+                ? `${account.contacts[0].firstName} ${account.contacts[0].lastName}`
+                : "No primary contact"}
+            </div>
           </div>
         </div>
       ),
     },
     {
-      key: "type",
-      label: "Type",
-      render: (value) => {
-        const variants = {
-          Customer: "success",
-          Prospect: "warning",
-          Partner: "info",
-          Vendor: "purple",
+      key: "contact",
+      label: "PRIMARY CONTACT",
+      render: (_, account) => (
+        <div className="space-y-1 min-w-[200px]">
+          <div className="flex items-center gap-2 text-sm text-gray-900">
+            <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="truncate">
+              {account.contacts && account.contacts.length > 0
+                ? account.contacts[0].email
+                : account.email || "No email"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="truncate">
+              {account.contacts && account.contacts.length > 0
+                ? account.contacts[0].phone
+                : account.phone || "No phone"}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "healthScore",
+      label: "HEALTH SCORE",
+      render: (_, account) => {
+        const score = account.healthScore || 0;
+        const getHealthColor = () => {
+          if (score >= 80)
+            return "bg-green-100 text-green-800 border-green-300";
+          if (score >= 60)
+            return "bg-yellow-100 text-yellow-800 border-yellow-300";
+          if (score >= 40)
+            return "bg-orange-100 text-orange-800 border-orange-300";
+          return "bg-red-100 text-red-800 border-red-300";
         };
-        return <Badge variant={variants[value] || "default"}>{value}</Badge>;
+
+        return (
+          <div className="min-w-[120px]">
+            <div
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getHealthColor()}`}
+            >
+              <TrendingUp className="w-3 h-3 mr-1" />
+              {score}%
+            </div>
+          </div>
+        );
       },
     },
     {
-      key: "contacts",
-      label: "Contacts",
-      render: (value) => (
-        <div className="flex items-center gap-1">
-          <Users className="w-3 h-3 text-gray-400" />
-          <span className="text-sm font-medium">{value}</span>
-        </div>
-      ),
-    },
-    {
-      key: "deals",
-      label: "Deals",
-      render: (value) => (
-        <div className="flex items-center gap-1">
-          <Briefcase className="w-3 h-3 text-gray-400" />
-          <span className="text-sm font-medium">{value}</span>
-        </div>
-      ),
-    },
-    {
-      key: "revenue",
-      label: "Revenue",
-      sortable: true,
-      render: (value) => (
-        <span className="font-medium text-gray-900 text-sm">${value}M</span>
-      ),
-    },
-    {
-      key: "owner",
-      label: "Owner",
-      render: (value) => (
-        <div className="flex items-center gap-2">
-          <Avatar name={value} size="xs" />
-          <span className="text-sm text-gray-900 truncate">{value}</span>
-        </div>
-      ),
-    },
-    {
-      key: "health",
-      label: "Health",
-      sortable: true,
-      render: (value) => (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-gray-200 rounded-full h-1.5 min-w-0">
-            <div
-              className={`h-1.5 rounded-full ${
-                value >= 80
-                  ? "bg-green-500"
-                  : value >= 60
-                  ? "bg-yellow-500"
-                  : "bg-red-500"
-              }`}
-              style={{ width: `${value}%` }}
-            />
+      key: "dealValue",
+      label: "DEAL VALUE",
+      render: (_, account) => (
+        <div className="min-w-[120px]">
+          <div className="flex items-center gap-1.5">
+            <IndianRupee className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="text-sm font-medium text-gray-900">
+              {account.revenue ? `₹${formatNumber(account.revenue)}` : "₹0"}
+            </span>
           </div>
-          <span className="text-xs font-medium text-gray-900">{value}%</span>
         </div>
       ),
     },
     {
-      key: "lastActivity",
-      label: "Last Activity",
-      render: (value) => (
-        <div className="text-xs text-gray-600 truncate">{value}</div>
+      key: "contacts",
+      label: "CONTACTS",
+      render: (_, account) => (
+        <div className="min-w-[100px]">
+          <div className="flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="text-sm text-gray-600">
+              {account.contacts?.length || 0}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "accountManager",
+      label: "ACCOUNT MANAGER",
+      render: (_, account) => (
+        <div className="min-w-[150px]">
+          <div className="flex items-center gap-2">
+            <Avatar
+              name={
+                account.accountManager
+                  ? `${account.accountManager.firstName} ${account.accountManager.lastName}`
+                  : "Unassigned"
+              }
+              size="xs"
+              className="flex-shrink-0"
+            />
+            <span className="text-sm font-medium text-gray-900">
+              {account.accountManager
+                ? `${account.accountManager.firstName} ${account.accountManager.lastName}`
+                : "Unassigned"}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      render: (_, account) => {
+        const status = account.status?.toLowerCase() || "active";
+        const getStatusColor = () => {
+          switch (status) {
+            case "active":
+              return "bg-green-100 text-green-800 border-green-300";
+            case "inactive":
+              return "bg-gray-100 text-gray-800 border-gray-300";
+            case "churned":
+              return "bg-red-100 text-red-800 border-red-300";
+            case "on_hold":
+              return "bg-yellow-100 text-yellow-800 border-yellow-300";
+            default:
+              return "bg-green-100 text-green-800 border-green-300";
+          }
+        };
+
+        const displayStatus = account.status || "ACTIVE";
+
+        return (
+          <div className="min-w-[120px]">
+            <Badge
+              className={`${getStatusColor()} border font-medium text-xs px-3 py-1`}
+            >
+              {displayStatus}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    {
+      key: "created",
+      label: "CREATED",
+      render: (_, account) => (
+        <div className="min-w-[120px]">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="text-xs text-gray-600">
+              {formatDate(account.createdAt)}
+            </span>
+          </div>
+        </div>
       ),
     },
     {
       key: "actions",
-      label: "",
-      render: () => (
-        <button className="p-1 hover:bg-gray-100 rounded">
-          <MoreVertical className="w-4 h-4" />
-        </button>
+      label: "ACTIONS",
+      render: (_, account) => (
+        <div
+          className="flex items-center gap-1 min-w-[120px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewAccount(account.id);
+            }}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-all duration-200"
+            title="View Account"
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditAccount(account.id);
+            }}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2 rounded-lg transition-all duration-200"
+            title="Edit Account"
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusUpdate(
+                account.id,
+                account.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"
+              );
+            }}
+            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 p-2 rounded-lg transition-all duration-200"
+            title={account.status === "ACTIVE" ? "Deactivate" : "Activate"}
+          >
+            {account.status === "ACTIVE" ? (
+              <XCircle className="w-4 h-4" />
+            ) : (
+              <CheckCircle className="w-4 h-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAccountToDelete(account);
+              setShowDeleteModal(true);
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-all duration-200"
+            title="Delete Account"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
       ),
     },
   ];
 
-  const [accountsData, setAccountsData] = useState([
-    {
-      id: 1,
-      name: "Tech Solutions Inc",
-      industry: "Technology",
-      type: "Customer",
-      contacts: 12,
-      deals: 3,
-      dealValue: 450,
-      revenue: 2.5,
-      owner: "John Smith",
-      health: 85,
-      lastActivity: "Email sent",
-      website: "techsolutions.com",
-      employees: "500-1000",
-      location: "San Francisco, CA",
-    },
-    {
-      id: 2,
-      name: "Global Enterprises",
-      industry: "Manufacturing",
-      type: "Customer",
-      contacts: 8,
-      deals: 2,
-      dealValue: 280,
-      revenue: 5.2,
-      owner: "Emily Davis",
-      health: 92,
-      lastActivity: "Meeting scheduled",
-      website: "globalenterprises.com",
-      employees: "1000+",
-      location: "New York, NY",
-    },
-    {
-      id: 3,
-      name: "StartUp Hub",
-      industry: "Software",
-      type: "Prospect",
-      contacts: 5,
-      deals: 1,
-      dealValue: 120,
-      revenue: 0.8,
-      owner: "Sarah Wilson",
-      health: 65,
-      lastActivity: "Proposal sent",
-      website: "startuphub.io",
-      employees: "50-100",
-      location: "Austin, TX",
-    },
-    {
-      id: 4,
-      name: "Innovation Labs",
-      industry: "Research",
-      type: "Partner",
-      contacts: 15,
-      deals: 4,
-      dealValue: 680,
-      revenue: 3.2,
-      owner: "John Smith",
-      health: 78,
-      lastActivity: "Contract signed",
-      website: "innovationlabs.com",
-      employees: "100-500",
-      location: "Boston, MA",
-    },
-    {
-      id: 5,
-      name: "Digital Marketing Pro",
-      industry: "Marketing",
-      type: "Customer",
-      contacts: 6,
-      deals: 2,
-      dealValue: 150,
-      revenue: 1.5,
-      owner: "Emily Davis",
-      health: 88,
-      lastActivity: "Call completed",
-      website: "digitalmarketingpro.com",
-      employees: "100-500",
-      location: "Los Angeles, CA",
-    },
-  ]);
+  // Handle status updates
+  const handleStatusUpdate = async (accountId, newStatus) => {
+    if (!accountId) {
+      console.error("No account ID provided");
+      return;
+    }
 
-  const topAccounts = accountsData
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 3);
+    const loadingKey = `${accountId}-${newStatus.toLowerCase()}`;
 
-  // Filter and search logic
-  const getFilteredAccounts = () => {
-    let filtered = accountsData;
+    // Set loading state
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
 
-    // Apply search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (account) =>
-          account.name.toLowerCase().includes(query) ||
-          account.industry.toLowerCase().includes(query) ||
-          account.owner.toLowerCase().includes(query) ||
-          account.type.toLowerCase().includes(query)
+    try {
+      console.log(`Updating account ${accountId} status to ${newStatus}`);
+
+      // Update the status via API
+      const response = await clientAccountService.updateStatus(
+        accountId,
+        newStatus
       );
-    }
+      console.log("Status update response:", response);
 
-    // Apply filters
-    if (filters.type) {
-      filtered = filtered.filter((account) => account.type === filters.type);
-    }
-    if (filters.industry) {
-      filtered = filtered.filter(
-        (account) => account.industry === filters.industry
+      // Update local state
+      setClientAccounts((prevAccounts) =>
+        prevAccounts.map((account) =>
+          account?.id === accountId
+            ? { ...account, status: newStatus }
+            : account
+        )
       );
-    }
-    if (filters.owner) {
-      filtered = filtered.filter((account) => account.owner === filters.owner);
-    }
-    if (filters.minRevenue) {
-      filtered = filtered.filter(
-        (account) => account.revenue >= parseFloat(filters.minRevenue)
-      );
-    }
-    if (filters.maxRevenue) {
-      filtered = filtered.filter(
-        (account) => account.revenue <= parseFloat(filters.maxRevenue)
-      );
-    }
-    if (filters.healthScore) {
-      const [min, max] = filters.healthScore.split("-").map(Number);
-      filtered = filtered.filter(
-        (account) => account.health >= min && account.health <= max
-      );
-    }
 
-    // Apply tab filter
-    if (activeTab !== "all") {
-      if (activeTab === "customers")
-        filtered = filtered.filter((a) => a.type === "Customer");
-      if (activeTab === "prospects")
-        filtered = filtered.filter((a) => a.type === "Prospect");
-      if (activeTab === "partners")
-        filtered = filtered.filter((a) => a.type === "Partner");
-    }
+      // Refresh stats
+      await fetchStats();
 
-    return filtered;
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
+      console.log(`Successfully updated account ${accountId} to ${newStatus}`);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      console.error("Error details:", error.message);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error.message || "Failed to update status. Please try again.";
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      // Clear loading state
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
+    }
   };
 
-  const filteredAccounts = getFilteredAccounts();
-
-  const handleApplyFilters = (newFilters) => {
-    setFilters(newFilters);
+  // Handle view account
+  const handleViewAccount = (id) => {
+    router.push(`/sales/accounts/${id}`);
   };
 
-  const handleAddAccount = (newAccount) => {
-    setAccountsData((prev) => [newAccount, ...prev]);
+  // Handle edit account
+  const handleEditAccount = (id) => {
+    router.push(`/sales/accounts/${id}/edit`);
   };
 
-  const handleImportAccounts = (importedAccounts) => {
-    setAccountsData((prev) => [...importedAccounts, ...prev]);
+  // Handle delete account
+  const handleDeleteAccount = async () => {
+    if (!accountToDelete) return;
+
+    const loadingKey = `${accountToDelete.id}-delete`;
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      console.log(`Deleting account ${accountToDelete.id}`);
+      
+      // Delete the account via API (this will cascade delete linked data)
+      await clientAccountService.delete(accountToDelete.id);
+
+      // Remove from local state
+      setClientAccounts((prev) => 
+        prev.filter((account) => account.id !== accountToDelete.id)
+      );
+
+      // Update stats
+      await fetchStats();
+
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setAccountToDelete(null);
+
+      console.log("Account deleted successfully");
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      alert("Failed to delete account. Please try again.");
+    } finally {
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
+    }
   };
 
-  const handleSaveScoringRules = (rules) => {
-    console.log("Saving scoring rules:", rules);
-    // Here you would typically save to backend
+  // Handle export
+  const handleExport = (format) => {
+    console.log(`Exporting client accounts as ${format}`);
+    setShowExportDropdown(false);
   };
 
-  const tabItems = [
-    { key: "all", label: "All Accounts", badge: accountsData.length },
-    {
-      key: "customers",
-      label: "Customers",
-      badge: accountsData.filter((a) => a.type === "Customer").length,
-    },
-    {
-      key: "prospects",
-      label: "Prospects",
-      badge: accountsData.filter((a) => a.type === "Prospect").length,
-    },
-    {
-      key: "partners",
-      label: "Partners",
-      badge: accountsData.filter((a) => a.type === "Partner").length,
-    },
-  ];
+  // Handle import
+  const handleImport = () => {
+    setIsImportModalOpen(true);
+  };
 
-  return (
-    <div className="space-y-4">
-      {/* Page Header - Dashboard Style */}
-      <Card glass={true}>
-        <div className="flex items-center justify-between">
-          <div>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-brand-text-light mb-2">
-              <span>Dashboard</span>
-              <ChevronRight className="w-4 h-4" />
-              <span>Sales</span>
-              <ChevronRight className="w-4 h-4" />
-              <span className="text-brand-foreground font-medium">
-                Accounts
-              </span>
-            </div>
+  // Handle filter
+  const handleFilter = () => {
+    setIsFilterModalOpen(true);
+  };
 
-            {/* Title and Subtitle */}
-            <h1 className="text-5xl font-light text-brand-foreground mb-1 tracking-tight">
-              Accounts
-            </h1>
-            <p className="text-brand-text-light">
-              Manage your company accounts and relationships
-            </p>
-          </div>
+  // Handle add account
+  const handleAddAccount = () => {
+    router.push("/sales/accounts/new");
+  };
 
-          {/* Right side enhanced UI */}
-          <div className="flex items-center gap-4">
-            {/* Search Bar */}
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-brand-text-light" />
-              <input
-                type="text"
-                placeholder="Search accounts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-64 pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/15 transition-all duration-300 placeholder:text-brand-text-light shadow-lg"
-              />
-            </div>
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target)
+      ) {
+        setShowExportDropdown(false);
+      }
+    };
 
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2">
-              {/* Add New */}
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-brand-primary rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
-              >
-                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-              </button>
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-              {/* Filter */}
-              <button
-                onClick={() => setIsFilterModalOpen(true)}
-                className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
-              >
-                <Filter className="w-5 h-5 text-brand-text-light" />
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="w-px h-8 bg-brand-border"></div>
-
-            {/* User Profile */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <button
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
-                  onMouseEnter={() => setShowProfileDropdown(true)}
-                  onMouseLeave={() => setShowProfileDropdown(false)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
-                      <User className="w-5 h-5 text-brand-primary" />
-                    </div>
-                    <div className="text-left hidden lg:block">
-                      <p className="text-sm font-semibold text-brand-foreground">
-                        Alex Johnson
-                      </p>
-                      <p className="text-xs text-brand-text-light">
-                        Sales Manager
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-brand-text-light transition-transform ${
-                      showProfileDropdown ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {/* Profile Dropdown */}
-                {showProfileDropdown && (
-                  <>
-                    {/* Backdrop to close dropdown when clicking outside */}
-                    <div
-                      className="fixed inset-0 z-[99998]"
-                      onClick={() => setShowProfileDropdown(false)}
-                    />
-                    <div
-                      className="fixed right-6 top-20 w-56 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
-                      onMouseEnter={() => setShowProfileDropdown(true)}
-                      onMouseLeave={() => setShowProfileDropdown(false)}
-                    >
-                      <div className="p-4 border-b border-white/20">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center shadow-lg">
-                            <User className="w-6 h-6 text-brand-primary" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-brand-foreground">
-                              Alex Johnson
-                            </p>
-                            <p className="text-sm text-brand-text-light">
-                              alex.johnson@company.com
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-2">
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
-                          <User className="w-4 h-4 text-brand-text-light" />
-                          <span className="text-sm text-brand-foreground">
-                            View Profile
-                          </span>
-                        </button>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
-                          <Settings className="w-4 h-4 text-brand-text-light" />
-                          <span className="text-sm text-brand-foreground">
-                            Settings
-                          </span>
-                        </button>
-                        <div className="h-px bg-brand-border my-2 mx-3"></div>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600">
-                          <Bell className="w-4 h-4" />
-                          <span className="text-sm">Sign Out</span>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
+        <div className="p-4 space-y-6">
+          <PageHeader
+            title="Client Accounts"
+            subtitle="Loading client accounts..."
+            breadcrumb={[
+              { label: "Dashboard", href: "/" },
+              { label: "Sales", href: "/sales" },
+              { label: "Client Accounts", href: "/sales/accounts" },
+            ]}
+            showProfile={true}
+            showSearch={false}
+            showActions={false}
+          />
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
           </div>
         </div>
-      </Card>
+      </div>
+    );
+  }
 
-      <div className="px-3">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <StatCard
-            title="Total Accounts"
-            value={accountsData.length}
-            change="+12"
-            changeType="increase"
-            icon={Building2}
-            iconBg="bg-blue-100"
-            iconColor="text-blue-600"
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
+        <div className="p-4 space-y-6">
+          <PageHeader
+            title="Client Accounts"
+            subtitle="Error loading client accounts"
+            breadcrumb={[
+              { label: "Dashboard", href: "/" },
+              { label: "Sales", href: "/sales" },
+              { label: "Client Accounts", href: "/sales/accounts" },
+            ]}
+            showProfile={true}
+            showSearch={false}
+            showActions={false}
           />
-          <StatCard
-            title="Active Customers"
-            value={accountsData.filter((a) => a.type === "Customer").length}
-            change="+5"
-            changeType="increase"
-            icon={Users}
-            iconBg="bg-green-100"
-            iconColor="text-green-600"
-          />
-          <StatCard
-            title="Total Revenue"
-            value={`$${accountsData
-              .reduce((sum, a) => sum + a.revenue, 0)
-              .toFixed(1)}M`}
-            change="+18%"
-            changeType="increase"
-            icon={DollarSign}
-            iconBg="bg-purple-100"
-            iconColor="text-purple-600"
-          />
-          <StatCard
-            title="Avg Health Score"
-            value={`${Math.round(
-              accountsData.reduce((sum, a) => sum + a.health, 0) /
-                accountsData.length
-            )}%`}
-            change="+3%"
-            changeType="increase"
-            icon={TrendingUp}
-            iconBg="bg-yellow-100"
-            iconColor="text-yellow-600"
-          />
-        </div>
-
-        {/* Top Accounts */}
-        <Card title="Top Accounts by Revenue" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {topAccounts.map((account, index) => (
-              <div
-                key={account.id}
-                className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg"
+          <Card className="rounded-2xl bg-red-50 border border-red-200 p-6">
+            <div className="text-center">
+              <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-red-900 mb-2">
+                Error Loading Data
+              </h3>
+              <p className="text-red-700 mb-4">{error}</p>
+              <Button
+                onClick={fetchClientAccounts}
+                className="bg-red-600 hover:bg-red-700 text-white"
               >
-                <div className="flex items-center justify-center w-8 h-8 bg-yellow-100 text-yellow-700 rounded-full font-semibold text-sm">
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{account.name}</h4>
-                  <p className="text-sm text-gray-500">{account.industry}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-lg font-semibold text-gray-900">
-                      ${account.revenue}M
-                    </span>
-                    <Badge variant="success" size="sm">
-                      {account.health}%
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Tabs and Table */}
-        <div className="mb-4">
-          <Tabs
-            tabs={tabItems}
-            defaultTab="all"
-            variant="line"
-            onChange={setActiveTab}
-          />
-        </div>
-
-        <Card>
-          <div className="overflow-x-auto">
-            <Table
-              columns={accountColumns}
-              data={filteredAccounts}
-              onRowClick={(row) => router.push(`/sales/accounts/${row.id}`)}
-              className="min-w-full"
-            />
-          </div>
-        </Card>
-
-        {/* Quick Actions */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card
-            className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setIsImportModalOpen(true)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Globe className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Import Accounts
-                </p>
-                <p className="text-xs text-gray-500">Bulk import from CSV</p>
-              </div>
-            </div>
-          </Card>
-          <Card
-            className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setIsScoringModalOpen(true)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Star className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Account Scoring
-                </p>
-                <p className="text-xs text-gray-500">Set scoring rules</p>
-              </div>
-            </div>
-          </Card>
-          <Card
-            className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setIsTimelineModalOpen(true)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Activity className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Activity Timeline
-                </p>
-                <p className="text-xs text-gray-500">View all activities</p>
-              </div>
-            </div>
-          </Card>
-          <Card
-            className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setIsEmailModalOpen(true)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Mail className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  Email Campaigns
-                </p>
-                <p className="text-xs text-gray-500">Send to accounts</p>
-              </div>
+                Try Again
+              </Button>
             </div>
           </Card>
         </div>
       </div>
+    );
+  }
 
-      {/* Modals */}
-      <AccountFilterModal
-        isOpen={isFilterModalOpen}
-        onClose={() => setIsFilterModalOpen(false)}
-        onApplyFilters={handleApplyFilters}
-        filters={filters}
-        setFilters={setFilters}
-      />
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
+      <div className="p-4 space-y-6">
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Account updated successfully!
+          </div>
+        )}
 
-      <AddAccountModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddAccount={handleAddAccount}
-      />
+        {/* Page Header */}
+        <PageHeader
+          title="Client Accounts"
+          subtitle={`Manage your client relationships and account health (${filteredAccounts.length} accounts)`}
+          breadcrumb={[
+            { label: "Dashboard", href: "/" },
+            { label: "Sales", href: "/sales" },
+            { label: "Client Accounts", href: "/sales/accounts" },
+          ]}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showProfile={true}
+          showSearch={true}
+          searchPlaceholder="Search client accounts..."
+          showActions={true}
+          onAddClick={handleAddAccount}
+          addButtonText="Add Client Account"
+          onFilterClick={handleFilter}
+          onImportClick={handleImport}
+        />
 
-      <ImportAccountsModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onImportAccounts={handleImportAccounts}
-      />
+        <div className="space-y-4">
+          {/* Stats Overview */}
+          <ClientAccountsKPIs statusStats={statusStats} />
 
-      <AccountScoringModal
-        isOpen={isScoringModalOpen}
-        onClose={() => setIsScoringModalOpen(false)}
-        onSaveRules={handleSaveScoringRules}
-      />
+          {/* View Toggle */}
+          <ClientAccountsTabs
+            tabItems={tabsConfig}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            activeView={activeView}
+            setActiveView={setActiveView}
+            onFilterClick={handleFilter}
+            onAddClick={handleAddAccount}
+            onExportClick={handleExport}
+            showExportDropdown={showExportDropdown}
+            setShowExportDropdown={setShowExportDropdown}
+            exportDropdownRef={exportDropdownRef}
+          />
 
-      <ActivityTimelineModal
-        isOpen={isTimelineModalOpen}
-        onClose={() => setIsTimelineModalOpen(false)}
-        selectedAccounts={filteredAccounts}
-      />
+          {/* Single Horizontal Scroll Container */}
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {/* Client Accounts Table */}
+            {activeView === "list" && (
+              <ClientAccountsListView
+                filteredAccounts={filteredAccounts}
+                accountColumnsTable={accountColumnsTable}
+                selectedAccounts={selectedAccounts}
+                setSelectedAccounts={setSelectedAccounts}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                onAddClick={handleAddAccount}
+                onRowClick={(row) => {
+                  router.push(`/sales/accounts/${row.id}`);
+                }}
+              />
+            )}
+          </div>
+        </div>
 
-      <EmailCampaignsModal
-        isOpen={isEmailModalOpen}
-        onClose={() => setIsEmailModalOpen(false)}
-        selectedAccounts={filteredAccounts}
-      />
+        {/* Modals */}
+        {isFilterModalOpen && (
+          <ClientAccountsFilterModal
+            isOpen={isFilterModalOpen}
+            onClose={() => setIsFilterModalOpen(false)}
+            appliedFilters={appliedFilters}
+            onApplyFilters={setAppliedFilters}
+          />
+        )}
+
+        {isImportModalOpen && (
+          <ClientAccountsImportModal
+            isOpen={isImportModalOpen}
+            onClose={() => setIsImportModalOpen(false)}
+            onImportComplete={fetchClientAccounts}
+          />
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && accountToDelete && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Delete Client Account
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    This action cannot be undone
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700 mb-3">
+                  Are you sure you want to delete <strong>{accountToDelete.companyName}</strong>?
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-700 font-medium mb-2">
+                    ⚠️ This will permanently delete:
+                  </p>
+                  <ul className="text-sm text-red-600 space-y-1">
+                    <li>• Account information and details</li>
+                    <li>• All associated contacts</li>
+                    <li>• All invoices and billing history</li>
+                    <li>• Activity history and notes</li>
+                    <li>• All related projects and tasks</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setAccountToDelete(null);
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteAccount}
+                  disabled={loadingActions[`${accountToDelete.id}-delete`]}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg"
+                >
+                  {loadingActions[`${accountToDelete.id}-delete`] ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </div>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Account
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

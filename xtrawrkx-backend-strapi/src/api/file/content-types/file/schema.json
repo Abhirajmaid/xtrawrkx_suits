@@ -74,12 +74,6 @@
             "target": "api::project.project",
             "inversedBy": "files"
         },
-        "task": {
-            "type": "relation",
-            "relation": "manyToOne",
-            "target": "api::task.task",
-            "inversedBy": "files"
-        },
         "invoice": {
             "type": "relation",
             "relation": "manyToOne",
@@ -88,6 +82,3 @@
         }
     }
 }
-
-
-

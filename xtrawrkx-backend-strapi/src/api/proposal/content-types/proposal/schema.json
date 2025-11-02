@@ -18,10 +18,10 @@
             "target": "api::deal.deal",
             "inversedBy": "proposals"
         },
-        "account": {
+        "clientAccount": {
             "type": "relation",
             "relation": "manyToOne",
-            "target": "api::account.account",
+            "target": "api::client-account.client-account",
             "inversedBy": "proposals"
         },
         "contact": {

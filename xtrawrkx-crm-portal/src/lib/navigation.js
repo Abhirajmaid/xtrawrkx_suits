@@ -16,6 +16,7 @@ import {
     Calendar,
     Target,
     DollarSign,
+    IndianRupee,
     Phone,
     FileCheck,
     ShoppingCart,
@@ -39,7 +40,7 @@ export const navigation = [
     {
         id: 'sales',
         label: 'Sales',
-        icon: DollarSign,
+        icon: IndianRupee,
         children: [
             {
                 id: 'leads',
@@ -62,16 +63,6 @@ export const navigation = [
                     { id: 'pipeline-board', label: 'Pipeline Board', href: '/sales/deals/pipeline' },
                     { id: 'deals-list', label: 'Deals List', href: '/sales/deals' },
                     { id: 'deal-detail', label: 'Deal Detail (Activity, Notes, Files)', href: '/sales/deals/[id]' }
-                ]
-            },
-            {
-                id: 'accounts',
-                label: 'Accounts (Companies)',
-                icon: Building2,
-                href: '/sales/accounts',
-                children: [
-                    { id: 'accounts-list', label: 'Accounts List', href: '/sales/accounts' },
-                    { id: 'account-detail', label: 'Account Detail (Overview • People • Activity • Docs)', href: '/sales/accounts/[id]' }
                 ]
             },
             {
@@ -159,6 +150,23 @@ export const navigation = [
                     { id: 'my-tasks', label: 'My Tasks', href: '/sales/tasks' },
                     { id: 'team-boards', label: 'Team Boards', href: '/sales/tasks/boards' },
                     { id: 'automation-rules', label: 'Priority / Automation Rules', href: '/sales/tasks/automation' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'client-portal',
+        label: 'Client Portal',
+        icon: Building2,
+        children: [
+            {
+                id: 'accounts',
+                label: 'Client Accounts',
+                icon: Building2,
+                href: '/clients/accounts',
+                children: [
+                    { id: 'accounts-list', label: 'Accounts List', href: '/clients/accounts' },
+                    { id: 'account-detail', label: 'Account Detail (Overview • People • Activity • Docs)', href: '/clients/accounts/[id]' }
                 ]
             }
         ]

@@ -1,686 +1,1297 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Card,
-  Badge,
-  Avatar,
-  StatCard,
-  AreaChart,
-  EmptyState,
-} from "../../../components/ui";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import PageHeader from "../../../components/PageHeader";
+import dealService from "../../../lib/api/dealService";
+import strapiClient from "../../../lib/strapiClient";
+import { useAuth } from "../../../contexts/AuthContext";
+import authService from "../../../lib/authService";
+import { Select } from "../../../components/ui";
+import DealsKPIs from "./components/DealsKPIs";
+import DealsTabs from "./components/DealsTabs";
+import DealsListView from "./components/DealsListView";
+import DealsFilterModal from "./components/DealsFilterModal";
+import DealsImportModal from "./components/DealsImportModal";
+import { Avatar, Badge, Button } from "../../../components/ui";
+import { formatCurrency } from "../../../lib/utils/format";
+import KanbanBoard from "../../../components/kanban/KanbanBoard";
 import {
   Plus,
   Search,
   Filter,
-  DollarSign,
-  TrendingUp,
-  Clock,
-  Target,
+  Download,
+  Upload,
   MoreVertical,
-  Calendar,
-  User,
+  TrendingUp,
+  CheckCircle,
+  UserPlus,
+  Star,
+  XCircle,
+  Target,
+  IndianRupee,
+  Clock,
+  Eye,
+  Edit,
+  Trash2,
+  Mail,
   Building2,
-  ChevronRight,
-  ChevronDown,
-  Bell,
-  Settings,
+  User,
+  Calendar,
+  List,
+  Columns,
 } from "lucide-react";
-// import { useDragDropBoard } from "../../../lib/dragdrop/useDragDropBoard"; // Removed - using react-beautiful-dnd now
-import { DealFilterModal, AddDealModal } from "../../../components/deals";
 
 export default function DealsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [filters, setFilters] = useState({
-    stage: "",
-    priority: "",
-    assignee: "",
-    company: "",
-    minValue: "",
-    maxValue: "",
-    probability: "",
-    daysInStage: "",
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+
+  // State management
+  const [deals, setDeals] = useState([]);
+  const [filteredDeals, setFilteredDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    totalValue: 0,
+    won: 0,
+    averageValue: 0,
   });
 
-  // Initial pipeline stages data
-  const initialPipelineStages = [
-    {
-      id: "discovery",
-      name: "Discovery",
-      value: 450000,
-      count: 12,
-      color: "bg-blue-500",
-      deals: [
-        {
-          id: 1,
-          title: "Enterprise Software License",
-          company: "Tech Corp",
-          value: 125000,
-          probability: 20,
-          assignee: "John Smith",
-          daysInStage: 3,
-          nextAction: "Schedule demo",
-          priority: "high",
-        },
-        {
-          id: 2,
-          title: "Cloud Migration Project",
-          company: "Global Industries",
-          value: 85000,
-          probability: 30,
-          assignee: "Emily Davis",
-          daysInStage: 5,
-          nextAction: "Send proposal",
-          priority: "medium",
-        },
-        {
-          id: 3,
-          title: "Annual Maintenance Contract",
-          company: "StartUp Hub",
-          value: 45000,
-          probability: 25,
-          assignee: "Sarah Wilson",
-          daysInStage: 2,
-          nextAction: "Follow up call",
-          priority: "low",
-        },
-      ],
-    },
-    {
-      id: "proposal",
-      name: "Proposal",
-      value: 680000,
-      count: 8,
-      color: "bg-yellow-500",
-      deals: [
-        {
-          id: 4,
-          title: "Marketing Automation Platform",
-          company: "Marketing Pro",
-          value: 95000,
-          probability: 50,
-          assignee: "John Smith",
-          daysInStage: 7,
-          nextAction: "Review proposal",
-          priority: "high",
-        },
-        {
-          id: 5,
-          title: "Data Analytics Solution",
-          company: "Data Insights Inc",
-          value: 150000,
-          probability: 60,
-          assignee: "Emily Davis",
-          daysInStage: 4,
-          nextAction: "Contract negotiation",
-          priority: "high",
-        },
-      ],
-    },
-    {
-      id: "negotiation",
-      name: "Negotiation",
-      value: 320000,
-      count: 5,
-      color: "bg-purple-500",
-      deals: [
-        {
-          id: 6,
-          title: "CRM Implementation",
-          company: "Sales Force Plus",
-          value: 200000,
-          probability: 75,
-          assignee: "John Smith",
-          daysInStage: 10,
-          nextAction: "Final pricing",
-          priority: "high",
-        },
-        {
-          id: 7,
-          title: "Security Audit Services",
-          company: "SecureNet",
-          value: 120000,
-          probability: 80,
-          assignee: "Sarah Wilson",
-          daysInStage: 3,
-          nextAction: "Legal review",
-          priority: "medium",
-        },
-      ],
-    },
-    {
-      id: "closed-won",
-      name: "Closed Won",
-      value: 540000,
-      count: 15,
-      color: "bg-green-500",
-      deals: [
-        {
-          id: 8,
-          title: "ERP System Upgrade",
-          company: "Manufacturing Co",
-          value: 180000,
-          probability: 100,
-          assignee: "Emily Davis",
-          daysInStage: 0,
-          closedDate: "2024-11-28",
-          priority: "completed",
-        },
-        {
-          id: 9,
-          title: "Consulting Services",
-          company: "Business Solutions",
-          value: 75000,
-          probability: 100,
-          assignee: "John Smith",
-          daysInStage: 0,
-          closedDate: "2024-11-27",
-          priority: "completed",
-        },
-      ],
-    },
-    {
-      id: "closed-lost",
-      name: "Closed Lost",
-      value: 120000,
-      count: 4,
-      color: "bg-red-500",
-      deals: [
-        {
-          id: 10,
-          title: "Website Redesign",
-          company: "Digital Agency",
-          value: 35000,
-          probability: 0,
-          assignee: "Sarah Wilson",
-          daysInStage: 0,
-          lostReason: "Budget constraints",
-          priority: "lost",
-        },
-      ],
-    },
-  ];
+  // UI State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [selectedDeals, setSelectedDeals] = useState([]);
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [viewMode, setViewMode] = useState(() => {
+    // Check URL parameter for initial view mode
+    const viewParam = searchParams?.get('view');
+    return viewParam === 'kanban' ? 'kanban' : 'list';
+  }); // "list" or "kanban"
+  const [dealStats, setDealStats] = useState({
+    all: 0,
+    new: 0,
+    qualified: 0,
+    negotiation: 0,
+    won: 0,
+    lost: 0,
+  });
 
-  // Drag-drop functionality
-  const handleDealDrop = (deal, sourceColumnId, targetColumnId, targetIndex) => {
-    console.log('Deal moved:', deal.title, 'from', sourceColumnId, 'to', targetColumnId);
-    // Here you would typically make an API call to update the deal status
-    // For now, we'll just log it
+  // Modal states
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [dealToAssign, setDealToAssign] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
+
+  const isAdmin = () => {
+    if (!user) return false;
+    return (
+      authService.isAdmin() ||
+      user.primaryRole?.name === "Super Admin" ||
+      user.primaryRole?.name === "Admin" ||
+      user.userRoles?.some((role) =>
+        ["Super Admin", "Admin"].includes(role.name)
+      )
+    );
   };
 
-  // Use the initial pipeline stages directly since we're now using react-beautiful-dnd
-  const [pipelineStages, setPipelineStages] = useState(initialPipelineStages);
+  // Fetch deals data when component mounts or when filters/tab changes
+  useEffect(() => {
+    fetchDeals();
+  }, [activeTab, appliedFilters]);
 
-  // Filter and search logic
-  const getFilteredDeals = () => {
-    let allDeals = [];
-    
-    // Collect all deals from all stages
-    pipelineStages.forEach(stage => {
-      stage.deals.forEach(deal => {
-        allDeals.push({ ...deal, stage: stage.id });
+  // Filter deals when search term changes (client-side filtering)
+  useEffect(() => {
+    filterDeals();
+  }, [deals, searchQuery]);
+
+  // fetch users if admin
+  useEffect(() => {
+    if (isAdmin()) {
+      fetchUsers();
+    }
+  }, [user]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+
+      while (hasMore) {
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          populate: "primaryRole,userRoles",
+        };
+        const response = await strapiClient.getXtrawrkxUsers(queryParams);
+        const usersData = response?.data || [];
+        if (Array.isArray(usersData)) {
+          const extracted = usersData.map((u) =>
+            u.attributes
+              ? {
+                  id: u.id,
+                  documentId: u.id,
+                  ...u.attributes,
+                }
+              : u
+          );
+          allUsers = [...allUsers, ...extracted];
+          const pageCount = response?.meta?.pagination?.pageCount || 1;
+          hasMore = page < pageCount && usersData.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      setUsers(allUsers);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchDeals = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Build query parameters
+      const params = {
+        populate: ["leadCompany", "clientAccount", "contact", "assignedTo"],
+        sort: ["createdAt:desc"],
+      };
+
+      // Add stage filter if active tab is not "all"
+      if (activeTab !== "all") {
+        // Map tab keys to Strapi stage values
+        const stageMap = {
+          new: "DISCOVERY",
+          qualified: "PROPOSAL",
+          negotiation: "NEGOTIATION",
+          won: "CLOSED_WON",
+          lost: "CLOSED_LOST",
+        };
+
+        const mappedStage =
+          stageMap[activeTab.toLowerCase()] || activeTab.toUpperCase();
+        params.filters = {
+          stage: {
+            $eq: mappedStage,
+          },
+        };
+      }
+
+      // Add applied filters
+      if (Object.keys(appliedFilters).length > 0) {
+        params.filters = {
+          ...params.filters,
+          ...appliedFilters,
+        };
+      }
+
+      console.log("Fetching deals with params:", params);
+      const response = await dealService.getAll(params);
+      console.log("Deals response:", response);
+
+      const dealsData = response?.data || [];
+
+      // Transform Strapi data to match component format
+      const transformedDeals = dealsData.map((deal) => {
+        // Map Strapi stages to UI-friendly values
+        const stageMap = {
+          DISCOVERY: "discovery",
+          PROPOSAL: "proposal",
+          NEGOTIATION: "negotiation",
+          CLOSED_WON: "won",
+          CLOSED_LOST: "lost",
+        };
+
+        // Map Strapi priority to lowercase
+        const priorityMap = {
+          LOW: "low",
+          MEDIUM: "medium",
+          HIGH: "high",
+        };
+
+        const dealData = deal.attributes || deal;
+
+        return {
+          id: deal.id || deal.documentId,
+          name: dealData.name || dealData.title || "",
+          company:
+            dealData.leadCompany?.companyName ||
+            dealData.leadCompany?.attributes?.companyName ||
+            dealData.clientAccount?.companyName ||
+            dealData.clientAccount?.attributes?.companyName ||
+            "",
+          value: parseFloat(dealData.value) || 0,
+          stage:
+            stageMap[dealData.stage] ||
+            dealData.stage?.toLowerCase() ||
+            "discovery",
+          priority:
+            priorityMap[dealData.priority] ||
+            dealData.priority?.toLowerCase() ||
+            "medium",
+          probability: dealData.probability || 0,
+          closeDate: dealData.closeDate || null,
+          owner: dealData.assignedTo
+            ? `${dealData.assignedTo.firstName || ""} ${
+                dealData.assignedTo.lastName || ""
+              }`.trim()
+            : "Unassigned",
+          description: dealData.description || "",
+          avatar: null,
+          leadCompany: dealData.leadCompany || deal.leadCompany,
+          clientAccount: dealData.clientAccount || deal.clientAccount,
+          contact: dealData.contact || deal.contact,
+          assignedTo: dealData.assignedTo || deal.assignedTo,
+          createdAt: dealData.createdAt || deal.createdAt,
+          updatedAt: dealData.updatedAt || deal.updatedAt,
+        };
       });
-    });
 
-    // Apply search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      allDeals = allDeals.filter(deal =>
-        deal.title.toLowerCase().includes(query) ||
-        deal.company.toLowerCase().includes(query) ||
-        deal.assignee.toLowerCase().includes(query) ||
-        deal.nextAction.toLowerCase().includes(query)
+      setDeals(transformedDeals);
+
+      // Calculate stats
+      const totalValue = transformedDeals.reduce(
+        (sum, deal) => sum + deal.value,
+        0
+      );
+      const wonDeals = transformedDeals.filter(
+        (deal) => deal.stage === "closed_won" || deal.stage === "won"
+      );
+      const wonValue = wonDeals.reduce((sum, deal) => sum + deal.value, 0);
+
+      setStats({
+        total: transformedDeals.length,
+        totalValue: totalValue,
+        won: wonDeals.length,
+        averageValue:
+          transformedDeals.length > 0
+            ? totalValue / transformedDeals.length
+            : 0,
+      });
+
+      // Calculate deal stats by stage
+      const newDeals = transformedDeals.filter(
+        (deal) => deal.stage === "discovery" || deal.stage === "new"
+      );
+      const qualifiedDeals = transformedDeals.filter(
+        (deal) => deal.stage === "proposal" || deal.stage === "qualified"
+      );
+      const negotiationDeals = transformedDeals.filter(
+        (deal) => deal.stage === "negotiation"
+      );
+      const lostDeals = transformedDeals.filter(
+        (deal) => deal.stage === "closed_lost" || deal.stage === "lost"
+      );
+
+      setDealStats({
+        all: transformedDeals.length,
+        new: newDeals.length,
+        qualified: qualifiedDeals.length,
+        negotiation: negotiationDeals.length,
+        won: wonDeals.length,
+        lost: lostDeals.length,
+      });
+    } catch (err) {
+      console.error("Error fetching deals:", err);
+      setError("Failed to load deals");
+      setDeals([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterDeals = () => {
+    let filtered = [...deals];
+
+    // Filter by search term (client-side for instant results)
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (deal) =>
+          deal.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          deal.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          deal.owner?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          deal.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Apply filters
-    if (filters.stage) {
-      allDeals = allDeals.filter(deal => deal.stage === filters.stage);
-    }
-    if (filters.priority) {
-      allDeals = allDeals.filter(deal => deal.priority === filters.priority);
-    }
-    if (filters.assignee) {
-      allDeals = allDeals.filter(deal => deal.assignee === filters.assignee);
-    }
-    if (filters.company) {
-      allDeals = allDeals.filter(deal => 
-        deal.company.toLowerCase().includes(filters.company.toLowerCase())
+    // Additional client-side filters for appliedFilters not handled server-side
+    if (appliedFilters.priority) {
+      filtered = filtered.filter(
+        (deal) =>
+          deal.priority?.toLowerCase() === appliedFilters.priority.toLowerCase()
       );
     }
-    if (filters.minValue) {
-      allDeals = allDeals.filter(deal => deal.value >= parseFloat(filters.minValue));
+    if (appliedFilters.owner) {
+      filtered = filtered.filter((deal) =>
+        deal.owner?.toLowerCase().includes(appliedFilters.owner.toLowerCase())
+      );
     }
-    if (filters.maxValue) {
-      allDeals = allDeals.filter(deal => deal.value <= parseFloat(filters.maxValue));
+    if (appliedFilters.company) {
+      filtered = filtered.filter((deal) =>
+        deal.company
+          ?.toLowerCase()
+          .includes(appliedFilters.company.toLowerCase())
+      );
     }
-    if (filters.probability) {
-      const [min, max] = filters.probability.split('-').map(Number);
-      allDeals = allDeals.filter(deal => deal.probability >= min && deal.probability <= max);
+    if (appliedFilters.valueMin) {
+      filtered = filtered.filter(
+        (deal) => deal.value >= parseFloat(appliedFilters.valueMin)
+      );
     }
-    if (filters.daysInStage) {
-      if (filters.daysInStage === "91+") {
-        allDeals = allDeals.filter(deal => deal.daysInStage >= 91);
-      } else {
-        const [min, max] = filters.daysInStage.split('-').map(Number);
-        allDeals = allDeals.filter(deal => deal.daysInStage >= min && deal.daysInStage <= max);
-      }
+    if (appliedFilters.valueMax) {
+      filtered = filtered.filter(
+        (deal) => deal.value <= parseFloat(appliedFilters.valueMax)
+      );
+    }
+    if (appliedFilters.probabilityMin) {
+      filtered = filtered.filter(
+        (deal) => deal.probability >= parseInt(appliedFilters.probabilityMin)
+      );
+    }
+    if (appliedFilters.probabilityMax) {
+      filtered = filtered.filter(
+        (deal) => deal.probability <= parseInt(appliedFilters.probabilityMax)
+      );
     }
 
-    return allDeals;
+    setFilteredDeals(filtered);
   };
 
-  const handleApplyFilters = (newFilters) => {
-    setFilters(newFilters);
+  const handleAddDeal = () => {
+    router.push("/sales/deals/new");
   };
 
-  const handleAddDeal = (newDeal) => {
-    // Add the new deal to the appropriate stage
-    setPipelineStages(prev => {
-      const updated = [...prev];
-      const targetStage = updated.find(stage => stage.id === newDeal.stage);
-      if (targetStage) {
-        const deals = targetStage.deals || targetStage.items || [];
-        const itemsKey = targetStage.deals ? 'deals' : 'items';
-        targetStage[itemsKey] = [newDeal, ...deals];
-      }
-      return updated;
-    });
-  };
+  // Kanban drag and drop handler
+  const handleDragEnd = async (result) => {
+    const { destination, source, draggableId } = result;
 
-  const chartData = [
-    { name: "Jan", value: 320000 },
-    { name: "Feb", value: 450000 },
-    { name: "Mar", value: 380000 },
-    { name: "Apr", value: 520000 },
-    { name: "May", value: 680000 },
-    { name: "Jun", value: 750000 },
-    { name: "Jul", value: 620000 },
-    { name: "Aug", value: 890000 },
-    { name: "Sep", value: 920000 },
-    { name: "Oct", value: 1100000 },
-    { name: "Nov", value: 980000 },
-  ];
+    if (!destination) return;
 
-  const getPriorityColor = (priority) => {
-    const colors = {
-      high: "danger",
-      medium: "warning",
-      low: "info",
-      completed: "success",
-      lost: "default",
+    // Find the dragged deal
+    const draggedDeal = filteredDeals.find(deal => deal.id.toString() === draggableId);
+    
+    if (!draggedDeal) return;
+
+    // Map column IDs to deal stages
+    const stageMap = {
+      'discovery': 'DISCOVERY',
+      'proposal': 'PROPOSAL', 
+      'negotiation': 'NEGOTIATION',
+      'closed-won': 'CLOSED_WON',
+      'closed-lost': 'CLOSED_LOST'
     };
-    return colors[priority] || "default";
+
+    const newStage = stageMap[destination.droppableId];
+    
+    if (!newStage || draggedDeal.stage === newStage) return;
+
+    try {
+      // Update deal stage via API
+      await dealService.update(draggedDeal.id, { stage: newStage });
+      
+      // Update local state
+      setDeals(prevDeals => 
+        prevDeals.map(deal => 
+          deal.id === draggedDeal.id 
+            ? { ...deal, stage: newStage }
+            : deal
+        )
+      );
+
+      console.log(`Deal "${draggedDeal.name}" moved to ${newStage}`);
+    } catch (error) {
+      console.error('Error updating deal stage:', error);
+      // You could show a toast notification here
+    }
   };
 
-  const totalPipelineValue = pipelineStages.reduce(
-    (sum, stage) => sum + stage.value,
-    0
-  );
-  const openDealsCount = pipelineStages
-    .slice(0, 3)
-    .reduce((sum, stage) => sum + stage.count, 0);
-  const avgDealSize = Math.round(totalPipelineValue / (openDealsCount || 1));
+  // Group deals by stage for Kanban view
+  const groupDealsByStage = () => {
+    const stages = {
+      discovery: [],
+      proposal: [],
+      negotiation: [],
+      'closed-won': [],
+      'closed-lost': []
+    };
 
-  return (
-    <div className="space-y-4">
-      {/* Page Header - Dashboard Style */}
-      <Card glass={true}>
-        <div className="flex items-center justify-between">
-          <div>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-brand-text-light mb-2">
-              <span>Dashboard</span>
-              <ChevronRight className="w-4 h-4" />
-              <span>Sales</span>
-              <ChevronRight className="w-4 h-4" />
-              <span className="text-brand-foreground font-medium">
-                Deals
-              </span>
-            </div>
+    filteredDeals.forEach(deal => {
+      const stageKey = deal.stage?.toLowerCase().replace('_', '-') || 'discovery';
+      if (stages[stageKey]) {
+        stages[stageKey].push(deal);
+      }
+    });
 
-            {/* Title and Subtitle */}
-            <h1 className="text-5xl font-light text-brand-foreground mb-1 tracking-tight">
-              Deals Pipeline
-            </h1>
-            <p className="text-brand-text-light">
-              Manage your sales opportunities
+    return stages;
+  };
+
+  // Render deal card for Kanban view
+  const renderDealCard = (deal) => {
+    const getPriorityColor = (priority) => {
+      switch (priority?.toLowerCase()) {
+        case 'high':
+          return 'border-l-red-500 bg-red-50';
+        case 'medium':
+          return 'border-l-yellow-500 bg-yellow-50';
+        case 'low':
+          return 'border-l-green-500 bg-green-50';
+        default:
+          return 'border-l-gray-500 bg-gray-50';
+      }
+    };
+
+    const getStatusColor = (stage) => {
+      switch (stage) {
+        case 'CLOSED_WON':
+          return 'text-green-600 bg-green-100';
+        case 'CLOSED_LOST':
+          return 'text-red-600 bg-red-100';
+        case 'NEGOTIATION':
+          return 'text-purple-600 bg-purple-100';
+        case 'PROPOSAL':
+          return 'text-blue-600 bg-blue-100';
+        default:
+          return 'text-gray-600 bg-gray-100';
+      }
+    };
+
+    return (
+      <div
+        className={`p-4 rounded-lg border-l-4 cursor-move hover:shadow-md transition-all duration-200 bg-white border border-gray-200 ${getPriorityColor(deal.priority)}`}
+        onClick={() => handleViewDeal(deal)}
+      >
+        {/* Deal Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-gray-900 truncate mb-1 text-sm">
+              {deal.name || 'Untitled Deal'}
+            </h4>
+            <p className="text-xs text-gray-600 truncate">
+              {deal.leadCompany?.companyName || deal.clientAccount?.companyName || 'No Company'}
             </p>
           </div>
-
-          {/* Right side enhanced UI */}
-          <div className="flex items-center gap-4">
-            {/* Search Bar */}
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-brand-text-light" />
-              <input
-                type="text"
-                placeholder="Search deals..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-64 pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/15 transition-all duration-300 placeholder:text-brand-text-light shadow-lg"
-              />
+          <div className="text-right">
+            <div className="text-sm font-semibold text-gray-900">
+              {formatCurrency(deal.value || 0)}
             </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2">
-              {/* Add New */}
-              <button 
-                onClick={() => setIsAddModalOpen(true)}
-                className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-brand-primary rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
-              >
-                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-              </button>
-
-              {/* Filter */}
-              <button 
-                onClick={() => setIsFilterModalOpen(true)}
-                className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
-              >
-                <Filter className="w-5 h-5 text-brand-text-light" />
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="w-px h-8 bg-brand-border"></div>
-
-            {/* User Profile */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <button 
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
-                  onMouseEnter={() => setShowProfileDropdown(true)}
-                  onMouseLeave={() => setShowProfileDropdown(false)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
-                      <User className="w-5 h-5 text-brand-primary" />
-                    </div>
-                    <div className="text-left hidden lg:block">
-                      <p className="text-sm font-semibold text-brand-foreground">
-                        Alex Johnson
-                      </p>
-                      <p className="text-xs text-brand-text-light">
-                        Sales Manager
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-brand-text-light transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Profile Dropdown */}
-                {showProfileDropdown && (
-                  <>
-                    {/* Backdrop to close dropdown when clicking outside */}
-                    <div 
-                      className="fixed inset-0 z-[99998]"
-                      onClick={() => setShowProfileDropdown(false)}
-                    />
-                    <div 
-                      className="fixed right-6 top-20 w-56 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
-                      onMouseEnter={() => setShowProfileDropdown(true)}
-                      onMouseLeave={() => setShowProfileDropdown(false)}
-                    >
-                      <div className="p-4 border-b border-white/20">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center shadow-lg">
-                            <User className="w-6 h-6 text-brand-primary" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-brand-foreground">
-                              Alex Johnson
-                            </p>
-                            <p className="text-sm text-brand-text-light">
-                              alex.johnson@company.com
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-2">
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
-                          <User className="w-4 h-4 text-brand-text-light" />
-                          <span className="text-sm text-brand-foreground">
-                            View Profile
-                          </span>
-                        </button>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-brand-hover rounded-lg transition-colors">
-                          <Settings className="w-4 h-4 text-brand-text-light" />
-                          <span className="text-sm text-brand-foreground">
-                            Settings
-                          </span>
-                        </button>
-                        <div className="h-px bg-brand-border my-2 mx-3"></div>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600">
-                          <Bell className="w-4 h-4" />
-                          <span className="text-sm">Sign Out</span>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+            <Badge 
+              className={`text-xs mt-1 ${getStatusColor(deal.stage)}`}
+              variant="secondary"
+            >
+              {deal.stage?.replace('_', ' ') || 'Discovery'}
+            </Badge>
           </div>
         </div>
-      </Card>
 
-      <div className="px-3">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <StatCard
-            title="Total Pipeline Value"
-            value={`$${(totalPipelineValue / 1000000).toFixed(2)}M`}
-            change="+12%"
-            changeType="increase"
-            icon={DollarSign}
-            iconBg="bg-green-100"
-            iconColor="text-green-600"
-          />
-          <StatCard
-            title="Open Deals"
-            value={openDealsCount}
-            subtitle="opportunities"
-            change="+5"
-            changeType="increase"
-            icon={Target}
-            iconBg="bg-blue-100"
-            iconColor="text-blue-600"
-          />
-          <StatCard
-            title="Average Deal Size"
-            value={`$${(avgDealSize / 1000).toFixed(0)}K`}
-            change="+8%"
-            changeType="increase"
-            icon={TrendingUp}
-            iconBg="bg-purple-100"
-            iconColor="text-purple-600"
-          />
-          <StatCard
-            title="Win Rate"
-            value="68%"
-            subtitle="this month"
-            change="+3%"
-            changeType="increase"
-            icon={Clock}
-            iconBg="bg-yellow-100"
-            iconColor="text-yellow-600"
-          />
+        {/* Deal Details */}
+        <div className="space-y-2 mb-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-600">Owner:</span>
+            <span className="font-medium text-gray-900 truncate ml-2">
+              {deal.assignedTo?.username || 'Unassigned'}
+            </span>
+          </div>
+          
+          {deal.expectedCloseDate && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-600">Close Date:</span>
+              <span className="font-medium text-gray-900">
+                {new Date(deal.expectedCloseDate).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </span>
+            </div>
+          )}
+
+          {deal.probability && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-600">Probability:</span>
+              <span className="font-medium text-gray-900">{deal.probability}%</span>
+            </div>
+          )}
         </div>
 
-        {/* Revenue Trend */}
-        <Card title="Revenue Trend" className="mb-6">
-          <AreaChart
-            data={chartData}
-            dataKey="value"
-            height={200}
-            color="#FDE047"
-          />
-        </Card>
-
-        {/* Pipeline Board */}
-        <div className="w-full">
-          <div className="overflow-x-auto pb-4">
-            <div className="flex gap-6 min-w-max">
-            {pipelineStages.map((stage) => (
-              <div key={stage.id} className="w-80 flex-shrink-0">
-                <div className="bg-white rounded-lg border border-gray-200">
-                  {/* Stage Header */}
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-gray-900">
-                        {stage.name}
-                      </h3>
-                      <Badge variant="default">{stage.count}</Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${stage.color}`}
-                      ></div>
-                      <span className="text-sm text-gray-600">
-                        ${(stage.value / 1000).toFixed(0)}K
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Deals */}
-                  <div
-                    className="p-4 space-y-3 max-h-[600px] overflow-y-auto transition-all duration-200"
-                  >
-                    {stage.deals.length > 0 ? (
-                      stage.deals.map((deal, dealIndex) => (
-                        <Card
-                          key={deal.id}
-                          className="p-3 cursor-move transition-all duration-200 hover:shadow-md"
-                          hoverable
-                          // Drag functionality temporarily disabled - will use PipelineBoard component with react-beautiful-dnd
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <Badge
-                              variant={getPriorityColor(deal.priority)}
-                              size="sm"
-                            >
-                              {deal.priority}
-                            </Badge>
-                            <button className="p-1 hover:bg-gray-100 rounded">
-                              <MoreVertical className="w-3 h-3" />
-                            </button>
-                          </div>
-
-                          <h4 className="font-medium text-gray-900 text-sm mb-1">
-                            {deal.title}
-                          </h4>
-
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                            <Building2 className="w-3 h-3" />
-                            {deal.company}
-                          </div>
-
-                          <div className="text-lg font-semibold text-gray-900 mb-2">
-                            ${(deal.value / 1000).toFixed(0)}K
-                          </div>
-
-                          {deal.probability !== undefined && (
-                            <div className="mb-2">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-gray-500">
-                                  Probability
-                                </span>
-                                <span className="font-medium">
-                                  {deal.probability}%
-                                </span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div
-                                  className="bg-blue-600 h-1.5 rounded-full"
-                                  style={{ width: `${deal.probability}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1 text-gray-500">
-                              <User className="w-3 h-3" />
-                              {deal.assignee}
-                            </div>
-                            {deal.daysInStage > 0 && (
-                              <div className="flex items-center gap-1 text-gray-500">
-                                <Clock className="w-3 h-3" />
-                                {deal.daysInStage}d
-                              </div>
-                            )}
-                          </div>
-
-                          {deal.nextAction && (
-                            <div className="mt-2 pt-2 border-t border-gray-100">
-                              <div className="flex items-center gap-1 text-xs text-blue-600">
-                                <ChevronRight className="w-3 h-3" />
-                                {deal.nextAction}
-                              </div>
-                            </div>
-                          )}
-
-                          {deal.closedDate && (
-                            <div className="mt-2 pt-2 border-t border-gray-100">
-                              <div className="flex items-center gap-1 text-xs text-gray-500">
-                                <Calendar className="w-3 h-3" />
-                                Closed: {deal.closedDate}
-                              </div>
-                            </div>
-                          )}
-
-                          {deal.lostReason && (
-                            <div className="mt-2 pt-2 border-t border-gray-100">
-                              <div className="text-xs text-red-600">
-                                Reason: {deal.lostReason}
-                              </div>
-                            </div>
-                          )}
-                        </Card>
-                      ))
-                    ) : (
-                      <EmptyState
-                        title="No deals"
-                        description="Drag deals here or create new ones"
-                      />
-                    )}
-                  </div>
-
-                  {/* Add Deal Button */}
-                  <div className="p-4 border-t border-gray-200">
-                    <button 
-                      onClick={() => setIsAddModalOpen(true)}
-                      className="w-full py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Deal
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {/* Progress Bar */}
+        {deal.probability && (
+          <div className="mb-3">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full ${
+                  deal.probability >= 80
+                    ? "bg-green-500"
+                    : deal.probability >= 60
+                    ? "bg-yellow-500"
+                    : deal.probability >= 40
+                    ? "bg-orange-500"
+                    : "bg-red-500"
+                }`}
+                style={{ width: `${deal.probability}%` }}
+              />
             </div>
+          </div>
+        )}
+
+        {/* Contact Info */}
+        {deal.contact && (
+          <div className="flex items-center gap-2 text-xs text-gray-600">
+            <User className="w-3 h-3" />
+            <span className="truncate">{deal.contact.name}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render column header for Kanban view
+  const renderColumnHeader = (columnId, cardsCount) => {
+    const columnConfig = {
+      discovery: {
+        title: "Discovery",
+        color: "border-yellow-500",
+        bg: "bg-yellow-50",
+        icon: "🔍"
+      },
+      proposal: {
+        title: "Proposal",
+        color: "border-blue-500", 
+        bg: "bg-blue-50",
+        icon: "📋"
+      },
+      negotiation: {
+        title: "Negotiation",
+        color: "border-purple-500",
+        bg: "bg-purple-50",
+        icon: "🤝"
+      },
+      'closed-won': {
+        title: "Closed Won",
+        color: "border-green-500",
+        bg: "bg-green-50",
+        icon: "✅"
+      },
+      'closed-lost': {
+        title: "Closed Lost",
+        color: "border-red-500",
+        bg: "bg-red-50",
+        icon: "❌"
+      }
+    };
+
+    const config = columnConfig[columnId] || {
+      title: columnId,
+      color: "border-gray-500",
+      bg: "bg-gray-50",
+      icon: "📁"
+    };
+
+    return (
+      <div className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{config.icon}</span>
+            <h3 className="font-semibold text-gray-800 text-sm">
+              {config.title}
+            </h3>
+          </div>
+          <span className="bg-white text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+            {cardsCount}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const handleApplyFilters = (filters) => {
+    setAppliedFilters(filters);
+  };
+
+  const handleImport = async (file) => {
+    // Implement import functionality
+    console.log("Importing file:", file);
+    // Simulate import process
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Refresh deals after import
+    await fetchDeals();
+  };
+
+  const handleExport = () => {
+    // Generate CSV content
+    const csvContent = [
+      // Header
+      [
+        "Deal Name",
+        "Company",
+        "Value",
+        "Stage",
+        "Priority",
+        "Probability",
+        "Close Date",
+        "Owner",
+        "Description",
+      ].join(","),
+      // Data rows
+      ...filteredDeals.map((deal) =>
+        [
+          `"${deal.name}"`,
+          `"${deal.company}"`,
+          deal.value,
+          deal.stage,
+          deal.priority,
+          deal.probability,
+          deal.closeDate,
+          `"${deal.owner}"`,
+          `"${deal.description}"`,
+        ].join(",")
+      ),
+    ].join("\n");
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `deals_export_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteDeal = async (dealId) => {
+    try {
+      console.log("Deleting deal:", dealId);
+      await dealService.delete(dealId);
+
+      // Remove from local state
+      setDeals(deals.filter((deal) => deal.id !== dealId));
+      setFilteredDeals(filteredDeals.filter((deal) => deal.id !== dealId));
+
+      // Refresh stats
+      await fetchDeals();
+    } catch (error) {
+      console.error("Error deleting deal:", error);
+      alert("Failed to delete deal. Please try again.");
+    }
+  };
+
+  // Handler functions for table actions
+  const handleViewDeal = (deal) => {
+    router.push(`/sales/deals/${deal.id}`);
+  };
+
+  const handleEditDeal = (deal) => {
+    router.push(`/sales/deals/${deal.id}/edit`);
+  };
+
+  const handleEmailDeal = (deal) => {
+    // Implement email functionality
+    console.log("Email deal:", deal);
+  };
+
+  const handleDeleteDealFromTable = (deal) => {
+    handleDeleteDeal(deal.id);
+  };
+
+  // Helper functions for badges
+  const getStatusBadgeVariant = (status) => {
+    switch (status?.toLowerCase()) {
+      case "won":
+        return "success";
+      case "lost":
+        return "danger";
+      case "negotiation":
+        return "warning";
+      case "proposal":
+        return "info";
+      case "qualified":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  const getPriorityBadgeVariant = (priority) => {
+    switch (priority?.toLowerCase()) {
+      case "high":
+        return "danger";
+      case "medium":
+        return "warning";
+      case "low":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  // Table columns configuration
+  const dealColumnsTable = [
+    {
+      key: "deal",
+      label: "DEAL",
+      render: (_, deal) => (
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <Avatar
+            src={deal.avatar}
+            alt={deal.name}
+            fallback={deal.name?.charAt(0)}
+            className="w-10 h-10"
+          />
+          <div>
+            <div className="font-medium text-gray-900">{deal.name}</div>
+            <div className="text-sm text-gray-500">{deal.description}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "company",
+      label: "COMPANY",
+      render: (_, deal) => (
+        <div className="min-w-[150px]">
+          <div className="font-medium text-gray-900">
+            {deal.company || "Not specified"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "value",
+      label: "VALUE",
+      render: (_, deal) => (
+        <div className="min-w-[120px]">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-gray-900">
+              {formatCurrency(deal.value || 0)}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "stage",
+      label: "STAGE",
+      render: (_, deal) => {
+        const stage = deal.stage?.toLowerCase() || "discovery";
+        const stageColors = {
+          discovery: {
+            bg: "bg-blue-100",
+            text: "text-blue-800",
+            border: "border-blue-400",
+            shadow: "shadow-blue-200",
+          },
+          proposal: {
+            bg: "bg-purple-100",
+            text: "text-purple-800",
+            border: "border-purple-400",
+            shadow: "shadow-purple-200",
+          },
+          negotiation: {
+            bg: "bg-orange-100",
+            text: "text-orange-800",
+            border: "border-orange-400",
+            shadow: "shadow-orange-200",
+          },
+          won: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          lost: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+        };
+
+        const colors = stageColors[stage] || stageColors.discovery;
+        const displayStage = deal.stage || "Discovery";
+
+        return (
+          <div className="min-w-[120px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg`}
+            >
+              {displayStage.charAt(0).toUpperCase() + displayStage.slice(1)}
+        </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "probability",
+      label: "PROBABILITY",
+      render: (_, deal) => (
+        <div className="min-w-[120px]">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-orange-500 h-2 rounded-full"
+                style={{ width: `${deal.probability || 0}%` }}
+              ></div>
+            </div>
+            <span className="text-sm text-gray-600">
+              {deal.probability || 0}%
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "closeDate",
+      label: "CLOSE DATE",
+      render: (_, deal) => (
+        <div className="min-w-[120px]">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-sm text-gray-900">
+            {deal.closeDate
+              ? new Date(deal.closeDate).toLocaleDateString("en-IN")
+              : "Not set"}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "owner",
+      label: "OWNER",
+      render: (_, deal) => {
+        const owner = deal.assignedTo;
+        const ownerName = owner
+          ? `${owner.firstName || ""} ${owner.lastName || ""}`.trim() ||
+            owner.username ||
+            "Unknown"
+          : "Unassigned";
+
+        const handleAssignClick = () => {
+          setDealToAssign(deal);
+          setSelectedUserId(
+            owner?.id?.toString() || owner?.documentId?.toString() || ""
+          );
+          setShowAssignModal(true);
+        };
+
+        return (
+          <div className="min-w-[180px] flex items-center gap-2">
+            <Avatar
+              alt={ownerName}
+              fallback={(ownerName || "?").charAt(0).toUpperCase()}
+              size="sm"
+              className="flex-shrink-0"
+            />
+            <span className="text-sm font-medium text-gray-900 flex-1 truncate">
+              {ownerName}
+            </span>
+            {isAdmin() && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAssignClick();
+                }}
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-lg"
+                title="Change Owner"
+              >
+                <User className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "priority",
+      label: "PRIORITY",
+      render: (_, deal) => (
+        <div className="min-w-[100px]">
+          <Badge
+            variant={getPriorityBadgeVariant(deal.priority)}
+            className="text-xs font-medium"
+          >
+            {deal.priority?.charAt(0).toUpperCase() + deal.priority?.slice(1) ||
+              "Medium"}
+          </Badge>
+        </div>
+      ),
+    },
+    {
+      key: "createdAt",
+      label: "CREATED",
+      render: (_, deal) => (
+        <div className="min-w-[110px]">
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs text-gray-600">
+              {deal.createdAt
+                ? new Date(deal.createdAt).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "N/A"}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (_, deal) => (
+        <div
+          className="flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* View Deal */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewDeal(deal);
+            }}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            title="View Deal"
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
+
+          {/* Edit Deal */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditDeal(deal);
+            }}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+            title="Edit Deal"
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+
+          {/* Email Deal */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEmailDeal(deal);
+            }}
+            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+            title="Send Email"
+          >
+            <Mail className="w-4 h-4" />
+          </Button>
+
+          {/* Delete Deal */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteDealFromTable(deal);
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            title="Delete Deal"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  // Status stats for KPIs
+  const statusStats = [
+    {
+      label: "All",
+      count: dealStats.all,
+      color: "bg-orange-50",
+      borderColor: "border-orange-200",
+      iconColor: "text-orange-600",
+      icon: Target,
+    },
+    {
+      label: "New",
+      count: dealStats.new,
+      color: "bg-blue-50",
+      borderColor: "border-blue-200",
+      iconColor: "text-blue-600",
+      icon: UserPlus,
+    },
+    {
+      label: "Qualified",
+      count: dealStats.qualified,
+      color: "bg-purple-50",
+      borderColor: "border-purple-200",
+      iconColor: "text-purple-600",
+      icon: Star,
+    },
+    {
+      label: "Won",
+      count: dealStats.won,
+      color: "bg-green-50",
+      borderColor: "border-green-200",
+      iconColor: "text-green-600",
+      icon: CheckCircle,
+    },
+  ];
+
+  // Tab items
+  const tabItems = [
+    { key: "all", label: "All Deals", badge: dealStats.all },
+    { key: "new", label: "Discovery", badge: dealStats.new },
+    { key: "qualified", label: "Proposal", badge: dealStats.qualified },
+    { key: "negotiation", label: "Negotiation", badge: dealStats.negotiation },
+    { key: "won", label: "Won", badge: dealStats.won },
+    { key: "lost", label: "Lost", badge: dealStats.lost },
+  ];
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-4 bg-white min-h-screen">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 space-y-4 bg-white min-h-screen">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 font-medium">{error}</p>
+            <button
+              onClick={fetchDeals}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            >
+              Try Again
+            </button>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Modals */}
-      <DealFilterModal
-        isOpen={isFilterModalOpen}
-        onClose={() => setIsFilterModalOpen(false)}
-        onApplyFilters={handleApplyFilters}
-        filters={filters}
-        setFilters={setFilters}
-      />
+  return (
+    <>
+      <div className="p-4 space-y-4 bg-white min-h-screen">
+        {/* Page Header */}
+        <PageHeader
+          title="Deals"
+          subtitle="Manage your sales pipeline and track deal progress"
+          breadcrumb={[
+            { label: "Dashboard", href: "/" },
+            { label: "Sales", href: "/sales" },
+            { label: "Deals", href: "/sales/deals" },
+          ]}
+          showSearch={true}
+          showActions={true}
+          searchPlaceholder="Search deals..."
+          onSearchChange={setSearchQuery}
+          onAddClick={handleAddDeal}
+          onFilterClick={() => setIsFilterModalOpen(true)}
+          onImportClick={() => setIsImportModalOpen(true)}
+          onExportClick={() => handleExport()}
+          customActions={
+            <div className="flex items-center gap-2 ml-4">
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className={`px-3 py-1.5 ${
+                    viewMode === "list"
+                      ? "bg-white shadow-sm"
+                      : "hover:bg-gray-200"
+                  }`}
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  List
+                </Button>
+                <Button
+                  variant={viewMode === "kanban" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("kanban")}
+                  className={`px-3 py-1.5 ${
+                    viewMode === "kanban"
+                      ? "bg-white shadow-sm"
+                      : "hover:bg-gray-200"
+                  }`}
+                >
+                  <Columns className="w-4 h-4 mr-1" />
+                  Kanban
+                </Button>
+              </div>
+            </div>
+          }
+        />
+        <div className="space-y-4">
+          {/* Stats Overview */}
+          <DealsKPIs statusStats={statusStats} onStatClick={setActiveTab} />
 
-      <AddDealModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddDeal={handleAddDeal}
-      />
-    </div>
+          {/* View Toggle */}
+          <DealsTabs
+            tabItems={tabItems}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onAddClick={handleAddDeal}
+            onExportClick={() => handleExport()}
+          />
+
+          {/* Deals Content - List or Kanban View */}
+          {viewMode === "list" ? (
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <DealsListView
+              filteredDeals={filteredDeals}
+              dealColumnsTable={dealColumnsTable}
+              selectedDeals={selectedDeals}
+              setSelectedDeals={setSelectedDeals}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onAddClick={handleAddDeal}
+              onRowClick={(deal) => handleViewDeal(deal)}
+            />
+          </div>
+          ) : (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Pipeline Board
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Drag and drop deals between stages to update their status
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <div className="min-w-[1200px]">
+                  <KanbanBoard
+                    columns={groupDealsByStage()}
+                    onDragEnd={handleDragEnd}
+                    renderCard={renderDealCard}
+                    renderColumnHeader={renderColumnHeader}
+                    className="gap-6"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modals */}
+        <DealsFilterModal
+          isOpen={isFilterModalOpen}
+          onClose={() => setIsFilterModalOpen(false)}
+          onApplyFilters={handleApplyFilters}
+        />
+
+        <DealsImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleImport}
+        />
+
+        {/* Assign Owner Modal */}
+        {showAssignModal && dealToAssign && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <User className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Change Owner
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Assign deal to a team member
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700 mb-4">
+                  Select a user to assign{" "}
+                  <strong>{dealToAssign.name}</strong> to:
+                </p>
+                <Select
+                  label="Assign To"
+                  value={selectedUserId}
+                  onChange={setSelectedUserId}
+                  options={[
+                    { value: "", label: "Unassigned" },
+                    ...users.map((u) => ({
+                      value: (u.id || u.documentId).toString(),
+                      label:
+                        `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                        u.username ||
+                        "Unknown User",
+                    })),
+                  ]}
+                  disabled={loadingUsers}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setShowAssignModal(false);
+                    setDealToAssign(null);
+                    setSelectedUserId("");
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      await dealService.update(dealToAssign.id, {
+                        assignedTo: selectedUserId || null,
+                      });
+                      // Update local list
+                      await fetchDeals();
+                      setShowAssignModal(false);
+                      setDealToAssign(null);
+                      setSelectedUserId("");
+                    } catch (error) {
+                      console.error("Error updating owner:", error);
+                      alert("Failed to update owner. Please try again.");
+                    }
+                  }}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg"
+                >
+                  Update Owner
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

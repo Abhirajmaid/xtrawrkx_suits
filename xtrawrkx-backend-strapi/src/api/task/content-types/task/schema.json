@@ -5,19 +5,13 @@
         "singularName": "task",
         "pluralName": "tasks",
         "displayName": "Task",
-        "description": "Project tasks and work items"
+        "description": "CRM tasks for entity-specific task management"
     },
     "options": {
         "draftAndPublish": false
     },
     "pluginOptions": {},
     "attributes": {
-        "project": {
-            "type": "relation",
-            "relation": "manyToOne",
-            "target": "api::project.project",
-            "inversedBy": "tasks"
-        },
         "title": {
             "type": "string",
             "required": true
@@ -28,13 +22,12 @@
         "status": {
             "type": "enumeration",
             "enum": [
-                "TODO",
+                "SCHEDULED",
                 "IN_PROGRESS",
-                "IN_REVIEW",
-                "DONE",
-                "BLOCKED"
+                "COMPLETED",
+                "CANCELLED"
             ],
-            "default": "TODO"
+            "default": "SCHEDULED"
         },
         "priority": {
             "type": "enumeration",
@@ -45,15 +38,17 @@
             ],
             "default": "MEDIUM"
         },
-        "progress": {
-            "type": "integer",
-            "default": 0
-        },
-        "dueDate": {
+        "scheduledDate": {
             "type": "datetime"
         },
-        "estimatedTime": {
-            "type": "string"
+        "completedDate": {
+            "type": "datetime"
+        },
+        "createdBy": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::xtrawrkx-user.xtrawrkx-user",
+            "inversedBy": "tasks"
         },
         "assignee": {
             "type": "relation",
@@ -61,47 +56,29 @@
             "target": "api::xtrawrkx-user.xtrawrkx-user",
             "inversedBy": "assignedTasks"
         },
-        "section": {
-            "type": "string"
-        },
-        "source": {
-            "type": "enumeration",
-            "enum": [
-                "CLIENT_PORTAL",
-                "PM_DASHBOARD",
-                "CRM"
-            ],
-            "default": "PM_DASHBOARD"
-        },
-        "subtasks": {
+        "leadCompany": {
             "type": "relation",
-            "relation": "oneToMany",
-            "target": "api::subtask.subtask",
-            "mappedBy": "task"
+            "relation": "manyToOne",
+            "target": "api::lead-company.lead-company",
+            "inversedBy": "tasks"
         },
-        "activities": {
+        "clientAccount": {
             "type": "relation",
-            "relation": "oneToMany",
-            "target": "api::activity.activity",
-            "mappedBy": "task"
+            "relation": "manyToOne",
+            "target": "api::client-account.client-account",
+            "inversedBy": "tasks"
         },
-        "timeEntries": {
+        "contact": {
             "type": "relation",
-            "relation": "oneToMany",
-            "target": "api::time-entry.time-entry",
-            "mappedBy": "task"
+            "relation": "manyToOne",
+            "target": "api::contact.contact",
+            "inversedBy": "tasks"
         },
-        "comments": {
+        "deal": {
             "type": "relation",
-            "relation": "oneToMany",
-            "target": "api::task-comment.task-comment",
-            "mappedBy": "task"
-        },
-        "files": {
-            "type": "relation",
-            "relation": "oneToMany",
-            "target": "api::file.file",
-            "mappedBy": "task"
+            "relation": "manyToOne",
+            "target": "api::deal.deal",
+            "inversedBy": "tasks"
         }
     }
 }

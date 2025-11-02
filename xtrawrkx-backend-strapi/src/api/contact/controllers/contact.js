@@ -1,0 +1,527 @@
+'use strict';
+
+/**
+ * contact controller
+ */
+
+const { createCoreController } = require('@strapi/strapi').factories;
+
+module.exports = createCoreController('api::contact.contact', ({ strapi }) => ({
+    /**
+     * Create a new contact
+     */
+    async create(ctx) {
+        try {
+            console.log('Creating contact with data:', ctx.request.body);
+            const { data } = ctx.request.body;
+
+            if (!data) {
+                console.log('No data provided in request body');
+                return ctx.badRequest('No data provided');
+            }
+
+            console.log('Contact data:', data);
+
+            const entity = await strapi.entityService.create('api::contact.contact', {
+                data,
+                populate: {
+                    leadCompany: true,
+                    clientAccount: true,
+                    assignedTo: true,
+                    activities: true,
+                    deals: true
+                }
+            });
+
+            console.log('Created contact:', entity);
+
+            return { data: entity };
+        } catch (error) {
+            console.error('Contact creation error:', error);
+            console.error('Error details:', error.message);
+            console.error('Error stack:', error.stack);
+            return ctx.badRequest(`Failed to create contact: ${error.message}`);
+        }
+    },
+
+    /**
+     * Find contacts with advanced filtering
+     */
+    async find(ctx) {
+        try {
+            console.log('Finding contacts with params:', ctx.query);
+
+            const { query } = ctx;
+
+            // Build populate object
+            const populate = {
+                leadCompany: true,
+                clientAccount: true,
+                assignedTo: true
+            };
+
+            const entities = await strapi.entityService.findMany('api::contact.contact', {
+                ...query,
+                populate
+            });
+
+            console.log(`Found ${entities?.length || 0} contacts`);
+
+            // Ensure we return the expected format
+            if (Array.isArray(entities)) {
+                return {
+                    data: entities,
+                    meta: {
+                        pagination: {
+                            total: entities.length,
+                            page: 1,
+                            pageSize: entities.length,
+                            pageCount: 1
+                        }
+                    }
+                };
+            }
+
+            return entities;
+        } catch (error) {
+            console.error('Contact find error:', error);
+            console.error('Error details:', error.message);
+
+            // Return empty result instead of error to prevent frontend crashes
+            return {
+                data: [],
+                meta: {
+                    pagination: {
+                        total: 0,
+                        page: 1,
+                        pageSize: 0,
+                        pageCount: 0
+                    }
+                }
+            };
+        }
+    },
+
+    /**
+     * Find one contact by ID
+     */
+    async findOne(ctx) {
+        try {
+            const { id } = ctx.params;
+            console.log(`Finding contact with ID: ${id}`);
+
+            const entity = await strapi.entityService.findOne('api::contact.contact', id, {
+                populate: {
+                    leadCompany: true,
+                    clientAccount: true,
+                    assignedTo: true,
+                    activities: true,
+                    deals: true,
+                    proposals: true
+                }
+            });
+
+            if (!entity) {
+                console.log(`Contact with ID ${id} not found`);
+                return ctx.notFound(`Contact with ID ${id} not found`);
+            }
+
+            console.log('Found contact:', entity);
+
+            // Handle both direct object and { data: object } formats
+            if (entity.data) {
+                return entity;
+            }
+
+            return { data: entity };
+        } catch (error) {
+            console.error(`Contact findOne error for ID ${ctx.params.id}:`, error);
+            console.error('Error details:', error.message);
+            return ctx.badRequest(`Failed to fetch contact: ${error.message}`);
+        }
+    },
+
+    /**
+     * Update a contact
+     */
+    async update(ctx) {
+        try {
+            const { id } = ctx.params;
+            const { data } = ctx.request.body;
+
+            console.log(`Updating contact ${id} with data:`, data);
+
+            const entity = await strapi.entityService.update('api::contact.contact', id, {
+                data,
+                populate: {
+                    leadCompany: true,
+                    clientAccount: true,
+                    assignedTo: true,
+                    activities: true,
+                    deals: true
+                }
+            });
+
+            console.log('Updated contact:', entity);
+
+            return { data: entity };
+        } catch (error) {
+            console.error(`Contact update error for ID ${ctx.params.id}:`, error);
+            console.error('Error details:', error.message);
+            return ctx.badRequest(`Failed to update contact: ${error.message}`);
+        }
+    },
+
+    /**
+     * Delete a contact with cascade deletion of linked data
+     */
+    async delete(ctx) {
+        try {
+            const { id } = ctx.params;
+            console.log(`Deleting contact ${id} with cascade deletion`);
+
+            // First, get the contact with all relations
+            const contact = await strapi.entityService.findOne('api::contact.contact', id, {
+                populate: {
+                    deals: true,
+                    activities: true,
+                    communityMemberships: true,
+                    portalAccess: true,
+                    files: true,
+                    proposals: true,
+                    proposalsSentTo: true,
+                    contracts: true,
+                    contractsSignedBy: true,
+                    convertedLeads: true
+                }
+            });
+
+            if (!contact) {
+                return ctx.notFound('Contact not found');
+            }
+
+            // Delete related deals (only if contact is the primary contact)
+            if (contact.deals && contact.deals.length > 0) {
+                console.log(`Processing ${contact.deals.length} related deals`);
+                for (const deal of contact.deals) {
+                    // For deals, we might want to unlink rather than delete
+                    // since deals can exist without a primary contact
+                    await strapi.entityService.update('api::deal.deal', deal.id, {
+                        data: { contact: null }
+                    });
+                    console.log(`Unlinked deal ${deal.id} from contact`);
+                }
+            }
+
+            // Delete related activities
+            if (contact.activities && contact.activities.length > 0) {
+                console.log(`Deleting ${contact.activities.length} related activities`);
+                for (const activity of contact.activities) {
+                    try {
+                        await strapi.entityService.delete('api::activity.activity', activity.id);
+                    } catch (activityError) {
+                        console.warn(`Failed to delete activity ${activity.id}:`, activityError.message);
+                        // Continue with deletion even if some activities fail
+                    }
+                }
+            }
+
+            // Delete community memberships
+            if (contact.communityMemberships && contact.communityMemberships.length > 0) {
+                console.log(`Deleting ${contact.communityMemberships.length} community memberships`);
+                for (const membership of contact.communityMemberships) {
+                    try {
+                        await strapi.entityService.delete('api::community-membership.community-membership', membership.id);
+                    } catch (membershipError) {
+                        console.warn(`Failed to delete community membership ${membership.id}:`, membershipError.message);
+                        // Continue with deletion even if some memberships fail
+                    }
+                }
+            }
+
+            // Delete portal access
+            if (contact.portalAccess) {
+                console.log(`Deleting portal access for contact`);
+                try {
+                    await strapi.entityService.delete('api::client-portal-access.client-portal-access', contact.portalAccess.id);
+                } catch (portalError) {
+                    console.warn(`Failed to delete portal access ${contact.portalAccess.id}:`, portalError.message);
+                    // Continue with deletion even if portal access fails
+                }
+            }
+
+            // Delete related files
+            if (contact.files && contact.files.length > 0) {
+                console.log(`Deleting ${contact.files.length} related files`);
+                for (const file of contact.files) {
+                    try {
+                        await strapi.entityService.delete('api::file.file', file.id);
+                    } catch (fileError) {
+                        console.warn(`Failed to delete file ${file.id}:`, fileError.message);
+                        // Continue with deletion even if some files fail
+                    }
+                }
+            }
+
+            // Handle proposals (unlink rather than delete as they might be shared)
+            if (contact.proposals && contact.proposals.length > 0) {
+                console.log(`Unlinking ${contact.proposals.length} proposals`);
+                for (const proposal of contact.proposals) {
+                    await strapi.entityService.update('api::proposal.proposal', proposal.id, {
+                        data: { contact: null }
+                    });
+                }
+            }
+
+            // Handle proposals sent to this contact
+            if (contact.proposalsSentTo && contact.proposalsSentTo.length > 0) {
+                console.log(`Unlinking ${contact.proposalsSentTo.length} proposals sent to contact`);
+                for (const proposal of contact.proposalsSentTo) {
+                    await strapi.entityService.update('api::proposal.proposal', proposal.id, {
+                        data: { sentToContact: null }
+                    });
+                }
+            }
+
+            // Handle contracts (unlink rather than delete)
+            if (contact.contracts && contact.contracts.length > 0) {
+                console.log(`Unlinking ${contact.contracts.length} contracts`);
+                for (const contract of contact.contracts) {
+                    await strapi.entityService.update('api::contract.contract', contract.id, {
+                        data: { contact: null }
+                    });
+                }
+            }
+
+            // Handle contracts signed by this contact
+            if (contact.contractsSignedBy && contact.contractsSignedBy.length > 0) {
+                console.log(`Unlinking ${contact.contractsSignedBy.length} contracts signed by contact`);
+                for (const contract of contact.contractsSignedBy) {
+                    await strapi.entityService.update('api::contract.contract', contract.id, {
+                        data: { signedByContact: null }
+                    });
+                }
+            }
+
+            // Handle converted leads (unlink rather than delete)
+            if (contact.convertedLeads && contact.convertedLeads.length > 0) {
+                console.log(`Unlinking ${contact.convertedLeads.length} converted leads`);
+                for (const lead of contact.convertedLeads) {
+                    await strapi.entityService.update('api::lead.lead', lead.id, {
+                        data: { convertedContact: null }
+                    });
+                }
+            }
+
+            // Finally, delete the contact itself
+            let entity;
+            try {
+                entity = await strapi.entityService.delete('api::contact.contact', id);
+                console.log(`Successfully deleted contact ${id} and processed all related data`);
+            } catch (contactDeleteError) {
+                console.error(`Failed to delete contact ${id}:`, contactDeleteError);
+                throw new Error(`Failed to delete contact: ${contactDeleteError.message}`);
+            }
+
+            return { data: { id, deleted: true } };
+        } catch (error) {
+            console.error('Contact deletion error:', error);
+            return ctx.badRequest(`Failed to delete contact: ${error.message}`);
+        }
+    },
+
+    /**
+     * Get contacts by lead company
+     */
+    async getByLeadCompany(ctx) {
+        try {
+            const { leadCompanyId } = ctx.params;
+            console.log(`Finding contacts for lead company: ${leadCompanyId}`);
+
+            const entities = await strapi.entityService.findMany('api::contact.contact', {
+                filters: {
+                    leadCompany: {
+                        id: leadCompanyId
+                    }
+                },
+                populate: {
+                    leadCompany: true,
+                    clientAccount: true,
+                    assignedTo: true,
+                    activities: true,
+                    deals: true
+                }
+            });
+
+            console.log(`Found ${entities?.length || 0} contacts for lead company ${leadCompanyId}`);
+
+            return {
+                data: entities || [],
+                meta: {
+                    pagination: {
+                        total: entities?.length || 0,
+                        page: 1,
+                        pageSize: entities?.length || 0,
+                        pageCount: 1
+                    }
+                }
+            };
+        } catch (error) {
+            console.error(`Error fetching contacts for lead company ${ctx.params.leadCompanyId}:`, error);
+            return {
+                data: [],
+                meta: {
+                    pagination: {
+                        total: 0,
+                        page: 1,
+                        pageSize: 0,
+                        pageCount: 0
+                    }
+                }
+            };
+        }
+    },
+
+    /**
+     * Get contacts by client account
+     */
+    async getByClientAccount(ctx) {
+        try {
+            const { clientAccountId } = ctx.params;
+            console.log(`Finding contacts for client account: ${clientAccountId}`);
+
+            const entities = await strapi.entityService.findMany('api::contact.contact', {
+                filters: {
+                    clientAccount: {
+                        id: clientAccountId
+                    }
+                },
+                populate: {
+                    clientAccount: true,
+                    leadCompany: true,
+                    assignedTo: true,
+                    activities: true,
+                    deals: true
+                }
+            });
+
+            console.log(`Found ${entities?.length || 0} contacts for client account ${clientAccountId}`);
+
+            return {
+                data: entities || [],
+                meta: {
+                    pagination: {
+                        total: entities?.length || 0,
+                        page: 1,
+                        pageSize: entities?.length || 0,
+                        pageCount: 1
+                    }
+                }
+            };
+        } catch (error) {
+            console.error(`Error fetching contacts for client account ${ctx.params.clientAccountId}:`, error);
+            return {
+                data: [],
+                meta: {
+                    pagination: {
+                        total: 0,
+                        page: 1,
+                        pageSize: 0,
+                        pageCount: 0
+                    }
+                }
+            };
+        }
+    },
+
+    /**
+     * Get contact statistics
+     */
+    async getStats(ctx) {
+        try {
+            console.log('Fetching contact statistics');
+
+            const contacts = await strapi.entityService.findMany('api::contact.contact', {
+                populate: {
+                    leadCompany: true,
+                    clientAccount: true
+                }
+            });
+
+            // Ensure contacts is an array
+            const contactsArray = Array.isArray(contacts) ? contacts : [];
+
+            const stats = {
+                total: contactsArray.length,
+                byRole: {
+                    DECISION_MAKER: 0,
+                    INFLUENCER: 0,
+                    TECHNICAL_CONTACT: 0,
+                    GATEKEEPER: 0,
+                    PRIMARY_CONTACT: 0
+                },
+                byStatus: {
+                    ACTIVE: 0,
+                    INACTIVE: 0,
+                    LEFT_COMPANY: 0
+                },
+                byCompanyType: {
+                    leadCompany: 0,
+                    clientAccount: 0,
+                    unassigned: 0
+                }
+            };
+
+            contactsArray.forEach(contact => {
+                // Count by role
+                if (contact.role && stats.byRole.hasOwnProperty(contact.role)) {
+                    stats.byRole[contact.role]++;
+                }
+
+                // Count by status
+                if (contact.status && stats.byStatus.hasOwnProperty(contact.status)) {
+                    stats.byStatus[contact.status]++;
+                }
+
+                // Count by company type
+                if (contact.leadCompany) {
+                    stats.byCompanyType.leadCompany++;
+                } else if (contact.clientAccount) {
+                    stats.byCompanyType.clientAccount++;
+                } else {
+                    stats.byCompanyType.unassigned++;
+                }
+            });
+
+            console.log('Contact stats:', stats);
+
+            return { data: stats };
+        } catch (error) {
+            console.error('Contact stats error:', error);
+
+            // Return default stats on error
+            return {
+                data: {
+                    total: 0,
+                    byRole: {
+                        DECISION_MAKER: 0,
+                        INFLUENCER: 0,
+                        TECHNICAL_CONTACT: 0,
+                        GATEKEEPER: 0,
+                        PRIMARY_CONTACT: 0
+                    },
+                    byStatus: {
+                        ACTIVE: 0,
+                        INACTIVE: 0,
+                        LEFT_COMPANY: 0
+                    },
+                    byCompanyType: {
+                        leadCompany: 0,
+                        clientAccount: 0,
+                        unassigned: 0
+                    }
+                }
+            };
+        }
+    }
+}));

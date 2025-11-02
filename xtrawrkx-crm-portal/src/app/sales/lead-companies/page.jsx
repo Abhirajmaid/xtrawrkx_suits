@@ -1,0 +1,1184 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Container,
+  Card,
+  Table,
+  Badge,
+  Avatar,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Tabs,
+  EmptyState,
+} from "../../../components/ui";
+import { formatNumber, formatCurrency } from "../../../lib/utils";
+
+// Local utility function to replace @xtrawrkx/utils formatDate
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+import leadCompanyService from "../../../lib/api/leadCompanyService";
+import strapiClient from "../../../lib/strapiClient";
+import { useAuth } from "../../../contexts/AuthContext";
+import authService from "../../../lib/authService";
+
+import PageHeader from "../../../components/PageHeader";
+import LeadsKPIs from "./components/LeadsKPIs";
+import LeadsTabs from "./components/LeadsTabs";
+import LeadsListView from "./components/LeadsListView";
+import LeadsBoardView from "./components/LeadsBoardView";
+import LeadsFilterModal from "./components/LeadsFilterModal";
+import LeadsImportModal from "./components/LeadsImportModal";
+import {
+  Plus,
+  Search,
+  Filter,
+  Download,
+  Upload,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  MoreVertical,
+  UserPlus,
+  Star,
+  Clock,
+  User,
+  PhoneCall,
+  CheckCircle,
+  XCircle,
+  FileText,
+  FileSpreadsheet,
+  X,
+  Trash2,
+  CloudUpload,
+  ChevronDown,
+  List,
+  Grid3X3,
+  IndianRupee,
+  Building2,
+} from "lucide-react";
+
+export default function LeadCompaniesPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  // State management
+  const [leadCompanies, setLeadCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({});
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [activeView, setActiveView] = useState("list");
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showAddSuccessMessage, setShowAddSuccessMessage] = useState(false);
+  const [loadingActions, setLoadingActions] = useState({});
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState(null);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [companyToConvert, setCompanyToConvert] = useState(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [companyToAssign, setCompanyToAssign] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const exportDropdownRef = useRef(null);
+
+  // Check if user is admin or super admin
+  const isAdmin = () => {
+    if (!user) return false;
+    return (
+      authService.isAdmin() ||
+      user.primaryRole?.name === "Super Admin" ||
+      user.primaryRole?.name === "Admin" ||
+      user.userRoles?.some((role) =>
+        ["Super Admin", "Admin"].includes(role.name)
+      )
+    );
+  };
+
+  // Fetch lead companies from Strapi
+  useEffect(() => {
+    fetchLeadCompanies();
+    fetchStats();
+  }, []);
+
+  // Fetch users if admin
+  useEffect(() => {
+    if (isAdmin()) {
+      fetchUsers();
+    }
+  }, [user]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      // Fetch all Xtrawrkx users with pagination to get all users
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+
+      while (hasMore) {
+        // Format query params for Strapi v4
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          populate: "primaryRole,userRoles",
+        };
+
+        const response = await strapiClient.getXtrawrkxUsers(queryParams);
+
+        // Handle Strapi v4 response format
+        const usersData = response?.data || [];
+        if (Array.isArray(usersData)) {
+          // Extract user attributes from Strapi v4 format
+          const extractedUsers = usersData.map((user) => {
+            if (user.attributes) {
+              // Strapi v4 format: { id, attributes: {...} }
+              return {
+                id: user.id,
+                documentId: user.id,
+                ...user.attributes,
+                primaryRole:
+                  user.attributes.primaryRole?.data?.attributes ||
+                  user.attributes.primaryRole?.attributes ||
+                  user.attributes.primaryRole,
+              };
+            }
+            // Direct format (if already flattened)
+            return user;
+          });
+          allUsers = [...allUsers, ...extractedUsers];
+
+          // Check if there are more pages
+          const total = response?.meta?.pagination?.total || allUsers.length;
+          const pageCount = response?.meta?.pagination?.pageCount || 1;
+          hasMore = page < pageCount && usersData.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setUsers(allUsers);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchLeadCompanies = async () => {
+    try {
+      setLoading(true);
+      const response = await leadCompanyService.getAll({
+        sort: "createdAt:desc",
+        pagination: { pageSize: 100 },
+        populate: ["contacts", "assignedTo", "deals"],
+      });
+
+      console.log("Frontend fetchLeadCompanies response:", response);
+      console.log("Response data:", response.data);
+      if (response.data && response.data.length > 0) {
+        console.log("First company contacts:", response.data[0].contacts);
+        console.log(
+          "First company contacts count:",
+          response.data[0].contacts?.length || 0
+        );
+      }
+
+      setLeadCompanies(response.data || []);
+    } catch (err) {
+      console.error("Error fetching lead companies:", err);
+      setError("Failed to load lead companies");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const statsData = await leadCompanyService.getStats();
+      setStats(statsData);
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    }
+  };
+
+  // Create columns for drag and drop board
+  const createBoardColumns = (companiesData) => {
+    const statuses = ["new", "contacted", "qualified", "lost"];
+    return statuses.map((status) => ({
+      id: status,
+      title: status.charAt(0).toUpperCase() + status.slice(1),
+      items: companiesData.filter((company) => company.status === status),
+    }));
+  };
+
+  const boardColumns = createBoardColumns(leadCompanies);
+
+  // Drag and drop functionality for the new KanbanBoard component
+  const handleItemDrop = (
+    draggedItem,
+    destinationColumnId,
+    destinationIndex,
+    sourceColumnId,
+    sourceIndex
+  ) => {
+    // Update the company's status when moved between columns
+    setLeadCompanies((prevCompanies) =>
+      prevCompanies.map((company) =>
+        company.id.toString() === draggedItem.id.toString()
+          ? { ...company, status: destinationColumnId }
+          : company
+      )
+    );
+  };
+
+  const handleItemClick = (item) => {
+    console.log("Lead Company clicked:", item);
+  };
+
+  const updatedColumns = boardColumns;
+
+  // Filter companies based on search and active tab
+  const filteredCompanies = leadCompanies.filter((company) => {
+    if (!company) return false;
+
+    const matchesSearch =
+      searchQuery === "" ||
+      (company.companyName &&
+        company.companyName
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())) ||
+      (company.email &&
+        company.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (company.contacts &&
+        company.contacts.length > 0 &&
+        company.contacts[0].firstName
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase())) ||
+      (company.contacts &&
+        company.contacts.length > 0 &&
+        company.contacts[0].lastName
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()));
+
+    const matchesTab =
+      activeTab === "all" ||
+      company.status?.toLowerCase() === activeTab.toLowerCase();
+
+    return matchesSearch && matchesTab;
+  });
+
+  // Get company statistics from API stats or calculate from data
+  const leadStats = {
+    new:
+      stats.byStatus?.NEW ||
+      leadCompanies.filter((c) => c.status === "NEW").length,
+    contacted:
+      stats.byStatus?.CONTACTED ||
+      leadCompanies.filter((c) => c.status === "CONTACTED").length,
+    qualified:
+      stats.byStatus?.QUALIFIED ||
+      leadCompanies.filter((c) => c.status === "QUALIFIED").length,
+    lost:
+      stats.byStatus?.LOST ||
+      leadCompanies.filter((c) => c.status === "LOST").length,
+  };
+  const statusStats = [
+    {
+      label: "New",
+      count: leadStats.new,
+      color: "bg-orange-50",
+      borderColor: "border-orange-200",
+      iconColor: "text-orange-600",
+      icon: Building2,
+    },
+    {
+      label: "Contacted",
+      count: leadStats.contacted,
+      color: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      iconColor: "text-yellow-600",
+      icon: PhoneCall,
+    },
+    {
+      label: "Qualified",
+      count: leadStats.qualified,
+      color: "bg-green-50",
+      borderColor: "border-green-200",
+      iconColor: "text-green-600",
+      icon: CheckCircle,
+    },
+    {
+      label: "Lost",
+      count: leadStats.lost,
+      color: "bg-red-50",
+      borderColor: "border-red-200",
+      iconColor: "text-red-600",
+      icon: XCircle,
+    },
+  ];
+
+  // Tab items for navigation
+  const tabItems = [
+    {
+      key: "all",
+      label: "All Companies",
+      badge: leadCompanies.length.toString(),
+    },
+    { key: "new", label: "New", badge: leadStats.new.toString() },
+    {
+      key: "contacted",
+      label: "Contacted",
+      badge: leadStats.contacted.toString(),
+    },
+    {
+      key: "qualified",
+      label: "Qualified",
+      badge: leadStats.qualified.toString(),
+    },
+    { key: "lost", label: "Lost", badge: leadStats.lost.toString() },
+  ];
+
+  // Table columns configuration - Updated for Lead Companies
+  const canEditAssignment = isAdmin();
+  const leadCompanyColumnsTable = [
+    {
+      key: "company",
+      label: "COMPANY",
+      render: (_, company) => (
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <Avatar
+            name={company.companyName}
+            size="sm"
+            className="flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="font-medium text-gray-900 truncate">
+              {company.companyName}
+            </div>
+            <div className="text-sm text-gray-500 truncate">
+              {company.contacts && company.contacts.length > 0
+                ? `${company.contacts[0].firstName} ${company.contacts[0].lastName}`
+                : "No primary contact"}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "contact",
+      label: "PRIMARY CONTACT",
+      render: (_, company) => (
+        <div className="space-y-1 min-w-[200px]">
+          <div className="flex items-center gap-2 text-sm text-gray-900">
+            <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="truncate">
+              {company.contacts && company.contacts.length > 0
+                ? company.contacts[0].email
+                : company.email || "No email"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="truncate">
+              {company.contacts && company.contacts.length > 0
+                ? company.contacts[0].phone
+                : company.phone || "No phone"}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      render: (_, company) => {
+        const status = company.status?.toLowerCase() || "new";
+        const statusColors = {
+          new: {
+            bg: "bg-blue-100",
+            text: "text-blue-800",
+            border: "border-blue-400",
+            shadow: "shadow-blue-200",
+          },
+          contacted: {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+            shadow: "shadow-yellow-200",
+          },
+          qualified: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          converted: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          lost: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+        };
+
+        const colors = statusColors[status] || statusColors.new;
+        const displayStatus = company.status || "New";
+
+        return (
+          <div className="min-w-[120px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
+            >
+              {displayStatus.toUpperCase()}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "source",
+      label: "SOURCE",
+      render: (_, company) => (
+        <span className="text-sm text-gray-600 capitalize whitespace-nowrap min-w-[100px]">
+          {company.source.replace("_", " ")}
+        </span>
+      ),
+    },
+    {
+      key: "value",
+      label: "DEAL VALUE",
+      render: (_, company) => {
+        // Calculate total deal value from actual deals
+        const totalDealValue = company.deals
+          ? company.deals.reduce(
+              (total, deal) => total + (parseFloat(deal.value) || 0),
+              0
+            )
+          : company.dealValue || 0;
+
+        return (
+          <span className="font-semibold text-gray-900 whitespace-nowrap min-w-[100px]">
+            {formatCurrency(totalDealValue)}
+          </span>
+        );
+      },
+    },
+    {
+      key: "contactsCount",
+      label: "CONTACTS",
+      render: (_, company) => (
+        <div className="flex items-center gap-2 min-w-[100px]">
+          <UserPlus className="w-4 h-4 text-gray-400" />
+          <span className="text-sm text-gray-600">
+            {company.contacts ? company.contacts.length : 0}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "assignedTo",
+      label: "ASSIGNED TO",
+      render: (_, company) => {
+        const assignedUser = company.assignedTo;
+        const assignedName = assignedUser
+          ? `${assignedUser.firstName || ""} ${
+              assignedUser.lastName || ""
+            }`.trim() ||
+            assignedUser.username ||
+            "Unknown"
+          : "Unassigned";
+
+        const handleAssignClick = () => {
+          setCompanyToAssign(company);
+          setSelectedUserId(
+            assignedUser?.id?.toString() ||
+              assignedUser?.documentId?.toString() ||
+              ""
+          );
+          setShowAssignModal(true);
+        };
+
+        return (
+          <div className="flex items-center gap-2 min-w-[180px]">
+            <Avatar
+              alt={assignedName}
+              fallback={(assignedName || "?").charAt(0).toUpperCase()}
+              size="sm"
+              className="flex-shrink-0"
+            />
+            <span className="text-sm text-gray-600 truncate flex-1 min-w-0">
+              {assignedName}
+            </span>
+            {canEditAssignment && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAssignClick();
+                }}
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-lg transition-all duration-200 text-xs"
+                title="Change Assignee"
+              >
+                <User className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "createdAt",
+      label: "CREATED",
+      render: (_, company) => (
+        <div className="flex items-center gap-2 text-sm text-gray-500 min-w-[120px]">
+          <Calendar className="w-4 h-4 flex-shrink-0" />
+          <span className="whitespace-nowrap">
+            {formatDate(company.createdAt)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      label: "ACTIONS",
+      render: (_, company) => (
+        <div
+          className="flex items-center gap-1 min-w-[120px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusUpdate(company.id, "CONTACTED");
+            }}
+            disabled={loadingActions[`${company.id}-contacted`]}
+            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 p-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+            title="Mark as Contacted"
+          >
+            {loadingActions[`${company.id}-contacted`] ? (
+              <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Phone className="w-4 h-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusUpdate(company.id, "QUALIFIED");
+            }}
+            disabled={loadingActions[`${company.id}-qualified`]}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+            title="Mark as Qualified"
+          >
+            {loadingActions[`${company.id}-qualified`] ? (
+              <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <CheckCircle className="w-4 h-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCompanyToConvert(company);
+              setShowConvertModal(true);
+            }}
+            disabled={loadingActions[`${company.id}-convert`]}
+            className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 p-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+            title="Convert to Client"
+          >
+            {loadingActions[`${company.id}-convert`] ? (
+              <div className="w-4 h-4 border-2 border-pink-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Building2 className="w-4 h-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCompanyToDelete(company);
+              setShowDeleteModal(true);
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-all duration-200"
+            title="Delete Company"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  // Handle status updates
+  const handleStatusUpdate = async (companyId, newStatus) => {
+    if (!companyId) {
+      console.error("No company ID provided");
+      return;
+    }
+
+    const loadingKey = `${companyId}-${newStatus.toLowerCase()}`;
+
+    // Set loading state
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      console.log(`Updating company ${companyId} status to ${newStatus}`);
+
+      // Update the status via API
+      const response = await leadCompanyService.update(companyId, {
+        status: newStatus.toUpperCase(),
+      });
+
+      console.log("Status update response:", response);
+
+      // Update local state with lowercase status for UI consistency
+      setLeadCompanies((prevCompanies) =>
+        prevCompanies.map((company) =>
+          company?.id === companyId
+            ? { ...company, status: newStatus.toLowerCase() }
+            : company
+        )
+      );
+
+      // Refresh stats
+      await fetchStats();
+
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
+      console.log(`Successfully updated company ${companyId} to ${newStatus}`);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      console.error("Error details:", error.message);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error.message || "Failed to update status. Please try again.";
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      // Clear loading state
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  // Handle conversion to client
+  const handleConvertToClient = async () => {
+    if (!companyToConvert) return;
+
+    const loadingKey = `${companyToConvert.id}-convert`;
+
+    // Set loading state
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      console.log(`Converting company ${companyToConvert.id} to client`);
+
+      const response = await leadCompanyService.convertToClient(
+        companyToConvert.id
+      );
+      console.log("Conversion response:", response);
+
+      // Refresh the lead companies list and stats
+      await fetchLeadCompanies();
+      await fetchStats();
+
+      // Close modal and reset state
+      setShowConvertModal(false);
+      setCompanyToConvert(null);
+
+      // Show success message
+      alert(
+        "✅ Lead company successfully converted to client account!\n\nYou can now find it in the Client Accounts section."
+      );
+
+      console.log(
+        `Successfully converted company ${companyToConvert.id} to client`
+      );
+    } catch (error) {
+      console.error("Error converting to client:", error);
+      console.error("Error details:", error.message);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error.message || "Failed to convert lead to client. Please try again.";
+      alert(`❌ Conversion Failed\n\n${errorMessage}`);
+    } finally {
+      // Clear loading state
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  // Handle delete company
+  const handleDeleteCompany = async () => {
+    if (!companyToDelete) return;
+
+    const loadingKey = `${companyToDelete.id}-delete`;
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      console.log(`Deleting company ${companyToDelete.id}`);
+
+      // Delete the company via API (this will cascade delete linked data)
+      await leadCompanyService.delete(companyToDelete.id);
+
+      // Remove from local state
+      setLeadCompanies((prev) =>
+        prev.filter((company) => company.id !== companyToDelete.id)
+      );
+
+      // Update stats
+      await fetchStats();
+
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setCompanyToDelete(null);
+
+      console.log("Company deleted successfully");
+    } catch (error) {
+      console.error("Error deleting company:", error);
+      alert("Failed to delete company. Please try again.");
+    } finally {
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  // Handle export
+  const handleExport = (format) => {
+    console.log(`Exporting lead companies as ${format}`);
+    setShowExportDropdown(false);
+  };
+
+  // Handle filter application
+  const handleApplyFilters = (filters) => {
+    setAppliedFilters(filters);
+    console.log("Applied filters:", filters);
+  };
+
+  // Handle import
+  const handleImport = (file) => {
+    console.log("Importing file:", file);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target)
+      ) {
+        setShowExportDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-white min-h-screen">
+        <div className="p-4 space-y-4">
+          <PageHeader
+            title="Lead Companies"
+            subtitle="Loading lead companies..."
+            breadcrumb={[
+              { label: "Dashboard", href: "/" },
+              { label: "Sales", href: "/sales" },
+              { label: "Lead Companies", href: "/sales/lead-companies" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white min-h-screen">
+        <div className="p-4 space-y-4">
+          <PageHeader
+            title="Lead Companies"
+            subtitle="Error loading lead companies"
+            breadcrumb={[
+              { label: "Dashboard", href: "/" },
+              { label: "Sales", href: "/sales" },
+              { label: "Lead Companies", href: "/sales/lead-companies" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
+          <div className="text-center py-12">
+            <div className="text-red-600 mb-4">Error: {error}</div>
+            <button
+              onClick={fetchLeadCompanies}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Success Messages */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          Lead company status updated successfully!
+        </div>
+      )}
+
+      {showAddSuccessMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          New lead company added successfully!
+        </div>
+      )}
+
+      <div className="p-4 space-y-4 bg-white min-h-screen">
+        {/* Page Header */}
+        <PageHeader
+          title="Lead Companies"
+          subtitle="Track and manage potential client companies"
+          breadcrumb={[
+            { label: "Dashboard", href: "/" },
+            { label: "Sales", href: "/sales" },
+            { label: "Lead Companies", href: "/sales/lead-companies" },
+          ]}
+          showSearch={true}
+          showActions={true}
+          searchPlaceholder="Search lead companies..."
+          onSearchChange={setSearchQuery}
+          onAddClick={() => router.push("/sales/lead-companies/new")}
+          onFilterClick={() => setIsFilterModalOpen(true)}
+          onImportClick={() => setIsImportModalOpen(true)}
+          onExportClick={handleExport}
+        />
+        <div className="space-y-4">
+          {/* Stats Overview */}
+          <LeadsKPIs statusStats={statusStats} />
+
+          {/* View Toggle */}
+          <LeadsTabs
+            tabItems={tabItems}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            activeView={activeView}
+            setActiveView={setActiveView}
+            onFilterClick={() => setIsFilterModalOpen(true)}
+            onAddClick={() => router.push("/sales/lead-companies/new")}
+            onExportClick={handleExport}
+          />
+
+          {/* Single Horizontal Scroll Container */}
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {/* Lead Companies Table/Board */}
+            {activeView === "list" && (
+              <LeadsListView
+                filteredLeads={filteredCompanies}
+                leadColumnsTable={leadCompanyColumnsTable}
+                selectedLeads={selectedCompanies}
+                setSelectedLeads={setSelectedCompanies}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                onAddClick={() => router.push("/sales/lead-companies/new")}
+                onRowClick={(row) => {
+                  router.push(`/sales/lead-companies/${row.id}`);
+                }}
+              />
+            )}
+            {activeView === "board" && (
+              <LeadsBoardView
+                updatedColumns={boardColumns}
+                formatNumber={formatNumber}
+                onItemDrop={handleItemDrop}
+                onItemClick={handleItemClick}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Modal */}
+      <LeadsFilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        onApplyFilters={handleApplyFilters}
+      />
+
+      {/* Import Modal */}
+      <LeadsImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleImport}
+      />
+
+      {/* Convert to Client Confirmation Modal */}
+      {showConvertModal && companyToConvert && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-100 to-pink-100 rounded-xl flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Convert to Client Account
+                </h3>
+                <p className="text-sm text-gray-500">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-3">
+                Are you sure you want to convert{" "}
+                <strong>{companyToConvert.companyName}</strong> to a client
+                account?
+              </p>
+              <div className="bg-gradient-to-r from-orange-50 to-pink-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-700 font-medium mb-2">
+                  ✨ This will:
+                </p>
+                <ul className="text-sm text-orange-600 space-y-1">
+                  <li>• Move the company to Client Accounts section</li>
+                  <li>• Preserve all contacts and their information</li>
+                  <li>• Maintain all deals and proposals</li>
+                  <li>• Keep activity history and notes</li>
+                  <li>• Enable client-specific features and billing</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowConvertModal(false);
+                  setCompanyToConvert(null);
+                }}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConvertToClient}
+                disabled={loadingActions[`${companyToConvert.id}-convert`]}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
+              >
+                {loadingActions[`${companyToConvert.id}-convert`] ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Converting...
+                  </div>
+                ) : (
+                  <>
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Convert to Client
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && companyToDelete && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Delete Lead Company
+                </h3>
+                <p className="text-sm text-gray-500">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-3">
+                Are you sure you want to delete{" "}
+                <strong>{companyToDelete.companyName}</strong>?
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700 font-medium mb-2">
+                  ⚠️ This will permanently delete:
+                </p>
+                <ul className="text-sm text-red-600 space-y-1">
+                  <li>• Company information and details</li>
+                  <li>• All associated contacts</li>
+                  <li>• All deals and proposals</li>
+                  <li>• Activity history and notes</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setCompanyToDelete(null);
+                }}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteCompany}
+                disabled={loadingActions[`${companyToDelete.id}-delete`]}
+                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg"
+              >
+                {loadingActions[`${companyToDelete.id}-delete`] ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Deleting...
+                  </div>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Company
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign User Modal */}
+      {showAssignModal && companyToAssign && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <User className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Change Assignee
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Assign lead to a team member
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-4">
+                Select a user to assign{" "}
+                <strong>{companyToAssign.companyName}</strong> to:
+              </p>
+
+              <Select
+                label="Assign To"
+                value={selectedUserId}
+                onChange={setSelectedUserId}
+                options={[
+                  { value: "", label: "Unassigned" },
+                  ...users.map((u) => ({
+                    value: (u.id || u.documentId).toString(),
+                    label:
+                      `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                      u.username ||
+                      "Unknown User",
+                  })),
+                ]}
+                disabled={loadingUsers}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setCompanyToAssign(null);
+                  setSelectedUserId("");
+                }}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    await leadCompanyService.update(companyToAssign.id, {
+                      assignedTo: selectedUserId || null,
+                    });
+                    // Refresh the companies list
+                    await fetchLeadCompanies();
+                    // Close modal
+                    setShowAssignModal(false);
+                    setCompanyToAssign(null);
+                    setSelectedUserId("");
+                    // Show success message
+                    setShowSuccessMessage(true);
+                    setTimeout(() => setShowSuccessMessage(false), 3000);
+                  } catch (error) {
+                    console.error("Error updating assignment:", error);
+                    alert("Failed to update assignment. Please try again.");
+                  }
+                }}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg"
+              >
+                Update Assignee
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

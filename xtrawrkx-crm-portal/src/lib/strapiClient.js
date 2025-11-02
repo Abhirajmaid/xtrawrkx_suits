@@ -1,0 +1,376 @@
+const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
+
+class StrapiClient {
+    constructor() {
+        this.baseURL = API_BASE_URL;
+        this.token = null;
+    }
+
+    /**
+     * Set authentication token
+     */
+    setToken(token) {
+        this.token = token;
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('strapi_token', token);
+        }
+    }
+
+    /**
+     * Get authentication token
+     */
+    getToken() {
+        if (this.token) return this.token;
+        if (typeof window !== 'undefined') {
+            this.token = localStorage.getItem('strapi_token');
+        }
+        return this.token;
+    }
+
+    /**
+     * Remove authentication token
+     */
+    removeToken() {
+        this.token = null;
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('strapi_token');
+        }
+    }
+
+    /**
+     * Make authenticated request
+     */
+    async request(endpoint, options = {}) {
+        const url = `${this.baseURL}/api${endpoint}`;
+        const token = this.getToken();
+
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { Authorization: `Bearer ${token}` }),
+                ...options.headers,
+            },
+            ...options,
+        };
+
+        if (config.body && typeof config.body === 'object') {
+            config.body = JSON.stringify(config.body);
+        }
+
+        console.log(`Making request to: ${url}`, { method: config.method || 'GET' });
+
+        try {
+            const response = await fetch(url, config);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error(`API Error ${response.status} for ${url}:`, errorData);
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            }
+
+            return response;
+        } catch (error) {
+            console.error(`Strapi API Error (${endpoint}):`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * GET request
+     */
+    async get(endpoint, params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+        return this.request(url, { method: 'GET' });
+    }
+
+    /**
+     * POST request
+     */
+    async post(endpoint, data = {}) {
+        return this.request(endpoint, {
+            method: 'POST',
+            body: data,
+        });
+    }
+
+    /**
+     * PUT request
+     */
+    async put(endpoint, data = {}) {
+        return this.request(endpoint, {
+            method: 'PUT',
+            body: data,
+        });
+    }
+
+    /**
+     * DELETE request
+     */
+    async delete(endpoint) {
+        return this.request(endpoint, { method: 'DELETE' });
+    }
+
+    /**
+     * Login user
+     */
+    async login(email, password) {
+        try {
+            const response = await this.post('/auth/local', {
+                data: { identifier: email, password }
+            });
+
+            if (response.jwt) {
+                this.setToken(response.jwt);
+            }
+
+            return response;
+        } catch (error) {
+            console.error('Login error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get current user
+     */
+    async getCurrentUser() {
+        try {
+            const token = this.getToken();
+            if (!token) return null;
+
+            const response = await this.get('/users/me', {
+                populate: ['role', 'department']
+            });
+
+            return response;
+        } catch (error) {
+            console.error('Get current user error:', error);
+            this.removeToken();
+            return null;
+        }
+    }
+
+    /**
+     * Logout user
+     */
+    logout() {
+        this.removeToken();
+    }
+
+    /**
+     * Check if user is authenticated
+     */
+    isAuthenticated() {
+        return !!this.getToken();
+    }
+
+    // Lead Companies API
+    async getLeadCompanies(params = {}) {
+        return this.get('/lead-companies', params);
+    }
+
+    async getLeadCompany(id, params = {}) {
+        return this.get(`/lead-companies/${id}`, params);
+    }
+
+    async createLeadCompany(data) {
+        return this.post('/lead-companies', { data });
+    }
+
+    async updateLeadCompany(id, data) {
+        return this.put(`/lead-companies/${id}`, { data });
+    }
+
+    async deleteLeadCompany(id) {
+        return this.delete(`/lead-companies/${id}`);
+    }
+
+    async convertLeadToClient(id) {
+        return this.post(`/lead-companies/${id}/convert`);
+    }
+
+    async getLeadCompanyStats() {
+        return this.get('/lead-companies/stats');
+    }
+
+    // Client Accounts API
+    async getClientAccounts(params = {}) {
+        return this.get('/client-accounts', params);
+    }
+
+    async getClientAccount(id, params = {}) {
+        return this.get(`/client-accounts/${id}`, params);
+    }
+
+    async createClientAccount(data) {
+        return this.post('/client-accounts', { data });
+    }
+
+    async updateClientAccount(id, data) {
+        return this.put(`/client-accounts/${id}`, { data });
+    }
+
+    async deleteClientAccount(id) {
+        return this.delete(`/client-accounts/${id}`);
+    }
+
+    async getClientAccountStats() {
+        return this.get('/client-accounts/stats');
+    }
+
+    async getClientAccountHealth(id) {
+        return this.get(`/client-accounts/${id}/health`);
+    }
+
+    // Contacts API
+    async getContacts(params = {}) {
+        return this.get('/contacts', params);
+    }
+
+    async getContact(id, params = {}) {
+        return this.get(`/contacts/${id}`, params);
+    }
+
+    async createContact(data) {
+        return this.post('/contacts', { data });
+    }
+
+    async updateContact(id, data) {
+        return this.put(`/contacts/${id}`, { data });
+    }
+
+    async deleteContact(id) {
+        return this.delete(`/contacts/${id}`);
+    }
+
+    // Deals API
+    async getDeals(params = {}) {
+        return this.get('/deals', params);
+    }
+
+    async getDeal(id, params = {}) {
+        return this.get(`/deals/${id}`, params);
+    }
+
+    async createDeal(data) {
+        return this.post('/deals', { data });
+    }
+
+    async updateDeal(id, data) {
+        return this.put(`/deals/${id}`, { data });
+    }
+
+    async deleteDeal(id) {
+        return this.delete(`/deals/${id}`);
+    }
+
+    // Invoices API
+    async getInvoices(params = {}) {
+        return this.get('/invoices', params);
+    }
+
+    async getInvoice(id, params = {}) {
+        return this.get(`/invoices/${id}`, params);
+    }
+
+    async createInvoice(data) {
+        return this.post('/invoices', { data });
+    }
+
+    async updateInvoice(id, data) {
+        return this.put(`/invoices/${id}`, { data });
+    }
+
+    async deleteInvoice(id) {
+        return this.delete(`/invoices/${id}`);
+    }
+
+    // Proposals API
+    async getProposals(params = {}) {
+        return this.get('/proposals', params);
+    }
+
+    async getProposal(id, params = {}) {
+        return this.get(`/proposals/${id}`, params);
+    }
+
+    async createProposal(data) {
+        return this.post('/proposals', { data });
+    }
+
+    async updateProposal(id, data) {
+        return this.put(`/proposals/${id}`, { data });
+    }
+
+    async deleteProposal(id) {
+        return this.delete(`/proposals/${id}`);
+    }
+
+    // Activities API
+    async getActivities(params = {}) {
+        return this.get('/activities', params);
+    }
+
+    async getActivity(id, params = {}) {
+        return this.get(`/activities/${id}`, params);
+    }
+
+    async createActivity(data) {
+        return this.post('/activities', { data });
+    }
+
+    async updateActivity(id, data) {
+        return this.put(`/activities/${id}`, { data });
+    }
+
+    async deleteActivity(id) {
+        return this.delete(`/activities/${id}`);
+    }
+
+    // Proposals API
+    async getProposals(params = {}) {
+        return this.get('/proposals', params);
+    }
+
+    async getProposal(id, params = {}) {
+        return this.get(`/proposals/${id}`, params);
+    }
+
+    async createProposal(data) {
+        return this.post('/proposals', { data });
+    }
+
+    async updateProposal(id, data) {
+        return this.put(`/proposals/${id}`, { data });
+    }
+
+    async deleteProposal(id) {
+        return this.delete(`/proposals/${id}`);
+    }
+
+    // Users API
+    async getUsers(params = {}) {
+        return this.get('/users', params);
+    }
+
+    async getUser(id, params = {}) {
+        return this.get(`/users/${id}`, params);
+    }
+
+    // Xtrawrkx Users API
+    async getXtrawrkxUsers(params = {}) {
+        return this.get('/xtrawrkx-users', params);
+    }
+
+    async getXtrawrkxUser(id, params = {}) {
+        return this.get(`/xtrawrkx-users/${id}`, params);
+    }
+}
+
+export default new StrapiClient();

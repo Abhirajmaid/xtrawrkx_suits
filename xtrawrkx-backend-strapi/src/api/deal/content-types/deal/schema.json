@@ -24,6 +24,18 @@
             "target": "api::contact.contact",
             "inversedBy": "deals"
         },
+        "leadCompany": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::lead-company.lead-company",
+            "inversedBy": "deals"
+        },
+        "clientAccount": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::client-account.client-account",
+            "inversedBy": "deals"
+        },
         "name": {
             "type": "string",
             "required": true
@@ -87,6 +99,18 @@
             "type": "relation",
             "relation": "oneToMany",
             "target": "api::activity.activity",
+            "mappedBy": "deal"
+        },
+        "chatMessages": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::chat-message.chat-message",
+            "mappedBy": "deal"
+        },
+        "tasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task.task",
             "mappedBy": "deal"
         },
         "proposals": {
