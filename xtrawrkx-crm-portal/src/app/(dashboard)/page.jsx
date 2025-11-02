@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import SEO from "../../components/SEO";
 import { Users, IndianRupee, TrendingUp, Target, Loader2 } from "lucide-react";
 import { Card } from "../../components/ui";
 import ProtectedRoute from "../../components/ProtectedRoute";
@@ -230,6 +231,10 @@ export default function Home() {
 
   return (
     <ProtectedRoute>
+      <SEO
+        title="Dashboard"
+        description="Comprehensive CRM dashboard with sales analytics, deals pipeline, and business insights. Monitor your sales performance and manage customer relationships effectively."
+      />
       <div className="p-4 space-y-4 bg-white min-h-screen dashboard-content">
         {/* Page Header */}
         <PageHeader

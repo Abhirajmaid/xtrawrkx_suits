@@ -26,7 +26,7 @@ import {
   Target,
   Activity,
 } from "lucide-react";
-import { PageHeader } from "../../../components/layout";
+import PageHeader from "../../../components/PageHeader";
 import { format } from "date-fns";
 import {
   projectsData as initialProjectsData,

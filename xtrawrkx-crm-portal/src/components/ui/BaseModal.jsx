@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Card } from "./Card";
 
 export default function BaseModal({
@@ -11,6 +12,12 @@ export default function BaseModal({
   className = "",
 }) {
   const modalRef = useRef(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Handle client-side mounting for portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Handle escape key press
   useEffect(() => {
@@ -52,7 +59,7 @@ export default function BaseModal({
     event.stopPropagation();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted || typeof window === "undefined") return null;
 
   // Size classes
   const sizeClasses = {
@@ -60,9 +67,9 @@ export default function BaseModal({
     big: "max-w-2xl",
   };
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
       onClick={handleOverlayClick}
     >
       <Card
@@ -79,4 +86,7 @@ export default function BaseModal({
       </Card>
     </div>
   );
+
+  // Render modal using portal at document.body level to ensure proper positioning
+  return createPortal(modalContent, document.body);
 }

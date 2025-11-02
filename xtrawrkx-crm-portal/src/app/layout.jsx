@@ -77,6 +77,85 @@ function LayoutContent({ children }) {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <title>Xtrawrkx CRM Portal</title>
+        <meta
+          name="description"
+          content="Comprehensive Customer Relationship Management system for sales, leads, deals, and client management. Streamline your business operations with Xtrawrkx CRM."
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        {/* Robots Meta Tags */}
+        <meta
+          name="robots"
+          content="noindex, nofollow, nocache, noarchive, nosnippet, noimageindex"
+        />
+        <meta
+          name="googlebot"
+          content="noindex, nofollow, nocache, noarchive, nosnippet, noimageindex"
+        />
+        <meta
+          name="bingbot"
+          content="noindex, nofollow, nocache, noarchive, nosnippet, noimageindex"
+        />
+        <meta
+          name="slurp"
+          content="noindex, nofollow, nocache, noarchive, nosnippet, noimageindex"
+        />
+        <meta
+          name="duckduckbot"
+          content="noindex, nofollow, nocache, noarchive, nosnippet, noimageindex"
+        />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://crm.xtrawrkx.com" />
+        <meta
+          property="og:title"
+          content="Xtrawrkx CRM Portal - Complete Business Management Solution"
+        />
+        <meta
+          property="og:description"
+          content="Powerful CRM system for managing sales pipelines, leads, deals, and client relationships. Boost your business efficiency with our comprehensive management tools."
+        />
+        <meta
+          property="og:image"
+          content="https://crm.xtrawrkx.com/images/og-image.png"
+        />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Xtrawrkx CRM Portal" />
+        <meta property="og:site_name" content="Xtrawrkx CRM Portal" />
+        <meta property="og:locale" content="en_US" />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://crm.xtrawrkx.com" />
+        <meta
+          property="twitter:title"
+          content="Xtrawrkx CRM Portal - Complete Business Management Solution"
+        />
+        <meta
+          property="twitter:description"
+          content="Powerful CRM system for managing sales pipelines, leads, deals, and client relationships."
+        />
+        <meta
+          property="twitter:image"
+          content="https://crm.xtrawrkx.com/images/og-image.png"
+        />
+
+        {/* Icons */}
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/favicon.ico" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="canonical" href="https://crm.xtrawrkx.com" />
+
+        {/* Additional Meta */}
+        <meta name="application-name" content="Xtrawrkx CRM" />
+        <meta name="apple-mobile-web-app-title" content="Xtrawrkx CRM" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="msapplication-TileColor" content="#ffffff" />
+      </head>
       <body className="bg-white ">
         <AuthProvider>
           <SubSidebarProvider>

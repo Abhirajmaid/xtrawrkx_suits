@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Card } from "./ui";
 import { useAuth } from "../contexts/AuthContext";
+import GlobalSearchModal from "./GlobalSearchModal";
 
 export default function PageHeader({
   title,
@@ -42,6 +43,28 @@ export default function PageHeader({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [searchInputValue, setSearchInputValue] = useState("");
+
+  // Handle keyboard shortcut (Cmd/Ctrl + K) to open global search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (showSearch) {
+          setShowGlobalSearch(true);
+        }
+      }
+      // Also handle Escape to close
+      if (e.key === "Escape" && showGlobalSearch) {
+        setShowGlobalSearch(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showSearch, showGlobalSearch]);
 
   const getUserInitials = () => {
     if (!user) return "U";
@@ -145,9 +168,38 @@ export default function PageHeader({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-brand-text-light" />
                 <input
                   type="text"
-                  placeholder={searchPlaceholder || "Search..."}
-                  onChange={(e) => onSearchChange?.(e.target.value)}
-                  className="w-64 pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/15 transition-all duration-300 placeholder:text-brand-text-light shadow-lg"
+                  placeholder={searchPlaceholder || "Search... (⌘K)"}
+                  onFocus={() => {
+                    // If no custom search handler, open global search modal
+                    if (!onSearchChange) {
+                      setShowGlobalSearch(true);
+                    }
+                  }}
+                  onClick={() => {
+                    // If no custom search handler, open global search modal
+                    if (!onSearchChange) {
+                      setShowGlobalSearch(true);
+                    }
+                  }}
+                  value={searchInputValue}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSearchInputValue(value);
+                    // If custom handler provided, use it
+                    if (onSearchChange) {
+                      onSearchChange(value);
+                    }
+                    // Don't auto-open modal on typing - user can press Enter to open
+                  }}
+                  onKeyDown={(e) => {
+                    // Open global search modal on Enter key
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      // Open modal with current search value
+                      setShowGlobalSearch(true);
+                    }
+                  }}
+                  className="w-64 pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/15 transition-all duration-300 placeholder:text-brand-text-light shadow-lg cursor-pointer"
                 />
               </div>
             )}
@@ -312,6 +364,19 @@ export default function PageHeader({
           </div>
         )}
       </div>
+
+      {/* Global Search Modal */}
+      {showSearch && (
+        <GlobalSearchModal
+          isOpen={showGlobalSearch}
+          onClose={() => {
+            setShowGlobalSearch(false);
+            // Optionally clear search input when closing
+            // setSearchInputValue("");
+          }}
+          initialQuery={searchInputValue}
+        />
+      )}
     </Card>
   );
 }

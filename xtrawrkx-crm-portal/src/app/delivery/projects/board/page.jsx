@@ -16,7 +16,7 @@ const formatDate = (dateString) => {
   });
 };
 import { Calendar, Users, Clock } from "lucide-react";
-import { PageHeader } from "../../../../components/layout";
+import PageHeader from "../../../../components/PageHeader";
 import { ProjectFilterModal } from "../../../../components/projects";
 
 export default function ProjectsBoardPage() {

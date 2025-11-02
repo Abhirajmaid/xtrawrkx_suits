@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Card, Button, Input, Select, Badge, Tabs } from "../../components/ui";
-import { PageHeader } from "../../components/layout";
+import PageHeader from "../../components/PageHeader";
 import {
   AddRoleModal,
   ExportDataModal,
