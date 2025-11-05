@@ -4,7 +4,7 @@
  */
 class StrapiClient {
     constructor() {
-        this.baseURL = process.env.NEXT_PUBLIC_STRAPI_URL || 'https://xtrawrkxsuits-production.up.railway.app';
+        this.baseURL = 'https://xtrawrkxsuits-production.up.railway.app';
         this.apiPath = '/api';
     }
 

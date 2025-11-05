@@ -158,6 +158,53 @@
             "type": "relation",
             "relation": "manyToOne",
             "target": "api::xtrawrkx-user.xtrawrkx-user"
+        },
+        "password": {
+            "type": "password",
+            "required": false
+        },
+        "emailVerified": {
+            "type": "boolean",
+            "default": false
+        },
+        "isActive": {
+            "type": "boolean",
+            "default": true
+        },
+        "source": {
+            "type": "enumeration",
+            "enum": [
+                "ONBOARDING",
+                "MANUAL",
+                "IMPORT",
+                "API"
+            ],
+            "default": "MANUAL"
+        },
+        "onboardingCompleted": {
+            "type": "boolean",
+            "default": false
+        },
+        "onboardingCompletedAt": {
+            "type": "datetime"
+        },
+        "onboardingData": {
+            "type": "json"
+        },
+        "selectedCommunities": {
+            "type": "json"
+        },
+        "communitySubmissions": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::community-submission.community-submission",
+            "mappedBy": "clientAccount"
+        },
+        "communityMemberships": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::community-membership.community-membership",
+            "mappedBy": "clientAccount"
         }
     }
 }

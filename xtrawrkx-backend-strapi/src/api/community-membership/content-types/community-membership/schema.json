@@ -5,45 +5,66 @@
         "singularName": "community-membership",
         "pluralName": "community-memberships",
         "displayName": "Community Membership",
-        "description": "Contact memberships in communities"
+        "description": "Active memberships of clients in different communities"
     },
     "options": {
         "draftAndPublish": false
     },
     "pluginOptions": {},
     "attributes": {
-        "contact": {
+        "clientAccount": {
             "type": "relation",
             "relation": "manyToOne",
-            "target": "api::contact.contact",
+            "target": "api::client-account.client-account",
             "inversedBy": "communityMemberships"
         },
         "community": {
-            "type": "relation",
-            "relation": "manyToOne",
-            "target": "api::community.community",
-            "inversedBy": "memberships"
+            "type": "enumeration",
+            "enum": [
+                "XEN",
+                "XEVFIN",
+                "XEVTG",
+                "XDD"
+            ],
+            "required": true
+        },
+        "membershipType": {
+            "type": "enumeration",
+            "enum": [
+                "FREE",
+                "PREMIUM",
+                "ENTERPRISE"
+            ],
+            "default": "FREE"
         },
         "status": {
             "type": "enumeration",
             "enum": [
-                "PENDING",
                 "ACTIVE",
-                "INACTIVE"
+                "INACTIVE",
+                "SUSPENDED",
+                "EXPIRED"
             ],
-            "default": "PENDING"
+            "default": "ACTIVE"
         },
         "joinedAt": {
+            "type": "datetime",
+            "required": true
+        },
+        "expiresAt": {
             "type": "datetime"
         },
-        "tier": {
-            "type": "string"
+        "lastActivityAt": {
+            "type": "datetime"
         },
-        "nextTier": {
-            "type": "string"
+        "membershipData": {
+            "type": "json"
+        },
+        "benefits": {
+            "type": "json"
+        },
+        "restrictions": {
+            "type": "json"
         }
     }
 }
-
-
-

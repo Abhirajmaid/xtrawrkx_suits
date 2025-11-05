@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StatsCards,
   AssignedTasksTable,
@@ -12,40 +12,77 @@ import {
   RecentActivity,
 } from "../../components/dashboard";
 import Header from "../../components/shared/Header";
-import {
-  projects,
-  getTasksByAssigneeId,
-  getProjectStats,
-  teamMembers,
-} from "../../data/centralData";
+import projectService from "../../lib/projectService";
+import taskService from "../../lib/taskService";
+import { transformProject, transformTask } from "../../lib/dataTransformers";
 
 export default function DashboardPage() {
   const [hasData] = useState(true); // Default to filled state to show the dashboard with data
+  const [projects, setProjects] = useState([]);
+  const [assignedTasks, setAssignedTasks] = useState([]);
+  const [taskStats, setTaskStats] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load dashboard data from API
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const currentUserId = 1; // TODO: Get from auth context
+
+        // Load projects, tasks, and stats in parallel
+        const [projectsResponse, tasksResponse, statsResponse] = await Promise.all([
+          projectService.getAllProjects({ pageSize: 10 }),
+          taskService.getTasksByAssignee(currentUserId, { pageSize: 10 }),
+          taskService.getTaskStats(currentUserId)
+        ]);
+
+        // Transform data
+        const transformedProjects = projectsResponse.data?.map(transformProject) || [];
+        const transformedTasks = tasksResponse.data?.map(transformTask) || [];
+
+        setProjects(transformedProjects);
+        setAssignedTasks(transformedTasks);
+        setTaskStats(statsResponse);
+
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
 
   // Get real assigned tasks data
   const getRealAssignedTasksData = () => {
-    if (!hasData) return [];
+    if (!hasData || !assignedTasks.length) return [];
 
-    const currentUserId = 1; // Mark Atenson
-    const userTasks = getTasksByAssigneeId(currentUserId);
+    return assignedTasks.slice(0, 3).map((task) => {
+      let dueDateText = "No due date";
+      
+      if (task.dueDate) {
+        const dueDate = new Date(task.scheduledDate);
+        const now = new Date();
+        const diffTime = dueDate - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    return userTasks.slice(0, 3).map((task) => {
-      const dueDate = new Date(task.dueDate);
-      const now = new Date();
-      const diffTime = dueDate - now;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      let dueDateText;
-      if (diffDays < 0) {
-        dueDateText = `Overdue by ${Math.abs(diffDays)} days`;
-      } else if (diffDays === 0) {
-        dueDateText = "Due today";
-      } else if (diffDays === 1) {
-        dueDateText = "Due tomorrow";
-      } else if (diffDays < 7) {
-        dueDateText = `Due in ${diffDays} days`;
-      } else {
-        dueDateText = `Due in ${Math.ceil(diffDays / 7)} weeks`;
+        if (diffDays < 0) {
+          dueDateText = `Overdue by ${Math.abs(diffDays)} days`;
+        } else if (diffDays === 0) {
+          dueDateText = "Due today";
+        } else if (diffDays === 1) {
+          dueDateText = "Due tomorrow";
+        } else if (diffDays < 7) {
+          dueDateText = `Due in ${diffDays} days`;
+        } else {
+          dueDateText = `Due in ${Math.ceil(diffDays / 7)} weeks`;
+        }
       }
 
       const getColorByProject = (projectName) => {
@@ -72,8 +109,8 @@ export default function DashboardPage() {
       return {
         id: task.id,
         name: task.name,
-        project: task.project.name,
-        projectColor: getColorByProject(task.project.name),
+        project: task.project?.name || "Unknown Project",
+        projectColor: getColorByProject(task.project?.name),
         dueDate: dueDateText,
         priority: task.priority,
         progress: task.progress,
@@ -83,11 +120,7 @@ export default function DashboardPage() {
     });
   };
 
-  const [assignedTasks, setAssignedTasks] = useState(() =>
-    getRealAssignedTasksData()
-  );
-
-  // Get real stats from centralized data
+  // Get real stats from API data
   const getRealStatsData = () => {
     if (!hasData) {
       return {
@@ -99,55 +132,44 @@ export default function DashboardPage() {
       };
     }
 
-    const allProjects = Object.values(projects);
-    const currentUserId = 1; // Mark Atenson
-    const userTasks = getTasksByAssigneeId(currentUserId);
-
-    let totalTasks = 0;
-    let completedTasks = 0;
-    let overdueTasks = 0;
-
-    // Calculate stats across all projects
-    allProjects.forEach((project) => {
-      const projectStats = getProjectStats(project.id);
-      totalTasks += projectStats.totalTasks;
-      completedTasks += projectStats.completedTasks;
-      overdueTasks += projectStats.overdueTasks;
-    });
-
     return {
-      totalProjects: allProjects.length,
-      totalTasks,
-      assignedTasks: userTasks.length,
-      completedTasks,
-      overdueTasks,
+      totalProjects: projects.length,
+      totalTasks: taskStats.totalTasks || 0,
+      assignedTasks: assignedTasks.length,
+      completedTasks: taskStats.completedTasks || 0,
+      overdueTasks: taskStats.overdueTasks || 0,
     };
   };
 
   const statsData = getRealStatsData();
 
   // Handle task completion
-  const handleTaskComplete = (taskId, newStatus) => {
-    setAssignedTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
+  const handleTaskComplete = async (taskId, newStatus) => {
+    try {
+      await taskService.updateTaskStatus(taskId, newStatus);
+      
+      setAssignedTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, status: newStatus } : task
+        )
+      );
+    } catch (error) {
+      console.error("Error updating task status:", error);
+    }
   };
 
   // Get real projects data
   const getRealProjectsData = () => {
-    if (!hasData) return [];
+    if (!hasData || !projects.length) return [];
 
-    return Object.values(projects).map((project) => {
-      const stats = getProjectStats(project.id);
-      const endDate = new Date(project.endDate);
+    return projects.map((project) => {
+      const endDate = project.endDate ? new Date(project.endDate) : null;
       const now = new Date();
 
       let status = project.status;
-      if (stats.completedTasks === stats.totalTasks && stats.totalTasks > 0) {
+      if (project.progress === 100) {
         status = "Completed";
-      } else if (endDate < now && status !== "Completed") {
+      } else if (endDate && endDate < now && status !== "Completed") {
         status = "Overdue";
       } else if (status === "In Progress") {
         status = "Active";
@@ -166,12 +188,11 @@ export default function DashboardPage() {
         }
       };
 
-      const team = (project.teamMemberIds || []).map((memberId) => {
-        const member = teamMembers[memberId];
+      const team = (project.teamMembers || []).map((member) => {
         return {
-          name: member?.name || "Unknown",
-          initials: member?.avatar || "?",
-          color: member?.color || "bg-gray-500",
+          name: member.name || "Unknown",
+          initials: member.initials || "?",
+          color: member.color || "bg-gray-500",
         };
       });
 
@@ -185,10 +206,10 @@ export default function DashboardPage() {
         dueDate:
           status === "Completed"
             ? "Completed"
-            : new Date(project.endDate).toLocaleDateString("en-US", {
+            : endDate ? endDate.toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
-              }),
+              }) : "No due date",
         team,
       };
     });
@@ -236,6 +257,50 @@ export default function DashboardPage() {
         },
       ]
     : [];
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
+        <Header
+          title="Dashboard"
+          subtitle="Monitor all of your projects and tasks here"
+          onSearchClick={() => console.log("Search clicked")}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col h-full relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
+        <Header
+          title="Dashboard"
+          subtitle="Monitor all of your projects and tasks here"
+          onSearchClick={() => console.log("Search clicked")}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full relative">

@@ -20,7 +20,34 @@ module.exports = createCoreController('api::contact.contact', ({ strapi }) => ({
                 return ctx.badRequest('No data provided');
             }
 
-            console.log('Contact data:', data);
+            // Generate placeholder email if missing (for LinkedIn imports)
+            // Note: Email must be deterministic (same LinkedIn URL = same email) for duplicate detection
+            if (!data.email || data.email.trim() === '') {
+                if (data.linkedIn) {
+                    // Extract LinkedIn username from URL and create placeholder email
+                    // This ensures same LinkedIn profile always generates same email
+                    const linkedInMatch = data.linkedIn.match(/linkedin\.com\/in\/([^\/\?]+)/);
+                    if (linkedInMatch && linkedInMatch[1]) {
+                        const linkedInUsername = linkedInMatch[1].toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                        data.email = `${linkedInUsername}@xtrawrkx.placeholder`;
+                        console.log('Generated placeholder email from LinkedIn URL:', data.email);
+                    } else {
+                        // Fallback: use normalized LinkedIn URL as base
+                        const normalizedLinkedIn = data.linkedIn.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 50);
+                        data.email = `${normalizedLinkedIn}@xtrawrkx.placeholder`;
+                        console.log('Generated fallback placeholder email from LinkedIn URL:', data.email);
+                    }
+                } else {
+                    // Last resort: use name-based placeholder (deterministic)
+                    const firstName = (data.firstName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const lastName = (data.lastName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const namePart = firstName && lastName ? `${firstName}.${lastName}` : firstName || lastName || 'contact';
+                    data.email = `${namePart}@xtrawrkx.placeholder`;
+                    console.log('Generated name-based placeholder email:', data.email);
+                }
+            }
+
+            console.log('Contact data (after email generation):', data);
 
             const entity = await strapi.entityService.create('api::contact.contact', {
                 data,

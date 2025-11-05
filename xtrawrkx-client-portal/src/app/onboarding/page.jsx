@@ -2,560 +2,285 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Building, User, Lock, Mail } from "lucide-react";
+import { useOnboardingState } from "@/hooks/useOnboardingState";
+import { ONBOARDING_STEPS } from "@/lib/onboarding-config";
+import { useSession } from "@/lib/auth";
+import { Progress } from "./_components/Progress";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337";
+// Import step components
+import { AccountStep } from "./_steps/Account";
+import { BasicsStep } from "./_steps/Basics";
+import { CommunitiesStep } from "./_steps/Communities";
+import { DoneStep } from "./_steps/Done";
+
+// Import community step components
+import { XenStep as XENStep } from "./_steps/community/XEN";
+import { XevfinStep as XEVFINStep } from "./_steps/community/XEVFIN";
+import { XevtgStep as XEVTGStep } from "./_steps/community/XEVTG";
+import { XddStep as XDDStep } from "./_steps/community/XDD";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useState("login");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const { data: session, status } = useSession();
+  const {
+    state,
+    goToStep,
+    goToNextStep,
+    goToPrevStep,
+    getCurrentStepInfo,
+    isStepComplete,
+    canProceedToStep,
+    completeOnboarding,
+    isLoading,
+    error,
+    clearError,
+  } = useOnboardingState();
 
-  // Login form state
-  const [loginData, setLoginData] = useState({
-    email: "",
-    password: "",
-  });
+  const [currentCommunityStep, setCurrentCommunityStep] = useState(null);
 
-  // Onboarding form state
-  const [onboardingData, setOnboardingData] = useState({
-    // Company information
-    companyName: "",
-    industry: "",
-    website: "",
-    phone: "",
-    email: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "",
-    employees: "",
-    description: "",
-    founded: "",
-
-    // Primary contact information
-    contactFirstName: "",
-    contactLastName: "",
-    contactEmail: "",
-    contactPhone: "",
-    contactTitle: "",
-    contactDepartment: "",
-
-    // Authentication
-    password: "",
-    confirmPassword: "",
-  });
-
-  // Check if user is already logged in
+  // Check authentication and redirect if needed
   useEffect(() => {
-    const token = localStorage.getItem("client_token");
-    if (token) {
-      router.push("/dashboard");
+    if (status === 'unauthenticated') {
+      router.push('/auth');
+      return;
     }
-  }, [router]);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/client/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(loginData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      // Store authentication data
-      localStorage.setItem("client_token", data.token);
-      localStorage.setItem("client_account", JSON.stringify(data.account));
-      localStorage.setItem("client_contacts", JSON.stringify(data.contacts));
-
-      // Redirect to dashboard
-      router.push("/dashboard");
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
+    // If user is authenticated and onboarding is complete, redirect to dashboard
+    if (status === 'authenticated' && session?.user?.profile?.onboarded) {
+      router.push('/dashboard');
+      return;
     }
+  }, [status, session, router]);
+
+  // Handle onboarding completion
+  useEffect(() => {
+    if (state.isComplete) {
+      router.push('/dashboard');
+    }
+  }, [state.isComplete, router]);
+
+  const currentStepInfo = getCurrentStepInfo();
+
+  // Handle community step navigation
+  const handleCommunityStepSelect = (community) => {
+    setCurrentCommunityStep(community);
   };
 
-  const handleOnboarding = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const handleCommunityStepBack = () => {
+    setCurrentCommunityStep(null);
+  };
 
-    // Validate required fields
-    const requiredFields = [
-      "companyName",
-      "industry",
-      "email",
-      "contactFirstName",
-      "contactLastName",
-      "contactEmail",
-      "password",
-    ];
+  // Render current step component
+  const renderCurrentStep = () => {
+    const stepId = currentStepInfo?.id;
 
-    for (const field of requiredFields) {
-      if (!onboardingData[field]) {
-        setError(
-          `${field.replace(/([A-Z])/g, " $1").toLowerCase()} is required`
+    // If we're in submissions step and have a community selected, show community form
+    if (stepId === 'submissions' && currentCommunityStep) {
+      const communityProps = {
+        onBack: handleCommunityStepBack,
+        onNext: () => {
+          setCurrentCommunityStep(null);
+          // Check if all selected communities have submissions
+          const allSubmitted = state.selectedCommunities.every(
+            community => state.submissions[community]
+          );
+          if (allSubmitted) {
+            goToNextStep();
+          }
+        },
+        initialData: state.submissions[currentCommunityStep] || {},
+        community: currentCommunityStep,
+      };
+
+      switch (currentCommunityStep) {
+        case 'XEN':
+          return <XENStep {...communityProps} />;
+        case 'XEVFIN':
+          return <XEVFINStep {...communityProps} />;
+        case 'XEVTG':
+          return <XEVTGStep {...communityProps} />;
+        case 'XDD':
+          return <XDDStep {...communityProps} />;
+        default:
+          return null;
+      }
+    }
+
+    // Regular step components
+    switch (stepId) {
+      case 'account':
+        return (
+          <AccountStep
+            onNext={goToNextStep}
+            initialData={state.account}
+          />
         );
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Validate password match
-    if (onboardingData.password !== onboardingData.confirmPassword) {
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
-
-    // Validate password strength
-    if (onboardingData.password.length < 8) {
-      setError("Password must be at least 8 characters long");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/onboarding/complete`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(onboardingData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Onboarding failed");
-      }
-
-      // Store authentication data
-      localStorage.setItem("client_token", data.token);
-      localStorage.setItem("client_account", JSON.stringify(data.account));
-      localStorage.setItem(
-        "client_contacts",
-        JSON.stringify([data.primaryContact])
-      );
-
-      setSuccess("Account created successfully! Redirecting to dashboard...");
-
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 2000);
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
+      
+      case 'basics':
+        return (
+          <BasicsStep
+            onNext={goToNextStep}
+            onBack={goToPrevStep}
+            initialData={state.basics}
+          />
+        );
+      
+      case 'communities':
+        return (
+          <CommunitiesStep
+            onNext={goToNextStep}
+            onBack={goToPrevStep}
+            initialData={{ selectedCommunities: state.selectedCommunities }}
+          />
+        );
+      
+      case 'submissions':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Complete Community Applications
+              </h2>
+              <p className="text-gray-600">
+                Fill out applications for your selected communities
+              </p>
+            </div>
+            
+            <div className="grid gap-4">
+              {state.selectedCommunities.map((community) => (
+                <div
+                  key={community}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    state.submissions[community]
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleCommunityStepSelect(community)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">{community}</h3>
+                      <p className="text-sm text-gray-600">
+                        {state.submissions[community] ? 'Completed' : 'Click to fill out application'}
+                      </p>
+                    </div>
+                    <div className="text-2xl">
+                      {state.submissions[community] ? '✅' : '📝'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex justify-between pt-6">
+              <button
+                onClick={goToPrevStep}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <button
+                onClick={goToNextStep}
+                disabled={!state.selectedCommunities.every(community => state.submissions[community])}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        );
+      
+      case 'done':
+        return (
+          <DoneStep
+            onComplete={async () => {
+              await completeOnboarding();
+              router.push('/dashboard');
+            }}
+            initialData={state}
+          />
+        );
+      
+      default:
+        return (
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Step not found
+            </h2>
+            <p className="text-gray-600">
+              The requested onboarding step could not be found.
+            </p>
+          </div>
+        );
     }
   };
 
-  const handleInputChange = (field, value, isOnboarding = false) => {
-    if (isOnboarding) {
-      setOnboardingData((prev) => ({ ...prev, [field]: value }));
-    } else {
-      setLoginData((prev) => ({ ...prev, [field]: value }));
-    }
-  };
+  // Show loading state
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Something went wrong
+          </h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={clearError}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-4xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-gray-900">
-            XtraWrkx Client Portal
-          </CardTitle>
-          <CardDescription className="text-lg text-gray-600">
-            Access your projects, documents, and collaborate with our team
-          </CardDescription>
-        </CardHeader>
+    <div className="max-w-4xl mx-auto">
+      {/* Progress indicator */}
+      <div className="mb-8">
+        <Progress
+          currentStep={state.currentStep}
+          totalSteps={state.totalSteps}
+          steps={ONBOARDING_STEPS}
+        />
+      </div>
 
-        <CardContent>
-          <Tabs
-            value={currentTab}
-            onValueChange={setCurrentTab}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login" className="flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                Login
-              </TabsTrigger>
-              <TabsTrigger
-                value="onboarding"
-                className="flex items-center gap-2"
-              >
-                <Building className="w-4 h-4" />
-                New Account
-              </TabsTrigger>
-            </TabsList>
+      {/* Current step content */}
+      <div className="bg-white rounded-lg shadow-sm border p-8">
+        {renderCurrentStep()}
+      </div>
 
-            {error && (
-              <Alert className="mt-4 border-red-200 bg-red-50">
-                <AlertDescription className="text-red-800">
-                  {error}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {success && (
-              <Alert className="mt-4 border-green-200 bg-green-50">
-                <AlertDescription className="text-green-800">
-                  {success}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <TabsContent value="login" className="mt-6">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Company Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="company@example.com"
-                    value={loginData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={loginData.password}
-                    onChange={(e) =>
-                      handleInputChange("password", e.target.value)
-                    }
-                    required
-                  />
-                </div>
-
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing In...
-                    </>
-                  ) : (
-                    "Sign In"
-                  )}
-                </Button>
-
-                <div className="text-center text-sm text-gray-500">
-                  Don't have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setCurrentTab("onboarding")}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Create one here
-                  </button>
-                </div>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="onboarding" className="mt-6">
-              <form onSubmit={handleOnboarding} className="space-y-6">
-                {/* Company Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Building className="w-5 h-5" />
-                    Company Information
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="companyName">Company Name *</Label>
-                      <Input
-                        id="companyName"
-                        placeholder="Your Company Inc."
-                        value={onboardingData.companyName}
-                        onChange={(e) =>
-                          handleInputChange("companyName", e.target.value, true)
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="industry">Industry *</Label>
-                      <Input
-                        id="industry"
-                        placeholder="Technology, Healthcare, etc."
-                        value={onboardingData.industry}
-                        onChange={(e) =>
-                          handleInputChange("industry", e.target.value, true)
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="company-email">Company Email *</Label>
-                      <Input
-                        id="company-email"
-                        type="email"
-                        placeholder="info@company.com"
-                        value={onboardingData.email}
-                        onChange={(e) =>
-                          handleInputChange("email", e.target.value, true)
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="company-phone">Phone</Label>
-                      <Input
-                        id="company-phone"
-                        placeholder="+1 (555) 123-4567"
-                        value={onboardingData.phone}
-                        onChange={(e) =>
-                          handleInputChange("phone", e.target.value, true)
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="website">Website</Label>
-                      <Input
-                        id="website"
-                        placeholder="https://company.com"
-                        value={onboardingData.website}
-                        onChange={(e) =>
-                          handleInputChange("website", e.target.value, true)
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="employees">Number of Employees</Label>
-                      <Input
-                        id="employees"
-                        placeholder="1-10, 11-50, 51-200, etc."
-                        value={onboardingData.employees}
-                        onChange={(e) =>
-                          handleInputChange("employees", e.target.value, true)
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Primary Contact Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <User className="w-5 h-5" />
-                    Primary Contact Information
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="contactFirstName">First Name *</Label>
-                      <Input
-                        id="contactFirstName"
-                        placeholder="John"
-                        value={onboardingData.contactFirstName}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "contactFirstName",
-                            e.target.value,
-                            true
-                          )
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="contactLastName">Last Name *</Label>
-                      <Input
-                        id="contactLastName"
-                        placeholder="Doe"
-                        value={onboardingData.contactLastName}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "contactLastName",
-                            e.target.value,
-                            true
-                          )
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="contactEmail">Email *</Label>
-                      <Input
-                        id="contactEmail"
-                        type="email"
-                        placeholder="john@company.com"
-                        value={onboardingData.contactEmail}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "contactEmail",
-                            e.target.value,
-                            true
-                          )
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="contactPhone">Phone</Label>
-                      <Input
-                        id="contactPhone"
-                        placeholder="+1 (555) 123-4567"
-                        value={onboardingData.contactPhone}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "contactPhone",
-                            e.target.value,
-                            true
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="contactTitle">Job Title</Label>
-                      <Input
-                        id="contactTitle"
-                        placeholder="CEO, CTO, Project Manager, etc."
-                        value={onboardingData.contactTitle}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "contactTitle",
-                            e.target.value,
-                            true
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="contactDepartment">Department</Label>
-                      <Input
-                        id="contactDepartment"
-                        placeholder="Executive, IT, Marketing, etc."
-                        value={onboardingData.contactDepartment}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "contactDepartment",
-                            e.target.value,
-                            true
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Password Setup */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Lock className="w-5 h-5" />
-                    Account Security
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password *</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="At least 8 characters"
-                        value={onboardingData.password}
-                        onChange={(e) =>
-                          handleInputChange("password", e.target.value, true)
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">
-                        Confirm Password *
-                      </Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        placeholder="Confirm your password"
-                        value={onboardingData.confirmPassword}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "confirmPassword",
-                            e.target.value,
-                            true
-                          )
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Account...
-                    </>
-                  ) : (
-                    "Create Account & Access Portal"
-                  )}
-                </Button>
-
-                <div className="text-center text-sm text-gray-500">
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setCurrentTab("login")}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Sign in here
-                  </button>
-                </div>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 p-4 bg-gray-100 rounded-lg text-sm">
+          <details>
+            <summary className="cursor-pointer font-semibold">Debug Info</summary>
+            <pre className="mt-2 text-xs overflow-auto">
+              {JSON.stringify({ 
+                currentStep: state.currentStep,
+                currentStepInfo,
+                selectedCommunities: state.selectedCommunities,
+                submissions: Object.keys(state.submissions),
+                isComplete: state.isComplete
+              }, null, 2)}
+            </pre>
+          </details>
+        </div>
+      )}
     </div>
   );
 }

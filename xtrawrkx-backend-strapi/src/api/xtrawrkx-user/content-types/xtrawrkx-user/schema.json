@@ -287,6 +287,12 @@
             "relation": "manyToMany",
             "target": "api::user-role.user-role",
             "mappedBy": "users"
+        },
+        "projectTeams": {
+            "type": "relation",
+            "relation": "manyToMany",
+            "target": "api::project.project",
+            "mappedBy": "teamMembers"
         }
     }
 }

@@ -74,6 +74,9 @@
         "address": {
             "type": "text"
         },
+        "description": {
+            "type": "text"
+        },
         "birthday": {
             "type": "date"
         },

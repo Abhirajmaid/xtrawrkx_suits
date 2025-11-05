@@ -680,6 +680,14 @@ export interface ApiClientAccountClientAccount
       'api::chat-message.chat-message'
     >;
     city: Schema.Attribute.String;
+    communityMemberships: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::community-membership.community-membership'
+    >;
+    communitySubmissions: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::community-submission.community-submission'
+    >;
     companyName: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
@@ -696,6 +704,7 @@ export interface ApiClientAccountClientAccount
     deals: Schema.Attribute.Relation<'oneToMany', 'api::deal.deal'>;
     description: Schema.Attribute.Text;
     email: Schema.Attribute.Email;
+    emailVerified: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     employees: Schema.Attribute.String;
     founded: Schema.Attribute.String;
     healthScore: Schema.Attribute.Integer &
@@ -709,6 +718,7 @@ export interface ApiClientAccountClientAccount
       Schema.Attribute.DefaultTo<75>;
     industry: Schema.Attribute.String & Schema.Attribute.Required;
     invoices: Schema.Attribute.Relation<'oneToMany', 'api::invoice.invoice'>;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     lastActivity: Schema.Attribute.String;
     lastActivityDate: Schema.Attribute.DateTime;
     linkedIn: Schema.Attribute.String;
@@ -719,11 +729,21 @@ export interface ApiClientAccountClientAccount
     > &
       Schema.Attribute.Private;
     notes: Schema.Attribute.Text;
+    onboardingCompleted: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
+    onboardingCompletedAt: Schema.Attribute.DateTime;
+    onboardingData: Schema.Attribute.JSON;
+    password: Schema.Attribute.Password;
     phone: Schema.Attribute.String;
     projects: Schema.Attribute.Relation<'oneToMany', 'api::project.project'>;
     proposals: Schema.Attribute.Relation<'oneToMany', 'api::proposal.proposal'>;
     publishedAt: Schema.Attribute.DateTime;
     revenue: Schema.Attribute.Decimal;
+    selectedCommunities: Schema.Attribute.JSON;
+    source: Schema.Attribute.Enumeration<
+      ['ONBOARDING', 'MANUAL', 'IMPORT', 'API']
+    > &
+      Schema.Attribute.DefaultTo<'MANUAL'>;
     state: Schema.Attribute.String;
     status: Schema.Attribute.Enumeration<
       ['ACTIVE', 'INACTIVE', 'CHURNED', 'ON_HOLD']
@@ -781,7 +801,7 @@ export interface ApiCommunityMembershipCommunityMembership
   extends Struct.CollectionTypeSchema {
   collectionName: 'community_memberships';
   info: {
-    description: 'Contact memberships in communities';
+    description: 'Active memberships of clients in different communities';
     displayName: 'Community Membership';
     pluralName: 'community-memberships';
     singularName: 'community-membership';
@@ -790,26 +810,88 @@ export interface ApiCommunityMembershipCommunityMembership
     draftAndPublish: false;
   };
   attributes: {
-    community: Schema.Attribute.Relation<
+    benefits: Schema.Attribute.JSON;
+    clientAccount: Schema.Attribute.Relation<
       'manyToOne',
-      'api::community.community'
+      'api::client-account.client-account'
     >;
-    contact: Schema.Attribute.Relation<'manyToOne', 'api::contact.contact'>;
+    community: Schema.Attribute.Enumeration<['XEN', 'XEVFIN', 'XEVTG', 'XDD']> &
+      Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    joinedAt: Schema.Attribute.DateTime;
+    expiresAt: Schema.Attribute.DateTime;
+    joinedAt: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    lastActivityAt: Schema.Attribute.DateTime;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::community-membership.community-membership'
     > &
       Schema.Attribute.Private;
-    nextTier: Schema.Attribute.String;
+    membershipData: Schema.Attribute.JSON;
+    membershipType: Schema.Attribute.Enumeration<
+      ['FREE', 'PREMIUM', 'ENTERPRISE']
+    > &
+      Schema.Attribute.DefaultTo<'FREE'>;
     publishedAt: Schema.Attribute.DateTime;
-    status: Schema.Attribute.Enumeration<['PENDING', 'ACTIVE', 'INACTIVE']> &
-      Schema.Attribute.DefaultTo<'PENDING'>;
-    tier: Schema.Attribute.String;
+    restrictions: Schema.Attribute.JSON;
+    status: Schema.Attribute.Enumeration<
+      ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'EXPIRED']
+    > &
+      Schema.Attribute.DefaultTo<'ACTIVE'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiCommunitySubmissionCommunitySubmission
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'community_submissions';
+  info: {
+    description: 'Client applications to join different communities';
+    displayName: 'Community Submission';
+    pluralName: 'community-submissions';
+    singularName: 'community-submission';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    approvedAt: Schema.Attribute.DateTime;
+    clientAccount: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::client-account.client-account'
+    >;
+    community: Schema.Attribute.Enumeration<['XEN', 'XEVFIN', 'XEVTG', 'XDD']> &
+      Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::community-submission.community-submission'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    rejectedAt: Schema.Attribute.DateTime;
+    rejectionReason: Schema.Attribute.Text;
+    reviewedAt: Schema.Attribute.DateTime;
+    reviewedBy: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
+    reviewNotes: Schema.Attribute.Text;
+    status: Schema.Attribute.Enumeration<
+      ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PENDING_INFO']
+    > &
+      Schema.Attribute.DefaultTo<'SUBMITTED'>;
+    submissionData: Schema.Attribute.JSON & Schema.Attribute.Required;
+    submissionId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -900,6 +982,7 @@ export interface ApiContactContact extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     deals: Schema.Attribute.Relation<'oneToMany', 'api::deal.deal'>;
     department: Schema.Attribute.String;
+    description: Schema.Attribute.Text;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
@@ -1698,12 +1781,20 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
       'api::xtrawrkx-user.xtrawrkx-user'
     >;
     publishedAt: Schema.Attribute.DateTime;
+    slug: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
     spent: Schema.Attribute.Decimal;
     startDate: Schema.Attribute.DateTime;
     status: Schema.Attribute.Enumeration<
       ['PLANNING', 'ACTIVE', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED']
     > &
       Schema.Attribute.DefaultTo<'PLANNING'>;
+    tasks: Schema.Attribute.Relation<'oneToMany', 'api::task.task'>;
+    teamMembers: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
     timeEntries: Schema.Attribute.Relation<
       'oneToMany',
       'api::time-entry.time-entry'
@@ -1819,19 +1910,44 @@ export interface ApiSubtaskSubtask extends Struct.CollectionTypeSchema {
       'manyToOne',
       'api::xtrawrkx-user.xtrawrkx-user'
     >;
+    childSubtasks: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::subtask.subtask'
+    >;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    depth: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    description: Schema.Attribute.Text;
+    dueDate: Schema.Attribute.DateTime;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::subtask.subtask'
     > &
       Schema.Attribute.Private;
+    order: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    parentSubtask: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::subtask.subtask'
+    >;
+    priority: Schema.Attribute.Enumeration<['LOW', 'MEDIUM', 'HIGH']> &
+      Schema.Attribute.DefaultTo<'MEDIUM'>;
+    progress: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
     publishedAt: Schema.Attribute.DateTime;
-    status: Schema.Attribute.Enumeration<['TODO', 'IN_PROGRESS', 'DONE']> &
-      Schema.Attribute.DefaultTo<'TODO'>;
-    taskId: Schema.Attribute.String;
+    status: Schema.Attribute.Enumeration<
+      ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+    > &
+      Schema.Attribute.DefaultTo<'SCHEDULED'>;
+    task: Schema.Attribute.Relation<'manyToOne', 'api::task.task'>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1851,6 +1967,9 @@ export interface ApiTaskCommentTaskComment extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    commentableId: Schema.Attribute.String & Schema.Attribute.Required;
+    commentableType: Schema.Attribute.Enumeration<['TASK', 'SUBTASK']> &
+      Schema.Attribute.Required;
     content: Schema.Attribute.Text & Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1861,8 +1980,16 @@ export interface ApiTaskCommentTaskComment extends Struct.CollectionTypeSchema {
       'api::task-comment.task-comment'
     > &
       Schema.Attribute.Private;
+    mentions: Schema.Attribute.JSON;
+    parentComment: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::task-comment.task-comment'
+    >;
     publishedAt: Schema.Attribute.DateTime;
-    taskId: Schema.Attribute.String;
+    replies: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::task-comment.task-comment'
+    >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1909,12 +2036,24 @@ export interface ApiTaskTask extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     priority: Schema.Attribute.Enumeration<['LOW', 'MEDIUM', 'HIGH']> &
       Schema.Attribute.DefaultTo<'MEDIUM'>;
+    progress: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    project: Schema.Attribute.Relation<'manyToOne', 'api::project.project'>;
     publishedAt: Schema.Attribute.DateTime;
     scheduledDate: Schema.Attribute.DateTime;
     status: Schema.Attribute.Enumeration<
       ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
     > &
       Schema.Attribute.DefaultTo<'SCHEDULED'>;
+    subtasks: Schema.Attribute.Relation<'oneToMany', 'api::subtask.subtask'>;
+    tags: Schema.Attribute.JSON;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -2188,6 +2327,10 @@ export interface ApiXtrawrkxUserXtrawrkxUser
     primaryRole: Schema.Attribute.Relation<
       'manyToOne',
       'api::user-role.user-role'
+    >;
+    projectTeams: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::project.project'
     >;
     publishedAt: Schema.Attribute.DateTime;
     taskComments: Schema.Attribute.Relation<
@@ -2580,6 +2723,7 @@ declare module '@strapi/strapi' {
       'api::client-account.client-account': ApiClientAccountClientAccount;
       'api::client-portal-access.client-portal-access': ApiClientPortalAccessClientPortalAccess;
       'api::community-membership.community-membership': ApiCommunityMembershipCommunityMembership;
+      'api::community-submission.community-submission': ApiCommunitySubmissionCommunitySubmission;
       'api::community.community': ApiCommunityCommunity;
       'api::contact.contact': ApiContactContact;
       'api::contract.contract': ApiContractContract;

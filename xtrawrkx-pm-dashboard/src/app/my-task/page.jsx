@@ -25,7 +25,9 @@ import {
   TaskDetailModal,
 } from "../../components/my-task";
 import Header from "../../components/shared/Header";
-import { getAllTasksForMyTask, getEnrichedTask } from "../../data/centralData";
+import taskService from "../../lib/taskService";
+import projectService from "../../lib/projectService";
+import { transformTask } from "../../lib/dataTransformers";
 
 export default function MyTasks() {
   const router = useRouter();
@@ -46,6 +48,52 @@ export default function MyTasks() {
     project: "all",
     assignee: "all",
   });
+
+  // API state management
+  const [allTasks, setAllTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load tasks and projects from API
+  useEffect(() => {
+    const loadMyTasks = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const currentUserId = 1; // TODO: Get from auth context
+
+        // Load user's tasks and projects in parallel
+        const [tasksResponse, projectsResponse] = await Promise.all([
+          taskService.getTasksByAssignee(currentUserId, { 
+            pageSize: 100,
+            populate: ['project', 'assignee', 'createdBy', 'subtasks']
+          }),
+          projectService.getAllProjects({ pageSize: 50 })
+        ]);
+
+        // Transform data
+        const transformedTasks = tasksResponse.data?.map(transformTask) || [];
+        const transformedProjects = projectsResponse.data?.map(project => ({
+          id: project.id,
+          name: project.name,
+          slug: project.slug
+        })) || [];
+
+        setAllTasks(transformedTasks);
+        setProjects(transformedProjects);
+
+      } catch (error) {
+        console.error("Error loading my tasks:", error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMyTasks();
+  }, []);
 
   // Refs for dropdowns
   const columnsMenuRef = useRef(null);
@@ -133,18 +181,63 @@ export default function MyTasks() {
   const assigneeButtonRef = useRef(null);
   const filterButtonRef = useRef(null);
 
-  // Get centralized task data
-  const allTasksData = getAllTasksForMyTask();
-  console.log("All tasks data:", allTasksData);
-  console.log("First task:", allTasksData[0]);
-  console.log("First task ID:", allTasksData[0]?.id);
-  console.log("First task ID type:", typeof allTasksData[0]?.id);
-
-  const [allTasks, setAllTasks] = useState(allTasksData);
   const [dueDateSortOrder, setDueDateSortOrder] = useState("asc"); // "asc" or "desc"
 
-  // Temporarily use all tasks to debug the ID issue
-  const tasks = allTasks; // getTasksForCurrentMonth();
+  // Apply filters to tasks
+  const getFilteredTasks = () => {
+    let filteredTasks = [...allTasks];
+
+    // Apply status filter
+    if (filters.status !== "all") {
+      filteredTasks = filteredTasks.filter(task => {
+        const taskStatus = task.status.toLowerCase().replace(/\s+/g, "-");
+        return taskStatus === filters.status;
+      });
+    }
+
+    // Apply project filter
+    if (filters.project !== "all") {
+      filteredTasks = filteredTasks.filter(task => {
+        const projectSlug = task.project?.name?.toLowerCase().replace(/\s+/g, "-");
+        return projectSlug === filters.project;
+      });
+    }
+
+    // Apply assignee filter
+    if (filters.assignee === "me") {
+      const currentUserId = 1; // TODO: Get from auth context
+      filteredTasks = filteredTasks.filter(task => task.assigneeId === currentUserId);
+    }
+
+    // Apply applied filters
+    if (appliedFilters.status && appliedFilters.status.length > 0) {
+      filteredTasks = filteredTasks.filter(task => {
+        const taskStatus = task.status.toLowerCase().replace(/\s+/g, "-");
+        return appliedFilters.status.includes(taskStatus);
+      });
+    }
+
+    if (appliedFilters.assignee && appliedFilters.assignee.includes("only-me")) {
+      const currentUserId = 1; // TODO: Get from auth context
+      filteredTasks = filteredTasks.filter(task => task.assigneeId === currentUserId);
+    }
+
+    // Sort by due date
+    filteredTasks.sort((a, b) => {
+      const dateA = a.scheduledDate ? new Date(a.scheduledDate) : new Date('9999-12-31');
+      const dateB = b.scheduledDate ? new Date(b.scheduledDate) : new Date('9999-12-31');
+      
+      if (dueDateSortOrder === "asc") {
+        return dateA - dateB;
+      } else {
+        return dateB - dateA;
+      }
+    });
+
+    return filteredTasks;
+  };
+
+  const tasks = getFilteredTasks();
 
   const handleColumnToggle = (column) => {
     setSelectedColumns((prev) =>
@@ -162,12 +255,18 @@ export default function MyTasks() {
   };
 
   // Handle task completion
-  const handleTaskComplete = (taskId, newStatus) => {
-    setAllTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
+  const handleTaskComplete = async (taskId, newStatus) => {
+    try {
+      await taskService.updateTaskStatus(taskId, newStatus);
+      
+      setAllTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, status: newStatus } : task
+        )
+      );
+    } catch (error) {
+      console.error("Error updating task status:", error);
+    }
   };
 
   const handleDateChange = (direction) => {
@@ -217,10 +316,24 @@ export default function MyTasks() {
     handleContextMenuClose();
   };
 
-  const handleDeleteConfirm = () => {
-    console.log("Deleting task:", deleteModal.task?.name);
-    // Add actual delete logic here
-    setDeleteModal({ isOpen: false, task: null });
+  const handleDeleteConfirm = async () => {
+    try {
+      console.log("Deleting task:", deleteModal.task?.name);
+      
+      if (deleteModal.task?.id) {
+        await taskService.deleteTask(deleteModal.task.id);
+        
+        // Remove task from local state
+        setAllTasks((prevTasks) =>
+          prevTasks.filter((task) => task.id !== deleteModal.task.id)
+        );
+      }
+      
+      setDeleteModal({ isOpen: false, task: null });
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      // Keep modal open to show error or handle it appropriately
+    }
   };
 
   const handleDeleteCancel = () => {
@@ -233,21 +346,12 @@ export default function MyTasks() {
   const handleTaskClick = (task) => {
     console.log("handleTaskClick called with task:", task);
     console.log("Task ID:", task.id);
-    console.log("Task ID type:", typeof task.id);
     console.log("Task name:", task.name);
 
-    // Get fully enriched task data including subtasks and comments
-    const enrichedTaskData = getEnrichedTask(task.id);
-    console.log("Enriched task data from getEnrichedTask:", enrichedTaskData);
-
-    const finalTask = enrichedTaskData || task; // Fallback to original if enrichment fails
-    console.log("Final task for modal:", finalTask);
-    console.log("Final task subtasks:", finalTask.subtasks);
-    console.log("Final task comments:", finalTask.comments);
-
+    // Use the task data from API (already enriched with relations)
     setTaskDetailModal({
       isOpen: true,
-      task: finalTask,
+      task: task,
     });
   };
 
@@ -365,7 +469,7 @@ export default function MyTasks() {
   };
 
   // Kanban handlers
-  const handleTaskUpdate = (updatedTask) => {
+  const handleTaskUpdate = async (updatedTask) => {
     console.log(
       "Updating task:",
       updatedTask.name,
@@ -373,10 +477,17 @@ export default function MyTasks() {
       updatedTask.status
     );
 
-    // Update the task in the state
-    setAllTasks((prevTasks) =>
-      prevTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
-    );
+    try {
+      // Update task status in the API
+      await taskService.updateTaskStatus(updatedTask.id, updatedTask.status);
+      
+      // Update the task in the state
+      setAllTasks((prevTasks) =>
+        prevTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
+      );
+    } catch (error) {
+      console.error("Error updating task:", error);
+    }
   };
 
   // Handle task date modal
@@ -384,6 +495,42 @@ export default function MyTasks() {
   // renderCalendar removed - using shared TaskCalendar component
 
   // renderTableView removed - using shared TaskTable component
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col h-screen bg-gray-50">
+        <Header title="My Tasks" subtitle="Monitor all of your tasks here" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your tasks...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col h-screen bg-gray-50">
+        <Header title="My Tasks" subtitle="Monitor all of your tasks here" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Tasks</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -568,21 +715,14 @@ export default function MyTasks() {
                             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900"
                           >
                             <option value="all">All Projects</option>
-                            <option value="yellow-branding">
-                              Yellow Branding
-                            </option>
-                            <option value="mogo-web">Mogo Web Design</option>
-                            <option value="futurework">Futurework</option>
-                            <option value="resto-dashboard">
-                              Resto Dashboard
-                            </option>
-                            <option value="hajime-illustration">
-                              Hajime Illustration
-                            </option>
-                            <option value="carl-ui-ux">Carl UI/UX</option>
-                            <option value="the-run-branding">
-                              The Run Branding
-                            </option>
+                            {projects.map((project) => (
+                              <option 
+                                key={project.id} 
+                                value={project.slug || project.name.toLowerCase().replace(/\s+/g, "-")}
+                              >
+                                {project.name}
+                              </option>
+                            ))}
                           </select>
                         </div>
 

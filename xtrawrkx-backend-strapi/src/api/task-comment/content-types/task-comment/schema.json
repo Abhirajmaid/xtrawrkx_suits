@@ -12,8 +12,17 @@
     },
     "pluginOptions": {},
     "attributes": {
-        "taskId": {
-            "type": "string"
+        "commentableType": {
+            "type": "enumeration",
+            "enum": [
+                "TASK",
+                "SUBTASK"
+            ],
+            "required": true
+        },
+        "commentableId": {
+            "type": "string",
+            "required": true
         },
         "user": {
             "type": "relation",
@@ -24,6 +33,21 @@
         "content": {
             "type": "text",
             "required": true
+        },
+        "parentComment": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::task-comment.task-comment",
+            "inversedBy": "replies"
+        },
+        "replies": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task-comment.task-comment",
+            "mappedBy": "parentComment"
+        },
+        "mentions": {
+            "type": "json"
         }
     }
 }

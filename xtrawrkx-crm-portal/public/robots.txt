@@ -39,3 +39,4 @@ User-agent: TelegramBot
 Allow: /
 
 # No sitemap provided intentionally
+

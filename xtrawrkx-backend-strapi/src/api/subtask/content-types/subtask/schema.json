@@ -12,21 +12,66 @@
     },
     "pluginOptions": {},
     "attributes": {
-        "taskId": {
-            "type": "string"
+        "task": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::task.task",
+            "inversedBy": "subtasks"
+        },
+        "parentSubtask": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::subtask.subtask",
+            "inversedBy": "childSubtasks"
+        },
+        "childSubtasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::subtask.subtask",
+            "mappedBy": "parentSubtask"
         },
         "title": {
             "type": "string",
             "required": true
         },
+        "description": {
+            "type": "text"
+        },
         "status": {
             "type": "enumeration",
             "enum": [
-                "TODO",
+                "SCHEDULED",
                 "IN_PROGRESS",
-                "DONE"
+                "COMPLETED",
+                "CANCELLED"
             ],
-            "default": "TODO"
+            "default": "SCHEDULED"
+        },
+        "priority": {
+            "type": "enumeration",
+            "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH"
+            ],
+            "default": "MEDIUM"
+        },
+        "dueDate": {
+            "type": "datetime"
+        },
+        "progress": {
+            "type": "integer",
+            "min": 0,
+            "max": 100,
+            "default": 0
+        },
+        "depth": {
+            "type": "integer",
+            "default": 0
+        },
+        "order": {
+            "type": "integer",
+            "default": 0
         },
         "assignee": {
             "type": "relation",

@@ -7,7 +7,7 @@ import backendClient from './backendClient.js';
 import { strapiClient } from './strapiClient.js';
 
 // Use Strapi for data storage, fallback to mock backend for development
-const useStrapi = process.env.NEXT_PUBLIC_USE_STRAPI === 'true' || process.env.NODE_ENV === 'production';
+const useStrapi = process.env.NEXT_PUBLIC_USE_STRAPI !== 'false';
 
 // ============================================================================
 // Authentication & Session
@@ -58,6 +58,23 @@ export async function verifyOTP(email, phone, otp, name = '') {
  * @returns {Promise<{user: any, token: string}>}
  */
 export async function login(email, password) {
+    if (useStrapi) {
+        try {
+            const response = await strapiClient.clientLogin(email, password);
+            
+            // Store token in localStorage (client-side only)
+            if (response.token && typeof window !== 'undefined') {
+                localStorage.setItem('client_token', response.token);
+                localStorage.setItem('auth_token', response.token); // For compatibility
+            }
+            
+            return response;
+        } catch (error) {
+            console.error('Error logging in via Strapi:', error);
+            throw error;
+        }
+    }
+
     const response = await backendClient.post('/auth/login', {
         email,
         password
@@ -214,7 +231,15 @@ export async function saveOnboardingSubmission(data) {
 export async function completeOnboarding(data) {
     if (useStrapi) {
         try {
-            return await strapiClient.completeOnboarding(data);
+            const response = await strapiClient.completeOnboarding(data);
+            
+            // Store token in localStorage (client-side only)
+            if (response.token && typeof window !== 'undefined') {
+                localStorage.setItem('client_token', response.token);
+                localStorage.setItem('auth_token', response.token); // For compatibility
+            }
+            
+            return response;
         } catch (error) {
             console.error('Error completing onboarding in Strapi:', error);
             throw error;

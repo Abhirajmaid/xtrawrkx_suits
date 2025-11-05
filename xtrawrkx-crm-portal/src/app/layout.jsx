@@ -6,6 +6,8 @@ import "../styles/globals.css";
 import CRMSidebar from "../components/CRMSidebar";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { SubSidebarProvider } from "../contexts/SubSidebarContext";
+import ExtensionDownloadModal from "../components/ExtensionDownloadModal";
+import { useExtensionPrompt } from "../hooks/useExtensionPrompt";
 import { Loader2 } from "lucide-react";
 
 function LayoutContent({ children }) {
@@ -13,6 +15,9 @@ function LayoutContent({ children }) {
   const { isAuthenticated, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+
+  // Extension download prompt
+  const { showModal, handleCloseModal } = useExtensionPrompt();
 
   // Don't show sidebar on login page
   const isLoginPage = pathname === "/login";
@@ -59,6 +64,9 @@ function LayoutContent({ children }) {
             {children}
           </main>
         </div>
+
+        {/* Extension Download Modal */}
+        <ExtensionDownloadModal isOpen={showModal} onClose={handleCloseModal} />
       </div>
     );
   }

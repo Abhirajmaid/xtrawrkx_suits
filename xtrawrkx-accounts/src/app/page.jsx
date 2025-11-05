@@ -59,10 +59,8 @@ export default function DashboardPage() {
       } catch (authError) {
         console.log("Auth failed, trying without token:", authError.message);
         // Fallback: try without authentication
-        const url = `${
-          process.env.NEXT_PUBLIC_STRAPI_URL ||
-          "https://xtrawrkxsuits-production.up.railway.app"
-        }/api/dashboard/stats`;
+        const url =
+          "https://xtrawrkxsuits-production.up.railway.app/api/dashboard/stats";
         console.log("Making unauthenticated request to:", url);
 
         response = await fetch(url, {

@@ -28,6 +28,11 @@
             "type": "string",
             "required": true
         },
+        "slug": {
+            "type": "string",
+            "unique": true,
+            "required": true
+        },
         "description": {
             "type": "text"
         },
@@ -84,6 +89,18 @@
             "relation": "oneToMany",
             "target": "api::file.file",
             "mappedBy": "project"
+        },
+        "tasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task.task",
+            "mappedBy": "project"
+        },
+        "teamMembers": {
+            "type": "relation",
+            "relation": "manyToMany",
+            "target": "api::xtrawrkx-user.xtrawrkx-user",
+            "inversedBy": "projectTeams"
         }
     }
 }

@@ -135,6 +135,7 @@ const ContactDetailPage = ({ params }) => {
         linkedIn: contact.linkedIn || "",
         twitter: contact.twitter || "",
         notes: contact.notes || "",
+        description: contact.description || "",
         leadCompany: contact.leadCompany || contactData.leadCompany,
         clientAccount: contact.clientAccount || contactData.clientAccount,
         assignedTo: contact.assignedTo || contactData.assignedTo,
@@ -509,6 +510,16 @@ const ContactDetailPage = ({ params }) => {
                           </Badge>
                         </div>
                       </div>
+                      {contact.description && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">
+                            About
+                          </label>
+                          <p className="text-gray-900 mt-1 whitespace-pre-wrap leading-relaxed">
+                            {contact.description}
+                          </p>
+                        </div>
+                      )}
                       {contact.notes && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">

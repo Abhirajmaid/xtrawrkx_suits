@@ -79,6 +79,27 @@
             "relation": "manyToOne",
             "target": "api::deal.deal",
             "inversedBy": "tasks"
+        },
+        "project": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::project.project",
+            "inversedBy": "tasks"
+        },
+        "progress": {
+            "type": "integer",
+            "min": 0,
+            "max": 100,
+            "default": 0
+        },
+        "tags": {
+            "type": "json"
+        },
+        "subtasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::subtask.subtask",
+            "mappedBy": "task"
         }
     }
 }

@@ -1,0 +1,27 @@
+{
+  "name": "xtrawrkx-linkedin-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for importing LinkedIn data to Xtrawrkx CRM",
+  "scripts": {
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
+    "build": "node scripts/build.js",
+    "package": "npm run lint && npm run build && node scripts/package.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "chrome-extension",
+    "linkedin",
+    "crm",
+    "xtrawrkx"
+  ],
+  "author": "Xtrawrkx",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "archiver": "^7.0.1"
+  }
+}
+

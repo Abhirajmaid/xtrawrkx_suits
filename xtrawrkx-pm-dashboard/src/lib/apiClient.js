@@ -1,0 +1,259 @@
+// Base API client for Strapi backend communication
+// Handles authentication, error management, and request/response interceptors
+
+const API_BASE_URL = 'http://localhost:1337';
+
+class ApiClient {
+    constructor() {
+        this.baseURL = API_BASE_URL;
+    }
+
+    /**
+     * Get authentication token from localStorage
+     * @returns {string|null} - Auth token
+     */
+    getAuthToken() {
+        if (typeof window === 'undefined') return null;
+        return localStorage.getItem('xtrawrkx-authToken') || 
+               localStorage.getItem('fluxx-authToken') || 
+               localStorage.getItem('auth_token');
+    }
+
+    /**
+     * Get default headers for API requests
+     * @returns {Object} - Headers object
+     */
+    getHeaders() {
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+
+        const token = this.getAuthToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        return headers;
+    }
+
+    /**
+     * Handle API response
+     * @param {Response} response - Fetch response
+     * @returns {Promise<Object>} - Parsed response data
+     */
+    async handleResponse(response) {
+        let data;
+        
+        try {
+            const text = await response.text();
+            data = text ? JSON.parse(text) : {};
+        } catch (error) {
+            console.error('Error parsing response:', error);
+            throw new Error('Invalid response format');
+        }
+
+        if (!response.ok) {
+            const errorMessage = data.message || data.error?.message || `HTTP ${response.status}: ${response.statusText}`;
+            
+            // Handle specific error cases
+            if (response.status === 401) {
+                // Token expired or invalid
+                this.handleAuthError();
+                throw new Error('Authentication required. Please log in again.');
+            } else if (response.status === 403) {
+                throw new Error('Access denied. You do not have permission to perform this action.');
+            } else if (response.status === 404) {
+                throw new Error('Resource not found.');
+            } else if (response.status >= 500) {
+                throw new Error('Server error. Please try again later.');
+            }
+            
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    }
+
+    /**
+     * Handle authentication errors
+     */
+    handleAuthError() {
+        // Clear stored auth data
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('xtrawrkx-authToken');
+            localStorage.removeItem('xtrawrkx-user');
+            localStorage.removeItem('xtrawrkx-user-role');
+            localStorage.removeItem('fluxx-authToken');
+            localStorage.removeItem('fluxx-user');
+            localStorage.removeItem('auth_user');
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            
+            // Clear cookie
+            document.cookie = 'xtrawrkx-authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+    }
+
+    /**
+     * Make GET request
+     * @param {string} endpoint - API endpoint
+     * @param {Object} params - Query parameters
+     * @returns {Promise<Object>} - Response data
+     */
+    async get(endpoint, params = {}) {
+        const url = new URL(`${this.baseURL}${endpoint}`);
+        
+        // Add query parameters
+        Object.keys(params).forEach(key => {
+            if (params[key] !== undefined && params[key] !== null) {
+                if (typeof params[key] === 'object') {
+                    url.searchParams.append(key, JSON.stringify(params[key]));
+                } else {
+                    url.searchParams.append(key, params[key]);
+                }
+            }
+        });
+
+        try {
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                headers: this.getHeaders(),
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running.`);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Make POST request
+     * @param {string} endpoint - API endpoint
+     * @param {Object} data - Request body data
+     * @returns {Promise<Object>} - Response data
+     */
+    async post(endpoint, data = {}) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(data),
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running.`);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Make PUT request
+     * @param {string} endpoint - API endpoint
+     * @param {Object} data - Request body data
+     * @returns {Promise<Object>} - Response data
+     */
+    async put(endpoint, data = {}) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'PUT',
+                headers: this.getHeaders(),
+                body: JSON.stringify(data),
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running.`);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Make DELETE request
+     * @param {string} endpoint - API endpoint
+     * @returns {Promise<Object>} - Response data
+     */
+    async delete(endpoint) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'DELETE',
+                headers: this.getHeaders(),
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running.`);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Make PATCH request
+     * @param {string} endpoint - API endpoint
+     * @param {Object} data - Request body data
+     * @returns {Promise<Object>} - Response data
+     */
+    async patch(endpoint, data = {}) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'PATCH',
+                headers: this.getHeaders(),
+                body: JSON.stringify(data),
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running.`);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Upload file
+     * @param {string} endpoint - API endpoint
+     * @param {FormData} formData - Form data with file
+     * @returns {Promise<Object>} - Response data
+     */
+    async upload(endpoint, formData) {
+        const headers = {};
+        const token = this.getAuthToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        // Don't set Content-Type for FormData, let browser set it with boundary
+
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'POST',
+                headers,
+                body: formData,
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running.`);
+            }
+            throw error;
+        }
+    }
+}
+
+// Create and export singleton instance
+const apiClient = new ApiClient();
+export default apiClient;
+
+
+
+

@@ -213,7 +213,7 @@ class StrapiClient {
      */
     async clientLogin(email, password) {
         try {
-            const response = await fetch(`${this.baseURL}${this.apiPath}/auth/client/login`, {
+            const response = await fetch(`${this.baseURL}${this.apiPath}/onboarding/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -231,8 +231,9 @@ class StrapiClient {
             // Store authentication data
             if (typeof window !== 'undefined') {
                 localStorage.setItem('client_token', data.token);
-                localStorage.setItem('client_account', JSON.stringify(data.account));
-                localStorage.setItem('client_contacts', JSON.stringify(data.contacts));
+                if (data.account) {
+                    localStorage.setItem('client_account', JSON.stringify(data.account));
+                }
             }
 
             return data;
@@ -414,6 +415,137 @@ class StrapiClient {
         const token = localStorage.getItem('client_token');
         const account = localStorage.getItem('client_account');
         return !!(token && account);
+    }
+
+    /**
+     * Save onboarding basics
+     * @param {Object} basicsData 
+     * @returns {Promise<any>}
+     */
+    async saveOnboardingBasics(basicsData) {
+        try {
+            const accountId = this.getCurrentAccountId();
+            const response = await fetch(`${this.baseURL}${this.apiPath}/onboarding/basics`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ accountId, basics: basicsData }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Save onboarding basics failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Save communities selection
+     * @param {Array} selectedCommunities 
+     * @returns {Promise<any>}
+     */
+    async saveCommunitiesSelection(selectedCommunities) {
+        try {
+            const accountId = this.getCurrentAccountId();
+            const response = await fetch(`${this.baseURL}${this.apiPath}/onboarding/communities`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ accountId, selectedCommunities }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Save communities selection failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Submit community application
+     * @param {string} community 
+     * @param {Object} submissionData 
+     * @returns {Promise<any>}
+     */
+    async submitCommunityApplication(community, submissionData) {
+        try {
+            const accountId = this.getCurrentAccountId();
+            const response = await fetch(`${this.baseURL}${this.apiPath}/onboarding/submission`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ accountId, community, submissionData }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Submit community application failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get account data for onboarding
+     * @param {string} email 
+     * @returns {Promise<any>}
+     */
+    async getAccountData(email) {
+        try {
+            const response = await fetch(`${this.baseURL}${this.apiPath}/onboarding/account?email=${encodeURIComponent(email)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Get account data failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get current account ID from localStorage
+     * @returns {string|null}
+     */
+    getCurrentAccountId() {
+        if (typeof window === 'undefined') return null;
+
+        const accountData = localStorage.getItem('client_account');
+        if (accountData) {
+            try {
+                const account = JSON.parse(accountData);
+                return account.id;
+            } catch (error) {
+                console.error('Error parsing client account data:', error);
+            }
+        }
+
+        return null;
     }
 }
 
