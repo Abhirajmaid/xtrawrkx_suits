@@ -19,6 +19,11 @@ if (!fs.existsSync(distDir)) {
 
 // Copy files recursively
 function copyRecursive(src, dest) {
+    // Ensure destination directory exists
+    if (!fs.existsSync(dest)) {
+        fs.mkdirSync(dest, { recursive: true });
+    }
+
     const entries = fs.readdirSync(src, { withFileTypes: true });
 
     for (const entry of entries) {
@@ -31,8 +36,17 @@ function copyRecursive(src, dest) {
             }
             copyRecursive(srcPath, destPath);
         } else {
-            // Copy file
-            fs.copyFileSync(srcPath, destPath);
+            // Ensure destination directory exists before copying file
+            const destDir = path.dirname(destPath);
+            if (!fs.existsSync(destDir)) {
+                fs.mkdirSync(destDir, { recursive: true });
+            }
+            // Copy file only if source exists
+            if (fs.existsSync(srcPath)) {
+                fs.copyFileSync(srcPath, destPath);
+            } else {
+                console.warn(`Warning: Source file not found: ${srcPath}`);
+            }
         }
     }
 }
@@ -52,7 +66,14 @@ fs.copyFileSync(
 const iconsDir = path.join(__dirname, '..', 'icons');
 if (fs.existsSync(iconsDir)) {
     console.log('Copying icons...');
-    copyRecursive(iconsDir, path.join(distDir, 'icons'));
+    const iconsDestDir = path.join(distDir, 'icons');
+    // Ensure destination directory exists
+    if (!fs.existsSync(iconsDestDir)) {
+        fs.mkdirSync(iconsDestDir, { recursive: true });
+    }
+    copyRecursive(iconsDir, iconsDestDir);
+} else {
+    console.warn('Warning: Icons directory not found');
 }
 
 console.log('Build complete! Extension files are in the dist/ folder.');

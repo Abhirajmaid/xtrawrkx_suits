@@ -57,6 +57,11 @@ function createPackage() {
                 const relativePath = path.join(basePath, file);
                 const stat = fs.statSync(filePath);
 
+                // Exclude manifest.json from dist (we add it from root)
+                if (file === 'manifest.json' && basePath === '') {
+                    continue;
+                }
+
                 if (shouldExclude(relativePath)) {
                     continue;
                 }
@@ -69,7 +74,7 @@ function createPackage() {
             }
         }
 
-        // Add manifest and icons from root
+        // Add manifest from root (icons are already in dist/icons from build)
         const rootFiles = ['manifest.json'];
         for (const file of rootFiles) {
             const filePath = path.join(__dirname, '..', file);
@@ -78,13 +83,7 @@ function createPackage() {
             }
         }
 
-        // Add icons directory if it exists
-        const iconsDir = path.join(__dirname, '..', 'icons');
-        if (fs.existsSync(iconsDir)) {
-            addDirectory(iconsDir, 'icons');
-        }
-
-        // Add dist directory
+        // Add dist directory (contains src and icons - manifest is excluded, added from root)
         if (fs.existsSync(distDir)) {
             addDirectory(distDir);
         }

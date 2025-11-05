@@ -47,7 +47,6 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
     sales: false,
     delivery: false,
     analytics: false,
-    admin: false,
     favorites: false,
   });
 
@@ -214,20 +213,20 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
       href: undefined,
       priority: "low",
     },
-    {
-      id: "admin",
-      label: "Admin",
-      icon: Settings,
-      color: "bg-gray-100",
-      hasSubNav: true,
-      href: undefined,
-      priority: "low",
-    },
   ];
+
+  // Helper function to generate coming-soon URL with feature name
+  const comingSoonUrl = (featureName) => {
+    return `/coming-soon?feature=${encodeURIComponent(featureName)}`;
+  };
 
   const favoriteItems = [
     { label: "Pipeline Overview", icon: Target, href: "/sales/deals/pipeline" },
-    { label: "Key Metrics", icon: BarChart3, href: "/analytics/reports" },
+    {
+      label: "Key Metrics",
+      icon: BarChart3,
+      href: comingSoonUrl("Key Metrics"),
+    },
     { label: "Recent Activities", icon: Clock, href: "/dashboard" },
   ];
 
@@ -235,13 +234,25 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
     {
       label: "Priority / Automation Rules",
       icon: Target,
-      href: "/sales/tasks/automation",
+      href: comingSoonUrl("Priority / Automation Rules"),
     },
-    { label: "Documents", icon: FileText, href: "/delivery/documents" },
-    { label: "Invoices & Payments", icon: Receipt, href: "/sales/invoices" },
-    { label: "Meetings & Calls", icon: Phone, href: "/sales/meetings" },
-    { label: "Calendar", icon: Calendar, href: "/sales/meetings/calendar" },
-    { label: "Integrations", icon: GitBranch, href: "/integrations" },
+    { label: "Documents", icon: FileText, href: comingSoonUrl("Documents") },
+    {
+      label: "Invoices & Payments",
+      icon: Receipt,
+      href: comingSoonUrl("Invoices & Payments"),
+    },
+    {
+      label: "Meetings & Calls",
+      icon: Phone,
+      href: comingSoonUrl("Meetings & Calls"),
+    },
+    { label: "Calendar", icon: Calendar, href: comingSoonUrl("Calendar") },
+    {
+      label: "Integrations",
+      icon: GitBranch,
+      href: comingSoonUrl("Integrations"),
+    },
   ];
 
   // Navigation data for sub-sidebar
@@ -320,27 +331,27 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "campaigns",
           label: "Campaigns",
           icon: Mail,
-          href: "/sales/campaigns",
+          href: comingSoonUrl("Campaigns"),
           children: [
             {
               id: "campaigns-list",
               label: "Campaigns",
-              href: "/sales/campaigns",
+              href: comingSoonUrl("Campaigns"),
             },
             {
               id: "new-campaign",
               label: "New Campaign (Template • Segments)",
-              href: "/sales/campaigns/new",
+              href: comingSoonUrl("Campaigns"),
             },
             {
               id: "templates",
               label: "Templates",
-              href: "/sales/campaigns/templates",
+              href: comingSoonUrl("Campaigns"),
             },
             {
               id: "performance",
               label: "Performance Analytics",
-              href: "/sales/campaigns/analytics",
+              href: comingSoonUrl("Campaigns"),
             },
           ],
         },
@@ -348,22 +359,22 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "meetings",
           label: "Meetings & Calls",
           icon: Phone,
-          href: "/sales/meetings",
+          href: comingSoonUrl("Meetings & Calls"),
           children: [
             {
               id: "calendar",
               label: "Calendar",
-              href: "/sales/meetings/calendar",
+              href: comingSoonUrl("Meetings & Calls"),
             },
             {
               id: "call-logs",
               label: "Call Logs",
-              href: "/sales/meetings/calls",
+              href: comingSoonUrl("Meetings & Calls"),
             },
             {
               id: "integrations",
               label: "Integrations",
-              href: "/sales/meetings/integrations",
+              href: comingSoonUrl("Meetings & Calls"),
             },
           ],
         },
@@ -400,17 +411,17 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "documents",
           label: "Documents",
           icon: FileText,
-          href: "/delivery/documents",
+          href: comingSoonUrl("Documents"),
           children: [
             {
               id: "repository",
               label: "Repository (Folders • Versioning)",
-              href: "/delivery/documents/repository",
+              href: comingSoonUrl("Documents"),
             },
             {
               id: "linked-records",
               label: "Linked Records",
-              href: "/delivery/documents/linked",
+              href: comingSoonUrl("Documents"),
             },
           ],
         },
@@ -418,22 +429,22 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "projects",
           label: "Projects",
           icon: FolderOpen,
-          href: "/delivery/projects",
+          href: comingSoonUrl("Projects"),
           children: [
             {
               id: "all-projects",
               label: "All Projects",
-              href: "/delivery/projects",
+              href: comingSoonUrl("Projects"),
             },
             {
               id: "project-detail",
               label: "Project Detail (Kanban • Gantt • Milestones)",
-              href: "/delivery/projects/[id]",
+              href: comingSoonUrl("Projects"),
             },
             {
               id: "time-costs",
               label: "Time/Costs",
-              href: "/delivery/projects/time-costs",
+              href: comingSoonUrl("Projects"),
             },
           ],
         },
@@ -441,22 +452,22 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "support",
           label: "Support Tickets",
           icon: HeadphonesIcon,
-          href: "/delivery/support",
+          href: comingSoonUrl("Support Tickets"),
           children: [
             {
               id: "queues",
               label: "Queues / Inbox",
-              href: "/delivery/support",
+              href: comingSoonUrl("Support Tickets"),
             },
             {
               id: "ticket-detail",
               label: "Ticket Detail (SLA • Comments • Attachments)",
-              href: "/delivery/support/[id]",
+              href: comingSoonUrl("Support Tickets"),
             },
             {
               id: "chat-widget",
               label: "Chat Widget (Embed Reference)",
-              href: "/delivery/support/chat-widget",
+              href: comingSoonUrl("Support Tickets"),
             },
           ],
         },
@@ -470,150 +481,22 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "reports",
           label: "Reports & Forecasts",
           icon: BarChart3,
-          href: "/analytics/reports",
+          href: comingSoonUrl("Analytics"),
           children: [
             {
               id: "executive-dashboards",
               label: "Executive Dashboards (Funnel • Sales • CSAT)",
-              href: "/analytics/reports/executive",
+              href: comingSoonUrl("Analytics"),
             },
             {
               id: "drilldowns",
               label: "Drilldowns",
-              href: "/analytics/reports/drilldowns",
+              href: comingSoonUrl("Analytics"),
             },
             {
               id: "exports",
               label: "Exports",
-              href: "/analytics/reports/exports",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      id: "admin",
-      label: "Admin",
-      children: [
-        {
-          id: "settings",
-          label: "Settings & RBAC",
-          icon: Shield,
-          href: "/admin/settings",
-          children: [],
-        },
-        {
-          id: "users-roles",
-          label: "Users & Roles",
-          icon: Users,
-          href: "/admin/users",
-          children: [
-            {
-              id: "user-management",
-              label: "User Management",
-              href: "/admin/users/management",
-            },
-            {
-              id: "role-permissions",
-              label: "Role & Permissions",
-              href: "/admin/users/roles",
-            },
-            {
-              id: "access-control",
-              label: "Access Control",
-              href: "/admin/users/access",
-            },
-          ],
-        },
-        {
-          id: "field-customization",
-          label: "Field Customization",
-          icon: Settings,
-          href: "/admin/fields",
-          children: [
-            {
-              id: "custom-fields",
-              label: "Custom Fields",
-              href: "/admin/fields/custom",
-            },
-            {
-              id: "field-validation",
-              label: "Field Validation",
-              href: "/admin/fields/validation",
-            },
-            {
-              id: "field-layouts",
-              label: "Field Layouts",
-              href: "/admin/fields/layouts",
-            },
-          ],
-        },
-        {
-          id: "automations",
-          label: "Automations / Workflows",
-          icon: Target,
-          href: "/admin/automations",
-          children: [
-            {
-              id: "workflow-builder",
-              label: "Workflow Builder",
-              href: "/admin/automations/workflows",
-            },
-            {
-              id: "automation-rules",
-              label: "Automation Rules",
-              href: "/admin/automations/rules",
-            },
-            {
-              id: "triggers",
-              label: "Triggers & Actions",
-              href: "/admin/automations/triggers",
-            },
-          ],
-        },
-        {
-          id: "integrations",
-          label: "Integrations",
-          icon: GitBranch,
-          href: "/admin/integrations",
-          children: [
-            {
-              id: "api-management",
-              label: "API Management",
-              href: "/admin/integrations/api",
-            },
-            {
-              id: "webhooks",
-              label: "Webhooks",
-              href: "/admin/integrations/webhooks",
-            },
-            {
-              id: "third-party",
-              label: "Third-party Apps",
-              href: "/admin/integrations/apps",
-            },
-          ],
-        },
-        {
-          id: "audit-logs",
-          label: "Audit Logs",
-          icon: FileText,
-          href: "/admin/audit",
-          children: [
-            {
-              id: "activity-logs",
-              label: "Activity Logs",
-              href: "/admin/audit/activity",
-            },
-            {
-              id: "security-logs",
-              label: "Security Logs",
-              href: "/admin/audit/security",
-            },
-            {
-              id: "data-changes",
-              label: "Data Changes",
-              href: "/admin/audit/changes",
+              href: comingSoonUrl("Analytics"),
             },
           ],
         },
@@ -681,17 +564,17 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "client-documents",
           label: "Documents",
           icon: FolderOpen,
-          href: "/client-portal/documents",
+          href: comingSoonUrl("Client Portal Documents"),
           children: [
             {
               id: "shared-documents",
               label: "Shared Documents",
-              href: "/client-portal/documents",
+              href: comingSoonUrl("Client Portal Documents"),
             },
             {
               id: "document-downloads",
               label: "Document Downloads",
-              href: "/client-portal/documents/downloads",
+              href: comingSoonUrl("Client Portal Documents"),
             },
           ],
         },
@@ -699,17 +582,17 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "client-tickets",
           label: "Support Tickets",
           icon: HeadphonesIcon,
-          href: "/client-portal/tickets",
+          href: comingSoonUrl("Client Portal Support Tickets"),
           children: [
             {
               id: "my-tickets",
               label: "My Tickets",
-              href: "/client-portal/tickets",
+              href: comingSoonUrl("Client Portal Support Tickets"),
             },
             {
               id: "create-ticket",
               label: "Create New Ticket",
-              href: "/client-portal/tickets/new",
+              href: comingSoonUrl("Client Portal Support Tickets"),
             },
           ],
         },
@@ -717,17 +600,17 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           id: "client-meetings",
           label: "Meetings",
           icon: Calendar,
-          href: "/client-portal/meetings",
+          href: comingSoonUrl("Client Portal Meetings"),
           children: [
             {
               id: "scheduled-meetings",
               label: "Scheduled Meetings",
-              href: "/client-portal/meetings",
+              href: comingSoonUrl("Client Portal Meetings"),
             },
             {
               id: "meeting-history",
               label: "Meeting History",
-              href: "/client-portal/meetings/history",
+              href: comingSoonUrl("Client Portal Meetings"),
             },
           ],
         },
@@ -952,11 +835,7 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
             )}
 
             {/* System Navigation Grid */}
-            <div
-              className={`grid gap-3 ${
-                collapsed ? "grid-cols-1" : "grid-cols-2"
-              }`}
-            >
+            <div className="flex flex-col gap-3">
               {mainNavigationItems
                 .filter((item) => item.priority === "low")
                 .map((item) => {
@@ -967,7 +846,7 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
                     <button
                       key={item.id}
                       onClick={() => handleTopLevelClick(item.id, item.label)}
-                      className="bg-white/15 backdrop-blur-md border border-white/25 text-brand-text-light rounded-xl p-3 flex flex-col items-center gap-2 shadow-md"
+                      className="w-full bg-white/15 backdrop-blur-md border border-white/25 text-brand-text-light rounded-xl p-3 flex flex-col items-center gap-2 shadow-md"
                       title={collapsed ? item.label : undefined}
                     >
                       <Icon className="w-5 h-5" />

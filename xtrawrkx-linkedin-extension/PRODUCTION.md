@@ -14,12 +14,9 @@ This guide covers the steps to prepare and deploy the Xtrawrkx LinkedIn Extensio
 - [ ] Review and update permissions in manifest.json
 
 ### 2. Code Quality
-- [x] Set up ESLint configuration
 - [x] Add logger utility for production-safe logging
 - [x] Add error handler utility
 - [x] Add config utility for environment management
-- [ ] Run ESLint: `npm run lint`
-- [ ] Fix all linting errors
 - [ ] Code review
 
 ### 3. Build & Package
