@@ -147,7 +147,9 @@ export default function LoginPage() {
 
       const mappedRole = roleMapping[data.user.role] || "Read-only User";
 
-      // Store user info and token
+      // Store user info and token using AuthService
+      const AuthService = (await import("@/lib/authService")).default;
+      
       const userData = {
         email: data.user.email || formData.email,
         firstName: data.user.firstName || "",
@@ -166,8 +168,13 @@ export default function LoginPage() {
         token: data.token,
       };
 
-      // Store in localStorage and context
+      // Store using AuthService (stores in 'currentUser' key)
+      AuthService.setUserData(userData);
+      
+      // Also store in context for backward compatibility
       login(userData);
+      
+      // Keep authToken for backward compatibility (will be migrated on next getToken call)
       localStorage.setItem("authToken", data.token);
 
       // Redirect to dashboard

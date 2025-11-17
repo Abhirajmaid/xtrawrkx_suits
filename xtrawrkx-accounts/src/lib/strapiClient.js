@@ -5,6 +5,7 @@
 class StrapiClient {
     constructor() {
         this.baseURL = 'https://xtrawrkxsuits-production.up.railway.app';
+        // this.baseURL = 'http://localhost:1337';
         this.apiPath = '/api';
     }
 

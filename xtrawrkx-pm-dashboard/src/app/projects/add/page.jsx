@@ -14,6 +14,7 @@ import { Card } from "../../../components/ui/Card.jsx";
 import { Input } from "../../../components/ui/Input.jsx";
 import { Select } from "../../../components/ui/Select.jsx";
 import { teamMembers, clients } from "../../../data/centralData";
+import PageHeader from "../../../components/shared/PageHeader";
 
 export default function AddProjectPage() {
   const router = useRouter();
@@ -248,28 +249,25 @@ export default function AddProjectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white p-6 overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-white overflow-y-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Create New Project
-            </h1>
-            <p className="text-gray-600">
-              Set up a new project and assign team members
-            </p>
-          </div>
+        <div className="p-6">
+          <PageHeader
+            title="Create New Project"
+            subtitle="Set up a new project and assign team members"
+            breadcrumb={[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: "Projects", href: "/projects" },
+              { label: "Create Project", href: "/projects/add" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="px-6 pb-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Form */}
             <div className="lg:col-span-2 space-y-6">
@@ -574,7 +572,8 @@ export default function AddProjectPage() {
               </button>
             </div>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

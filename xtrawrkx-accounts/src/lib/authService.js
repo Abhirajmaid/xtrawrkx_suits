@@ -5,21 +5,35 @@
 class AuthService {
     static TOKEN_KEY = 'currentUser';
     static API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app/api';
+    // static API_BASE_URL = 'http://localhost:1337/api';
 
     /**
      * Get JWT token from localStorage
+     * Supports both 'currentUser' (with token inside) and 'authToken' (direct token) formats
      */
     static getToken() {
+        // First, try to get from currentUser (preferred format)
         const userData = localStorage.getItem(this.TOKEN_KEY);
-        if (!userData) return null;
-
-        try {
-            const parsed = JSON.parse(userData);
-            return parsed.token;
-        } catch (error) {
-            console.error('Error parsing user data from localStorage:', error);
-            return null;
+        if (userData) {
+            try {
+                const parsed = JSON.parse(userData);
+                if (parsed.token) {
+                    return parsed.token;
+                }
+            } catch (error) {
+                console.error('Error parsing user data from localStorage:', error);
+            }
         }
+
+        // Fallback: check for authToken (legacy format)
+        const authToken = localStorage.getItem('authToken');
+        if (authToken) {
+            // Migrate to new format if we have the token but not the user data
+            console.log('Found authToken in legacy format, migrating...');
+            return authToken;
+        }
+
+        return null;
     }
 
     /**
@@ -50,9 +64,11 @@ class AuthService {
 
     /**
      * Clear authentication data
+     * Only call this when you're absolutely sure the token is invalid
      */
     static clearAuth() {
         localStorage.removeItem(this.TOKEN_KEY);
+        localStorage.removeItem('authToken'); // Also clear legacy format
     }
 
     /**
@@ -81,6 +97,7 @@ class AuthService {
 
     /**
      * Get token or refresh if needed
+     * Always requires manual login - no auto-login in any environment
      */
     static async refreshTokenIfNeeded() {
         const currentToken = this.getToken();
@@ -89,9 +106,9 @@ class AuthService {
             return currentToken;
         }
 
-        // Token is expired or missing, try to auto-login
-        console.log('Token expired or missing, attempting auto-login...');
-        return this.autoLogin();
+        // Token is expired or missing - user must login manually
+        console.log('Token expired or missing. User must login manually.');
+        return null;
     }
 
     /**
@@ -227,16 +244,53 @@ class AuthService {
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    // Token might be invalid, clear auth and try once more
-                    this.clearAuth();
-                    throw new Error('Authentication failed');
+                    // Check if token is actually expired before clearing
+                    const currentToken = this.getToken();
+                    if (currentToken && this.isTokenExpired(currentToken)) {
+                        // Token is expired, clear auth
+                        console.log('Token expired, clearing auth');
+                        this.clearAuth();
+                        throw new Error('Authentication failed: Token expired');
+                    } else if (!currentToken) {
+                        // No token, don't clear (already cleared)
+                        throw new Error('Authentication required');
+                    } else {
+                        // Token exists and not expired, but got 401 - might be invalid token
+                        // Only clear if we're sure it's invalid (e.g., after retry)
+                        console.warn('Got 401 but token appears valid, might be server issue');
+                        // Don't clear immediately - let the user retry
+                        throw new Error('Authentication failed: Please try logging in again');
+                    }
                 }
 
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
             }
 
-            return response.json();
+            // Handle empty responses (common for DELETE requests)
+            const contentType = response.headers.get('content-type');
+            const contentLength = response.headers.get('content-length');
+
+            // Check if response has content
+            if (contentLength === '0') {
+                return { success: true, message: 'Operation completed successfully' };
+            }
+
+            // Try to get response as text first to check if it's empty
+            const text = await response.text();
+
+            // If empty, return success
+            if (!text || text.trim() === '') {
+                return { success: true, message: 'Operation completed successfully' };
+            }
+
+            // Try to parse as JSON
+            try {
+                return JSON.parse(text);
+            } catch (parseError) {
+                // If not JSON, return the text as data
+                return { success: true, data: text };
+            }
         } catch (error) {
             console.error('API request failed:', error);
             throw error;

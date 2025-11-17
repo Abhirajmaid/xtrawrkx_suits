@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui";
 import { useState } from "react";
-import Header from "../../components/shared/Header";
+import PageHeader from "../../components/shared/PageHeader";
 
 export default function Message() {
   const [selectedConversation, setSelectedConversation] = useState(0);
@@ -132,8 +132,16 @@ export default function Message() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Messages" subtitle="Communicate with your team members" />
-      <div className="flex-1 flex space-x-6 p-6">
+      <div className="p-6">
+        <PageHeader
+          title="Messages"
+          subtitle="Communicate with your team members"
+          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Messages", href: "/message" }]}
+          showSearch={true}
+          showActions={false}
+        />
+      </div>
+      <div className="flex-1 flex space-x-6 px-6 pb-6">
         {/* Left Sidebar - Conversations List */}
         <div className="w-80 space-y-4">
           {/* Search and Filter */}

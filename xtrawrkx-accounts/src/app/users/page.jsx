@@ -29,6 +29,7 @@ import {
   Clock,
   TrendingUp,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import strapiClient from "@/lib/strapiClient";
@@ -46,6 +47,8 @@ function UserManagementPage() {
   const [success, setSuccess] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [userRoles, setUserRoles] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -159,7 +162,9 @@ function UserManagementPage() {
       const token = await AuthService.refreshTokenIfNeeded();
 
       if (!token) {
-        throw new Error("Authentication required. Please login first.");
+        // Always redirect to login when no token (same behavior as production)
+        router.push("/auth/login");
+        return;
       }
 
       console.log("Auth token obtained successfully");
@@ -173,21 +178,55 @@ function UserManagementPage() {
 
         // Transform the response from the hierarchical endpoint
         if (data.success && data.users) {
-          const transformedUsers = data.users.map((user) => ({
-            id: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role,
-            department: user.department,
-            phone: user.phone,
-            isActive: user.isActive,
-            emailVerified: user.emailVerified,
-            lastLoginAt: user.lastLoginAt,
-            createdAt: user.createdAt,
-            userRoles: [], // Will be populated separately if needed
-            canEdit: user.canEdit || true, // All users from this endpoint are editable
-          }));
+          const transformedUsers = data.users.map((user) => {
+            // Handle department transformation
+            let departmentData = null;
+            if (user.department) {
+              if (typeof user.department === "object") {
+                // Handle object format
+                departmentData = {
+                  id:
+                    user.department.id ||
+                    (typeof user.department === "number"
+                      ? user.department
+                      : null),
+                  name:
+                    user.department.name ||
+                    user.department.attributes?.name ||
+                    null,
+                  color:
+                    user.department.color ||
+                    user.department.attributes?.color ||
+                    null,
+                };
+              } else if (
+                typeof user.department === "number" ||
+                typeof user.department === "string"
+              ) {
+                // If it's just an ID, we'll look it up later in getDepartmentInfo
+                departmentData =
+                  typeof user.department === "string"
+                    ? parseInt(user.department)
+                    : user.department;
+              }
+            }
+
+            return {
+              id: user.id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              role: user.role,
+              department: departmentData,
+              phone: user.phone,
+              isActive: user.isActive,
+              emailVerified: user.emailVerified,
+              lastLoginAt: user.lastLoginAt,
+              createdAt: user.createdAt,
+              userRoles: [], // Will be populated separately if needed
+              canEdit: user.canEdit || true, // All users from this endpoint are editable
+            };
+          });
 
           setUsers(transformedUsers);
           calculateStats(transformedUsers);
@@ -200,36 +239,74 @@ function UserManagementPage() {
         );
       }
 
-      // Fallback to regular endpoint
+      // Fallback to regular endpoint - ensure department is fully populated
       data = await AuthService.apiRequest(
-        "/xtrawrkx-users?populate=primaryRole,userRoles,department"
+        "/xtrawrkx-users?populate[primaryRole]=*&populate[userRoles]=*&populate[department]=*"
       );
-      console.log("API response data:", data);
 
       // Transform Strapi data to expected format
-      const transformedUsers = (data.data || []).map((item) => ({
-        id: item.id,
-        email: item.attributes?.email || item.email,
-        firstName: item.attributes?.firstName || item.firstName,
-        lastName: item.attributes?.lastName || item.lastName,
-        role: item.attributes?.primaryRole?.data?.attributes?.name || "No Role",
-        primaryRole: item.attributes?.primaryRole?.data || null,
-        department: item.attributes?.department?.data || item.department,
-        phone: item.attributes?.phone || item.phone,
-        isActive:
-          item.attributes?.isActive !== undefined
-            ? item.attributes.isActive
-            : item.isActive !== undefined
-            ? item.isActive
-            : true,
-        emailVerified:
-          item.attributes?.emailVerified || item.emailVerified || false,
-        lastLoginAt: item.attributes?.lastLoginAt || item.lastLoginAt,
-        createdAt: item.attributes?.createdAt || item.createdAt,
-        userRoles: item.attributes?.userRoles?.data || item.userRoles || [],
-      }));
+      const transformedUsers = (data.data || []).map((item) => {
+        // Handle department transformation with better error handling
+        let departmentData = null;
+        const deptSource =
+          item.attributes?.department?.data ||
+          item.attributes?.department ||
+          item.department;
 
-      console.log("Transformed users:", transformedUsers);
+        if (deptSource) {
+          if (typeof deptSource === "object") {
+            // Strapi v4 format: { id, attributes: { name, color } }
+            if (deptSource.attributes) {
+              departmentData = {
+                id: deptSource.id,
+                name: deptSource.attributes.name || null,
+                color: deptSource.attributes.color || null,
+              };
+            }
+            // Simplified format: { id, name, color }
+            else if (deptSource.name || deptSource.id) {
+              departmentData = {
+                id: deptSource.id || deptSource,
+                name: deptSource.name || null,
+                color: deptSource.color || null,
+              };
+            }
+          } else if (
+            typeof deptSource === "number" ||
+            typeof deptSource === "string"
+          ) {
+            // Just an ID - will be looked up in getDepartmentInfo
+            departmentData =
+              typeof deptSource === "string"
+                ? parseInt(deptSource)
+                : deptSource;
+          }
+        }
+
+        return {
+          id: item.id,
+          email: item.attributes?.email || item.email,
+          firstName: item.attributes?.firstName || item.firstName,
+          lastName: item.attributes?.lastName || item.lastName,
+          role:
+            item.attributes?.primaryRole?.data?.attributes?.name || "No Role",
+          primaryRole: item.attributes?.primaryRole?.data || null,
+          department: departmentData,
+          phone: item.attributes?.phone || item.phone,
+          isActive:
+            item.attributes?.isActive !== undefined
+              ? item.attributes.isActive
+              : item.isActive !== undefined
+              ? item.isActive
+              : true,
+          emailVerified:
+            item.attributes?.emailVerified || item.emailVerified || false,
+          lastLoginAt: item.attributes?.lastLoginAt || item.lastLoginAt,
+          createdAt: item.attributes?.createdAt || item.createdAt,
+          userRoles: item.attributes?.userRoles?.data || item.userRoles || [],
+        };
+      });
+
       setUsers(transformedUsers);
 
       // Calculate stats
@@ -267,8 +344,27 @@ function UserManagementPage() {
     try {
       setLoadingDepartments(true);
       const AuthService = (await import("@/lib/authService")).default;
-      const departments = await AuthService.getDepartments();
-      setDepartments(departments);
+      const departmentsData = await AuthService.getDepartments();
+
+      // Transform departments from Strapi format if needed
+      const transformedDepartments = (departmentsData || []).map((dept) => {
+        // Handle Strapi v4 format: { id: X, attributes: { name: "...", color: "..." } }
+        if (dept.attributes) {
+          return {
+            id: dept.id,
+            name: dept.attributes.name || dept.name,
+            color: dept.attributes.color || dept.color,
+          };
+        }
+        // Handle simplified format: { id: X, name: "...", color: "..." }
+        return {
+          id: dept.id,
+          name: dept.name,
+          color: dept.color,
+        };
+      });
+
+      setDepartments(transformedDepartments);
     } catch (error) {
       console.error("Fetch departments error:", error);
     } finally {
@@ -320,6 +416,22 @@ function UserManagementPage() {
     );
   };
 
+  /**
+   * Check if current user can delete a specific user
+   */
+  const canDeleteUser = (targetUser) => {
+    if (!currentUser) return false;
+
+    // Can't delete yourself
+    if (currentUser.id === targetUser.id) return false;
+
+    const currentUserRole = currentUser.role;
+    const targetUserRole = targetUser.role;
+
+    // Can delete if you can edit the user (same permission level)
+    return PermissionsService.canEditUser(currentUserRole, targetUserRole);
+  };
+
   const handleEditUser = (user) => {
     // Check if current user can edit this user
     if (!canEditUser(user)) {
@@ -327,7 +439,26 @@ function UserManagementPage() {
       return;
     }
 
-    setEditingUser(user);
+    // Ensure department is properly formatted for the edit form
+    // Extract department ID if it's an object, otherwise keep as-is
+    let departmentForEdit = user.department;
+    if (user.department) {
+      if (typeof user.department === "object" && user.department !== null) {
+        // If department is an object with an ID, use the ID
+        if (user.department.id !== undefined) {
+          departmentForEdit = user.department.id;
+        }
+      }
+      // If department is already a number or string ID, keep it as-is
+      // (no transformation needed)
+    }
+
+    const formattedUser = {
+      ...user,
+      department: departmentForEdit,
+    };
+
+    setEditingUser(formattedUser);
     setShowEditModal(true);
   };
 
@@ -344,6 +475,68 @@ function UserManagementPage() {
       user.userRoles?.map((role) => role.attributes?.id || role.id) || [];
     setUserRoles(currentRoleIds);
     setShowRolesModal(true);
+  };
+
+  const handleDeleteUser = (user) => {
+    // Check if current user can delete this user
+    if (!canDeleteUser(user)) {
+      setError("You don't have permission to delete this user");
+      return;
+    }
+
+    setDeletingUser(user);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deletingUser) return;
+
+    setCreating(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const AuthService = (await import("@/lib/authService")).default;
+      const deletedUserId = deletingUser.id;
+
+      const response = await AuthService.apiRequest(
+        `/xtrawrkx-users/${deletingUser.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      console.log("Delete response:", response);
+
+      // Immediately remove from UI for better UX
+      setUsers((prevUsers) =>
+        prevUsers.filter((user) => user.id !== deletedUserId)
+      );
+
+      // Close modal
+      setShowDeleteModal(false);
+      setDeletingUser(null);
+
+      // Show success message
+      setSuccess("User deleted successfully!");
+
+      // Wait a moment then refresh to ensure consistency
+      setTimeout(async () => {
+        try {
+          await fetchUsers();
+        } catch (refreshError) {
+          console.error("Error refreshing after delete:", refreshError);
+          // Don't show error to user since delete already succeeded
+        }
+      }, 500);
+    } catch (error) {
+      console.error("Delete user error:", error);
+      setError("Failed to delete user: " + error.message);
+      // Refresh users list in case of error to get accurate state
+      await fetchUsers();
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleRoleToggle = (roleId) => {
@@ -433,20 +626,57 @@ function UserManagementPage() {
       // Use AuthService for authenticated API request
       const AuthService = (await import("@/lib/authService")).default;
 
+      // Format department correctly for Strapi relation
+      // Strapi v4 may require department as ID or { connect: [id] } format
+      let departmentValue = null;
+      if (editingUser.department) {
+        // If department is an object, get the ID
+        if (
+          typeof editingUser.department === "object" &&
+          editingUser.department.id
+        ) {
+          departmentValue =
+            typeof editingUser.department.id === "string"
+              ? parseInt(editingUser.department.id)
+              : editingUser.department.id;
+        }
+        // If department is already an ID (number or string)
+        else if (
+          typeof editingUser.department === "number" ||
+          typeof editingUser.department === "string"
+        ) {
+          departmentValue =
+            typeof editingUser.department === "string"
+              ? parseInt(editingUser.department)
+              : editingUser.department;
+        }
+      }
+
+      // Ensure departmentValue is a number or null
+      if (departmentValue !== null && isNaN(departmentValue)) {
+        console.warn("Invalid department value:", editingUser.department);
+        departmentValue = null;
+      }
+
+      // Format department for Strapi - try both formats
+      // First try simple ID format, if that doesn't work, try connect format
+      const departmentField = departmentValue !== null ? departmentValue : null;
+
       const updateData = {
         data: {
           firstName: editingUser.firstName,
           lastName: editingUser.lastName,
           email: editingUser.email,
           primaryRole: editingUser.primaryRole?.id || null,
-          department: editingUser.department,
+          department: departmentField,
           phone: editingUser.phone,
           isActive: editingUser.isActive,
         },
       };
 
+      // Update user with populated department in response
       const response = await AuthService.apiRequest(
-        `/xtrawrkx-users/${editingUser.id}`,
+        `/xtrawrkx-users/${editingUser.id}?populate[department]=*`,
         {
           method: "PUT",
           body: JSON.stringify(updateData),
@@ -456,7 +686,15 @@ function UserManagementPage() {
       setSuccess("User updated successfully!");
       setShowEditModal(false);
       setEditingUser(null);
-      fetchUsers(); // Refresh the users list
+
+      // Refresh the users list to show updated data
+      setTimeout(async () => {
+        try {
+          await fetchUsers();
+        } catch (refreshError) {
+          console.error("Error refreshing users:", refreshError);
+        }
+      }, 500);
     } catch (error) {
       console.error("User update error:", error);
       setError("Failed to update user: " + error.message);
@@ -486,12 +724,41 @@ function UserManagementPage() {
   };
 
   const getDepartmentInfo = (department) => {
-    if (typeof department === "object" && department?.name) {
-      // If department is an object with name property, return it
+    // Handle null/undefined
+    if (!department) {
+      return { name: "Unknown", color: "#6B7280" };
+    }
+
+    // Handle Strapi v4 format: { id: X, attributes: { name: "...", color: "..." } }
+    if (typeof department === "object" && department.attributes?.name) {
+      return {
+        name: department.attributes.name,
+        color: department.attributes.color || "#6B7280",
+      };
+    }
+
+    // Handle simplified object format: { id: X, name: "...", color: "..." }
+    if (typeof department === "object" && department.name) {
       return {
         name: department.name,
         color: department.color || "#6B7280",
       };
+    }
+
+    // Handle department ID - try to find in departments list
+    if (
+      typeof department === "number" ||
+      (typeof department === "string" && !isNaN(department))
+    ) {
+      const deptId =
+        typeof department === "string" ? parseInt(department) : department;
+      const foundDept = departments.find((d) => d.id === deptId);
+      if (foundDept) {
+        return {
+          name: foundDept.name,
+          color: foundDept.color || "#6B7280",
+        };
+      }
     }
 
     // Fallback for string department codes (legacy support)
@@ -502,12 +769,16 @@ function UserManagementPage() {
       DEVELOPMENT: { name: "Development", color: "#8B5CF6" },
       DESIGN: { name: "Design", color: "#EC4899" },
     };
-    return (
-      departmentMap[department] || {
-        name: department || "Unknown",
-        color: "#6B7280",
-      }
-    );
+
+    if (departmentMap[department]) {
+      return departmentMap[department];
+    }
+
+    // Last resort - return Unknown
+    return {
+      name: "Unknown",
+      color: "#6B7280",
+    };
   };
 
   const getDepartmentBadgeColor = (department) => {
@@ -862,7 +1133,17 @@ function UserManagementPage() {
                         )}`}
                       >
                         <Building className="w-3 h-3" />
-                        {getDepartmentInfo(user.department).name}
+                        {(() => {
+                          console.log(
+                            "[Table] Rendering department for user:",
+                            user.email,
+                            "Department:",
+                            user.department
+                          );
+                          const info = getDepartmentInfo(user.department);
+                          console.log("[Table] Department info:", info);
+                          return info.name;
+                        })()}
                       </span>
                     </td>
                     <td className="py-4 px-4">
@@ -938,11 +1219,22 @@ function UserManagementPage() {
                             Roles
                           </button>
                         )}
-                        {!canEditUser(user) && !canManageUserRoles(user) && (
-                          <span className="text-xs text-gray-400 italic">
-                            No permissions
-                          </span>
+                        {canDeleteUser(user) && (
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
                         )}
+                        {!canEditUser(user) &&
+                          !canManageUserRoles(user) &&
+                          !canDeleteUser(user) && (
+                            <span className="text-xs text-gray-400 italic">
+                              No permissions
+                            </span>
+                          )}
                       </div>
                     </td>
                   </motion.tr>
@@ -1098,19 +1390,30 @@ function UserManagementPage() {
                   Department
                 </label>
                 <Select
-                  value={
-                    typeof editingUser.department === "object"
-                      ? editingUser.department?.id
-                      : editingUser.department
-                  }
-                  onChange={(value) =>
+                  value={(() => {
+                    if (
+                      typeof editingUser.department === "object" &&
+                      editingUser.department !== null
+                    ) {
+                      return editingUser.department?.id?.toString() || "";
+                    } else if (
+                      editingUser.department !== null &&
+                      editingUser.department !== undefined
+                    ) {
+                      return editingUser.department.toString();
+                    } else {
+                      return "";
+                    }
+                  })()}
+                  onChange={(value) => {
+                    const deptId = value ? parseInt(value) : null;
                     setEditingUser((prev) => ({
                       ...prev,
-                      department: value,
-                    }))
-                  }
+                      department: deptId,
+                    }));
+                  }}
                   options={departments.map((dept) => ({
-                    value: dept.id,
+                    value: dept.id.toString(),
                     label: dept.name,
                   }))}
                   placeholder="Select department"
@@ -1287,6 +1590,79 @@ function UserManagementPage() {
                   </>
                 ) : (
                   "Update Roles"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete User Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletingUser(null);
+        }}
+        title="Delete User"
+        size="md"
+      >
+        {deletingUser && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Are you sure you want to delete this user?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  This action cannot be undone. The user{" "}
+                  <span className="font-semibold text-gray-900">
+                    {deletingUser.firstName} {deletingUser.lastName}
+                  </span>{" "}
+                  ({deletingUser.email}) will be permanently removed from the
+                  system.
+                </p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Warning:</strong> All user data, including
+                    assignments, roles, and associated records will be deleted.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingUser(null);
+                }}
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+                disabled={creating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteUser}
+                disabled={creating}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                {creating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete User
+                  </>
                 )}
               </Button>
             </div>

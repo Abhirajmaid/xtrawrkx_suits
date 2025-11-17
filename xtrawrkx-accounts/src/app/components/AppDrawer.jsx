@@ -20,7 +20,7 @@ const AppDrawer = () => {
         name: "CRM Portal",
         description: "Manage customer relationships and sales",
         color: "from-blue-500 to-blue-600",
-        href: "http://localhost:3002",
+        href: "https://crm.xtrawrkx.com",
         status: "active",
       },
       {
@@ -28,7 +28,7 @@ const AppDrawer = () => {
         name: "Client Portal",
         description: "Client-facing project management",
         color: "from-indigo-500 to-indigo-600",
-        href: "http://localhost:3003",
+        href: "https://crm.xtrawrkx.com/clients/accounts",
         status: "active",
       },
     ],
@@ -38,7 +38,7 @@ const AppDrawer = () => {
         name: "PM Dashboard",
         description: "Project management and tracking",
         color: "from-purple-500 to-purple-600",
-        href: "http://localhost:3004",
+        href: "https://pm.xtrawrkx.com",
         status: "active",
       },
     ],
@@ -104,7 +104,7 @@ const AppDrawer = () => {
         name: "User Accounts",
         description: "User management & authentication",
         color: "from-gray-500 to-gray-600",
-        href: "http://localhost:3001",
+        href: "https://account.xtrawrkx.com",
         status: "active",
       },
     ],
@@ -181,6 +181,8 @@ const AppDrawer = () => {
                     <a
                       key={app.id}
                       href={app.status === "active" ? app.href : "#"}
+                      target={app.status === "active" ? "_blank" : undefined}
+                      rel={app.status === "active" ? "noopener noreferrer" : undefined}
                       onClick={(e) => {
                         if (app.status === "coming-soon") {
                           e.preventDefault();

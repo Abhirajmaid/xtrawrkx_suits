@@ -12,9 +12,16 @@ import {
   CheckCircle
 } from "lucide-react";
 
-const GlobalSearchModal = ({ isOpen, onClose }) => {
-  const [searchQuery, setSearchQuery] = useState("");
+const GlobalSearchModal = ({ isOpen, onClose, initialQuery = "" }) => {
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedItems, setSelectedItems] = useState([]);
+
+  // Update search query when initialQuery changes
+  useEffect(() => {
+    if (isOpen && initialQuery) {
+      setSearchQuery(initialQuery);
+    }
+  }, [isOpen, initialQuery]);
 
   // Handle Escape key to close modal
   useEffect(() => {

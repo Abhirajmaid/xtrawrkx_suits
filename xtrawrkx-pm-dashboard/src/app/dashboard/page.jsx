@@ -11,12 +11,29 @@ import {
   PrivateNotepad,
   RecentActivity,
 } from "../../components/dashboard";
-import Header from "../../components/shared/Header";
+import PageHeader from "../../components/shared/PageHeader";
+import { useAuth } from "../../contexts/AuthContext";
 import projectService from "../../lib/projectService";
 import taskService from "../../lib/taskService";
 import { transformProject, transformTask } from "../../lib/dataTransformers";
 
+// Helper function to get greeting
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+  return "Good Evening";
+};
+
+// Helper function to get current date
+const getCurrentDate = () => {
+  const date = new Date();
+  const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+  return date.toLocaleDateString("en-US", options);
+};
+
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [hasData] = useState(true); // Default to filled state to show the dashboard with data
   const [projects, setProjects] = useState([]);
   const [assignedTasks, setAssignedTasks] = useState([]);
@@ -262,11 +279,15 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col h-full relative">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
-        <Header
-          title="Dashboard"
-          subtitle="Monitor all of your projects and tasks here"
-          onSearchClick={() => console.log("Search clicked")}
-        />
+        <div className="p-6">
+          <PageHeader
+            title="Dashboard"
+            subtitle={`${getGreeting()}, ${user?.firstName || user?.name?.split(" ")[0] || "User"} • ${getCurrentDate()}`}
+            breadcrumb={[{ label: "Dashboard", href: "/dashboard" }]}
+            showSearch={true}
+            showActions={false}
+          />
+        </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -281,11 +302,15 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col h-full relative">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
-        <Header
-          title="Dashboard"
-          subtitle="Monitor all of your projects and tasks here"
-          onSearchClick={() => console.log("Search clicked")}
-        />
+        <div className="p-6">
+          <PageHeader
+            title="Dashboard"
+            subtitle={`${getGreeting()}, ${user?.firstName || user?.name?.split(" ")[0] || "User"} • ${getCurrentDate()}`}
+            breadcrumb={[{ label: "Dashboard", href: "/dashboard" }]}
+            showSearch={true}
+            showActions={false}
+          />
+        </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
@@ -314,13 +339,17 @@ export default function DashboardPage() {
         <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-gradient-to-bl from-green-400/8 to-teal-500/5 rounded-full blur-3xl" />
       </div>
 
-      <Header
-        title="Dashboard"
-        subtitle="Monitor all of your projects and tasks here"
-        onSearchClick={() => console.log("Search clicked")}
-      />
+      <div className="p-6">
+        <PageHeader
+          title="Dashboard"
+          subtitle={`${getGreeting()}, ${user?.firstName || user?.name?.split(" ")[0] || "User"} • ${getCurrentDate()}`}
+          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }]}
+          showSearch={true}
+          showActions={false}
+        />
+      </div>
 
-      <div className="flex-1 p-6 overflow-auto relative z-10">
+      <div className="flex-1 px-6 pb-6 overflow-auto relative z-10">
         <div className="max-w-full mx-auto">
           <div className="mb-6">
             <StatsCards data={statsData} />

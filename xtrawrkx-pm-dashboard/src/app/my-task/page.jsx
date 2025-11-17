@@ -1,162 +1,60 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import {
-  Plus,
+  CheckCircle,
+  Clock,
   Calendar,
-  Columns,
-  Filter,
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  X,
+  MoreVertical,
+  CheckSquare,
+  AlertCircle,
 } from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  TaskContextMenu,
-  TaskDeleteConfirmationModal,
-  ColumnsDropdown,
-  AssigneeDropdown,
-  FilterComponent,
-  TaskTable,
+  TasksHeader,
+  TasksKPIs,
+  TasksTabs,
+  TasksListView,
   TaskKanban,
-  TaskCalendar,
   TaskDetailModal,
+  TaskDeleteConfirmationModal,
 } from "../../components/my-task";
-import Header from "../../components/shared/Header";
+import { Card } from "../../components/ui";
 import taskService from "../../lib/taskService";
 import projectService from "../../lib/projectService";
 import { transformTask } from "../../lib/dataTransformers";
+import { useAuth } from "../../contexts/AuthContext";
+
+// Local utility function to format dates
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
 
 export default function MyTasks() {
   const router = useRouter();
-  const [activeView, setActiveView] = useState("table");
-  const [currentMonth, setCurrentMonth] = useState(new Date(2024, 0)); // January 2024
-  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState([
-    "Task Name",
-    "Project",
-    "Assignee",
-    "Due Date",
-    "Status",
-    "Progress",
-  ]);
-  const [filters, setFilters] = useState({
-    status: "all",
-    project: "all",
-    assignee: "all",
-  });
+  const { user, loading: authLoading } = useAuth();
 
-  // API state management
-  const [allTasks, setAllTasks] = useState([]);
+  // State management
+  const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [activeView, setActiveView] = useState("list");
+  const [selectedTasks, setSelectedTasks] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Load tasks and projects from API
-  useEffect(() => {
-    const loadMyTasks = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const currentUserId = 1; // TODO: Get from auth context
-
-        // Load user's tasks and projects in parallel
-        const [tasksResponse, projectsResponse] = await Promise.all([
-          taskService.getTasksByAssignee(currentUserId, { 
-            pageSize: 100,
-            populate: ['project', 'assignee', 'createdBy', 'subtasks']
-          }),
-          projectService.getAllProjects({ pageSize: 50 })
-        ]);
-
-        // Transform data
-        const transformedTasks = tasksResponse.data?.map(transformTask) || [];
-        const transformedProjects = projectsResponse.data?.map(project => ({
-          id: project.id,
-          name: project.name,
-          slug: project.slug
-        })) || [];
-
-        setAllTasks(transformedTasks);
-        setProjects(transformedProjects);
-
-      } catch (error) {
-        console.error("Error loading my tasks:", error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMyTasks();
-  }, []);
-
-  // Refs for dropdowns
-  const columnsMenuRef = useRef(null);
-  const filterMenuRef = useRef(null);
-
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState({
-    isOpen: false,
-    position: { x: 0, y: 0 },
-    task: null,
-  });
-
-  // Row dropdown state
-  const [rowDropdown, setRowDropdown] = useState({
-    isOpen: false,
-    taskId: null,
-  });
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        columnsMenuRef.current &&
-        !columnsMenuRef.current.contains(event.target)
-      ) {
-        setShowColumnsMenu(false);
-      }
-      if (
-        filterMenuRef.current &&
-        !filterMenuRef.current.contains(event.target)
-      ) {
-        setShowFilterMenu(false);
-      }
-      // Close row dropdown when clicking outside
-      if (rowDropdown.isOpen) {
-        const dropdownElement = document.getElementById(
-          `row-dropdown-${rowDropdown.taskId}`
-        );
-        const triggerElement = document.getElementById(
-          `row-trigger-${rowDropdown.taskId}`
-        );
-        if (
-          dropdownElement &&
-          !dropdownElement.contains(event.target) &&
-          triggerElement &&
-          !triggerElement.contains(event.target)
-        ) {
-          setRowDropdown({ isOpen: false, taskId: null });
-        }
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [rowDropdown.isOpen, rowDropdown.taskId]);
-
-  // Delete confirmation modal state
-  const [deleteModal, setDeleteModal] = useState({
-    isOpen: false,
-    task: null,
-  });
 
   // Task detail modal state
   const [taskDetailModal, setTaskDetailModal] = useState({
@@ -164,191 +62,387 @@ export default function MyTasks() {
     task: null,
   });
 
-  // Dropdown states
-  const [columnsDropdown, setColumnsDropdown] = useState(false);
-  const [assigneeDropdown, setAssigneeDropdown] = useState(false);
-  const [filterDropdown, setFilterDropdown] = useState(false);
-
-  // Filter states
-  const [selectedAssignees, setSelectedAssignees] = useState(["only-me"]);
-  const [appliedFilters, setAppliedFilters] = useState({
-    status: ["to-do"],
-    assignee: ["only-me"],
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    task: null,
   });
 
-  // Refs for dropdown positioning
-  const columnsButtonRef = useRef(null);
-  const assigneeButtonRef = useRef(null);
-  const filterButtonRef = useRef(null);
+  const exportDropdownRef = useRef(null);
 
-  const [dueDateSortOrder, setDueDateSortOrder] = useState("asc"); // "asc" or "desc"
-
-  // Apply filters to tasks
-  const getFilteredTasks = () => {
-    let filteredTasks = [...allTasks];
-
-    // Apply status filter
-    if (filters.status !== "all") {
-      filteredTasks = filteredTasks.filter(task => {
-        const taskStatus = task.status.toLowerCase().replace(/\s+/g, "-");
-        return taskStatus === filters.status;
-      });
+  // Load tasks and projects from API
+  useEffect(() => {
+    // Don't load if auth is still loading
+    if (authLoading) {
+      return;
     }
 
-    // Apply project filter
-    if (filters.project !== "all") {
-      filteredTasks = filteredTasks.filter(task => {
-        const projectSlug = task.project?.name?.toLowerCase().replace(/\s+/g, "-");
-        return projectSlug === filters.project;
-      });
-    }
+    const loadMyTasks = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-    // Apply assignee filter
-    if (filters.assignee === "me") {
-      const currentUserId = 1; // TODO: Get from auth context
-      filteredTasks = filteredTasks.filter(task => task.assigneeId === currentUserId);
-    }
+        // Get user ID - check multiple possible properties
+        const currentUserId =
+          user?.id || user?._id || user?.xtrawrkxUserId || 1;
 
-    // Apply applied filters
-    if (appliedFilters.status && appliedFilters.status.length > 0) {
-      filteredTasks = filteredTasks.filter(task => {
-        const taskStatus = task.status.toLowerCase().replace(/\s+/g, "-");
-        return appliedFilters.status.includes(taskStatus);
-      });
-    }
+        if (!currentUserId || currentUserId === 1) {
+          console.warn("No valid user ID found, using default ID 1");
+        }
 
-    if (appliedFilters.assignee && appliedFilters.assignee.includes("only-me")) {
-      const currentUserId = 1; // TODO: Get from auth context
-      filteredTasks = filteredTasks.filter(task => task.assigneeId === currentUserId);
-    }
+        // Load user's tasks and projects in parallel
+        const [tasksResponse, projectsResponse] = await Promise.all([
+          taskService
+            .getTasksByAssignee(currentUserId, {
+              pageSize: 100,
+              populate: ["project", "assignee", "createdBy", "subtasks"],
+            })
+            .catch((err) => {
+              console.error("Error fetching tasks:", err);
+              // Return empty response if tasks fail
+              return { data: [] };
+            }),
+          projectService.getAllProjects({ pageSize: 50 }).catch((err) => {
+            console.error("Error fetching projects:", err);
+            // Return empty response if projects fail
+            return { data: [] };
+          }),
+        ]);
 
-    // Sort by due date
-    filteredTasks.sort((a, b) => {
-      const dateA = a.scheduledDate ? new Date(a.scheduledDate) : new Date('9999-12-31');
-      const dateB = b.scheduledDate ? new Date(b.scheduledDate) : new Date('9999-12-31');
-      
-      if (dueDateSortOrder === "asc") {
-        return dateA - dateB;
-      } else {
-        return dateB - dateA;
+        // Transform data
+        const transformedTasks = tasksResponse.data?.map(transformTask) || [];
+        const transformedProjects =
+          projectsResponse.data?.map((project) => ({
+            id: project.id,
+            name: project.name,
+            slug: project.slug,
+          })) || [];
+
+        setTasks(transformedTasks);
+        setProjects(transformedProjects);
+      } catch (error) {
+        console.error("Error loading my tasks:", error);
+        // Provide more user-friendly error message
+        const errorMessage =
+          error?.response?.data?.error?.message ||
+          error?.message ||
+          "Failed to load tasks. Please try again.";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMyTasks();
+  }, [user, authLoading]);
+
+  // Calculate task statistics
+  const getTaskStats = () => {
+    const stats = {
+      all: tasks.length,
+      "to-do": 0,
+      "in-progress": 0,
+      "in-review": 0,
+      done: 0,
+      overdue: 0,
+    };
+
+    const now = new Date();
+    tasks.forEach((task) => {
+      const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+      if (status === "to-do" || status === "todo") stats["to-do"]++;
+      else if (status === "in-progress") stats["in-progress"]++;
+      else if (status === "in-review") stats["in-review"]++;
+      else if (status === "done" || status === "completed") stats.done++;
+
+      // Check for overdue
+      if (
+        task.scheduledDate &&
+        new Date(task.scheduledDate) < now &&
+        status !== "done" &&
+        status !== "completed"
+      ) {
+        stats.overdue++;
       }
     });
 
-    return filteredTasks;
+    return stats;
   };
 
-  const tasks = getFilteredTasks();
+  const taskStats = getTaskStats();
 
-  const handleColumnToggle = (column) => {
-    setSelectedColumns((prev) =>
-      prev.includes(column)
-        ? prev.filter((c) => c !== column)
-        : [...prev, column]
-    );
-  };
+  // Status statistics for KPIs
+  const statusStats = [
+    {
+      label: "To Do",
+      count: taskStats["to-do"],
+      color: "bg-blue-50",
+      borderColor: "border-blue-200",
+      iconColor: "text-blue-600",
+      icon: CheckSquare,
+    },
+    {
+      label: "In Progress",
+      count: taskStats["in-progress"],
+      color: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      iconColor: "text-yellow-600",
+      icon: Clock,
+    },
+    {
+      label: "Done",
+      count: taskStats.done,
+      color: "bg-green-50",
+      borderColor: "border-green-200",
+      iconColor: "text-green-600",
+      icon: CheckCircle,
+    },
+    {
+      label: "Overdue",
+      count: taskStats.overdue,
+      color: "bg-red-50",
+      borderColor: "border-red-200",
+      iconColor: "text-red-600",
+      icon: AlertCircle,
+    },
+  ];
 
-  const handleFilterChange = (filterType, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterType]: value,
-    }));
-  };
+  // Tab items for navigation
+  const tabItems = [
+    { key: "all", label: "All Tasks", badge: taskStats.all.toString() },
+    { key: "to-do", label: "To Do", badge: taskStats["to-do"].toString() },
+    {
+      key: "in-progress",
+      label: "In Progress",
+      badge: taskStats["in-progress"].toString(),
+    },
+    {
+      key: "in-review",
+      label: "In Review",
+      badge: taskStats["in-review"].toString(),
+    },
+    { key: "done", label: "Done", badge: taskStats.done.toString() },
+    { key: "overdue", label: "Overdue", badge: taskStats.overdue.toString() },
+  ];
 
-  // Handle task completion
-  const handleTaskComplete = async (taskId, newStatus) => {
+  // Filter tasks based on search and active tab
+  const filteredTasks = tasks.filter((task) => {
+    if (!task) return false;
+
+    const matchesSearch =
+      searchQuery === "" ||
+      (task.name &&
+        task.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (task.project?.name &&
+        task.project.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (task.description &&
+        task.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const taskStatus = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+    const matchesTab =
+      activeTab === "all" ||
+      taskStatus === activeTab ||
+      (activeTab === "overdue" &&
+        task.scheduledDate &&
+        new Date(task.scheduledDate) < new Date() &&
+        taskStatus !== "done" &&
+        taskStatus !== "completed");
+
+    return matchesSearch && matchesTab;
+  });
+
+  // Table columns configuration
+  const taskColumnsTable = [
+    {
+      key: "name",
+      label: "TASK NAME",
+      render: (_, task) => (
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+            {task.name?.charAt(0)?.toUpperCase() || "T"}
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-gray-900 truncate">
+              {task.name}
+            </div>
+            <div className="text-sm text-gray-500 truncate">
+              {task.project?.name || "No Project"}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "project",
+      label: "PROJECT",
+      render: (_, task) => (
+        <div className="min-w-[150px]">
+          <span className="text-sm text-gray-600">
+            {task.project?.name || "No Project"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "assignee",
+      label: "ASSIGNEE",
+      render: (_, task) => (
+        <div className="flex items-center gap-2 min-w-[140px]">
+          <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+            {task.assignee?.name?.charAt(0)?.toUpperCase() || "U"}
+          </div>
+          <span className="text-sm text-gray-600 truncate">
+            {task.assignee?.name || "Unassigned"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "dueDate",
+      label: "DUE DATE",
+      render: (_, task) => (
+        <div className="flex items-center gap-2 text-sm text-gray-500 min-w-[120px]">
+          <Calendar className="w-4 h-4 flex-shrink-0" />
+          <span className="whitespace-nowrap">
+            {task.scheduledDate
+              ? formatDate(task.scheduledDate)
+              : "No due date"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      render: (_, task) => {
+        const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+        const statusColors = {
+          "to-do": {
+            bg: "bg-blue-100",
+            text: "text-blue-800",
+            border: "border-blue-400",
+            shadow: "shadow-blue-200",
+          },
+          "in-progress": {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+            shadow: "shadow-yellow-200",
+          },
+          "in-review": {
+            bg: "bg-purple-100",
+            text: "text-purple-800",
+            border: "border-purple-400",
+            shadow: "shadow-purple-200",
+          },
+          done: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          completed: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          overdue: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+        };
+
+        const colors = statusColors[status] || {
+          bg: "bg-gray-100",
+          text: "text-gray-800",
+          border: "border-gray-400",
+          shadow: "shadow-gray-200",
+        };
+        const displayStatus = task.status || "Unknown";
+
+        return (
+          <div className="min-w-[120px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
+            >
+              {displayStatus.toUpperCase()}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "progress",
+      label: "PROGRESS",
+      render: (_, task) => (
+        <div className="min-w-[120px]">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all"
+                style={{ width: `${task.progress || 0}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium text-gray-900">
+              {task.progress || 0}%
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      label: "ACTIONS",
+      render: (_, task) => (
+        <div className="flex items-center gap-1 min-w-[120px]">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusUpdate(task.id, "done");
+            }}
+            className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
+            title="Mark as Done"
+          >
+            <CheckCircle className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTaskClick(task);
+            }}
+            className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+            title="View Details"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  // Handle status updates
+  const handleStatusUpdate = async (taskId, newStatus) => {
+    if (!taskId) return;
+
     try {
       await taskService.updateTaskStatus(taskId, newStatus);
-      
-      setAllTasks((prevTasks) =>
+      setTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.id === taskId ? { ...task, status: newStatus } : task
         )
       );
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (error) {
       console.error("Error updating task status:", error);
     }
   };
 
-  const handleDateChange = (direction) => {
-    setCurrentMonth((prev) => {
-      const newMonth = new Date(prev);
-      if (direction === "prev") {
-        newMonth.setMonth(prev.getMonth() - 1);
-      } else {
-        newMonth.setMonth(prev.getMonth() + 1);
-      }
-      return newMonth;
-    });
-  };
-
-  // Handle context menu
-  const handleContextMenuOpen = (event, task) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    setContextMenu({
-      isOpen: true,
-      position: {
-        x: rect.right - 180, // Offset to the left of the button (reduced for smaller menu)
-        y: rect.top + rect.height / 2,
-      },
-      task,
-    });
-  };
-
-  const handleContextMenuClose = () => {
-    setContextMenu({
-      isOpen: false,
-      position: { x: 0, y: 0 },
-      task: null,
-    });
-  };
-
-  // Handle row dropdown toggle
-
-  // Handle delete task
-  const handleDeleteTask = (task) => {
-    setDeleteModal({
-      isOpen: true,
-      task: task,
-    });
-    handleContextMenuClose();
-  };
-
-  const handleDeleteConfirm = async () => {
-    try {
-      console.log("Deleting task:", deleteModal.task?.name);
-      
-      if (deleteModal.task?.id) {
-        await taskService.deleteTask(deleteModal.task.id);
-        
-        // Remove task from local state
-        setAllTasks((prevTasks) =>
-          prevTasks.filter((task) => task.id !== deleteModal.task.id)
-        );
-      }
-      
-      setDeleteModal({ isOpen: false, task: null });
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      // Keep modal open to show error or handle it appropriately
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteModal({ isOpen: false, task: null });
-  };
-
-  // Task action handlers
-
-  // Task detail handlers
+  // Handle task click
   const handleTaskClick = (task) => {
-    console.log("handleTaskClick called with task:", task);
-    console.log("Task ID:", task.id);
-    console.log("Task name:", task.name);
-
-    // Use the task data from API (already enriched with relations)
     setTaskDetailModal({
       isOpen: true,
       task: task,
@@ -363,169 +457,129 @@ export default function MyTasks() {
   };
 
   const handleOpenProject = (project) => {
-    console.log("Opening project:", project.name);
-    // Navigate to project page
-    router.push(`/projects/${project.name.toLowerCase().replace(/\s+/g, "-")}`);
+    if (project?.slug) {
+      router.push(`/projects/${project.slug}`);
+    } else if (project?.name) {
+      router.push(
+        `/projects/${project.name.toLowerCase().replace(/\s+/g, "-")}`
+      );
+    }
   };
 
   const handleOpenFullPage = (task) => {
-    console.log("Opening full page for task:", task);
-    console.log("Task ID:", task.id);
-    console.log("Task ID type:", typeof task.id);
-    console.log("Task name:", task.name);
-
-    if (!task || !task.id) {
-      console.error("Task or Task ID is undefined or null!", { task });
-      alert("Error: Task ID is missing. Cannot open full page view.");
-      return;
-    }
-
-    // Ensure ID is valid
-    const taskId = task.id.toString();
-    if (!taskId || taskId === "undefined" || taskId === "null") {
-      console.error("Invalid task ID:", taskId);
-      alert("Error: Invalid task ID. Cannot open full page view.");
-      return;
-    }
-
-    console.log("Navigating to /tasks/" + taskId);
-    router.push(`/tasks/${taskId}`);
-  };
-
-  // Dropdown handlers
-  const handleColumnsDropdownToggle = () => {
-    setColumnsDropdown(!columnsDropdown);
-    setAssigneeDropdown(false);
-    setFilterDropdown(false);
-  };
-
-  const handleAssigneeDropdownToggle = () => {
-    setAssigneeDropdown(!assigneeDropdown);
-    setColumnsDropdown(false);
-    setFilterDropdown(false);
-  };
-
-  const handleFilterDropdownToggle = () => {
-    setFilterDropdown(!filterDropdown);
-    setColumnsDropdown(false);
-    setAssigneeDropdown(false);
-  };
-
-  const handleAssigneeChange = (newAssignees) => {
-    setSelectedAssignees(newAssignees);
-    setAppliedFilters((prev) => ({
-      ...prev,
-      assignee: newAssignees,
-    }));
-  };
-
-  const handleFiltersChange = (newFilters) => {
-    setAppliedFilters(newFilters);
-  };
-
-  const removeFilter = (category, filterId) => {
-    const categoryFilters = appliedFilters[category] || [];
-    const newCategoryFilters = categoryFilters.filter((id) => id !== filterId);
-
-    setAppliedFilters((prev) => ({
-      ...prev,
-      [category]: newCategoryFilters,
-    }));
-
-    if (category === "assignee") {
-      setSelectedAssignees(newCategoryFilters);
+    if (task?.id) {
+      router.push(`/tasks/${task.id}`);
     }
   };
 
-  const clearAllFilters = () => {
-    setAppliedFilters({});
-    setSelectedAssignees([]);
+  // Handle export
+  const handleExport = (format) => {
+    console.log(`Exporting tasks as ${format}`);
+    setShowExportDropdown(false);
   };
 
-  const getFilterLabel = (category, filterId) => {
-    const filterOptions = {
-      status: {
-        "to-do": "To Do",
-        "in-progress": "In Progress",
-        "in-review": "In Review",
-        done: "Done",
-        backlog: "Backlog",
-      },
-      assignee: {
-        "only-me": "Only Me",
-        "jonathan-bustos": "Jonathan Bustos",
-        "jane-cooper": "Jane Cooper",
-      },
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    return filterOptions[category]?.[filterId] || filterId;
-  };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-  const getTotalFilterCount = () => {
-    return Object.values(appliedFilters).reduce(
-      (total, filters) => total + filters.length,
-      0
-    );
-  };
-
-  // Kanban handlers
-  const handleTaskUpdate = async (updatedTask) => {
-    console.log(
-      "Updating task:",
-      updatedTask.name,
-      "to status:",
-      updatedTask.status
-    );
-
-    try {
-      // Update task status in the API
-      await taskService.updateTaskStatus(updatedTask.id, updatedTask.status);
-      
-      // Update the task in the state
-      setAllTasks((prevTasks) =>
-        prevTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
-      );
-    } catch (error) {
-      console.error("Error updating task:", error);
-    }
-  };
-
-  // Handle task date modal
-
-  // renderCalendar removed - using shared TaskCalendar component
-
-  // renderTableView removed - using shared TaskTable component
-
-  // Loading state
-  if (loading) {
+  // Loading state (including auth loading)
+  if (loading || authLoading) {
     return (
-      <div className="flex flex-col h-screen bg-gray-50">
-        <Header title="My Tasks" subtitle="Monitor all of your tasks here" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your tasks...</p>
+      <div className="bg-white min-h-screen">
+        <div className="p-4 space-y-4">
+          <TasksHeader
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            setIsFilterModalOpen={setIsFilterModalOpen}
+            setIsImportModalOpen={setIsImportModalOpen}
+            showExportDropdown={showExportDropdown}
+            setShowExportDropdown={setShowExportDropdown}
+            exportDropdownRef={exportDropdownRef}
+            handleExport={handleExport}
+            setIsModalOpen={() => router.push("/tasks/add")}
+          />
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">
+                {authLoading
+                  ? "Loading user information..."
+                  : "Loading your tasks..."}
+              </p>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state - but still show the page structure
+  if (error && tasks.length === 0) {
     return (
-      <div className="flex flex-col h-screen bg-gray-50">
-        <Header title="My Tasks" subtitle="Monitor all of your tasks here" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Tasks</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Retry
-            </button>
+      <div className="bg-white min-h-screen">
+        <div className="p-4 space-y-4">
+          <TasksHeader
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            setIsFilterModalOpen={setIsFilterModalOpen}
+            setIsImportModalOpen={setIsImportModalOpen}
+            showExportDropdown={showExportDropdown}
+            setShowExportDropdown={setShowExportDropdown}
+            exportDropdownRef={exportDropdownRef}
+            handleExport={handleExport}
+            setIsModalOpen={() => router.push("/tasks/add")}
+          />
+          <div className="space-y-4">
+            {/* Stats Overview - show empty stats */}
+            <TasksKPIs statusStats={statusStats} />
+
+            {/* Error message */}
+            <Card glass={true} className="p-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-8 h-8 text-red-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  Error Loading Tasks
+                </h2>
+                <p className="text-gray-600 mb-4">
+                  {error === "Resource not found."
+                    ? "No tasks found for your account. You may not have any tasks assigned yet, or there might be an issue with the API connection."
+                    : error}
+                </p>
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setLoading(true);
+                      window.location.reload();
+                    }}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={() => router.push("/tasks/add")}
+                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Create Your First Task
+                  </button>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </div>
@@ -533,340 +587,75 @@ export default function MyTasks() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <Header title="My Tasks" subtitle="Monitor all of your tasks here" />
+    <div className="space-y-4">
+      {/* Success Messages */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          Task status updated successfully!
+        </div>
+      )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 p-4 lg:p-6 overflow-hidden bg-gray-50">
-        <div className="h-full max-w-full mx-auto px-2 lg:px-4">
-          <div className="h-full flex flex-col space-y-4 lg:space-y-6">
-            {/* Header Controls Row */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full gap-4 flex-shrink-0">
-              {/* Left Side - View Toggle Buttons */}
-              <div className="flex items-center gap-2">
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setActiveView("table")}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                      activeView === "table"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    }`}
-                  >
-                    Table
-                  </button>
-                  <button
-                    onClick={() => setActiveView("kanban")}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                      activeView === "kanban"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    }`}
-                  >
-                    Kanban
-                  </button>
-                  <button
-                    onClick={() => setActiveView("calendar")}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                      activeView === "calendar"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    }`}
-                  >
-                    Calendar
-                  </button>
-                </div>
-              </div>
+      <div className="p-4 space-y-4 bg-white min-h-screen">
+        {/* Page Header */}
+        <TasksHeader
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          setIsFilterModalOpen={setIsFilterModalOpen}
+          setIsImportModalOpen={setIsImportModalOpen}
+          showExportDropdown={showExportDropdown}
+          setShowExportDropdown={setShowExportDropdown}
+          exportDropdownRef={exportDropdownRef}
+          handleExport={handleExport}
+          setIsModalOpen={() => router.push("/tasks/add")}
+        />
 
-              {/* Right Side - Controls */}
-              <div className="flex flex-wrap items-center gap-2 lg:gap-3">
-                {/* Month Navigation Arrows */}
-                <button
-                  onClick={() => handleDateChange("prev")}
-                  className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-                >
-                  <ChevronLeft className="w-4 h-4 text-gray-400" />
-                </button>
+        <div className="space-y-4">
+          {/* Stats Overview */}
+          <TasksKPIs statusStats={statusStats} />
 
-                {/* Date Display */}
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg shadow-sm h-10">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-900">
-                    {currentMonth.toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </span>
-                </div>
+          {/* View Toggle */}
+          <TasksTabs
+            tabItems={tabItems}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            activeView={activeView}
+            setActiveView={setActiveView}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onAddClick={() => router.push("/tasks/add")}
+            onExportClick={handleExport}
+          />
 
-                <button
-                  onClick={() => handleDateChange("next")}
-                  className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-                >
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </button>
-
-                {/* Columns Dropdown */}
-                <div className="relative" ref={columnsMenuRef}>
-                  <button
-                    ref={columnsButtonRef}
-                    onClick={handleColumnsDropdownToggle}
-                    className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm h-10 ${
-                      columnsDropdown ? "bg-gray-50" : ""
-                    }`}
-                  >
-                    <Columns className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">
-                      Columns
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-gray-400 transition-transform ${columnsDropdown ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {showColumnsMenu && (
-                    <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                      <div className="p-2">
-                        {[
-                          "Task Name",
-                          "Project",
-                          "Assignee",
-                          "Due Date",
-                          "Status",
-                          "Progress",
-                          "Actions",
-                        ].map((column) => (
-                          <label
-                            key={column}
-                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedColumns.includes(column)}
-                              onChange={() => handleColumnToggle(column)}
-                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-900">
-                              {column}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Filter Dropdown */}
-                <div className="relative" ref={filterMenuRef}>
-                  <button
-                    ref={filterButtonRef}
-                    onClick={handleFilterDropdownToggle}
-                    className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm h-10 ${
-                      filterDropdown ? "bg-gray-50" : ""
-                    }`}
-                  >
-                    <Filter className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">
-                      Filter
-                    </span>
-                    {getTotalFilterCount() > 0 && (
-                      <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
-                        {getTotalFilterCount()}
-                      </span>
-                    )}
-                    <ChevronDown
-                      className={`w-4 h-4 text-gray-400 transition-transform ${filterDropdown ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {showFilterMenu && (
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-                      <div className="p-4 space-y-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-900 mb-2 block">
-                            Status
-                          </label>
-                          <select
-                            value={filters.status}
-                            onChange={(e) =>
-                              handleFilterChange("status", e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900"
-                          >
-                            <option value="all">All Status</option>
-                            <option value="todo">To Do</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="in-review">In Review</option>
-                            <option value="done">Done</option>
-                            <option value="backlog">Backlog</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-medium text-gray-900 mb-2 block">
-                            Project
-                          </label>
-                          <select
-                            value={filters.project}
-                            onChange={(e) =>
-                              handleFilterChange("project", e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900"
-                          >
-                            <option value="all">All Projects</option>
-                            {projects.map((project) => (
-                              <option 
-                                key={project.id} 
-                                value={project.slug || project.name.toLowerCase().replace(/\s+/g, "-")}
-                              >
-                                {project.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-medium text-gray-900 mb-2 block">
-                            Assignee
-                          </label>
-                          <select
-                            value={filters.assignee}
-                            onChange={(e) =>
-                              handleFilterChange("assignee", e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900"
-                          >
-                            <option value="all">All Assignees</option>
-                            <option value="me">Me</option>
-                            <option value="others">Others</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Sort */}
-                <button
-                  onClick={() =>
-                    setDueDateSortOrder(
-                      dueDateSortOrder === "asc" ? "desc" : "asc"
-                    )
-                  }
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm h-10"
-                >
-                  {dueDateSortOrder === "asc" ? (
-                    <ChevronUp className="w-4 h-4 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  )}
-                  <span className="text-sm font-medium text-gray-700">
-                    Nearest Due Date
-                  </span>
-                </button>
-
-                {/* New Task Button */}
-                <button
-                  onClick={() => router.push("/tasks/add")}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 shadow-sm h-10"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Task
-                </button>
-              </div>
-            </div>
-
-            {/* Applied Filters */}
-            {getTotalFilterCount() > 0 && (
-              <div className="flex items-center gap-3 flex-wrap mb-6 flex-shrink-0">
-                <span className="text-sm font-medium text-gray-700">
-                  Filter
-                </span>
-
-                {Object.entries(appliedFilters).map(([category, filters]) =>
-                  filters.map((filterId) => (
-                    <div
-                      key={`${category}-${filterId}`}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-900 shadow-sm"
-                    >
-                      <span className="text-sm font-medium capitalize">
-                        {category}
-                      </span>
-                      <span className="text-sm">
-                        {getFilterLabel(category, filterId)}
-                      </span>
-                      <button
-                        onClick={() => removeFilter(category, filterId)}
-                        className="p-0.5 hover:bg-gray-100 rounded-full transition-colors"
-                      >
-                        <X className="w-3 h-3 text-gray-400" />
-                      </button>
-                    </div>
-                  ))
-                )}
-
-                <button
-                  onClick={clearAllFilters}
-                  className="text-sm text-red-600 hover:text-red-700 transition-colors"
-                >
-                  Remove Filter
-                </button>
-              </div>
+          {/* Single Horizontal Scroll Container */}
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {/* Tasks Table/Board */}
+            {activeView === "list" && (
+              <TasksListView
+                filteredTasks={filteredTasks}
+                taskColumnsTable={taskColumnsTable}
+                selectedTasks={selectedTasks}
+                setSelectedTasks={setSelectedTasks}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                setIsModalOpen={() => router.push("/tasks/add")}
+              />
             )}
-
-            {/* Content based on active view */}
-            <div className="w-full flex-1 overflow-auto">
-              {activeView === "table" && (
-                <TaskTable
-                  tasks={tasks}
-                  project={null}
-                  onTaskClick={(task) => handleTaskClick(task)}
-                  onContextMenuOpen={handleContextMenuOpen}
-                  onTaskComplete={handleTaskComplete}
-                />
-              )}
-              {activeView === "kanban" && (
+            {activeView === "board" && (
+              <Card glass={true}>
                 <TaskKanban
-                  tasks={tasks}
+                  tasks={filteredTasks}
                   project={null}
-                  onTaskClick={(task) => handleTaskClick(task)}
-                  onContextMenuOpen={handleContextMenuOpen}
+                  onTaskClick={handleTaskClick}
+                  onContextMenuOpen={() => {}}
                   onTaskStatusChange={(task, newStatus) => {
-                    handleTaskUpdate({ ...task, status: newStatus });
+                    handleStatusUpdate(task.id, newStatus);
                   }}
                 />
-              )}
-              {activeView === "calendar" && (
-                <TaskCalendar
-                  tasks={tasks}
-                  project={null}
-                  onTaskClick={(task) => handleTaskClick(task)}
-                  onDateClick={(date) => console.log("Date clicked:", date)}
-                  onAddTask={(date) => console.log("Add task for date:", date)}
-                />
-              )}
-            </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Context Menu */}
-      <TaskContextMenu
-        isOpen={contextMenu.isOpen}
-        onClose={handleContextMenuClose}
-        position={contextMenu.position}
-        task={contextMenu.task}
-        onDelete={handleDeleteTask}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <TaskDeleteConfirmationModal
-        isOpen={deleteModal.isOpen}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-        taskName={deleteModal.task?.name || ""}
-      />
 
       {/* Task Detail Modal */}
       <TaskDetailModal
@@ -877,30 +666,24 @@ export default function MyTasks() {
         onOpenFullPage={handleOpenFullPage}
       />
 
-      {/* Dropdown Components */}
-      <ColumnsDropdown
-        isOpen={columnsDropdown}
-        onClose={() => setColumnsDropdown(false)}
-        onToggle={handleColumnsDropdownToggle}
-        anchorRef={columnsButtonRef}
-      />
-
-      <AssigneeDropdown
-        isOpen={assigneeDropdown}
-        onClose={() => setAssigneeDropdown(false)}
-        onToggle={handleAssigneeDropdownToggle}
-        anchorRef={assigneeButtonRef}
-        selectedAssignees={selectedAssignees}
-        onAssigneeChange={handleAssigneeChange}
-      />
-
-      <FilterComponent
-        isOpen={filterDropdown}
-        onClose={() => setFilterDropdown(false)}
-        onToggle={handleFilterDropdownToggle}
-        anchorRef={filterButtonRef}
-        appliedFilters={appliedFilters}
-        onFiltersChange={handleFiltersChange}
+      {/* Delete Confirmation Modal */}
+      <TaskDeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, task: null })}
+        onConfirm={async () => {
+          if (deleteModal.task?.id) {
+            try {
+              await taskService.deleteTask(deleteModal.task.id);
+              setTasks((prevTasks) =>
+                prevTasks.filter((task) => task.id !== deleteModal.task.id)
+              );
+              setDeleteModal({ isOpen: false, task: null });
+            } catch (error) {
+              console.error("Error deleting task:", error);
+            }
+          }
+        }}
+        taskName={deleteModal.task?.name || ""}
       />
     </div>
   );

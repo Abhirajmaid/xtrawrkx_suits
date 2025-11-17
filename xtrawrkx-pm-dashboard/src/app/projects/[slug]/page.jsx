@@ -37,11 +37,13 @@ import {
   TaskContextMenuProject,
   TaskKanban,
 } from "../../../components/projects";
-import { TaskTable, TaskCalendar } from "../../../components/my-task";
 import { TaskDetailModal } from "../../../components/shared";
 import { getEnrichedTask } from "../../../data/centralData";
+import PageHeader from "../../../components/shared/PageHeader";
+import { useRouter } from "next/navigation";
 
 export default function ProjectDetail({ params }) {
+  const router = useRouter();
   const [project, setProject] = useState(null);
   const [activeTab, setActiveTab] = useState("tasks");
   const [activeView, setActiveView] = useState("table");
@@ -351,74 +353,67 @@ export default function ProjectDetail({ params }) {
     navigateMonth: !!navigateMonth,
   });
 
-  return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Project Header - Updated to match my-task header */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="px-4 lg:px-6 py-4 lg:py-6">
-          <div className="flex items-center justify-between">
-            {/* Left side - Project Info */}
-            <div className="flex items-center gap-4">
-              <div
-                className={`w-12 h-12 bg-gradient-to-br ${project.color} rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg`}
-              >
-                {project.icon}
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {project.name}
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  Manage project and tasks here
-                </p>
-              </div>
-            </div>
-
-            {/* Right side - Actions */}
-            <div className="flex items-center space-x-4">
-              {/* Global Search */}
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search anything"
-                  className="pl-12 pr-16 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-64 lg:w-80 bg-gray-50 focus:bg-white transition-colors"
-                />
-                <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                  <div className="flex items-center space-x-1">
-                    <kbd className="px-2 py-1 text-xs text-gray-500 bg-gray-200 rounded">
-                      ⌘
-                    </kbd>
-                    <kbd className="px-2 py-1 text-xs text-gray-500 bg-gray-200 rounded">
-                      K
-                    </kbd>
-                  </div>
-                </div>
-              </div>
-
-              {/* Project Actions */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <Star className="h-5 w-5" />
-              </button>
-
-              <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
-                <UserPlus className="w-4 h-4" />
-                Invite
-              </button>
-
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                <Share className="w-4 h-4" />
-                Share
-              </button>
-            </div>
+  if (!project) {
+    return (
+      <div className="flex flex-col h-full bg-gray-50">
+        <div className="p-6">
+          <PageHeader
+            title="Project"
+            subtitle="Loading project..."
+            breadcrumb={[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: "Projects", href: "/projects" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading project...</p>
           </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50">
+      {/* Project Header */}
+      <div className="p-6">
+        <PageHeader
+          title={project.name}
+          subtitle="Manage project and tasks here"
+          breadcrumb={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Projects", href: "/projects" },
+            { label: project.name, href: `/projects/${params.slug}` },
+          ]}
+          showSearch={true}
+          showActions={true}
+          onAddClick={() => router.push(`/tasks/add?projectId=${project.id}`)}
+          actions={[
+            {
+              icon: Star,
+              onClick: () => console.log("Star project"),
+            },
+            {
+              icon: UserPlus,
+              onClick: () => console.log("Invite team member"),
+              className: "hidden lg:flex",
+            },
+            {
+              icon: Share,
+              onClick: () => console.log("Share project"),
+              className: "hidden lg:flex",
+            },
+          ]}
+        />
+      </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-4 lg:p-6 overflow-auto bg-gray-50">
+      <div className="flex-1 px-6 pb-6 overflow-auto bg-gray-50">
         {/* Project Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6 mb-6">
           {stats.map((stat, index) => (
@@ -437,8 +432,8 @@ export default function ProjectDetail({ params }) {
                       stat.changeType === "increase"
                         ? "bg-green-50 text-green-600"
                         : stat.changeType === "decrease"
-                          ? "bg-red-50 text-red-600"
-                          : "bg-gray-50 text-gray-600"
+                        ? "bg-red-50 text-red-600"
+                        : "bg-gray-50 text-gray-600"
                     }`}
                   >
                     {stat.changeType === "increase" ? (
@@ -559,12 +554,12 @@ export default function ProjectDetail({ params }) {
 
                 {/* Content based on active view */}
                 {activeView === "table" && (
-                  <TaskTable
-                    tasks={project?.tasks || []}
-                    project={project}
-                    onTaskClick={handleTaskClick}
-                    onContextMenuOpen={handleContextMenuOpen}
-                  />
+                  <div className="p-8 text-center text-gray-500">
+                    <p>Table view is currently unavailable.</p>
+                    <p className="text-sm mt-2">
+                      Please use Kanban view instead.
+                    </p>
+                  </div>
                 )}
                 {activeView === "kanban" && (
                   <TaskKanban
@@ -578,15 +573,12 @@ export default function ProjectDetail({ params }) {
                   />
                 )}
                 {activeView === "calendar" && (
-                  <TaskCalendar
-                    tasks={project?.tasks || []}
-                    project={project}
-                    onTaskClick={handleTaskClick}
-                    onDateClick={(date) => console.log("Date clicked:", date)}
-                    onAddTask={(date) =>
-                      console.log("Add task for date:", date)
-                    }
-                  />
+                  <div className="p-8 text-center text-gray-500">
+                    <p>Calendar view is currently unavailable.</p>
+                    <p className="text-sm mt-2">
+                      Please use Kanban view instead.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -702,7 +694,9 @@ export default function ProjectDetail({ params }) {
                                     </div>
                                     <div className="text-sm text-gray-500">
                                       {member.email ||
-                                        `${member.name.toLowerCase().replace(/\s+/g, "")}@example.com`}
+                                        `${member.name
+                                          .toLowerCase()
+                                          .replace(/\s+/g, "")}@example.com`}
                                     </div>
                                   </div>
                                 </div>
@@ -831,20 +825,34 @@ export default function ProjectDetail({ params }) {
                             return (
                               <div
                                 key={message.id}
-                                className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                                className={`flex ${
+                                  isCurrentUser
+                                    ? "justify-end"
+                                    : "justify-start"
+                                }`}
                               >
                                 <div
-                                  className={`flex gap-3 max-w-[70%] ${isCurrentUser ? "flex-row-reverse" : "flex-row"}`}
+                                  className={`flex gap-3 max-w-[70%] ${
+                                    isCurrentUser
+                                      ? "flex-row-reverse"
+                                      : "flex-row"
+                                  }`}
                                 >
                                   {!isCurrentUser && (
                                     <div
-                                      className={`w-8 h-8 ${sender?.color || "bg-gray-500"} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
+                                      className={`w-8 h-8 ${
+                                        sender?.color || "bg-gray-500"
+                                      } rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
                                     >
                                       {sender?.avatar || "U"}
                                     </div>
                                   )}
                                   <div
-                                    className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}
+                                    className={`flex flex-col ${
+                                      isCurrentUser
+                                        ? "items-end"
+                                        : "items-start"
+                                    }`}
                                   >
                                     <div
                                       className={`px-4 py-2 rounded-lg ${
@@ -858,7 +866,11 @@ export default function ProjectDetail({ params }) {
                                       </p>
                                     </div>
                                     <div
-                                      className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${isCurrentUser ? "flex-row-reverse" : "flex-row"}`}
+                                      className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
+                                        isCurrentUser
+                                          ? "flex-row-reverse"
+                                          : "flex-row"
+                                      }`}
                                     >
                                       <span>
                                         {messageDate.toLocaleDateString(
@@ -877,7 +889,9 @@ export default function ProjectDetail({ params }) {
                                   </div>
                                   {isCurrentUser && (
                                     <div
-                                      className={`w-8 h-8 ${sender?.color || "bg-gray-500"} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
+                                      className={`w-8 h-8 ${
+                                        sender?.color || "bg-gray-500"
+                                      } rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
                                     >
                                       {sender?.avatar || "U"}
                                     </div>

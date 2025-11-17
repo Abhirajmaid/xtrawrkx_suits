@@ -60,7 +60,8 @@ module.exports = {
                         where: { id: decoded.id, isActive: true },
                         populate: {
                             primaryRole: true,
-                            userRoles: true
+                            userRoles: true,
+                            department: true
                         }
                     });
                 } catch (userError) {
@@ -286,12 +287,13 @@ module.exports = {
                 return ctx.unauthorized('Invalid token');
             }
 
-            // Get current user
+            // Get current user with department
             const currentUser = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
                 where: { id: decoded.id, isActive: true },
                 populate: {
                     primaryRole: true,
-                    userRoles: true
+                    userRoles: true,
+                    department: true
                 }
             });
 
@@ -303,12 +305,13 @@ module.exports = {
             const userRoleService = strapi.service('api::user-role.user-role');
             const currentUserLevel = userRoleService.getRoleLevel(currentUserRole);
 
-            // Get all users with their roles
+            // Get all users with their roles and departments
             const allUsers = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findMany({
                 where: { isActive: true },
                 populate: {
                     primaryRole: true,
-                    userRoles: true
+                    userRoles: true,
+                    department: true
                 },
                 orderBy: { createdAt: 'desc' }
             });
@@ -322,7 +325,7 @@ module.exports = {
                 return currentUserLevel > targetUserLevel;
             });
 
-            // Format user data
+            // Format user data with populated department
             const formattedUsers = editableUsers.map(user => ({
                 id: user.id,
                 email: user.email,
@@ -330,7 +333,12 @@ module.exports = {
                 lastName: user.lastName,
                 name: `${user.firstName} ${user.lastName}`.trim(),
                 role: user.primaryRole?.name || user.role,
-                department: user.department,
+                department: user.department ? {
+                    id: user.department.id,
+                    name: user.department.name,
+                    code: user.department.code,
+                    color: user.department.color
+                } : null,
                 isActive: user.isActive,
                 emailVerified: user.emailVerified,
                 createdAt: user.createdAt,

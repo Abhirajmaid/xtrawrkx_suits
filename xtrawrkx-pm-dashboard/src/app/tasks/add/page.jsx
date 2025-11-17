@@ -274,28 +274,25 @@ export default function AddTaskPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-white p-6 overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-white overflow-y-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Create New Task
-            </h1>
-            <p className="text-gray-600">
-              Add a new task and assign it to a team member
-            </p>
-          </div>
+        <div className="p-6">
+          <PageHeader
+            title="Create New Task"
+            subtitle="Add a new task and assign it to a team member"
+            breadcrumb={[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: "My Tasks", href: "/my-task" },
+              { label: "Create Task", href: "/tasks/add" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="px-6 pb-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Form */}
             <div className="lg:col-span-2 space-y-6">
@@ -732,7 +729,8 @@ export default function AddTaskPage() {
               </button>
             </div>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui";
 import { useState } from "react";
-import Header from "../../components/shared/Header";
+import PageHeader from "../../components/shared/PageHeader";
 import { useRouter } from "next/navigation";
 import { projects } from "../../data/centralData";
 
@@ -168,12 +168,19 @@ export default function ProjectsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header
-        title="Projects"
-        subtitle="Manage and track all your projects"
-        onSearchClick={handleSearchClick}
-      />
-      <div className="flex-1 p-6">
+      <div className="p-6">
+        <PageHeader
+          title="Projects"
+          subtitle="Manage and track all your projects"
+          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Projects", href: "/projects" }]}
+          showSearch={true}
+          showActions={true}
+          onAddClick={() => router.push("/projects/add")}
+          onFilterClick={() => console.log("Filter projects")}
+          onExportClick={() => console.log("Export projects")}
+        />
+      </div>
+      <div className="flex-1 px-6 pb-6">
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>

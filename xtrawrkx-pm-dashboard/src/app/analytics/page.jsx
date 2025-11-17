@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Filter, MoreVertical, ArrowUp, ArrowDown } from "lucide-react";
-import Header from "../../components/shared/Header";
+import PageHeader from "../../components/shared/PageHeader";
 
 // Error boundary component for charts
 // class ChartErrorBoundary extends React.Component {
@@ -410,13 +410,19 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
-      <Header
-        title="Analytics"
-        subtitle="Analyze and manage your projects and tasks"
-      />
+      <div className="p-6">
+        <PageHeader
+          title="Analytics"
+          subtitle="Analyze and manage your projects and tasks"
+          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Analytics", href: "/analytics" }]}
+          showSearch={true}
+          showActions={true}
+          onExportClick={() => console.log("Export analytics")}
+        />
+      </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-4 lg:p-6 overflow-auto bg-gray-50">
+      <div className="flex-1 px-6 pb-6 overflow-auto bg-gray-50">
         <div className="max-w-7xl mx-auto px-2 lg:px-4">
           {/* Key Metrics Cards */}
           <KeyMetricsCards />

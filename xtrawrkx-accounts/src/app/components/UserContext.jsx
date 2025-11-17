@@ -16,28 +16,72 @@ export const UserProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Load user from localStorage on mount and sync on storage events
   useEffect(() => {
-    // Check for stored user on component mount
-    const storedUser = localStorage.getItem("currentUser");
-    if (storedUser) {
+    const loadUserFromStorage = () => {
       try {
-        setCurrentUser(JSON.parse(storedUser));
+        const storedUser = localStorage.getItem("currentUser");
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser);
+            // Only set if we have valid user data with required fields
+            if (parsed && (parsed.email || parsed.token)) {
+              setCurrentUser(parsed);
+            } else {
+              console.warn("Stored user data is incomplete, but keeping it in localStorage");
+            }
+          } catch (error) {
+            console.error("Error parsing stored user:", error);
+            // Don't remove localStorage on parse errors - it might be a temporary issue
+            // Only clear if the data is completely invalid JSON
+            try {
+              // Try to validate it's actually JSON
+              JSON.parse(storedUser);
+            } catch {
+              // Only clear if it's truly invalid JSON
+              console.warn("Invalid JSON in localStorage, clearing...");
+              localStorage.removeItem("currentUser");
+            }
+          }
+        }
       } catch (error) {
-        console.error("Error parsing stored user:", error);
-        localStorage.removeItem("currentUser");
+        console.error("Error accessing localStorage:", error);
+        // Don't clear on localStorage access errors (might be privacy mode)
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    // Load on mount
+    loadUserFromStorage();
+
+    // Listen for storage changes (e.g., from other tabs)
+    const handleStorageChange = (e) => {
+      if (e.key === "currentUser") {
+        console.log('Storage change detected for currentUser');
+        loadUserFromStorage();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const login = (userData) => {
+    console.log('UserContext.login() called with:', userData);
     setCurrentUser(userData);
-    localStorage.setItem("currentUser", JSON.stringify(userData));
+    try {
+      localStorage.setItem("currentUser", JSON.stringify(userData));
+      console.log('User data saved to localStorage');
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
   };
 
   const logout = () => {
     setCurrentUser(null);
+    // Clear both currentUser and authToken on logout
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("authToken");
   };
 
   const hasPermission = (permission) => {

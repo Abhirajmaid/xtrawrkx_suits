@@ -23,6 +23,7 @@ import { Card } from "../../../components/ui";
 import subtaskService from "../../../lib/subtaskService";
 import commentService from "../../../lib/commentService";
 import { transformSubtask, transformComment } from "../../../lib/dataTransformers";
+import PageHeader from "../../../components/shared/PageHeader";
 
 export default function SubtaskDetailPage({ params }) {
   const router = useRouter();
@@ -408,6 +409,13 @@ export default function SubtaskDetailPage({ params }) {
   const assigneeAvatar = getAssigneeAvatar(subtask.assignee);
   const breadcrumbs = buildBreadcrumbs();
 
+  // Convert breadcrumbs to PageHeader format
+  const pageHeaderBreadcrumbs = [
+    { label: "Dashboard", href: "/dashboard" },
+    ...breadcrumbs.map(crumb => ({ label: crumb.label, href: crumb.href })),
+    { label: subtask.name, href: `/subtasks/${subtask.id}` },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 overflow-auto w-full relative">
       {/* Background decorative elements */}
@@ -418,71 +426,29 @@ export default function SubtaskDetailPage({ params }) {
       </div>
 
       {/* Header */}
-      <div className="border-b border-white/30 bg-white/80 backdrop-blur-sm sticky top-0 z-10 flex-shrink-0 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Left side - Breadcrumb */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              
-              {/* Breadcrumb Navigation */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="p-1 hover:bg-gray-100 rounded transition-colors"
-                >
-                  <Home className="w-4 h-4 text-gray-500" />
-                </button>
-                
-                {breadcrumbs.map((crumb, index) => (
-                  <React.Fragment key={index}>
-                    <span className="text-gray-400">→</span>
-                    <button
-                      onClick={() => router.push(crumb.href)}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                    >
-                      {crumb.icon && (
-                        <div
-                          className={`w-6 h-6 bg-gradient-to-br ${crumb.color} rounded-lg flex items-center justify-center shadow-sm`}
-                        >
-                          <span className="text-white font-bold text-xs">
-                            {crumb.icon}
-                          </span>
-                        </div>
-                      )}
-                      <span className="text-sm text-gray-600">{crumb.label}</span>
-                    </button>
-                  </React.Fragment>
-                ))}
-                
-                <span className="text-gray-400">→</span>
-                <h1 className="text-xl font-bold text-gray-900">{subtask.name}</h1>
-              </div>
-            </div>
-
-            {/* Right side - Actions */}
-            <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white/80 backdrop-blur-sm border border-white/50 rounded-lg hover:bg-white/90 hover:shadow-md transition-all duration-300">
-                <User className="w-4 h-4" />
-                Assign
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white/80 backdrop-blur-sm border border-white/50 rounded-lg hover:bg-white/90 hover:shadow-md transition-all duration-300">
-                <Share className="w-4 h-4" />
-                Share
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="p-6 relative z-10">
+        <PageHeader
+          title={subtask.name}
+          subtitle={subtask.description || "Subtask details and information"}
+          breadcrumb={pageHeaderBreadcrumbs}
+          showSearch={false}
+          showActions={true}
+          actions={[
+            {
+              icon: User,
+              onClick: () => console.log("Assign subtask"),
+            },
+            {
+              icon: Share,
+              onClick: () => console.log("Share subtask"),
+            },
+          ]}
+        />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto relative z-10">
-        <div className="w-full mx-auto px-6 py-6 pb-12">
+        <div className="w-full mx-auto px-6 pb-6">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
             {/* Left Column - Subtask Details */}
             <div className="lg:col-span-3 space-y-6">
@@ -742,6 +708,7 @@ export default function SubtaskDetailPage({ params }) {
     </div>
   );
 }
+
 
 
 

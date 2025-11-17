@@ -14,16 +14,17 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
         try {
             const { query } = ctx;
 
-            // Get users with populated roles
+            // Get users with populated roles and departments
             const users = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findMany({
                 ...query,
                 populate: {
                     primaryRole: true,
-                    userRoles: true
+                    userRoles: true,
+                    department: true
                 }
             });
 
-            // Transform data to include role information
+            // Transform data to include role and department information
             const transformedUsers = users.map(user => ({
                 id: user.id,
                 attributes: {
@@ -31,7 +32,12 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
                     firstName: user.firstName,
                     lastName: user.lastName,
                     phone: user.phone,
-                    department: user.department,
+                    department: user.department ? {
+                        data: {
+                            id: user.department.id,
+                            attributes: user.department
+                        }
+                    } : null,
                     isActive: user.isActive,
                     emailVerified: user.emailVerified,
                     lastLoginAt: user.lastLoginAt,
@@ -77,7 +83,8 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
                 where: { id },
                 populate: {
                     primaryRole: true,
-                    userRoles: true
+                    userRoles: true,
+                    department: true
                 }
             });
 
@@ -93,7 +100,12 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
                         firstName: user.firstName,
                         lastName: user.lastName,
                         phone: user.phone,
-                        department: user.department,
+                        department: user.department ? {
+                            data: {
+                                id: user.department.id,
+                                attributes: user.department
+                            }
+                        } : null,
                         isActive: user.isActive,
                         emailVerified: user.emailVerified,
                         lastLoginAt: user.lastLoginAt,
@@ -141,7 +153,8 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
                 },
                 populate: {
                     primaryRole: true,
-                    userRoles: true
+                    userRoles: true,
+                    department: true
                 }
             });
 
@@ -153,7 +166,12 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
                         firstName: updatedUser.firstName,
                         lastName: updatedUser.lastName,
                         phone: updatedUser.phone,
-                        department: updatedUser.department,
+                        department: updatedUser.department ? {
+                            data: {
+                                id: updatedUser.department.id,
+                                attributes: updatedUser.department
+                            }
+                        } : null,
                         isActive: updatedUser.isActive,
                         emailVerified: updatedUser.emailVerified,
                         lastLoginAt: updatedUser.lastLoginAt,
@@ -177,6 +195,40 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
         } catch (error) {
             console.error('Error updating user:', error);
             ctx.internalServerError('Failed to update user');
+        }
+    },
+
+    /**
+     * Delete user
+     */
+    async delete(ctx) {
+        try {
+            const { id } = ctx.params;
+
+            // Check if user exists
+            const user = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                where: { id }
+            });
+
+            if (!user) {
+                return ctx.notFound('User not found');
+            }
+
+            // Delete the user
+            await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').delete({
+                where: { id }
+            });
+
+            // Return success response
+            ctx.send({
+                data: {
+                    id: parseInt(id)
+                },
+                meta: {}
+            });
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            ctx.internalServerError('Failed to delete user');
         }
     }
 }));

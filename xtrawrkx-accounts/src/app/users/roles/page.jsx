@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Shield,
@@ -39,6 +40,7 @@ const iconMap = {
 };
 
 function UserRolesPage() {
+  const router = useRouter();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -154,7 +156,9 @@ function UserRolesPage() {
       const token = await AuthService.refreshTokenIfNeeded();
 
       if (!token) {
-        throw new Error("Authentication required. Please login first.");
+        // Always redirect to login when no token (same behavior as production)
+        router.push('/auth/login');
+        return;
       }
 
       // Fetch roles using AuthService

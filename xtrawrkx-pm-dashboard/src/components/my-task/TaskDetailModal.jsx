@@ -80,14 +80,14 @@ const TaskDetailModal = ({
   const modalClasses =
     "fixed inset-y-0 right-0 bg-black/50 backdrop-blur-sm flex items-center justify-end z-[80]";
   const contentClasses =
-    "bg-white shadow-2xl w-[450px] h-screen max-h-screen border-l border-gray-200 flex flex-col";
+    "bg-white shadow-2xl w-[500px] h-screen max-h-screen border-l border-gray-200 flex flex-col";
 
   return (
     <div className={modalClasses}>
       <div className={contentClasses}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h1 className="text-lg font-bold text-gray-900 truncate pr-4">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h1 className="text-xl font-semibold text-gray-900 truncate pr-4">
             {safeTask.name}
           </h1>
 
@@ -95,9 +95,9 @@ const TaskDetailModal = ({
             {/* Open Project Button */}
             <button
               onClick={() => onOpenProject?.(safeTask.project)}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors border border-blue-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
             >
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="w-4 h-4" />
               Open Project
             </button>
 
@@ -112,69 +112,54 @@ const TaskDetailModal = ({
                   console.error("onOpenFullPage function is not provided!");
                 }
               }}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors border border-gray-200 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
             >
-              <Maximize2 className="w-3 h-3" />
+              <Maximize2 className="w-4 h-4" />
               Full
             </button>
 
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <X className="w-3 h-3 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
         </div>
 
         {/* Content - Full Height No Scroll */}
-        <div className="flex-1 flex flex-col h-full">
-          {/* Task Details Section - Compact */}
-          <div className="p-3 border-b border-gray-200 flex-shrink-0">
-            <div className="grid grid-cols-2 gap-3">
+        <div className="flex-1 flex flex-col h-full overflow-y-auto">
+          {/* Task Details Section */}
+          <div className="p-6 border-b border-gray-200 flex-shrink-0">
+            <div className="grid grid-cols-2 gap-6">
               {/* Left Column */}
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {/* Project */}
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">
+                  <label className="text-xs font-medium text-gray-500 mb-2 block">
                     Project
                   </label>
                   <div className="flex items-center gap-2">
-                    <div
-                      className={`w-5 h-5 bg-gradient-to-br ${safeTask.project.color} rounded-md flex items-center justify-center text-white text-xs font-bold`}
-                    >
-                      {safeTask.project.icon}
+                    <div className="w-6 h-6 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 text-sm font-bold">
+                      ?
                     </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      {safeTask.project.name}
+                    <span className="text-sm text-gray-900">
+                      {safeTask.project?.name || "Unknown Project"}
                     </span>
                   </div>
                 </div>
 
                 {/* Assignee */}
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">
+                  <label className="text-xs font-medium text-gray-500 mb-2 block">
                     Assignee
                   </label>
                   <div className="flex items-center gap-2">
-                    {safeTask.hasMultipleAssignees ? (
-                      <div className="flex -space-x-1">
-                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs border border-white">
-                          <User className="w-2.5 h-2.5" />
-                        </div>
-                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs border border-white">
-                          <User className="w-2.5 h-2.5" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                        <User className="w-2.5 h-2.5" />
-                      </div>
-                    )}
+                    <User className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-900">
                       {typeof safeTask.assignee === "object"
-                        ? safeTask.assignee?.name
+                        ? safeTask.assignee?.name || "Unassigned"
                         : safeTask.assignee || "Unassigned"}
                     </span>
                   </div>
@@ -182,13 +167,13 @@ const TaskDetailModal = ({
 
                 {/* Due Date */}
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">
+                  <label className="text-xs font-medium text-gray-500 mb-2 block">
                     Due Date
                   </label>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-900">
-                      {safeTask.dueDate}
+                      {safeTask.dueDate || "No due date"}
                       {safeTask.time && (
                         <span className="text-orange-500 ml-1 font-medium">
                           {safeTask.time}
@@ -197,53 +182,48 @@ const TaskDetailModal = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Description */}
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-2 block">
+                    Description
+                  </label>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {task.description ||
+                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec pretium elit nulla, nec malesuada nisl volutpat ut. Aliquam suscipit ante et viverra aliquam."}
+                  </p>
+                </div>
               </div>
 
               {/* Right Column */}
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {/* Status */}
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">
+                  <label className="text-xs font-medium text-gray-500 mb-2 block">
                     Status
                   </label>
-                  <span
-                    className={`inline-flex px-2 py-1 rounded text-xs font-medium border ${getStatusColor(safeTask.status)}`}
-                  >
+                  <span className="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
                     {safeTask.status}
                   </span>
                 </div>
 
                 {/* Progress */}
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">
+                  <label className="text-xs font-medium text-gray-500 mb-2 block">
                     Progress
                   </label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 rounded-full transition-all duration-300"
-                        style={{ width: `${safeTask.progress}%` }}
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${safeTask.progress || 0}%` }}
                       ></div>
                     </div>
-                    <span className="text-xs font-semibold text-gray-700 min-w-[2rem]">
-                      {safeTask.progress}%
+                    <span className="text-sm font-semibold text-gray-700 min-w-[3rem]">
+                      {safeTask.progress || 0}%
                     </span>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Description - Compact */}
-            <div className="mt-3">
-              <label className="text-xs font-medium text-gray-500 mb-1 block">
-                Description
-              </label>
-              <div className="bg-gray-50 rounded-md p-2">
-                <p className="text-xs text-gray-700 leading-relaxed">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec
-                  pretium elit nulla, nec malesuada nisl volutpat ut. Aliquam
-                  suscipit ante et viverra aliquam.
-                </p>
               </div>
             </div>
           </div>
@@ -251,10 +231,10 @@ const TaskDetailModal = ({
           {/* Tabs Section - Full Height */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* Tab Headers */}
-            <div className="flex border-b border-gray-200 flex-shrink-0">
+            <div className="flex border-b border-gray-200 flex-shrink-0 px-6">
               <button
                 onClick={() => setActiveTab("subtasks")}
-                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "subtasks"
                     ? "text-blue-600 border-blue-600"
                     : "text-gray-500 border-transparent hover:text-gray-700"
@@ -264,7 +244,7 @@ const TaskDetailModal = ({
               </button>
               <button
                 onClick={() => setActiveTab("comments")}
-                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "comments"
                     ? "text-blue-600 border-blue-600"
                     : "text-gray-500 border-transparent hover:text-gray-700"

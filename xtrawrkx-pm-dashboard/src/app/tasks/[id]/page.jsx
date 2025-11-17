@@ -23,6 +23,7 @@ import taskService from "../../../lib/taskService";
 import subtaskService from "../../../lib/subtaskService";
 import commentService from "../../../lib/commentService";
 import { transformTask, transformSubtask, transformComment } from "../../../lib/dataTransformers";
+import PageHeader from "../../../components/shared/PageHeader";
 
 export default function TaskDetailPage({ params }) {
   const router = useRouter();
@@ -402,48 +403,33 @@ export default function TaskDetailPage({ params }) {
         <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-gradient-to-bl from-green-400/8 to-teal-500/5 rounded-full blur-3xl" />
       </div>
       {/* Header */}
-      <div className="border-b border-white/30 bg-white/80 backdrop-blur-sm sticky top-0 z-10 flex-shrink-0 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Left side - Breadcrumb */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-8 h-8 bg-gradient-to-br ${task.project.color} rounded-lg flex items-center justify-center shadow-sm`}
-                >
-                  <span className="text-white font-bold text-sm">
-                    {task.project.icon}
-                  </span>
-                </div>
-                <span className="text-gray-600">→</span>
-                <h1 className="text-xl font-bold text-gray-900">{task.name}</h1>
-              </div>
-            </div>
-
-            {/* Right side - Actions */}
-            <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white/80 backdrop-blur-sm border border-white/50 rounded-lg hover:bg-white/90 hover:shadow-md transition-all duration-300">
-                <User className="w-4 h-4" />
-                Assign
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white/80 backdrop-blur-sm border border-white/50 rounded-lg hover:bg-white/90 hover:shadow-md transition-all duration-300">
-                <Share className="w-4 h-4" />
-                Share
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="p-6 relative z-10">
+        <PageHeader
+          title={task.name}
+          subtitle={task.description || "Task details and information"}
+          breadcrumb={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "My Tasks", href: "/my-task" },
+            { label: task.name, href: `/tasks/${task.id}` },
+          ]}
+          showSearch={false}
+          showActions={true}
+          actions={[
+            {
+              icon: User,
+              onClick: () => console.log("Assign task"),
+            },
+            {
+              icon: Share,
+              onClick: () => console.log("Share task"),
+            },
+          ]}
+        />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto relative z-10">
-        <div className="w-full mx-auto px-6 py-6 pb-12">
+        <div className="w-full mx-auto px-6 pb-6">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
             {/* Left Column - Task Details */}
             <div className="lg:col-span-3 space-y-6">

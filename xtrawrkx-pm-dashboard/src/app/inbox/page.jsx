@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Header from "../../components/shared/Header";
+import PageHeader from "../../components/shared/PageHeader";
 import { ActivityFeed, NotificationDetail } from "../../components/inbox";
 
 export default function Inbox() {
@@ -132,11 +132,16 @@ export default function Inbox() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <Header
-        title="Inbox"
-        subtitle="Stay updated with all your notifications"
-      />
-      <div className="flex-1 flex overflow-hidden min-h-0 pt-16 pb-16">
+      <div className="p-6">
+        <PageHeader
+          title="Inbox"
+          subtitle="Stay updated with all your notifications"
+          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Inbox", href: "/inbox" }]}
+          showSearch={true}
+          showActions={false}
+        />
+      </div>
+      <div className="flex-1 flex overflow-hidden min-h-0 px-6 pb-6">
         <div className="flex w-full max-w-7xl mx-auto px-4">
           <ActivityFeed
             notifications={notifications}
