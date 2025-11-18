@@ -1,61 +1,71 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Edit,
+  Share2,
+  Download,
   User,
   Calendar,
-  ChevronDown,
-  ChevronRight,
-  Edit,
-  Plus,
-  MoreVertical,
-  Share,
-  List,
-  Paperclip,
-  Image,
-  X,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  MessageSquare,
+  Activity,
   GitBranch,
+  TrendingUp,
+  Target,
+  Users,
+  Flag,
+  Tag,
+  Link as LinkIcon,
+  MoreVertical,
+  Plus,
 } from "lucide-react";
 import { Card } from "../../../components/ui";
+import PageHeader from "../../../components/shared/PageHeader";
 import taskService from "../../../lib/taskService";
 import subtaskService from "../../../lib/subtaskService";
 import commentService from "../../../lib/commentService";
 import { transformTask, transformSubtask, transformComment } from "../../../lib/dataTransformers";
-import PageHeader from "../../../components/shared/PageHeader";
 
-export default function TaskDetailPage({ params }) {
+export default function TaskDetailPage({ params: paramsProp }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
-  const [expandedSubtasks, setExpandedSubtasks] = useState(new Set());
+  const [params, setParams] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState("");
 
-  // Load task data from API
-  React.useEffect(() => {
+  // Handle params (can be Promise in Next.js 15+)
+  useEffect(() => {
+    const resolveParams = async () => {
+      if (paramsProp instanceof Promise) {
+        const resolved = await paramsProp;
+        setParams(resolved);
+      } else {
+        setParams(paramsProp);
+      }
+    };
+    resolveParams();
+  }, [paramsProp]);
+
+  // Load task data
+  useEffect(() => {
     const loadTask = async () => {
+      if (!params?.id) return;
+
       try {
-        setLoading(true);
+        setIsLoading(true);
         setError(null);
 
-        // Handle both direct and Promise-based params (Next.js App Router compatibility)
-        let taskIdParam;
-        if (params.id instanceof Promise) {
-          const resolvedParams = await params;
-          taskIdParam = resolvedParams.id;
-        } else {
-          taskIdParam = params.id;
-        }
-
-        if (!taskIdParam) {
-          throw new Error("Task ID is required");
-        }
-
-        const taskId = parseInt(taskIdParam, 10);
+        const taskId = parseInt(params.id, 10);
         if (isNaN(taskId)) {
           throw new Error("Invalid task ID");
         }
@@ -74,29 +84,54 @@ export default function TaskDetailPage({ params }) {
         const transformedComments = commentsResponse.data?.map(transformComment) || [];
         setComments(transformedComments);
 
+        // TODO: Fetch activities when available
+        setActivities([]);
+
       } catch (error) {
         console.error("Error loading task:", error);
         setError(error.message);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    loadTask();
+    if (params?.id) {
+      loadTask();
+    }
   }, [params]);
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "In Review":
+      case "Done":
+      case "COMPLETED":
         return "bg-green-100 text-green-700 border-green-200";
       case "In Progress":
+      case "IN_PROGRESS":
         return "bg-blue-100 text-blue-700 border-blue-200";
-      case "Done":
-        return "bg-green-100 text-green-700 border-green-200";
+      case "In Review":
+      case "IN_REVIEW":
+        return "bg-purple-100 text-purple-700 border-purple-200";
       case "To Do":
+      case "TODO":
         return "bg-orange-100 text-orange-700 border-orange-200";
       case "Backlog":
-        return "bg-purple-100 text-purple-700 border-purple-200";
+        return "bg-gray-100 text-gray-700 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case "HIGH":
+      case "High":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "MEDIUM":
+      case "Medium":
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      case "LOW":
+      case "Low":
+        return "bg-green-100 text-green-700 border-green-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
     }
@@ -105,8 +140,8 @@ export default function TaskDetailPage({ params }) {
   const getAssigneeAvatar = (assignee) => {
     if (assignee) {
       return {
-        initials: assignee.initials,
-        color: assignee.color,
+        initials: assignee.initials || (assignee.name ? assignee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "??"),
+        color: assignee.color || "bg-blue-500",
       };
     }
     return {
@@ -117,63 +152,11 @@ export default function TaskDetailPage({ params }) {
 
   const getAssigneeName = (assignee) => {
     if (!assignee) return "Unassigned";
-    return assignee.name || "Unknown Assignee";
-  };
-
-  const handleSubtaskStatusChange = async (subtaskId, newStatus) => {
-    try {
-      await subtaskService.updateSubtaskStatus(subtaskId, newStatus);
-      
-      // Update local state
-      const updateSubtasks = (subtasks) => {
-        return subtasks.map((subtask) => {
-          if (subtask.id === subtaskId) {
-            return { ...subtask, status: newStatus };
-          }
-          if (subtask.subtasks && subtask.subtasks.length > 0) {
-            return {
-              ...subtask,
-              subtasks: updateSubtasks(subtask.subtasks),
-            };
-          }
-          return subtask;
-        });
-      };
-
-      setTask((prev) => ({
-        ...prev,
-        subtasks: updateSubtasks(prev.subtasks || []),
-      }));
-    } catch (error) {
-      console.error("Error updating subtask status:", error);
-    }
-  };
-
-  const handleAddSubtask = async () => {
-    try {
-      const newSubtaskData = {
-        title: "New Subtask",
-        status: "SCHEDULED",
-        priority: "MEDIUM",
-        progress: 0,
-        task: task.id,
-        assignee: task.assigneeId
-      };
-
-      const createdSubtask = await subtaskService.createSubtask(newSubtaskData);
-      const transformedSubtask = transformSubtask(createdSubtask);
-
-      setTask((prev) => ({
-        ...prev,
-        subtasks: [...(prev.subtasks || []), transformedSubtask],
-      }));
-    } catch (error) {
-      console.error("Error creating subtask:", error);
-    }
+    return assignee.name || assignee.firstName || "Unknown Assignee";
   };
 
   const handleAddComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !task) return;
 
     try {
       const createdComment = await commentService.createTaskComment(
@@ -190,178 +173,33 @@ export default function TaskDetailPage({ params }) {
     }
   };
 
-  const toggleSubtaskExpansion = (subtaskId) => {
-    console.log(
-      "Toggling subtask:",
-      subtaskId,
-      "Current expanded:",
-      expandedSubtasks
-    );
-    setExpandedSubtasks((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(subtaskId)) {
-        newSet.delete(subtaskId);
-        console.log("Collapsing subtask:", subtaskId);
-      } else {
-        newSet.add(subtaskId);
-        console.log("Expanding subtask:", subtaskId);
-      }
-      console.log("New expanded set:", newSet);
-      return newSet;
-    });
+  const handleEditTask = () => {
+    router.push(`/tasks/${task.id}/edit`);
   };
 
-  // Helper function to get all subtasks recursively
-  const getAllSubtasks = (subtasks) => {
-    let allSubtasks = [];
-    subtasks.forEach((subtask) => {
-      allSubtasks.push(subtask);
-      if (subtask.subtasks && subtask.subtasks.length > 0) {
-        allSubtasks = allSubtasks.concat(getAllSubtasks(subtask.subtasks));
-      }
-    });
-    return allSubtasks;
+  const handleShareTask = () => {
+    // TODO: Implement share functionality
+    console.log("Share task");
   };
 
-  const renderSubtaskRow = (subtask, level = 0) => {
-    const hasNestedSubtasks = subtask.subtasks && subtask.subtasks.length > 0;
-    const isExpanded = expandedSubtasks.has(subtask.id);
-    const assigneeAvatar = getAssigneeAvatar(subtask.assignee);
+  const handleExportTask = () => {
+    // TODO: Implement export functionality
+    console.log("Export task");
+  };
 
+  const tabItems = [
+    { key: "overview", label: "Overview", icon: FileText },
+    { key: "subtasks", label: "Subtasks", icon: GitBranch },
+    { key: "comments", label: "Comments", icon: MessageSquare },
+    { key: "activity", label: "Activity", icon: Activity },
+  ];
+
+  if (isLoading) {
     return (
-      <React.Fragment key={subtask.id}>
-        <tr className="hover:bg-white/40 hover:backdrop-blur-sm transition-all duration-200">
-          <td className="px-4 py-3">
-            <input
-              type="checkbox"
-              checked={subtask.status === "Done"}
-              onChange={(e) => {
-                e.stopPropagation();
-                handleSubtaskStatusChange(
-                  subtask.id,
-                  e.target.checked ? "Done" : "To Do"
-                );
-              }}
-              className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
-            />
-          </td>
-          <td
-            className="px-4 py-3"
-            style={{ paddingLeft: `${16 + level * 24}px` }}
-          >
-            <div className="flex items-center space-x-2">
-              {hasNestedSubtasks ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSubtaskExpansion(subtask.id);
-                  }}
-                  className="p-1 hover:bg-gray-200 rounded transition-colors"
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-gray-500" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-gray-500" />
-                  )}
-                </button>
-              ) : (
-                <div className="w-6 h-6" />
-              )}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => router.push(`/subtasks/${subtask.id}`)}
-                  className={`text-sm font-medium transition-all duration-200 hover:text-blue-600 ${
-                    subtask.status === "Done"
-                      ? "text-gray-500 line-through"
-                      : "text-gray-900"
-                  }`}
-                >
-                  {subtask.name}
-                </button>
-                {hasNestedSubtasks && (
-                  <div className="flex items-center space-x-1 bg-gray-100 rounded-full px-2 py-0.5">
-                    <span className="text-xs text-gray-600 font-medium">
-                      {subtask.subtasks.length}
-                    </span>
-                    <GitBranch className="h-3 w-3 text-gray-500" />
-                  </div>
-                )}
-              </div>
-            </div>
-          </td>
-          <td className="px-4 py-3">
-            <select
-              value={subtask.status}
-              onChange={(e) =>
-                handleSubtaskStatusChange(subtask.id, e.target.value)
-              }
-              className={`text-sm px-3 py-1 rounded border ${getStatusColor(subtask.status)}`}
-            >
-              <option value="To Do">To Do</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Done">Done</option>
-            </select>
-          </td>
-          <td className="px-4 py-3">
-            <div className="flex items-center space-x-2">
-              <div
-                className={`w-6 h-6 ${assigneeAvatar.color} rounded-full flex items-center justify-center text-white text-xs font-bold`}
-              >
-                {assigneeAvatar.initials}
-              </div>
-              <span className="text-sm text-gray-700">
-                {getAssigneeName(subtask.assignee)}
-              </span>
-            </div>
-          </td>
-          <td className="px-4 py-3">
-            <span className="text-sm text-gray-600">
-              {subtask.dueDate
-                ? new Date(subtask.dueDate).toLocaleDateString()
-                : "No due date"}
-            </span>
-          </td>
-          <td className="px-4 py-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-16 bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${subtask.progress || 0}%` }}
-                ></div>
-              </div>
-              <span className="text-xs text-gray-600 font-medium min-w-[3rem]">
-                {subtask.progress || 0}%
-              </span>
-            </div>
-          </td>
-          <td className="px-4 py-3">
-            <button className="p-1 hover:bg-gray-200 rounded transition-colors">
-              <MoreVertical className="w-4 h-4 text-gray-400" />
-            </button>
-          </td>
-        </tr>
-        {/* Render nested subtasks if expanded */}
-        {hasNestedSubtasks &&
-          isExpanded &&
-          subtask.subtasks.map((nestedSubtask) =>
-            renderSubtaskRow(nestedSubtask, level + 1)
-          )}
-      </React.Fragment>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col h-full bg-white">
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-6xl mx-auto p-6">
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading task...</p>
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading task details...</p>
         </div>
       </div>
     );
@@ -369,335 +207,507 @@ export default function TaskDetailPage({ params }) {
 
   if (error || !task) {
     return (
-      <div className="flex flex-col h-full bg-white">
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-6xl mx-auto p-6">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                {error ? "Error Loading Task" : "Task Not Found"}
-              </h1>
-              <p className="text-gray-600 mb-6">
-                {error || "The task you're looking for doesn't exist."}
-              </p>
-              <button
-                onClick={() => router.back()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Go Back
-              </button>
-            </div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-gray-400" />
           </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            {error ? "Error Loading Task" : "Task not found"}
+          </h2>
+          <p className="text-gray-600 mb-4">
+            {error || "The task you're looking for doesn't exist."}
+          </p>
+          <button
+            onClick={() => router.push("/my-task")}
+            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-lg transition-all duration-300 flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Tasks
+          </button>
         </div>
       </div>
     );
   }
 
   const assigneeAvatar = getAssigneeAvatar(task.assignee);
+  const allSubtasks = task.subtasks || [];
+  const completedSubtasks = allSubtasks.filter(st => st.status === "Done" || st.status === "COMPLETED").length;
+  const totalSubtasks = allSubtasks.length;
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 overflow-auto w-full relative">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-yellow-400/10 to-orange-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-gradient-to-tr from-blue-500/8 to-purple-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-gradient-to-bl from-green-400/8 to-teal-500/5 rounded-full blur-3xl" />
-      </div>
-      {/* Header */}
-      <div className="p-6 relative z-10">
+    <div className="min-h-screen bg-white">
+      <div className="p-4 space-y-4">
         <PageHeader
           title={task.name}
-          subtitle={task.description || "Task details and information"}
+          subtitle={`${task.project?.name || "No Project"} • ${task.status || "Unknown Status"}`}
           breadcrumb={[
             { label: "Dashboard", href: "/dashboard" },
             { label: "My Tasks", href: "/my-task" },
-            { label: task.name, href: `/tasks/${task.id}` },
+            {
+              label: task.name,
+              href: `/tasks/${task.id}`,
+            },
           ]}
-          showSearch={false}
-          showActions={true}
+          showProfile={true}
           actions={[
             {
-              icon: User,
-              onClick: () => console.log("Assign task"),
+              icon: Edit,
+              onClick: handleEditTask,
+              className: "",
+              title: "Edit Task",
             },
             {
-              icon: Share,
-              onClick: () => console.log("Share task"),
+              icon: Share2,
+              onClick: handleShareTask,
+              className: "",
+              title: "Share Task",
+            },
+            {
+              icon: Download,
+              onClick: handleExportTask,
+              className: "",
+              title: "Export Task Data",
             },
           ]}
         />
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto relative z-10">
-        <div className="w-full mx-auto px-6 pb-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            {/* Left Column - Task Details */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Overview Section */}
-              <Card className="p-6 bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Overview
-                  </h2>
-                  <button
-                    onClick={() => setIsEditing(!isEditing)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:bg-white/60 backdrop-blur-sm rounded-lg transition-all duration-300 border border-white/30"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Assignee */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Assignee
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 ${assigneeAvatar.color} rounded-full flex items-center justify-center text-white text-sm font-bold`}
-                      >
-                        {assigneeAvatar.initials}
-                      </div>
-                      <span className="text-gray-900">
-                        {getAssigneeName(task.assignee)}
-                      </span>
-                      <button className="p-1 hover:bg-gray-100 rounded">
-                        <X className="w-4 h-4 text-gray-400" />
-                      </button>
-                      <button className="p-1 hover:bg-gray-100 rounded ml-auto">
-                        <Plus className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Due Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Due Date
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-gray-400" />
-                      <span className="text-gray-900">{task.dueDate}</span>
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
-                    </label>
-                    <div className="relative">
-                      <button
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium ${getStatusColor(task.status)}`}
-                      >
-                        {task.status}
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Progress */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Progress
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-900">
-                        {task.progress}%
-                      </span>
-                      <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${task.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <p className="text-gray-700 leading-relaxed">
-                      {task.description}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Sub-Tasks Section */}
-              <Card className="p-6 bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Sub-Tasks
-                  </h2>
-                  <button
-                    onClick={handleAddSubtask}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl rounded-lg transition-all duration-300 hover:scale-[1.02]"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Sub-Task
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  {task.subtasks && task.subtasks.length > 0 ? (
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-white/30 bg-white/40 backdrop-blur-sm">
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
-                              onChange={(e) => {
-                                // Handle select all subtasks
-                                const allSubtasks = getAllSubtasks(
-                                  task.subtasks
-                                );
-                                allSubtasks.forEach((subtask) => {
-                                  handleSubtaskStatusChange(
-                                    subtask.id,
-                                    e.target.checked ? "Done" : "To Do"
-                                  );
-                                });
-                              }}
-                            />
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Task Name
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Assignee
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Due Date
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Progress
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
-                        {task.subtasks.map((subtask) =>
-                          renderSubtaskRow(subtask)
-                        )}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No subtasks available</p>
-                      <p className="text-sm">
-                        Click &quot;Sub-Task&quot; above to add one
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Progress
+                </p>
+                <p className="text-3xl font-black text-gray-800">
+                  {task.progress || 0}%
+                </p>
+              </div>
+              <div className="w-16 h-16 bg-blue-50 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border border-blue-200">
+                <Target className="w-8 h-8 text-blue-600" />
+              </div>
             </div>
-
-            {/* Right Column - Comments */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="p-6 bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Comments
-                  </h2>
-                  <select className="text-sm text-gray-600 bg-white border border-gray-300 rounded px-3 py-1">
-                    <option>All Activity</option>
-                    <option>Comments Only</option>
-                    <option>Actions Only</option>
-                  </select>
-                </div>
-
-                {/* Comments Feed */}
-                <div className="space-y-4 max-h-80 overflow-y-auto">
-                  {comments && comments.length > 0 ? (
-                    comments.map((comment) => (
-                      <div key={comment.id} className="flex gap-3">
-                        <div
-                          className={`w-8 h-8 ${comment.hasProfilePic ? "bg-blue-500" : "bg-gray-300"} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
-                        >
-                          {comment.user?.initials || "??"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-gray-900">
-                              {comment.author}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              {comment.timestamp}
-                            </span>
-                          </div>
-                          <p className="text-gray-700 text-sm">
-                            {comment.content}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No comments yet</p>
-                      <p className="text-sm">
-                        Be the first to comment on this task
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Comment Input */}
-                <div className="mt-6 space-y-3">
-                  <div className="flex gap-3">
-                    <div
-                      className={`w-8 h-8 ${assigneeAvatar.color} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
-                    >
-                      {assigneeAvatar.initials}
-                    </div>
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        placeholder="Write a comment"
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <button className="p-2 hover:bg-gray-100 rounded">
-                        <List className="w-4 h-4 text-gray-400" />
-                      </button>
-                      <button className="p-2 hover:bg-gray-100 rounded">
-                        <Paperclip className="w-4 h-4 text-gray-400" />
-                      </button>
-                      <button className="p-2 hover:bg-gray-100 rounded">
-                        {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                        <Image className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                    <button 
-                      onClick={handleAddComment}
-                      className="px-4 py-2 bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white shadow-lg hover:shadow-xl rounded-lg transition-all duration-300 hover:scale-[1.02]"
-                    >
-                      Post
-                    </button>
-                  </div>
-                </div>
-              </Card>
+          </div>
+          <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Subtasks
+                </p>
+                <p className="text-3xl font-black text-gray-800">
+                  {completedSubtasks}/{totalSubtasks}
+                </p>
+              </div>
+              <div className="w-16 h-16 bg-purple-50 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border border-purple-200">
+                <GitBranch className="w-8 h-8 text-purple-600" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Comments
+                </p>
+                <p className="text-3xl font-black text-gray-800">
+                  {comments.length}
+                </p>
+              </div>
+              <div className="w-16 h-16 bg-green-50 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border border-green-200">
+                <MessageSquare className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Time Spent
+                </p>
+                <p className="text-3xl font-black text-gray-800">
+                  {task.timeSpent || "0h"}
+                </p>
+              </div>
+              <div className="w-16 h-16 bg-orange-50 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border border-orange-200">
+                <Clock className="w-8 h-8 text-orange-600" />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl p-2 shadow-lg">
+            {tabItems.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                  activeTab === tab.key
+                    ? "bg-orange-500 text-white shadow-lg"
+                    : "bg-transparent text-gray-700 hover:bg-white/50"
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Task Information */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Task Information
+                </h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Status
+                      </label>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                          {task.status || "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Priority
+                      </label>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+                          {task.priority || "Medium"}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Assignee
+                      </label>
+                      <div className="mt-1 flex items-center gap-2">
+                        <div
+                          className={`w-8 h-8 ${assigneeAvatar.color} rounded-full flex items-center justify-center text-white text-sm font-bold`}
+                        >
+                          {assigneeAvatar.initials}
+                        </div>
+                        <span className="text-gray-900">
+                          {getAssigneeName(task.assignee)}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Project
+                      </label>
+                      <p className="text-gray-900 mt-1">
+                        {task.project?.name || "No Project"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Due Date
+                      </label>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-900">
+                          {task.dueDate
+                            ? new Date(task.dueDate).toLocaleDateString()
+                            : "No due date"}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Created By
+                      </label>
+                      <p className="text-gray-900 mt-1">
+                        {task.createdBy?.name || "Unknown"}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      Description
+                    </label>
+                    <p className="text-gray-900 mt-1 leading-relaxed">
+                      {task.description || "No description provided"}
+                    </p>
+                  </div>
+                  {task.progress !== undefined && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 mb-2 block">
+                        Progress
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 bg-gray-200 rounded-full h-3">
+                          <div
+                            className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                            style={{ width: `${task.progress || 0}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 min-w-[3rem]">
+                          {task.progress || 0}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Sidebar */}
+            <div className="space-y-6">
+              {/* Quick Actions */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Quick Actions
+                </h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleEditTask}
+                    className="w-full flex items-center justify-start px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg transition-all duration-300"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Task
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("subtasks")}
+                    className="w-full flex items-center justify-start px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-300"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Subtask
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("comments")}
+                    className="w-full flex items-center justify-start px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-300"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Add Comment
+                  </button>
+                </div>
+              </div>
+
+              {/* Task Details */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Task Details
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      Created
+                    </label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-900">
+                        {task.createdAt
+                          ? new Date(task.createdAt).toLocaleDateString()
+                          : "Unknown"}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      Last Updated
+                    </label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-900">
+                        {task.updatedAt
+                          ? new Date(task.updatedAt).toLocaleDateString()
+                          : "Unknown"}
+                      </span>
+                    </div>
+                  </div>
+                  {task.tags && task.tags.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 mb-2 block">
+                        Tags
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {task.tags.map((tag, index) => (
+                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                            <Tag className="w-3 h-3 mr-1" />
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "subtasks" && (
+          <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Subtasks ({totalSubtasks})
+              </h3>
+              <button
+                onClick={() => {
+                  // TODO: Open add subtask modal
+                  console.log("Add subtask");
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg shadow-lg transition-all duration-300 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Subtask
+              </button>
+            </div>
+            {allSubtasks.length > 0 ? (
+              <div className="space-y-2">
+                {allSubtasks.map((subtask) => (
+                  <div
+                    key={subtask.id}
+                    className="flex items-center justify-between p-4 bg-white/50 rounded-lg border border-white/30 hover:bg-white/70 transition-all"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={subtask.status === "Done" || subtask.status === "COMPLETED"}
+                        onChange={() => {
+                          // TODO: Handle status change
+                        }}
+                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span
+                        className={`flex-1 ${
+                          subtask.status === "Done" || subtask.status === "COMPLETED"
+                            ? "line-through text-gray-500"
+                            : "text-gray-900"
+                        }`}
+                      >
+                        {subtask.name}
+                      </span>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(subtask.status)}`}>
+                        {subtask.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <GitBranch className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg font-medium mb-2">No subtasks yet</p>
+                <p className="text-sm">Click "Add Subtask" to create one</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "comments" && (
+          <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Comments ({comments.length})
+              </h3>
+            </div>
+            <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
+              {comments.length > 0 ? (
+                comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-3 p-4 bg-white/50 rounded-lg border border-white/30">
+                    <div
+                      className={`w-10 h-10 ${comment.user?.color || "bg-blue-500"} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
+                    >
+                      {comment.user?.initials || "??"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-gray-900">
+                          {comment.author || comment.user?.name || "Unknown"}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {comment.timestamp || new Date(comment.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-700 text-sm leading-relaxed">
+                        {comment.content}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-lg font-medium mb-2">No comments yet</p>
+                  <p className="text-sm">Be the first to comment on this task</p>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-white/30 pt-4">
+              <div className="flex gap-3">
+                <div
+                  className={`w-10 h-10 ${assigneeAvatar.color} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
+                >
+                  {assigneeAvatar.initials}
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    placeholder="Write a comment..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    rows={3}
+                  />
+                  <div className="flex justify-end mt-2">
+                    <button
+                      onClick={handleAddComment}
+                      disabled={!newComment.trim()}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg shadow-lg transition-all duration-300"
+                    >
+                      Post Comment
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "activity" && (
+          <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Activity Log
+              </h3>
+            </div>
+            {activities.length > 0 ? (
+              <div className="space-y-4">
+                {activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex gap-3 p-4 bg-white/50 rounded-lg border border-white/30"
+                  >
+                    <Activity className="w-5 h-5 text-gray-400 mt-1" />
+                    <div className="flex-1">
+                      <p className="text-gray-900">{activity.description}</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {activity.timestamp}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Activity className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg font-medium mb-2">No activity yet</p>
+                <p className="text-sm">Activity will appear here as the task progresses</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

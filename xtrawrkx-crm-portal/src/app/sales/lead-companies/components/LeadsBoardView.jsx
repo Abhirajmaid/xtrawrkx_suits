@@ -83,7 +83,7 @@ export default function LeadsBoardView({
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />
-          <span className="truncate">{lead?.phone || "N/A"}</span>
+          <span className="truncate">{lead?.phone || "No contact"}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />

@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  X,
-  Maximize2,
-  ExternalLink,
-  User,
-  Calendar,
-  BarChart3,
-  FileText,
-  Plus,
-} from "lucide-react";
+import { X, Maximize2, ExternalLink, User, Calendar } from "lucide-react";
 import SubTasksSection from "../shared/SubTasksSection";
 import CommentsSection from "../shared/CommentsSection";
 
@@ -60,22 +51,22 @@ const TaskDetailModal = ({
   console.log("TaskDetailModal safeTask subtasks:", safeTask.subtasks);
   console.log("TaskDetailModal safeTask comments:", safeTask.comments);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "In Review":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "In Progress":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "Done":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "To Do":
-        return "bg-orange-100 text-orange-700 border-orange-200";
-      case "Backlog":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
+  // const getStatusColor = (status) => {
+  //   switch (status) {
+  //     case "In Review":
+  //       return "bg-green-100 text-green-700 border-green-200";
+  //     case "In Progress":
+  //       return "bg-blue-100 text-blue-700 border-blue-200";
+  //     case "Done":
+  //       return "bg-green-100 text-green-700 border-green-200";
+  //     case "To Do":
+  //       return "bg-orange-100 text-orange-700 border-orange-200";
+  //     case "Backlog":
+  //       return "bg-purple-100 text-purple-700 border-purple-200";
+  //     default:
+  //       return "bg-gray-100 text-gray-700 border-gray-200";
+  //   }
+  // };
 
   const modalClasses =
     "fixed inset-y-0 right-0 bg-black/50 backdrop-blur-sm flex items-center justify-end z-[80]";

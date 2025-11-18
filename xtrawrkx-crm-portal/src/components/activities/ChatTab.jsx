@@ -155,15 +155,41 @@ const ChatTab = ({ entityType, entityId }) => {
     setNewMessage(""); // Clear input immediately for better UX
 
     try {
-      // Get user ID - handle both id and documentId formats
-      const userId = user?.documentId || user?.id || user?.data?.id;
-
-      if (!userId) {
+      // Validate entityType and entityId
+      if (!entityType || !entityId) {
         alert(
-          "Unable to identify user. Please refresh the page and try again."
+          "Unable to send message: Missing entity information. Please refresh the page and try again."
         );
+        setNewMessage(messageText);
         return;
       }
+
+      // Get user ID - handle both id and documentId formats
+      // Priority: documentId (Strapi v4 format) > id > data.id
+      let userId = user?.documentId || user?.id || user?.data?.id;
+      
+      // If userId is a number, ensure it's the correct format
+      if (userId && typeof userId === 'number') {
+        userId = userId;
+      } else if (userId && typeof userId === 'string') {
+        // Try to parse string IDs
+        const parsed = parseInt(userId);
+        if (!isNaN(parsed)) {
+          userId = parsed;
+        }
+      }
+
+      if (!userId) {
+        console.error("User object structure:", user);
+        alert(
+          "Unable to identify user. Please refresh the page and try again.\n\n" +
+          "If the problem persists, please contact support."
+        );
+        setNewMessage(messageText);
+        return;
+      }
+      
+      console.log("Sending message with userId:", userId, "user object:", user);
 
       await chatService.createMessage(
         entityType,
@@ -177,7 +203,40 @@ const ChatTab = ({ entityType, entityId }) => {
       scrollToBottom();
     } catch (error) {
       console.error("Error sending message:", error);
-      alert("Failed to send message");
+      console.error("Error details:", {
+        message: error?.message,
+        entityType,
+        entityId,
+        userId: user?.documentId || user?.id || user?.data?.id,
+        user: user
+      });
+      
+      // Extract error message from response
+      let errorMessage = "Failed to send message";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Show user-friendly error message with helpful context
+      if (errorMessage.includes('Schema relation target mismatch') || errorMessage.includes('admin::user')) {
+        alert(
+          `Chat message failed: Backend schema cache issue detected.\n\n` +
+          `This is a backend configuration issue. Please contact your administrator.\n\n` +
+          `Error: ${errorMessage}\n\n` +
+          `The backend needs to:\n` +
+          `1. Stop Strapi server\n` +
+          `2. Delete the .cache folder\n` +
+          `3. Restart Strapi`
+        );
+      } else {
+        alert(`Failed to send message: ${errorMessage}`);
+      }
       // Restore message text if sending failed
       setNewMessage(messageText);
     }
