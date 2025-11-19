@@ -113,10 +113,15 @@ module.exports = createCoreController('api::lead-company.lead-company', ({ strap
             const { id } = ctx.params;
 
             // Include convertedAccount relation for converted leads
+            // Populate assignedTo with primaryRole for role display
             const entity = await strapi.entityService.findOne('api::lead-company.lead-company', id, {
                 populate: {
                     convertedAccount: true,
-                    assignedTo: true,
+                    assignedTo: {
+                        populate: {
+                            primaryRole: true
+                        }
+                    },
                     contacts: true,
                     deals: true
                 }

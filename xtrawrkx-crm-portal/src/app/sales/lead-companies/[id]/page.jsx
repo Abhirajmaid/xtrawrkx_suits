@@ -71,6 +71,7 @@ export default function LeadCompanyDetailPage() {
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [showAddDealModal, setShowAddDealModal] = useState(false);
   const [showAddProposalModal, setShowAddProposalModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
   const [contactFormData, setContactFormData] = useState({
     firstName: "",
     lastName: "",
@@ -94,6 +95,71 @@ export default function LeadCompanyDetailPage() {
   const [activities, setActivities] = useState([]);
   const [deals, setDeals] = useState([]);
   const [proposals, setProposals] = useState([]);
+  // Formatting functions for display
+  const formatIndustry = (industry) => {
+    if (!industry) return "Not specified";
+    return (
+      industry.charAt(0).toUpperCase() + industry.slice(1).replace(/-/g, " ")
+    );
+  };
+
+  const formatEmployeeSize = (employees) => {
+    if (!employees) return "Not specified";
+    const sizeMap = {
+      SIZE_1_10: "1-10 employees",
+      SIZE_11_50: "11-50 employees",
+      SIZE_51_200: "51-200 employees",
+      SIZE_201_500: "201-500 employees",
+      SIZE_501_1000: "501-1000 employees",
+      SIZE_1000_PLUS: "1000+ employees",
+    };
+    return sizeMap[employees] || employees;
+  };
+
+  const formatLeadSource = (source) => {
+    if (!source) return "Not specified";
+    const sourceMap = {
+      WEBSITE: "Website",
+      REFERRAL: "Referral",
+      COLD_OUTREACH: "Cold Outreach",
+      SOCIAL_MEDIA: "Social Media",
+      EVENT: "Event",
+      PARTNER: "Partner",
+      ADVERTISING: "Advertising",
+      MANUAL: "Manual",
+    };
+    return sourceMap[source] || source.replace(/_/g, " ");
+  };
+
+  const formatStatus = (status) => {
+    if (!status) return "Not specified";
+    const statusMap = {
+      NEW: "New",
+      CONTACTED: "Contacted",
+      QUALIFIED: "Qualified",
+      PROPOSAL_SENT: "Proposal Sent",
+      NEGOTIATION: "Negotiation",
+      LOST: "Lost",
+      CONVERTED: "Converted",
+    };
+    return statusMap[status] || status.replace(/_/g, " ");
+  };
+
+  const getLeadSourceVariant = (source) => {
+    if (!source) return "gray";
+    const variantMap = {
+      WEBSITE: "primary",
+      REFERRAL: "success",
+      COLD_OUTREACH: "warning",
+      SOCIAL_MEDIA: "primary",
+      EVENT: "success",
+      PARTNER: "success",
+      ADVERTISING: "warning",
+      MANUAL: "gray",
+    };
+    return variantMap[source] || "gray";
+  };
+
   const [tabLoading, setTabLoading] = useState({
     contacts: false,
     activities: false,
@@ -321,6 +387,8 @@ export default function LeadCompanyDetailPage() {
       // Handle the service response structure (response.data)
       const leadCompanyData = response.data || response;
       console.log("Lead company data:", leadCompanyData);
+      console.log("AssignedTo data:", leadCompanyData.assignedTo);
+      console.log("PrimaryRole data:", leadCompanyData.assignedTo?.primaryRole);
 
       if (leadCompanyData) {
         // Transform Strapi data to match component expectations
@@ -431,7 +499,7 @@ export default function LeadCompanyDetailPage() {
           </div>
           <div className="flex items-center gap-1 text-sm text-gray-500">
             <Phone className="w-3 h-3" />
-            {contact.phone || "No phone"}
+            {contact.phone || "No contact"}
           </div>
         </div>
       ),
@@ -830,10 +898,17 @@ export default function LeadCompanyDetailPage() {
   const handleConvertToClient = async () => {
     try {
       await leadCompanyService.convertToClient(company.id);
-      alert("Successfully converted to client!");
-      await fetchCompanyData();
       setShowConvertModal(false);
-      router.push(`/clients/accounts/${company.id}`);
+
+      // Show confetti animation
+      setShowConfetti(true);
+
+      // Hide confetti after animation
+      setTimeout(() => {
+        setShowConfetti(false);
+        // Redirect to client accounts list page
+        router.push("/clients/accounts");
+      }, 3000);
     } catch (error) {
       console.error("Error converting to client:", error);
       alert("Failed to convert to client. Please try again.");
@@ -1004,6 +1079,8 @@ export default function LeadCompanyDetailPage() {
         leadCompany: company.id,
         source: "FROM_LEAD",
         priority: "MEDIUM",
+        // Auto-assign to current user
+        assignedTo: user?.id || user?.documentId || null,
       };
 
       await dealService.create(dealData);
@@ -1078,7 +1155,82 @@ export default function LeadCompanyDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white relative">
+      {/* Confetti Animation */}
+      {showConfetti && (
+        <>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+              @keyframes confetti-fall {
+                0% {
+                  transform: translateY(0) rotate(0deg);
+                  opacity: 1;
+                }
+                100% {
+                  transform: translateY(100vh) rotate(720deg);
+                  opacity: 0;
+                }
+              }
+            `,
+            }}
+          />
+          <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+            {[...Array(100)].map((_, i) => {
+              const colors = [
+                "#FF6B6B",
+                "#4ECDC4",
+                "#45B7D1",
+                "#FFA07A",
+                "#98D8C8",
+                "#F7DC6F",
+                "#BB8FCE",
+                "#85C1E2",
+              ];
+              const color = colors[Math.floor(Math.random() * colors.length)];
+              const left = Math.random() * 100;
+              const delay = Math.random() * 3;
+              const duration = 3 + Math.random() * 2;
+              const size = 10 + Math.random() * 10;
+
+              return (
+                <div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    left: `${left}%`,
+                    top: "-10px",
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    backgroundColor: color,
+                    animation: `confetti-fall ${duration}s ease-out ${delay}s forwards`,
+                    transform: `rotate(${Math.random() * 360}deg)`,
+                  }}
+                />
+              );
+            })}
+
+            {/* Success Message Overlay */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+              <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 border-2 border-green-500 animate-bounce">
+                <div className="text-center">
+                  <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    🎉 Successfully Converted!
+                  </h2>
+                  <p className="text-lg text-gray-600">
+                    {company.name} has been converted to a client account
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Redirecting to client accounts...
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="p-4 space-y-4">
         <PageHeader
           title={company.name}
@@ -1242,56 +1394,76 @@ export default function LeadCompanyDetailPage() {
                       <label className="text-sm font-medium text-gray-500">
                         Industry
                       </label>
-                      <p className="text-gray-900">{company.industry}</p>
+                      <p className="text-gray-900 mt-1">
+                        {formatIndustry(company.industry)}
+                      </p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">
                         Founded
                       </label>
-                      <p className="text-gray-900">{company.founded}</p>
+                      <p className="text-gray-900 mt-1">
+                        {company.founded || "Not specified"}
+                      </p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">
                         Employees
                       </label>
-                      <p className="text-gray-900">{company.employees}</p>
+                      <p className="text-gray-900 mt-1">
+                        {formatEmployeeSize(company.employees)}
+                      </p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">
                         Headquarters
                       </label>
-                      <p className="text-gray-900">{company.headquarters}</p>
+                      <p className="text-gray-900 mt-1">
+                        {company.headquarters || "Not specified"}
+                      </p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">
                         Lead Source
                       </label>
-                      <Badge variant="info">{company.source}</Badge>
+                      <div className="mt-1">
+                        <Badge variant={getLeadSourceVariant(company.source)}>
+                          {formatLeadSource(company.source)}
+                        </Badge>
+                      </div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">
                         Status
                       </label>
-                      <Badge
-                        variant={
-                          company.status === "CONVERTED" &&
+                      <div className="mt-1">
+                        <Badge
+                          variant={
+                            company.status === "CONVERTED" &&
+                            company.convertedAccount
+                              ? "success"
+                              : company.status === "LOST"
+                              ? "gray"
+                              : company.status === "QUALIFIED"
+                              ? "success"
+                              : "warning"
+                          }
+                        >
+                          {company.status === "CONVERTED" &&
                           company.convertedAccount
-                            ? "success"
-                            : "warning"
-                        }
-                      >
-                        {company.status === "CONVERTED" &&
-                        company.convertedAccount
-                          ? "ACTIVE Client"
-                          : company.status}
-                      </Badge>
+                            ? "Active Client"
+                            : formatStatus(company.status)}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">
                       Description
                     </label>
-                    <p className="text-gray-900 mt-1">{company.description}</p>
+                    <p className="text-gray-900 mt-1">
+                      {company.description || "No description available"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1505,15 +1677,56 @@ export default function LeadCompanyDetailPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Avatar
-                    alt={company.owner}
-                    fallback={(company.owner || "?").charAt(0).toUpperCase()}
+                    alt={
+                      company.assignedTo
+                        ? `${company.assignedTo.firstName || ""} ${
+                            company.assignedTo.lastName || ""
+                          }`.trim() ||
+                          company.assignedTo.username ||
+                          "Unknown"
+                        : "Unassigned"
+                    }
+                    fallback={
+                      company.assignedTo
+                        ? (
+                            `${company.assignedTo.firstName || ""} ${
+                              company.assignedTo.lastName || ""
+                            }`.trim() ||
+                            company.assignedTo.username ||
+                            "?"
+                          )
+                            .charAt(0)
+                            .toUpperCase()
+                        : "?"
+                    }
                     size="lg"
                   />
                   <div className="flex-1">
                     <h3 className="font-medium text-gray-900">
-                      {company.owner}
+                      {company.assignedTo
+                        ? `${company.assignedTo.firstName || ""} ${
+                            company.assignedTo.lastName || ""
+                          }`.trim() ||
+                          company.assignedTo.username ||
+                          "Unknown"
+                        : "Unassigned"}
                     </h3>
-                    <p className="text-sm text-gray-500">Sales Manager</p>
+                    <p className="text-sm text-gray-500">
+                      {(() => {
+                        const assignedTo = company.assignedTo;
+                        if (!assignedTo) return "Sales Manager";
+
+                        // Handle different Strapi response structures
+                        const roleName =
+                          assignedTo.primaryRole?.name ||
+                          assignedTo.primaryRole?.data?.attributes?.name ||
+                          assignedTo.primaryRole?.attributes?.name ||
+                          assignedTo.role ||
+                          null;
+
+                        return roleName || "Sales Manager";
+                      })()}
+                    </p>
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="w-4 h-4 text-yellow-400 fill-current" />
                       <span className="text-sm text-gray-600">4.9 rating</span>

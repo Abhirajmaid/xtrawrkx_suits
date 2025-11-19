@@ -25,6 +25,7 @@ import {
 import { Badge, Avatar, Button, Table, Select } from "../../../components/ui";
 import PageHeader from "../../../components/PageHeader";
 import invoiceService from "../../../lib/api/invoiceService";
+import clientAccountService from "../../../lib/api/clientAccountService";
 import { useAuth } from "../../../contexts/AuthContext";
 import InvoicesKPIs from "./components/InvoicesKPIs";
 import InvoicesTabs from "./components/InvoicesTabs";
@@ -109,20 +110,33 @@ export default function InvoicesPage() {
 
   const fetchClientAccounts = async () => {
     try {
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:1337"
-        }/api/client-accounts?pagination[pageSize]=1000`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("strapi_token")}`,
-          },
+      const response = await clientAccountService.getAll({
+        "pagination[pageSize]": 1000,
+      });
+
+      // Handle different response structures
+      // The API returns data directly as an array, not wrapped in a data property
+      const accounts = Array.isArray(response)
+        ? response
+        : response?.data || [];
+
+      // Flatten Strapi v4 structure if needed (handle attributes)
+      const flattenedAccounts = accounts.map((account) => {
+        if (account.attributes) {
+          // Strapi v4 format: { id, attributes: { companyName, ... } }
+          return {
+            id: account.id || account.documentId,
+            ...account.attributes,
+          };
         }
-      );
-      const data = await response.json();
-      setClientAccounts(data.data || []);
+        // Already flattened or different format
+        return account;
+      });
+
+      setClientAccounts(flattenedAccounts);
     } catch (err) {
       console.error("Error fetching client accounts:", err);
+      setClientAccounts([]);
     }
   };
 
@@ -163,8 +177,7 @@ export default function InvoicesPage() {
 
   // Filter invoices based on active tab and search
   const filteredInvoices = invoices.filter((invoice) => {
-    const matchesTab =
-      activeTab === "all" || invoice.status === activeTab;
+    const matchesTab = activeTab === "all" || invoice.status === activeTab;
     const matchesSearch =
       !searchQuery.trim() ||
       invoice.invoiceNumber
@@ -181,7 +194,10 @@ export default function InvoicesPage() {
 
   // Sort invoices
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
-    return new Date(b.createdAt || b.issueDate) - new Date(a.createdAt || a.issueDate);
+    return (
+      new Date(b.createdAt || b.issueDate) -
+      new Date(a.createdAt || a.issueDate)
+    );
   });
 
   // Handle create invoice

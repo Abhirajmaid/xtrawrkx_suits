@@ -10,8 +10,6 @@
     "dev": "strapi develop",
     "develop": "strapi develop",
     "start": "strapi start",
-    "clean:cache": "node scripts/clean-cache.js",
-    "start:clean": "npm run clean:cache && npm start",
     "strapi": "strapi",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry",

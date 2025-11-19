@@ -1,5 +1,5 @@
-const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
-// const API_BASE_URL = 'http://localhost:1337';
+// const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:1337';
 
 class AuthService {
     constructor() {
@@ -55,9 +55,9 @@ class AuthService {
             const token = this.getToken();
             if (!token) return null;
 
-            // Try to get user from API
+            // Try to get user from API with populated relationships
             try {
-                const response = await fetch(`${this.baseURL}/api/users/me`, {
+                const response = await fetch(`${this.baseURL}/api/users/me?populate=primaryRole,userRoles`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -67,19 +67,41 @@ class AuthService {
 
                 if (response.ok) {
                     const data = await response.json();
-                    return data.user || data;
+                    const userData = data.user || data;
+                    console.log('Fetched user data from API:', userData);
+
+                    // Handle Strapi v4 structure (with attributes)
+                    if (userData.attributes) {
+                        const normalizedUser = {
+                            id: userData.id || userData.documentId,
+                            ...userData.attributes,
+                            primaryRole: userData.attributes.primaryRole || userData.primaryRole,
+                            userRoles: userData.attributes.userRoles || userData.userRoles,
+                        };
+                        // Update stored user with fresh data
+                        localStorage.setItem('xtrawrkx-user', JSON.stringify(normalizedUser));
+                        return normalizedUser;
+                    }
+
+                    // Update stored user with fresh data
+                    localStorage.setItem('xtrawrkx-user', JSON.stringify(userData));
+                    return userData;
                 } else if (response.status === 401) {
                     // Token expired or invalid, use stored data
+                    console.warn('Token expired, using stored user data');
                 } else {
                     // API call failed, use stored data
+                    console.warn('API call failed, using stored user data');
                 }
             } catch (apiError) {
                 // API call failed, use stored data
+                console.warn('API call error, using stored user data:', apiError);
             }
 
             // Fallback to stored user data
             const storedUser = this.getStoredUser();
             if (storedUser) {
+                console.log('Using stored user data:', storedUser);
                 return storedUser;
             }
 

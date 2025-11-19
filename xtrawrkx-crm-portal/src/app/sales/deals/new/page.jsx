@@ -13,7 +13,9 @@ import {
 import PageHeader from "../../../../components/PageHeader";
 import dealService from "../../../../lib/api/dealService";
 import leadCompanyService from "../../../../lib/api/leadCompanyService";
+import clientAccountService from "../../../../lib/api/clientAccountService";
 import contactService from "../../../../lib/api/contactService";
+import { useAuth } from "../../../../contexts/AuthContext";
 import {
   Target,
   Building2,
@@ -31,6 +33,7 @@ import {
 export default function NewDealPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -46,13 +49,17 @@ export default function NewDealPage() {
     probability: "25",
     closeDate: "",
     leadCompany: "",
+    clientAccount: "",
     contact: "",
     notes: "",
   });
 
   // Dropdown options
   const [leadCompanies, setLeadCompanies] = useState([]);
+  const [clientAccounts, setClientAccounts] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [filteredContacts, setFilteredContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
   const stageOptions = [
     { value: "DISCOVERY", label: "Discovery" },
@@ -68,7 +75,7 @@ export default function NewDealPage() {
     { value: "LOW", label: "Low" },
   ];
 
-  // Fetch dropdown options on component mount and handle pre-selected lead company
+  // Fetch dropdown options on component mount and handle pre-selected lead company or client account
   useEffect(() => {
     fetchDropdownOptions();
 
@@ -79,8 +86,69 @@ export default function NewDealPage() {
         ...prev,
         leadCompany: preSelectedLeadCompany,
       }));
+      // Fetch contacts for the pre-selected lead company
+      fetchContactsByLeadCompany(preSelectedLeadCompany);
+    }
+
+    // Check if client account is pre-selected from URL
+    const preSelectedClientAccount = searchParams.get("clientAccount");
+    if (preSelectedClientAccount) {
+      setDealData((prev) => ({
+        ...prev,
+        clientAccount: preSelectedClientAccount,
+      }));
+      // Fetch contacts for the pre-selected client account
+      fetchContactsByClientAccount(preSelectedClientAccount);
     }
   }, [searchParams]);
+
+  // Fetch contacts when lead company or client account changes
+  useEffect(() => {
+    if (dealData.leadCompany) {
+      fetchContactsByLeadCompany(dealData.leadCompany);
+      // Clear selected contact when lead company changes
+      setDealData((prev) => ({
+        ...prev,
+        contact: "",
+      }));
+    } else if (dealData.clientAccount) {
+      fetchContactsByClientAccount(dealData.clientAccount);
+      // Clear selected contact when client account changes
+      setDealData((prev) => ({
+        ...prev,
+        contact: "",
+      }));
+    } else {
+      // If no company is selected, clear contacts
+      setContacts([]);
+      setFilteredContacts([]);
+    }
+  }, [dealData.leadCompany, dealData.clientAccount]);
+
+  const fetchContactsByClientAccount = async (clientAccountId) => {
+    try {
+      setLoadingContacts(true);
+      console.log("Fetching contacts for client account:", clientAccountId);
+
+      const contactsResponse = await contactService.getByClientAccount(
+        clientAccountId,
+        {
+          sort: ["firstName:asc"],
+        }
+      );
+      console.log("Contacts response for client account:", contactsResponse);
+
+      const contactsData = contactsResponse?.data || [];
+      setFilteredContacts(contactsData);
+      setContacts(contactsData);
+    } catch (error) {
+      console.error("Error fetching contacts for client account:", error);
+      setContacts([]);
+      setFilteredContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
 
   const fetchDropdownOptions = async () => {
     try {
@@ -97,16 +165,16 @@ export default function NewDealPage() {
       setLeadCompanies(leadCompaniesData);
       console.log("Set lead companies:", leadCompaniesData);
 
-      // Fetch contacts
-      const contactsResponse = await contactService.getAll({
+      // Fetch client accounts
+      const clientAccountsResponse = await clientAccountService.getAll({
         pagination: { pageSize: 1000 },
-        sort: ["firstName:asc"],
+        sort: ["companyName:asc"],
       });
-      console.log("Contacts response:", contactsResponse);
+      console.log("Client accounts response:", clientAccountsResponse);
 
-      const contactsData = contactsResponse?.data || [];
-      setContacts(contactsData);
-      console.log("Set contacts:", contactsData);
+      const clientAccountsData = clientAccountsResponse?.data || [];
+      setClientAccounts(clientAccountsData);
+      console.log("Set client accounts:", clientAccountsData);
     } catch (error) {
       console.error("Error fetching dropdown options:", error);
       setErrors({
@@ -115,11 +183,48 @@ export default function NewDealPage() {
     }
   };
 
+  const fetchContactsByLeadCompany = async (leadCompanyId) => {
+    try {
+      console.log("Fetching contacts for lead company:", leadCompanyId);
+
+      const contactsResponse = await contactService.getByLeadCompany(
+        leadCompanyId,
+        {
+          sort: ["firstName:asc"],
+        }
+      );
+      console.log("Contacts response for lead company:", contactsResponse);
+
+      const contactsData = contactsResponse?.data || [];
+      setContacts(contactsData);
+      console.log("Set contacts for lead company:", contactsData);
+    } catch (error) {
+      console.error("Error fetching contacts for lead company:", error);
+      setContacts([]);
+    }
+  };
+
   const handleInputChange = (field, value) => {
-    setDealData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setDealData((prev) => {
+      const updated = {
+        ...prev,
+        [field]: value,
+      };
+
+      // Clear the other company field when one is selected
+      if (field === "leadCompany" && value) {
+        updated.clientAccount = "";
+      } else if (field === "clientAccount" && value) {
+        updated.leadCompany = "";
+      }
+
+      // Clear contact when company changes
+      if (field === "leadCompany" || field === "clientAccount") {
+        updated.contact = "";
+      }
+
+      return updated;
+    });
 
     // Clear error for this field
     if (errors[field]) {
@@ -179,7 +284,12 @@ export default function NewDealPage() {
         leadCompany: dealData.leadCompany
           ? parseInt(dealData.leadCompany)
           : null,
+        clientAccount: dealData.clientAccount
+          ? parseInt(dealData.clientAccount)
+          : null,
         contact: dealData.contact ? parseInt(dealData.contact) : null,
+        // Auto-assign to current user
+        assignedTo: user?.id || user?.documentId || null,
       };
 
       console.log("Creating deal with data:", dealPayload);
@@ -369,7 +479,8 @@ export default function NewDealPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Select
-                  label="Lead Company *"
+                  label="Lead Company"
+                  disabled={!!dealData.clientAccount}
                   value={dealData.leadCompany}
                   onChange={(value) => handleInputChange("leadCompany", value)}
                   error={errors.leadCompany}
@@ -385,22 +496,63 @@ export default function NewDealPage() {
               </div>
               <div>
                 <Select
+                  label="Client Account"
+                  disabled={!!dealData.leadCompany}
+                  value={dealData.clientAccount}
+                  onChange={(value) =>
+                    handleInputChange("clientAccount", value)
+                  }
+                  error={errors.clientAccount}
+                  options={clientAccounts.map((account) => {
+                    const accountData = account.attributes || account;
+                    return {
+                      value: account.id || account.documentId || accountData.id,
+                      label:
+                        accountData.companyName ||
+                        account.companyName ||
+                        "Unknown Account",
+                    };
+                  })}
+                  placeholder="Select client account"
+                />
+                {dealData.leadCompany && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Clear Lead Company to select Client Account
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {(dealData.leadCompany || dealData.clientAccount) && (
+              <div className="mt-6">
+                <Select
                   label="Primary Contact"
                   value={dealData.contact}
                   onChange={(value) => handleInputChange("contact", value)}
-                  options={contacts.map((contact) => ({
-                    value: contact.id || contact.documentId,
-                    label:
-                      `${
-                        contact.firstName || contact.attributes?.firstName || ""
-                      } ${
-                        contact.lastName || contact.attributes?.lastName || ""
-                      }`.trim() || "Unknown Contact",
-                  }))}
-                  placeholder="Select contact"
+                  options={contacts.map((contact) => {
+                    const contactData = contact.attributes || contact;
+                    return {
+                      value: contact.id || contact.documentId || contactData.id,
+                      label:
+                        `${contactData.firstName || contact.firstName || ""} ${
+                          contactData.lastName || contact.lastName || ""
+                        }`.trim() || "Unknown Contact",
+                    };
+                  })}
+                  placeholder={
+                    loadingContacts
+                      ? "Loading contacts..."
+                      : contacts.length === 0
+                      ? "No contacts found for this company"
+                      : "Select contact"
+                  }
+                  disabled={
+                    (!dealData.leadCompany && !dealData.clientAccount) ||
+                    loadingContacts
+                  }
                 />
               </div>
-            </div>
+            )}
           </Card>
 
           {/* Additional Information */}

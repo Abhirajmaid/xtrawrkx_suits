@@ -16,6 +16,7 @@ import {
 import { Button, Avatar, Badge } from "../ui";
 import taskService from "../../lib/api/taskService";
 import { useAuth } from "../../contexts/AuthContext";
+import strapiClient from "../../lib/strapiClient";
 import {
   format,
   isPast,
@@ -85,15 +86,67 @@ const TaskTab = ({ entityType, entityId, onActivityCreated }) => {
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
-      const response = await fetch("/api/users?pagination[pageSize]=100", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      const data = await response.json();
-      setUsers(data.data || []);
+      // Fetch all Xtrawrkx users with pagination to get all users
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+
+      while (hasMore) {
+        // Format query params for Strapi v4
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          populate: "primaryRole,userRoles",
+        };
+
+        const response = await strapiClient.getXtrawrkxUsers(queryParams);
+
+        // Handle Strapi v4 response format
+        const usersData = response?.data || [];
+        if (Array.isArray(usersData)) {
+          // Extract user attributes from Strapi v4 format
+          const extractedUsers = usersData.map((userItem) => {
+            if (userItem.attributes) {
+              // Strapi v4 format: { id, attributes: {...} }
+              return {
+                id: userItem.id,
+                documentId: userItem.id,
+                ...userItem.attributes,
+                primaryRole:
+                  userItem.attributes.primaryRole?.data?.attributes ||
+                  userItem.attributes.primaryRole?.attributes ||
+                  userItem.attributes.primaryRole,
+              };
+            } else {
+              // Direct format: already flattened
+              return {
+                id: userItem.id,
+                documentId: userItem.documentId || userItem.id,
+                ...userItem,
+              };
+            }
+          });
+          allUsers = [...allUsers, ...extractedUsers];
+        } else {
+          allUsers = [...allUsers, ...usersData];
+        }
+
+        // Check if there are more pages
+        const pagination = response?.pagination || response?.meta?.pagination;
+        if (pagination) {
+          hasMore = page < pagination.pageCount;
+          page++;
+        } else {
+          hasMore = Array.isArray(usersData) && usersData.length === pageSize;
+          page++;
+        }
+      }
+
+      setUsers(allUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
+      setUsers([]);
     } finally {
       setLoadingUsers(false);
     }
@@ -703,14 +756,24 @@ const TaskTab = ({ entityType, entityId, onActivityCreated }) => {
                         setNewTask({ ...newTask, assignee: e.target.value })
                       }
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                      disabled={loadingUsers}
                     >
                       <option value="">Select assignee...</option>
-                      <option value={user?.id}>Assign to me</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.attributes?.firstName} {u.attributes?.lastName}
-                        </option>
-                      ))}
+                      <option value={user?.id || user?.documentId}>
+                        Assign to me
+                      </option>
+                      {users.map((u) => {
+                        const userId = u.id || u.documentId;
+                        const userName =
+                          `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                          u.username ||
+                          "Unknown User";
+                        return (
+                          <option key={userId} value={userId}>
+                            {userName}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -863,14 +926,24 @@ const TaskTab = ({ entityType, entityId, onActivityCreated }) => {
                         })
                       }
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                      disabled={loadingUsers}
                     >
                       <option value="">Select assignee...</option>
-                      <option value={user?.id}>Assign to me</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.attributes?.firstName} {u.attributes?.lastName}
-                        </option>
-                      ))}
+                      <option value={user?.id || user?.documentId}>
+                        Assign to me
+                      </option>
+                      {users.map((u) => {
+                        const userId = u.id || u.documentId;
+                        const userName =
+                          `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                          u.username ||
+                          "Unknown User";
+                        return (
+                          <option key={userId} value={userId}>
+                            {userName}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 

@@ -991,7 +991,9 @@ export default function DealDetailPage() {
                                 }`.trim() ||
                                 deal.assignedTo.username ||
                                 "?"
-                              ).charAt(0).toUpperCase()
+                              )
+                                .charAt(0)
+                                .toUpperCase()
                             : "?"
                         }
                         size="lg"
@@ -1007,12 +1009,26 @@ export default function DealDetailPage() {
                             : "Unassigned"}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          {deal?.assignedTo?.primaryRole?.name ||
-                            "Sales Manager"}
+                          {(() => {
+                            const assignedTo = deal?.assignedTo;
+                            if (!assignedTo) return "Sales Manager";
+
+                            // Handle different Strapi response structures
+                            const roleName =
+                              assignedTo.primaryRole?.name ||
+                              assignedTo.primaryRole?.data?.attributes?.name ||
+                              assignedTo.primaryRole?.attributes?.name ||
+                              assignedTo.role ||
+                              null;
+
+                            return roleName || "Sales Manager";
+                          })()}
                         </p>
                         <div className="flex items-center gap-1 mt-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="text-sm text-gray-600">4.9 rating</span>
+                          <span className="text-sm text-gray-600">
+                            4.9 rating
+                          </span>
                         </div>
                       </div>
                       {isAdmin() && (
@@ -1567,8 +1583,7 @@ export default function DealDetailPage() {
 
               <div className="mb-6">
                 <p className="text-gray-700 mb-4">
-                  Select a user to assign{" "}
-                  <strong>{deal.name}</strong> to:
+                  Select a user to assign <strong>{deal.name}</strong> to:
                 </p>
                 <Select
                   label="Assign To"

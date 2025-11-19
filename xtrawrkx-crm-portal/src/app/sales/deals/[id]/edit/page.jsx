@@ -59,6 +59,10 @@ export default function EditDealPage() {
   const [leadCompanies, setLeadCompanies] = useState([]);
   const [clientAccounts, setClientAccounts] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [filteredContacts, setFilteredContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [convertedClientAccount, setConvertedClientAccount] = useState(null);
+  const [isCheckingConversion, setIsCheckingConversion] = useState(false);
 
   const stageOptions = [
     { value: "DISCOVERY", label: "Discovery" },
@@ -110,6 +114,19 @@ export default function EditDealPage() {
           formattedCloseDate = date.toISOString().split("T")[0];
         }
 
+        const leadCompanyId =
+          dealInfo.leadCompany?.id ||
+          deal.leadCompany?.id ||
+          dealInfo.leadCompany?.documentId ||
+          deal.leadCompany?.documentId ||
+          "";
+        const clientAccountId =
+          dealInfo.clientAccount?.id ||
+          deal.clientAccount?.id ||
+          dealInfo.clientAccount?.documentId ||
+          deal.clientAccount?.documentId ||
+          "";
+
         setDealData({
           name: dealInfo.name || "",
           stage: dealInfo.stage || "DISCOVERY",
@@ -119,18 +136,8 @@ export default function EditDealPage() {
           source: dealInfo.source || "FROM_ACCOUNT",
           closeDate: formattedCloseDate,
           description: dealInfo.description || "",
-          leadCompany:
-            dealInfo.leadCompany?.id ||
-            deal.leadCompany?.id ||
-            dealInfo.leadCompany?.documentId ||
-            deal.leadCompany?.documentId ||
-            "",
-          clientAccount:
-            dealInfo.clientAccount?.id ||
-            deal.clientAccount?.id ||
-            dealInfo.clientAccount?.documentId ||
-            deal.clientAccount?.documentId ||
-            "",
+          leadCompany: leadCompanyId,
+          clientAccount: clientAccountId,
           contact:
             dealInfo.contact?.id ||
             deal.contact?.id ||
@@ -144,6 +151,16 @@ export default function EditDealPage() {
             deal.assignedTo?.documentId ||
             "",
         });
+
+        // Fetch contacts for the selected company if one exists
+        if (leadCompanyId || clientAccountId) {
+          fetchContactsForCompany(leadCompanyId, clientAccountId);
+        }
+
+        // Check if lead company has been converted
+        if (leadCompanyId) {
+          checkLeadCompanyConversion(leadCompanyId);
+        }
       } else {
         console.error("No deal data found");
         setErrors({ general: "Deal not found" });
@@ -183,11 +200,79 @@ export default function EditDealPage() {
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setDealData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  // Function to fetch contacts for a company
+  const fetchContactsForCompany = async (leadCompanyId, clientAccountId) => {
+    if (!leadCompanyId && !clientAccountId) {
+      setFilteredContacts([]);
+      return;
+    }
+
+    try {
+      setLoadingContacts(true);
+      let contactsResponse;
+
+      if (leadCompanyId) {
+        contactsResponse = await contactService.getByLeadCompany(leadCompanyId);
+      } else if (clientAccountId) {
+        contactsResponse = await contactService.getByClientAccount(
+          clientAccountId
+        );
+      }
+
+      const contactsData = contactsResponse?.data || [];
+      setFilteredContacts(contactsData);
+    } catch (error) {
+      console.error("Error fetching filtered contacts:", error);
+      setFilteredContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const handleInputChange = async (field, value) => {
+    let shouldClearConvertedAccount = false;
+
+    setDealData((prev) => {
+      const updated = {
+        ...prev,
+        [field]: value,
+      };
+
+      // Clear contact when company changes
+      if (field === "leadCompany" || field === "clientAccount") {
+        updated.contact = "";
+        // Clear the other company field when one is selected
+        // Exception: if selecting the converted account, keep the lead company
+        if (field === "leadCompany" && value) {
+          // Only clear client account if it's not the converted account
+          const isConvertedAccount =
+            convertedClientAccount &&
+            (convertedClientAccount.id === prev.clientAccount ||
+              convertedClientAccount.documentId === prev.clientAccount);
+          if (!isConvertedAccount) {
+            updated.clientAccount = "";
+          }
+        } else if (field === "clientAccount" && value) {
+          // Check if the selected client account is the converted account
+          const isConvertedAccount =
+            convertedClientAccount &&
+            (convertedClientAccount.id === value ||
+              convertedClientAccount.documentId === value);
+          // Only clear lead company if it's NOT the converted account
+          if (!isConvertedAccount) {
+            updated.leadCompany = "";
+            shouldClearConvertedAccount = true;
+          }
+        }
+      }
+
+      return updated;
+    });
+
+    // Clear converted account if needed
+    if (shouldClearConvertedAccount) {
+      setConvertedClientAccount(null);
+    }
 
     // Clear error for this field
     if (errors[field]) {
@@ -196,7 +281,64 @@ export default function EditDealPage() {
         [field]: "",
       }));
     }
+
+    // Check if lead company has been converted to client account
+    if (field === "leadCompany" && value) {
+      await checkLeadCompanyConversion(value);
+    } else if (field === "leadCompany" && !value) {
+      // Clear converted account info if lead company is cleared
+      setConvertedClientAccount(null);
+    }
   };
+
+  const checkLeadCompanyConversion = async (leadCompanyId) => {
+    try {
+      setIsCheckingConversion(true);
+      console.log("Checking if lead company is converted:", leadCompanyId);
+
+      const leadCompany = await leadCompanyService.getById(leadCompanyId, {
+        populate: ["convertedAccount"],
+      });
+
+      console.log("Lead company data:", leadCompany);
+
+      const leadCompanyData = leadCompany?.data || leadCompany;
+      const convertedAccount =
+        leadCompanyData?.convertedAccount ||
+        leadCompanyData?.attributes?.convertedAccount ||
+        leadCompany?.convertedAccount;
+
+      if (convertedAccount) {
+        const accountId =
+          convertedAccount.id ||
+          convertedAccount.documentId ||
+          convertedAccount;
+        const accountData = convertedAccount.attributes || convertedAccount;
+        console.log(
+          "Lead company has been converted to client account:",
+          accountId
+        );
+        setConvertedClientAccount({
+          id: accountId,
+          documentId: accountId,
+          ...accountData,
+        });
+      } else {
+        console.log("Lead company has NOT been converted to client account");
+        setConvertedClientAccount(null);
+      }
+    } catch (error) {
+      console.error("Error checking lead company conversion:", error);
+      setConvertedClientAccount(null);
+    } finally {
+      setIsCheckingConversion(false);
+    }
+  };
+
+  // Fetch contacts when lead company or client account changes
+  useEffect(() => {
+    fetchContactsForCompany(dealData.leadCompany, dealData.clientAccount);
+  }, [dealData.leadCompany, dealData.clientAccount]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -396,28 +538,24 @@ export default function EditDealPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Stage *
-                  </label>
                   <Select
+                    label="Stage *"
                     value={dealData.stage}
-                    onChange={(e) => handleInputChange("stage", e.target.value)}
+                    onChange={(value) => handleInputChange("stage", value)}
                     options={stageOptions}
                     error={errors.stage}
+                    placeholder="Select stage"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Priority *
-                  </label>
                   <Select
+                    label="Priority *"
                     value={dealData.priority}
-                    onChange={(e) =>
-                      handleInputChange("priority", e.target.value)
-                    }
+                    onChange={(value) => handleInputChange("priority", value)}
                     options={priorityOptions}
                     error={errors.priority}
+                    placeholder="Select priority"
                   />
                 </div>
 
@@ -471,16 +609,13 @@ export default function EditDealPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Source
-                  </label>
                   <Select
+                    label="Source"
                     value={dealData.source}
-                    onChange={(e) =>
-                      handleInputChange("source", e.target.value)
-                    }
+                    onChange={(value) => handleInputChange("source", value)}
                     options={sourceOptions}
                     error={errors.source}
+                    placeholder="Select source"
                   />
                 </div>
 
@@ -521,13 +656,11 @@ export default function EditDealPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Lead Company
-                  </label>
                   <Select
+                    label="Lead Company"
                     value={dealData.leadCompany}
-                    onChange={(e) =>
-                      handleInputChange("leadCompany", e.target.value)
+                    onChange={(value) =>
+                      handleInputChange("leadCompany", value)
                     }
                     options={[
                       { value: "", label: "Select Lead Company" },
@@ -544,62 +677,134 @@ export default function EditDealPage() {
                       }),
                     ]}
                     error={errors.leadCompany}
+                    placeholder="Select lead company"
+                    disabled={!!dealData.clientAccount}
                   />
+                  {dealData.clientAccount && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Clear Client Account to select Lead Company
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Client Account
-                  </label>
                   <Select
+                    label="Client Account"
                     value={dealData.clientAccount}
-                    onChange={(e) =>
-                      handleInputChange("clientAccount", e.target.value)
+                    onChange={(value) =>
+                      handleInputChange("clientAccount", value)
                     }
                     options={[
                       { value: "", label: "Select Client Account" },
-                      ...clientAccounts.map((account) => {
-                        const accountData = account.attributes || account;
-                        return {
-                          value:
-                            account.id || account.documentId || accountData.id,
-                          label:
-                            accountData.companyName ||
-                            account.companyName ||
-                            "Unknown Account",
-                        };
-                      }),
+                      // Include converted account if it exists
+                      ...(convertedClientAccount
+                        ? [
+                            {
+                              value:
+                                convertedClientAccount.id ||
+                                convertedClientAccount.documentId,
+                              label:
+                                convertedClientAccount.companyName ||
+                                "Converted Account",
+                            },
+                          ]
+                        : []),
+                      ...clientAccounts
+                        .filter((account) => {
+                          // Exclude converted account from regular list if it's already included
+                          if (convertedClientAccount) {
+                            const accountId =
+                              account.id ||
+                              account.documentId ||
+                              (account.attributes || account).id;
+                            const convertedId =
+                              convertedClientAccount.id ||
+                              convertedClientAccount.documentId;
+                            return accountId !== convertedId;
+                          }
+                          return true;
+                        })
+                        .map((account) => {
+                          const accountData = account.attributes || account;
+                          return {
+                            value:
+                              account.id ||
+                              account.documentId ||
+                              accountData.id,
+                            label:
+                              accountData.companyName ||
+                              account.companyName ||
+                              "Unknown Account",
+                          };
+                        }),
                     ]}
                     error={errors.clientAccount}
+                    placeholder="Select client account"
+                    disabled={!!dealData.leadCompany && !convertedClientAccount}
                   />
+                  {dealData.leadCompany && !convertedClientAccount && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Clear Lead Company to select Client Account
+                    </p>
+                  )}
+                  {dealData.leadCompany && convertedClientAccount && (
+                    <p className="text-xs text-green-600 mt-1">
+                      This lead company has been converted to a client account
+                    </p>
+                  )}
+                  {isCheckingConversion && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Checking conversion status...
+                    </p>
+                  )}
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Primary Contact
-                  </label>
-                  <Select
-                    value={dealData.contact}
-                    onChange={(e) =>
-                      handleInputChange("contact", e.target.value)
-                    }
-                    options={[
-                      { value: "", label: "Select Contact" },
-                      ...contacts.map((contact) => {
-                        const contactData = contact.attributes || contact;
-                        return {
-                          value:
-                            contact.id || contact.documentId || contactData.id,
-                          label:
-                            `${contactData.firstName || ""} ${
-                              contactData.lastName || ""
-                            }`.trim() || "Unknown Contact",
-                        };
-                      }),
-                    ]}
-                    error={errors.contact}
-                  />
-                </div>
+                {(dealData.leadCompany || dealData.clientAccount) && (
+                  <div className="md:col-span-2">
+                    <Select
+                      label="Primary Contact"
+                      value={dealData.contact}
+                      onChange={(value) => handleInputChange("contact", value)}
+                      options={[
+                        { value: "", label: "Select Contact" },
+                        ...filteredContacts.map((contact) => {
+                          const contactData = contact.attributes || contact;
+                          return {
+                            value:
+                              contact.id ||
+                              contact.documentId ||
+                              contactData.id,
+                            label:
+                              `${contactData.firstName || ""} ${
+                                contactData.lastName || ""
+                              }`.trim() || "Unknown Contact",
+                          };
+                        }),
+                      ]}
+                      error={errors.contact}
+                      placeholder={
+                        loadingContacts
+                          ? "Loading contacts..."
+                          : filteredContacts.length === 0
+                          ? "No contacts available"
+                          : "Select contact"
+                      }
+                      disabled={loadingContacts}
+                    />
+                    {loadingContacts && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Loading contacts...
+                      </p>
+                    )}
+                    {!loadingContacts &&
+                      filteredContacts.length === 0 &&
+                      (dealData.leadCompany || dealData.clientAccount) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          No contacts found for the selected company
+                        </p>
+                      )}
+                  </div>
+                )}
               </div>
             </div>
           </Card>

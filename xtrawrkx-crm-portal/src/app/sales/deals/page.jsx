@@ -86,6 +86,9 @@ export default function DealsPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [dealToAssign, setDealToAssign] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [dealToDelete, setDealToDelete] = useState(null);
+  const [loadingActions, setLoadingActions] = useState({});
 
   const isAdmin = () => {
     if (!user) return false;
@@ -672,20 +675,39 @@ export default function DealsPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleDeleteDeal = async (dealId) => {
+  const handleDeleteDeal = async () => {
+    if (!dealToDelete) return;
+
+    const loadingKey = `${dealToDelete.id}-delete`;
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
+
     try {
-      console.log("Deleting deal:", dealId);
-      await dealService.delete(dealId);
+      console.log(`Deleting deal ${dealToDelete.id}`);
+
+      // Delete the deal via API
+      await dealService.delete(dealToDelete.id);
 
       // Remove from local state
-      setDeals(deals.filter((deal) => deal.id !== dealId));
-      setFilteredDeals(filteredDeals.filter((deal) => deal.id !== dealId));
+      setDeals((prev) =>
+        prev.filter((deal) => deal.id !== dealToDelete.id)
+      );
+      setFilteredDeals((prev) =>
+        prev.filter((deal) => deal.id !== dealToDelete.id)
+      );
 
       // Refresh stats
       await fetchDeals();
+
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setDealToDelete(null);
+
+      console.log("Deal deleted successfully");
     } catch (error) {
       console.error("Error deleting deal:", error);
       alert("Failed to delete deal. Please try again.");
+    } finally {
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -704,7 +726,8 @@ export default function DealsPage() {
   };
 
   const handleDeleteDealFromTable = (deal) => {
-    handleDeleteDeal(deal.id);
+    setDealToDelete(deal);
+    setShowDeleteModal(true);
   };
 
   // Helper functions for badges
@@ -920,17 +943,42 @@ export default function DealsPage() {
     {
       key: "priority",
       label: "PRIORITY",
-      render: (_, deal) => (
-        <div className="min-w-[100px]">
-          <Badge
-            variant={getPriorityBadgeVariant(deal.priority)}
-            className="text-xs font-medium"
-          >
-            {deal.priority?.charAt(0).toUpperCase() + deal.priority?.slice(1) ||
-              "Medium"}
-          </Badge>
-        </div>
-      ),
+      render: (_, deal) => {
+        const priority = deal.priority?.toLowerCase() || "medium";
+        const priorityColors = {
+          high: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+          medium: {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+            shadow: "shadow-yellow-200",
+          },
+          low: {
+            bg: "bg-blue-100",
+            text: "text-blue-800",
+            border: "border-blue-400",
+            shadow: "shadow-blue-200",
+          },
+        };
+
+        const colors = priorityColors[priority] || priorityColors.medium;
+        const displayPriority = deal.priority || "Medium";
+
+        return (
+          <div className="min-w-[100px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg`}
+            >
+              {displayPriority.charAt(0).toUpperCase() + displayPriority.slice(1)}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "createdAt",
@@ -1286,6 +1334,75 @@ export default function DealsPage() {
                   className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg"
                 >
                   Update Owner
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && dealToDelete && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Delete Deal
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    This action cannot be undone
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700 mb-3">
+                  Are you sure you want to delete{" "}
+                  <strong>{dealToDelete.name}</strong>?
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-700 font-medium mb-2">
+                    ⚠️ This will permanently delete:
+                  </p>
+                  <ul className="text-sm text-red-600 space-y-1">
+                    <li>• Deal information and details</li>
+                    <li>• All associated activities</li>
+                    <li>• All proposals linked to this deal</li>
+                    <li>• Activity history and notes</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDealToDelete(null);
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteDeal}
+                  disabled={loadingActions[`${dealToDelete.id}-delete`]}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg"
+                >
+                  {loadingActions[`${dealToDelete.id}-delete`] ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </div>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Deal
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

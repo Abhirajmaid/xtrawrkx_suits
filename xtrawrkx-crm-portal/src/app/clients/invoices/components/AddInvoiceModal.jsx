@@ -68,11 +68,20 @@ export default function AddInvoiceModal({
                 required
               >
                 <option value="">Select client account...</option>
-                {clientAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.companyName || account.name}
+                {clientAccounts && clientAccounts.length > 0 ? (
+                  clientAccounts.map((account) => (
+                    <option
+                      key={account.id || account.documentId}
+                      value={account.id || account.documentId}
+                    >
+                      {account.companyName || account.name || "Unknown Account"}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    No client accounts available
                   </option>
-                ))}
+                )}
               </select>
             </div>
 
@@ -127,7 +136,8 @@ export default function AddInvoiceModal({
                   value={invoiceFormData.amount}
                   onChange={(e) => {
                     const amount = e.target.value;
-                    const taxAmount = parseFloat(invoiceFormData.taxAmount) || 0;
+                    const taxAmount =
+                      parseFloat(invoiceFormData.taxAmount) || 0;
                     const totalAmount = (parseFloat(amount) || 0) + taxAmount;
                     setInvoiceFormData({
                       ...invoiceFormData,
@@ -274,4 +284,3 @@ export default function AddInvoiceModal({
     document.body
   );
 }
-

@@ -111,7 +111,11 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
             // First try with basic population
             const entity = await strapi.entityService.findOne('api::client-account.client-account', id, {
                 populate: {
-                    accountManager: true,
+                    accountManager: {
+                        populate: {
+                            primaryRole: true
+                        }
+                    },
                     contacts: true,
                     activities: true,
                     deals: true,

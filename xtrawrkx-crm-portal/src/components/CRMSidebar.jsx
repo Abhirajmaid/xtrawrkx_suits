@@ -870,31 +870,90 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
             >
               <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-full flex items-center justify-center shadow-lg">
                 <span className="text-brand-primary text-sm font-medium">
-                  {user
-                    ? (user.firstName?.charAt(0) ||
-                        user.name?.charAt(0) ||
-                        user.email?.charAt(0) ||
-                        "U") +
-                      (user.lastName?.charAt(0) ||
-                        user.name?.split(" ")[1]?.charAt(0) ||
-                        "")
-                    : "U"}
+                  {(() => {
+                    if (!user) {
+                      console.log('CRMSidebar: No user data available');
+                      return "U";
+                    }
+                    
+                    // Handle different user data structures
+                    const userData = user.attributes || user;
+                    const firstName = userData.firstName || userData.name?.split(" ")[0] || "";
+                    const lastName = userData.lastName || userData.name?.split(" ")[1] || "";
+                    
+                    const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+                    if (initials && initials !== " ") {
+                      return initials;
+                    }
+                    
+                    return userData.email?.charAt(0).toUpperCase() || "U";
+                  })()}
                 </span>
               </div>
               {!collapsed && (
                 <>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-brand-foreground truncate">
-                      {user
-                        ? user.firstName && user.lastName
-                          ? `${user.firstName} ${user.lastName}`
-                          : user.name || user.email || "User"
-                        : "User"}
+                      {(() => {
+                        if (!user) {
+                          console.log('CRMSidebar: No user data for display name');
+                          return "User";
+                        }
+                        
+                        // Handle different user data structures
+                        const userData = user.attributes || user;
+                        
+                        if (userData.firstName && userData.lastName) {
+                          return `${userData.firstName} ${userData.lastName}`;
+                        }
+                        
+                        if (userData.name) {
+                          return userData.name;
+                        }
+                        
+                        if (userData.email) {
+                          return userData.email.split("@")[0];
+                        }
+                        
+                        return "User";
+                      })()}
                     </p>
                     <p className="text-xs text-brand-text-light truncate">
-                      {user
-                        ? user.primaryRole?.name || user.role || "User"
-                        : "User"}
+                      {(() => {
+                        if (!user) {
+                          console.log('CRMSidebar: No user data for role');
+                          return "User";
+                        }
+                        
+                        // Handle different user data structures
+                        const userData = user.attributes || user;
+                        
+                        // Try primaryRole first
+                        if (userData.primaryRole) {
+                          const roleName = typeof userData.primaryRole === 'object' 
+                            ? userData.primaryRole.name || userData.primaryRole.attributes?.name
+                            : userData.primaryRole;
+                          if (roleName) return roleName;
+                        }
+                        
+                        // Try userRoles array
+                        if (userData.userRoles && Array.isArray(userData.userRoles) && userData.userRoles.length > 0) {
+                          const firstRole = userData.userRoles[0];
+                          const roleName = typeof firstRole === 'object'
+                            ? firstRole.name || firstRole.attributes?.name
+                            : firstRole;
+                          if (roleName) return roleName;
+                        }
+                        
+                        // Fallback to role field
+                        if (userData.role) {
+                          return typeof userData.role === 'object' 
+                            ? userData.role.name || userData.role.attributes?.name || userData.role
+                            : userData.role;
+                        }
+                        
+                        return "User";
+                      })()}
                     </p>
                   </div>
                   <button className="text-brand-text-light">

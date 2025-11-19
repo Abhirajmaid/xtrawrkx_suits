@@ -734,8 +734,20 @@ const ContactDetailPage = ({ params }) => {
                             : "Unassigned"}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          {contact?.assignedTo?.primaryRole?.name ||
-                            "Sales Manager"}
+                          {(() => {
+                            const assignedTo = contact?.assignedTo;
+                            if (!assignedTo) return "Sales Manager";
+                            
+                            // Handle different Strapi response structures
+                            const roleName = 
+                              assignedTo.primaryRole?.name ||
+                              assignedTo.primaryRole?.data?.attributes?.name ||
+                              assignedTo.primaryRole?.attributes?.name ||
+                              assignedTo.role ||
+                              null;
+                            
+                            return roleName || "Sales Manager";
+                          })()}
                         </p>
                         <div className="flex items-center gap-1 mt-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />

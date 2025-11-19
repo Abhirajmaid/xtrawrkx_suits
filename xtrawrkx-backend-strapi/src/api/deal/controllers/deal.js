@@ -109,7 +109,11 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
                     leadCompany: true,
                     clientAccount: true,
                     contact: true,
-                    assignedTo: true,
+                    assignedTo: {
+                        populate: {
+                            primaryRole: true
+                        }
+                    },
                     activities: true,
                     proposals: true,
                     projects: true
@@ -234,10 +238,16 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
             const { clientAccountId } = ctx.params;
             console.log(`Finding deals for client account: ${clientAccountId}`);
 
-            const entities = await strapi.entityService.findMany('api::deal.deal', {
+            // Convert to number if it's a numeric string
+            const accountId = isNaN(clientAccountId) ? clientAccountId : parseInt(clientAccountId, 10);
+            console.log(`Using account ID (parsed): ${accountId}`);
+
+            // Try to find deals with the client account
+            // First try with id
+            let entities = await strapi.entityService.findMany('api::deal.deal', {
                 filters: {
                     clientAccount: {
-                        id: clientAccountId
+                        id: accountId
                     }
                 },
                 populate: {
@@ -248,6 +258,27 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
                     proposals: true
                 }
             });
+
+            // If no results and accountId is a number, also try documentId
+            if ((!entities || entities.length === 0) && typeof accountId === 'number') {
+                console.log(`Trying with documentId: ${accountId}`);
+                entities = await strapi.entityService.findMany('api::deal.deal', {
+                    filters: {
+                        clientAccount: {
+                            documentId: accountId
+                        }
+                    },
+                    populate: {
+                        clientAccount: true,
+                        contact: true,
+                        assignedTo: true,
+                        activities: true,
+                        proposals: true
+                    }
+                });
+            }
+
+            console.log(`Found ${entities?.length || 0} deals for client account ${accountId}`);
 
             return {
                 data: entities || [],

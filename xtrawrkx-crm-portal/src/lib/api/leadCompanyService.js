@@ -41,8 +41,18 @@ class LeadCompanyService {
             console.log('LeadCompanyService.getById called with ID:', id, 'params:', params);
 
             // Include contacts by default and merge with any additional params
+            // Populate assignedTo with primaryRole for role display
             const queryParams = {
-                populate: 'contacts,assignedTo,deals,convertedAccount',
+                populate: {
+                    contacts: true,
+                    assignedTo: {
+                        populate: {
+                            primaryRole: true
+                        }
+                    },
+                    deals: true,
+                    convertedAccount: true
+                },
                 ...params
             };
 

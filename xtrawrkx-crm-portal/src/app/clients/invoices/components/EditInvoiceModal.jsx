@@ -67,11 +67,15 @@ export default function EditInvoiceModal({
                 required
               >
                 <option value="">Select client account...</option>
-                {clientAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.companyName || account.name}
-                  </option>
-                ))}
+                {clientAccounts && clientAccounts.length > 0 ? (
+                  clientAccounts.map((account) => (
+                    <option key={account.id || account.documentId} value={account.id || account.documentId}>
+                      {account.companyName || account.name || "Unknown Account"}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No client accounts available</option>
+                )}
               </select>
             </div>
 

@@ -369,7 +369,7 @@ export default function LeadCompaniesPage() {
       render: (_, company) => (
         <div className="flex items-center gap-3 min-w-[200px]">
           <Avatar
-            name={company.companyName}
+            alt={company.companyName}
             size="sm"
             className="flex-shrink-0"
           />
@@ -403,8 +403,8 @@ export default function LeadCompaniesPage() {
             <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <span className="truncate">
               {company.contacts && company.contacts.length > 0
-                ? company.contacts[0].phone
-                : company.phone || "No phone"}
+                ? company.contacts[0].phone || "No contact"
+                : company.phone || "No contact"}
             </span>
           </div>
         </div>

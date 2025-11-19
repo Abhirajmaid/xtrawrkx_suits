@@ -262,8 +262,8 @@ export default function ClientAccountsPage() {
     },
     {
       label: "Revenue",
-      count: `$${formatNumber(stats.totalRevenue || 0)}`,
-      icon: DollarSign,
+      count: `₹${formatNumber(stats.totalRevenue || 0)}`,
+      icon: IndianRupee,
       color: "bg-purple-50",
       iconColor: "text-purple-600",
       borderColor: "border-purple-200",
@@ -292,49 +292,66 @@ export default function ClientAccountsPage() {
     {
       key: "company",
       label: "COMPANY",
-      render: (_, account) => (
-        <div className="flex items-center gap-3 min-w-[200px]">
-          <Avatar
-            name={account.companyName}
-            size="sm"
-            className="flex-shrink-0"
-          />
-          <div className="min-w-0">
-            <div className="font-medium text-gray-900 truncate">
-              {account.companyName}
+      render: (_, account) => {
+        const firstChar = account.companyName?.charAt(0)?.toUpperCase() || "?";
+        const primaryContact =
+          account.contacts?.find((c) => c.role === "PRIMARY_CONTACT") ||
+          account.contacts?.[0];
+
+        return (
+          <div className="flex items-center gap-3 min-w-[200px]">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+              {firstChar}
             </div>
-            <div className="text-sm text-gray-500 truncate">
-              {account.contacts && account.contacts.length > 0
-                ? `${account.contacts[0].firstName} ${account.contacts[0].lastName}`
-                : "No primary contact"}
+            <div className="min-w-0">
+              <div className="font-medium text-gray-900 truncate">
+                {account.companyName}
+              </div>
+              <div className="text-sm text-gray-500 truncate">
+                {primaryContact
+                  ? `${primaryContact.firstName || ""} ${
+                      primaryContact.lastName || ""
+                    }`.trim()
+                  : "No contact"}
+              </div>
             </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "contact",
       label: "PRIMARY CONTACT",
-      render: (_, account) => (
-        <div className="space-y-1 min-w-[200px]">
-          <div className="flex items-center gap-2 text-sm text-gray-900">
-            <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="truncate">
-              {account.contacts && account.contacts.length > 0
-                ? account.contacts[0].email
-                : account.email || "No email"}
-            </span>
+      render: (_, account) => {
+        const primaryContact =
+          account.contacts?.find((c) => c.role === "PRIMARY_CONTACT") ||
+          account.contacts?.[0];
+
+        if (!primaryContact) {
+          return (
+            <div className="min-w-[200px]">
+              <span className="text-sm text-gray-500">No contact</span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-1 min-w-[200px]">
+            <div className="flex items-center gap-2 text-sm text-gray-900">
+              <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="truncate">
+                {primaryContact.email || "No email"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="truncate">
+                {primaryContact.phone || "No phone"}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="truncate">
-              {account.contacts && account.contacts.length > 0
-                ? account.contacts[0].phone
-                : account.phone || "No phone"}
-            </span>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "healthScore",

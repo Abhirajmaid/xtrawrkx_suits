@@ -198,13 +198,8 @@ class DealService {
      */
     async getByClientAccount(clientAccountId, params = {}) {
         try {
-            const queryParams = {
-                clientAccount: clientAccountId,
-                populate: ['contact', 'assignedTo', 'activities', 'proposals'],
-                ...params
-            };
-
-            const response = await strapiClient.getDeals(queryParams);
+            // Use the custom endpoint for client account deals
+            const response = await strapiClient.get(`/deals/client-account/${clientAccountId}`, params);
             return response;
         } catch (error) {
             console.error(`Error fetching deals for client account ${clientAccountId}:`, error);

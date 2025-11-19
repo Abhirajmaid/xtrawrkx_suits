@@ -22,7 +22,7 @@ import {
   Globe,
   MapPin,
   Users,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Plus,
   Trash2,
@@ -115,12 +115,12 @@ export default function AddLeadCompanyPage() {
   ];
 
   const employeeSizeOptions = [
-    { value: "1-10", label: "1-10 employees" },
-    { value: "11-50", label: "11-50 employees" },
-    { value: "51-200", label: "51-200 employees" },
-    { value: "201-500", label: "201-500 employees" },
-    { value: "501-1000", label: "501-1000 employees" },
-    { value: "1000+", label: "1000+ employees" },
+    { value: "SIZE_1_10", label: "1-10 employees" },
+    { value: "SIZE_11_50", label: "11-50 employees" },
+    { value: "SIZE_51_200", label: "51-200 employees" },
+    { value: "SIZE_201_500", label: "201-500 employees" },
+    { value: "SIZE_501_1000", label: "501-1000 employees" },
+    { value: "SIZE_1000_PLUS", label: "1000+ employees" },
   ];
 
   const handleCompanyChange = (field, value) => {
@@ -552,7 +552,7 @@ export default function AddLeadCompanyPage() {
                   placeholder="25000"
                   min="0"
                   step="0.01"
-                  icon={DollarSign}
+                  icon={IndianRupee}
                 />
               </div>
 

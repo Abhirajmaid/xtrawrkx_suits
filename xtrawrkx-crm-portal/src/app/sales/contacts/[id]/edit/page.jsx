@@ -67,6 +67,8 @@ export default function EditContactPage() {
   // Dropdown options
   const [leadCompanies, setLeadCompanies] = useState([]);
   const [clientAccounts, setClientAccounts] = useState([]);
+  const [selectedLeadCompanyConvertedAccount, setSelectedLeadCompanyConvertedAccount] = useState(null);
+  const [isCheckingLeadCompany, setIsCheckingLeadCompany] = useState(false);
 
   const roleOptions = [
     { value: "PRIMARY_CONTACT", label: "Primary Contact" },
@@ -78,16 +80,21 @@ export default function EditContactPage() {
 
   const statusOptions = [
     { value: "ACTIVE", label: "Active" },
-    { value: "NEW", label: "New" },
-    { value: "QUALIFIED", label: "Qualified" },
     { value: "INACTIVE", label: "Inactive" },
+    { value: "LEFT_COMPANY", label: "Left Company" },
   ];
 
-  // Fetch contact data and dropdown options on component mount
+  // Fetch contact data first, then dropdown options
   useEffect(() => {
     fetchContactData();
-    fetchDropdownOptions();
   }, [contactId]);
+
+  // Fetch dropdown options after contact data is loaded (so we can filter client accounts)
+  useEffect(() => {
+    if (!isLoading) {
+      fetchDropdownOptions(contactData.clientAccount);
+    }
+  }, [isLoading, contactData.clientAccount]);
 
   const fetchContactData = async () => {
     try {
@@ -106,6 +113,38 @@ export default function EditContactPage() {
       if (contact && contact.id) {
         // Handle both direct contact data and nested attributes
         const contactData = contact.attributes || contact;
+
+        // Extract lead company ID - handle various data structures
+        let leadCompanyId = "";
+        if (contactData.leadCompany) {
+          leadCompanyId = 
+            contactData.leadCompany?.id || 
+            contactData.leadCompany?.documentId ||
+            contactData.leadCompany ||
+            "";
+        } else if (contact.leadCompany) {
+          leadCompanyId = 
+            contact.leadCompany?.id || 
+            contact.leadCompany?.documentId ||
+            contact.leadCompany ||
+            "";
+        }
+
+        // Extract client account ID - handle various data structures
+        let clientAccountId = "";
+        if (contactData.clientAccount) {
+          clientAccountId = 
+            contactData.clientAccount?.id || 
+            contactData.clientAccount?.documentId ||
+            contactData.clientAccount ||
+            "";
+        } else if (contact.clientAccount) {
+          clientAccountId = 
+            contact.clientAccount?.id || 
+            contact.clientAccount?.documentId ||
+            contact.clientAccount ||
+            "";
+        }
 
         setContactData({
           firstName: contactData.firstName || "",
@@ -127,11 +166,14 @@ export default function EditContactPage() {
           linkedIn: contactData.linkedIn || "",
           twitter: contactData.twitter || "",
           notes: contactData.notes || "",
-          leadCompany:
-            contactData.leadCompany?.id || contact.leadCompany?.id || "",
-          clientAccount:
-            contactData.clientAccount?.id || contact.clientAccount?.id || "",
+          leadCompany: String(leadCompanyId || ""),
+          clientAccount: String(clientAccountId || ""),
         });
+
+        // Check if the lead company has been converted when loading contact data
+        if (leadCompanyId) {
+          checkLeadCompanyConversion(leadCompanyId);
+        }
       } else {
         console.error("No contact data found");
         setErrors({ general: "Contact not found" });
@@ -144,27 +186,101 @@ export default function EditContactPage() {
     }
   };
 
-  const fetchDropdownOptions = async () => {
+  const fetchDropdownOptions = async (currentClientAccountId = null) => {
     try {
+      console.log("Fetching dropdown options for contact edit...");
+      
       // Fetch lead companies
       const leadCompaniesResponse = await leadCompanyService.getAll({
         pagination: { pageSize: 1000 },
         sort: ["companyName:asc"],
       });
-      setLeadCompanies(leadCompaniesResponse.data || []);
+      console.log("Lead companies response:", leadCompaniesResponse);
+      const leadCompaniesData = leadCompaniesResponse?.data || [];
+      setLeadCompanies(leadCompaniesData);
+      console.log("Set lead companies:", leadCompaniesData);
 
-      // Fetch client accounts
+      // Fetch client accounts with convertedFromLead populated
       const clientAccountsResponse = await clientAccountService.getAll({
         pagination: { pageSize: 1000 },
         sort: ["companyName:asc"],
+        populate: ["convertedFromLead"],
       });
-      setClientAccounts(clientAccountsResponse.data || []);
+      console.log("Client accounts response:", clientAccountsResponse);
+      const clientAccountsData = clientAccountsResponse?.data || [];
+      
+      // Filter to only show client accounts that were converted from lead companies
+      // But also include the currently assigned client account (if any) even if not converted
+      const filteredClientAccounts = clientAccountsData.filter((account) => {
+        // Get account ID for comparison (handle different ID formats)
+        const accountId = account.id || account.documentId || account.attributes?.id;
+        const accountIdStr = String(accountId || "");
+        const currentIdStr = String(currentClientAccountId || "");
+        
+        // Include if it's the currently assigned account (always show it, even if not converted)
+        if (currentClientAccountId && (
+          accountIdStr === currentIdStr ||
+          accountId === Number(currentClientAccountId) ||
+          accountId === currentClientAccountId
+        )) {
+          console.log("Including currently assigned account:", accountId, account.companyName || account.attributes?.companyName);
+          return true; // Always show currently assigned account
+        }
+        
+        // Include if it has convertedFromLead (was converted from a lead company)
+        const convertedFromLead = 
+          account.convertedFromLead || 
+          account.attributes?.convertedFromLead;
+        
+        // Check if converted - could be an object with id, or just truthy
+        const isConverted = convertedFromLead && (
+          (typeof convertedFromLead === 'object' && convertedFromLead.id !== undefined) ||
+          (typeof convertedFromLead === 'object' && convertedFromLead !== null) ||
+          convertedFromLead === true
+        );
+        
+        if (isConverted) {
+          console.log("Including converted account:", accountId, account.companyName || account.attributes?.companyName);
+        }
+        
+        return isConverted;
+      });
+      
+      // If current client account is assigned but not in the filtered list, fetch it separately
+      let finalClientAccounts = [...filteredClientAccounts];
+      if (currentClientAccountId) {
+        const currentIdStr = String(currentClientAccountId);
+        const isCurrentAccountInList = finalClientAccounts.some(account => {
+          const accountId = account.id || account.documentId || account.attributes?.id;
+          return String(accountId) === currentIdStr || accountId === Number(currentClientAccountId);
+        });
+        
+        if (!isCurrentAccountInList) {
+          console.log("Currently assigned account not in list, fetching separately:", currentClientAccountId);
+          try {
+            const currentAccount = await clientAccountService.getById(currentClientAccountId);
+            if (currentAccount) {
+              const accountData = currentAccount.data || currentAccount;
+              console.log("Fetched current account:", accountData);
+              // Add to the beginning of the list
+              finalClientAccounts = [accountData, ...finalClientAccounts];
+            }
+          } catch (error) {
+            console.error("Error fetching current client account:", error);
+          }
+        }
+      }
+      
+      setClientAccounts(finalClientAccounts);
+      console.log("Set filtered client accounts (converted only):", finalClientAccounts);
+      console.log("Current client account ID:", currentClientAccountId);
+      console.log("Total client accounts:", clientAccountsData.length, "Filtered:", finalClientAccounts.length);
     } catch (error) {
       console.error("Error fetching dropdown options:", error);
     }
   };
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = async (field, value) => {
     setContactData((prev) => ({
       ...prev,
       [field]: value,
@@ -176,6 +292,46 @@ export default function EditContactPage() {
         ...prev,
         [field]: "",
       }));
+    }
+
+    // If lead company is changed, check if it has been converted to a client account
+    if (field === "leadCompany" && value) {
+      await checkLeadCompanyConversion(value);
+    } else if (field === "leadCompany" && !value) {
+      // Clear converted account info if lead company is cleared
+      setSelectedLeadCompanyConvertedAccount(null);
+    }
+  };
+
+  const checkLeadCompanyConversion = async (leadCompanyId) => {
+    try {
+      setIsCheckingLeadCompany(true);
+      console.log("Checking if lead company is converted:", leadCompanyId);
+      
+      const leadCompany = await leadCompanyService.getById(leadCompanyId, {
+        populate: ["convertedAccount"],
+      });
+      
+      console.log("Lead company data:", leadCompany);
+      
+      const convertedAccount = 
+        leadCompany?.convertedAccount || 
+        leadCompany?.data?.convertedAccount ||
+        leadCompany?.attributes?.convertedAccount;
+      
+      if (convertedAccount) {
+        const accountId = convertedAccount.id || convertedAccount.documentId || convertedAccount;
+        console.log("Lead company has been converted to client account:", accountId);
+        setSelectedLeadCompanyConvertedAccount(accountId);
+      } else {
+        console.log("Lead company has NOT been converted to client account");
+        setSelectedLeadCompanyConvertedAccount(null);
+      }
+    } catch (error) {
+      console.error("Error checking lead company conversion:", error);
+      setSelectedLeadCompanyConvertedAccount(null);
+    } finally {
+      setIsCheckingLeadCompany(false);
     }
   };
 
@@ -241,8 +397,13 @@ export default function EditContactPage() {
         twitter: contactData.twitter,
         notes: contactData.notes,
         birthday: formatDateForStrapi(contactData.birthday),
-        leadCompany: contactData.leadCompany || null,
-        clientAccount: contactData.clientAccount || null,
+        // Convert string IDs to numbers for relations, or null if empty
+        leadCompany: contactData.leadCompany
+          ? parseInt(contactData.leadCompany)
+          : null,
+        clientAccount: contactData.clientAccount
+          ? parseInt(contactData.clientAccount)
+          : null,
       };
 
       // Remove empty string values and replace with null
@@ -439,21 +600,13 @@ export default function EditContactPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
                   <Select
+                    label="Status"
                     value={contactData.status}
-                    onChange={(e) =>
-                      handleInputChange("status", e.target.value)
-                    }
-                  >
-                    {statusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
+                    onChange={(value) => handleInputChange("status", value)}
+                    options={statusOptions}
+                    placeholder="Select status"
+                  />
                 </div>
               </div>
             </div>
@@ -502,19 +655,13 @@ export default function EditContactPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role
-                  </label>
                   <Select
+                    label="Role"
                     value={contactData.role}
-                    onChange={(e) => handleInputChange("role", e.target.value)}
-                  >
-                    {roleOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
+                    onChange={(value) => handleInputChange("role", value)}
+                    options={roleOptions}
+                    placeholder="Select role"
+                  />
                 </div>
 
                 <div>
@@ -561,55 +708,61 @@ export default function EditContactPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Lead Company
-                  </label>
                   <Select
+                    label="Lead Company"
                     value={contactData.leadCompany}
-                    onChange={(e) => {
-                      handleInputChange("leadCompany", e.target.value);
-                      if (e.target.value) {
-                        handleInputChange("clientAccount", ""); // Clear client account if lead company is selected
-                      }
+                    onChange={(value) => {
+                      handleInputChange("leadCompany", value);
                     }}
-                  >
-                    <option value="">Select lead company</option>
-                    {leadCompanies.map((company) => (
-                      <option key={company.id} value={company.id}>
-                        {company.companyName}
-                      </option>
-                    ))}
-                  </Select>
+                    options={[
+                      { value: "", label: "Select an option" },
+                      ...leadCompanies.map((company) => ({
+                        value: String(company.id || company.documentId || ""),
+                        label:
+                          company.companyName ||
+                          company.attributes?.companyName ||
+                          "Unknown Company",
+                      })),
+                    ]}
+                    placeholder="Select lead company"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Client Account
-                  </label>
                   <Select
+                    label="Client Account"
                     value={contactData.clientAccount}
-                    onChange={(e) => {
-                      handleInputChange("clientAccount", e.target.value);
-                      if (e.target.value) {
-                        handleInputChange("leadCompany", ""); // Clear lead company if client account is selected
-                      }
+                    onChange={(value) => {
+                      handleInputChange("clientAccount", value);
                     }}
-                  >
-                    <option value="">Select client account</option>
-                    {clientAccounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.companyName}
-                      </option>
-                    ))}
-                  </Select>
+                    options={[
+                      { value: "", label: "Select an option" },
+                      ...clientAccounts.map((account) => ({
+                        value: String(account.id || account.documentId || ""),
+                        label:
+                          account.companyName ||
+                          account.attributes?.companyName ||
+                          "Unknown Account",
+                      })),
+                    ]}
+                    placeholder={
+                      contactData.leadCompany && !selectedLeadCompanyConvertedAccount
+                        ? "Lead company must be converted to client account"
+                        : "Select client account"
+                    }
+                    disabled={
+                      (contactData.leadCompany && 
+                       !selectedLeadCompanyConvertedAccount && 
+                       !contactData.clientAccount) ||
+                      isCheckingLeadCompany
+                    }
+                  />
+                  {contactData.leadCompany && !selectedLeadCompanyConvertedAccount && !contactData.clientAccount && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      This lead company has not been converted to a client account yet.
+                    </p>
+                  )}
                 </div>
-              </div>
-
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  <strong>Note:</strong> A contact can be associated with either
-                  a lead company or a client account, but not both.
-                </p>
               </div>
             </div>
           </Card>

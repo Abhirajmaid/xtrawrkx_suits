@@ -67,27 +67,82 @@ export default function PageHeader({
   }, [showSearch, showGlobalSearch]);
 
   const getUserInitials = () => {
-    if (!user) return "U";
-    const firstName = user.firstName || user.name?.split(" ")[0] || "";
-    const lastName = user.lastName || user.name?.split(" ")[1] || "";
-    return (
-      (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() ||
-      user.email?.charAt(0).toUpperCase() ||
-      "U"
-    );
+    if (!user) {
+      console.log('PageHeader: No user data available');
+      return "U";
+    }
+    
+    // Handle different user data structures
+    const userData = user.attributes || user;
+    const firstName = userData.firstName || userData.name?.split(" ")[0] || "";
+    const lastName = userData.lastName || userData.name?.split(" ")[1] || "";
+    
+    const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+    if (initials && initials !== " ") {
+      return initials;
+    }
+    
+    return userData.email?.charAt(0).toUpperCase() || "U";
   };
 
   const getUserDisplayName = () => {
-    if (!user) return "User";
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
+    if (!user) {
+      console.log('PageHeader: No user data for display name');
+      return "User";
     }
-    return user.name || user.email || "User";
+    
+    // Handle different user data structures
+    const userData = user.attributes || user;
+    
+    if (userData.firstName && userData.lastName) {
+      return `${userData.firstName} ${userData.lastName}`;
+    }
+    
+    if (userData.name) {
+      return userData.name;
+    }
+    
+    if (userData.email) {
+      return userData.email.split("@")[0];
+    }
+    
+    return "User";
   };
 
   const getUserRole = () => {
-    if (!user) return "User";
-    return user.primaryRole?.name || user.role || "User";
+    if (!user) {
+      console.log('PageHeader: No user data for role');
+      return "User";
+    }
+    
+    // Handle different user data structures
+    const userData = user.attributes || user;
+    
+    // Try primaryRole first
+    if (userData.primaryRole) {
+      const roleName = typeof userData.primaryRole === 'object' 
+        ? userData.primaryRole.name || userData.primaryRole.attributes?.name
+        : userData.primaryRole;
+      if (roleName) return roleName;
+    }
+    
+    // Try userRoles array
+    if (userData.userRoles && Array.isArray(userData.userRoles) && userData.userRoles.length > 0) {
+      const firstRole = userData.userRoles[0];
+      const roleName = typeof firstRole === 'object'
+        ? firstRole.name || firstRole.attributes?.name
+        : firstRole;
+      if (roleName) return roleName;
+    }
+    
+    // Fallback to role field
+    if (userData.role) {
+      return typeof userData.role === 'object' 
+        ? userData.role.name || userData.role.attributes?.name || userData.role
+        : userData.role;
+    }
+    
+    return "User";
   };
 
   // Build breadcrumb from pathname if not provided

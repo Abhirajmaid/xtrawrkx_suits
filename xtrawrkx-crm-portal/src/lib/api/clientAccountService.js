@@ -33,8 +33,16 @@ class ClientAccountService {
      */
     async getById(id, params = {}) {
         try {
+            // Populate accountManager with primaryRole for role display
             const queryParams = {
-                populate: 'accountManager,contacts',
+                populate: {
+                    accountManager: {
+                        populate: {
+                            primaryRole: true
+                        }
+                    },
+                    contacts: true
+                },
                 ...params
             };
             const response = await strapiClient.getClientAccount(id, queryParams);

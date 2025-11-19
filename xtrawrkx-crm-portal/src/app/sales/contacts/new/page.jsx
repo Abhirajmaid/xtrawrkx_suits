@@ -61,9 +61,8 @@ export default function AddContactPage() {
 
   const statusOptions = [
     { value: "ACTIVE", label: "Active" },
-    { value: "NEW", label: "New" },
-    { value: "QUALIFIED", label: "Qualified" },
     { value: "INACTIVE", label: "Inactive" },
+    { value: "LEFT_COMPANY", label: "Left Company" },
   ];
 
   const contactMethodOptions = [

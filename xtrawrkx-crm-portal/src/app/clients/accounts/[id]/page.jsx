@@ -70,15 +70,6 @@ const ClientAccountDetailPage = ({ params }) => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [showAddDealModal, setShowAddDealModal] = useState(false);
-  const [dealFormData, setDealFormData] = useState({
-    name: "",
-    value: "",
-    stage: "DISCOVERY",
-    probability: 25,
-    closeDate: "",
-    description: "",
-  });
   const [showAddInvoiceModal, setShowAddInvoiceModal] = useState(false);
   const [invoiceFormData, setInvoiceFormData] = useState({
     invoiceNumber: "",
@@ -112,10 +103,14 @@ const ClientAccountDetailPage = ({ params }) => {
 
   // Fetch deals when deals tab is active
   useEffect(() => {
-    if (activeTab === "deals" && account?.id) {
-      fetchDeals(account.id);
+    if (activeTab === "deals" && account) {
+      // Use id or documentId from account
+      const accountId = account.id || account.documentId || account;
+      if (accountId) {
+        fetchDeals(accountId);
+      }
     }
-  }, [activeTab, account?.id]);
+  }, [activeTab, account]);
 
   // Fetch invoices when invoices tab is active
   useEffect(() => {
@@ -222,8 +217,9 @@ const ClientAccountDetailPage = ({ params }) => {
       );
 
       // Fetch deals when account is loaded
-      if (accountData?.id) {
-        await fetchDeals(accountData.id);
+      const accountId = accountData?.id || accountData?.documentId;
+      if (accountId) {
+        await fetchDeals(accountId);
       }
 
       setProjects([
@@ -269,9 +265,21 @@ const ClientAccountDetailPage = ({ params }) => {
   const fetchDeals = async (accountId) => {
     try {
       setDealsLoading(true);
-      const response = await dealService.getByClientAccount(accountId);
-      const dealsData = response.data || [];
-      setDeals(dealsData);
+      console.log("Fetching deals for client account ID:", accountId);
+
+      // Ensure we use the correct ID format (id or documentId)
+      const accountIdToUse =
+        accountId?.id || accountId?.documentId || accountId;
+      console.log("Using account ID:", accountIdToUse);
+
+      const response = await dealService.getByClientAccount(accountIdToUse);
+      console.log("Deals response:", response);
+
+      // Handle different response structures
+      const dealsData = response?.data || response || [];
+      console.log("Deals data:", dealsData);
+
+      setDeals(Array.isArray(dealsData) ? dealsData : []);
     } catch (error) {
       console.error("Error fetching deals:", error);
       setDeals([]);
@@ -281,61 +289,9 @@ const ClientAccountDetailPage = ({ params }) => {
   };
 
   const handleAddDeal = () => {
-    setShowAddDealModal(true);
-  };
-
-  const handleDealSubmit = async (e) => {
-    e.preventDefault();
-
-    // Validate required fields
-    if (!dealFormData.name.trim()) {
-      alert("Deal name is required");
-      return;
-    }
-
-    try {
-      const dealData = {
-        name: dealFormData.name.trim(),
-        value: dealFormData.value ? parseFloat(dealFormData.value) : 0,
-        stage: dealFormData.stage,
-        probability: dealFormData.probability
-          ? parseInt(dealFormData.probability)
-          : 50,
-        closeDate: dealFormData.closeDate || null,
-        description: dealFormData.description?.trim() || "",
-        clientAccount: account.id,
-        source: "FROM_CLIENT",
-        priority: "MEDIUM",
-      };
-
-      await dealService.create(dealData);
-
-      // Refresh deals
-      await fetchDeals(account.id);
-      await fetchAccountDetails();
-
-      setShowAddDealModal(false);
-      setDealFormData({
-        name: "",
-        value: "",
-        stage: "DISCOVERY",
-        probability: 25,
-        closeDate: "",
-        description: "",
-      });
-      alert("Deal added successfully!");
-    } catch (error) {
-      console.error("Error adding deal:", error);
-
-      let errorMessage = "Failed to add deal";
-      if (error.message.includes("validation")) {
-        errorMessage = "Please check your input and try again";
-      } else if (error.message) {
-        errorMessage = `Failed to add deal: ${error.message}`;
-      }
-
-      alert(errorMessage);
-    }
+    // Navigate to new deal page with client account pre-selected
+    const accountId = account?.id || account?.documentId || id;
+    router.push(`/sales/deals/new?clientAccount=${accountId}`);
   };
 
   const dealColumns = [
@@ -1383,11 +1339,32 @@ const ClientAccountDetailPage = ({ params }) => {
                             .toUpperCase()}
                           size="sm"
                         />
-                        <span className="text-gray-900">
-                          {account.accountManager
-                            ? `${account.accountManager.firstName} ${account.accountManager.lastName}`
-                            : "Not assigned"}
-                        </span>
+                        <div className="flex-1">
+                          <div className="text-gray-900">
+                            {account.accountManager
+                              ? `${account.accountManager.firstName} ${account.accountManager.lastName}`
+                              : "Not assigned"}
+                          </div>
+                          {account.accountManager && (
+                            <div className="text-sm text-gray-500">
+                              {(() => {
+                                const accountManager = account.accountManager;
+
+                                // Handle different Strapi response structures
+                                const roleName =
+                                  accountManager.primaryRole?.name ||
+                                  accountManager.primaryRole?.data?.attributes
+                                    ?.name ||
+                                  accountManager.primaryRole?.attributes
+                                    ?.name ||
+                                  accountManager.role ||
+                                  null;
+
+                                return roleName || "Account Manager";
+                              })()}
+                            </div>
+                          )}
+                        </div>
                         {isAdmin() && (
                           <Button
                             variant="outline"
@@ -1864,155 +1841,6 @@ const ClientAccountDetailPage = ({ params }) => {
           )}
         </div>
       </div>
-
-      {/* Add Deal Modal */}
-      {showAddDealModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Add Deal</h2>
-                <Button
-                  onClick={() => setShowAddDealModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                  variant="ghost"
-                  size="sm"
-                >
-                  ✕
-                </Button>
-              </div>
-
-              <form onSubmit={handleDealSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Deal Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={dealFormData.name}
-                    onChange={(e) =>
-                      setDealFormData({ ...dealFormData, name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Deal Value
-                    </label>
-                    <input
-                      type="number"
-                      value={dealFormData.value}
-                      onChange={(e) =>
-                        setDealFormData({
-                          ...dealFormData,
-                          value: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Stage
-                    </label>
-                    <select
-                      value={dealFormData.stage}
-                      onChange={(e) =>
-                        setDealFormData({
-                          ...dealFormData,
-                          stage: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      <option value="DISCOVERY">Discovery</option>
-                      <option value="PROPOSAL">Proposal</option>
-                      <option value="NEGOTIATION">Negotiation</option>
-                      <option value="CLOSED_WON">Closed Won</option>
-                      <option value="CLOSED_LOST">Closed Lost</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Probability (%)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={dealFormData.probability}
-                      onChange={(e) =>
-                        setDealFormData({
-                          ...dealFormData,
-                          probability: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Expected Close Date
-                    </label>
-                    <input
-                      type="date"
-                      value={dealFormData.closeDate}
-                      onChange={(e) =>
-                        setDealFormData({
-                          ...dealFormData,
-                          closeDate: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={dealFormData.description}
-                    onChange={(e) =>
-                      setDealFormData({
-                        ...dealFormData,
-                        description: e.target.value,
-                      })
-                    }
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 pt-4">
-                  <Button
-                    type="button"
-                    onClick={() => setShowAddDealModal(false)}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
-                  >
-                    Add Deal
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Add Invoice Modal */}
       {showAddInvoiceModal && (

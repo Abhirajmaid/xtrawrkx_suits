@@ -141,7 +141,11 @@ module.exports = createCoreController('api::contact.contact', ({ strapi }) => ({
                 populate: {
                     leadCompany: true,
                     clientAccount: true,
-                    assignedTo: true,
+                    assignedTo: {
+                        populate: {
+                            primaryRole: true
+                        }
+                    },
                     activities: true,
                     deals: true,
                     proposals: true

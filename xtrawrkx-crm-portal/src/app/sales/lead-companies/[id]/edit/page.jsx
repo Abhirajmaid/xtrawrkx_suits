@@ -84,12 +84,12 @@ export default function EditLeadCompanyPage() {
   const leadSourceOptions = [
     { value: "WEBSITE", label: "Website" },
     { value: "REFERRAL", label: "Referral" },
+    { value: "COLD_OUTREACH", label: "Cold Outreach" },
     { value: "SOCIAL_MEDIA", label: "Social Media" },
-    { value: "EMAIL_CAMPAIGN", label: "Email Campaign" },
-    { value: "COLD_CALL", label: "Cold Call" },
-    { value: "TRADE_SHOW", label: "Trade Show" },
+    { value: "EVENT", label: "Event" },
     { value: "PARTNER", label: "Partner" },
-    { value: "OTHER", label: "Other" },
+    { value: "ADVERTISING", label: "Advertising" },
+    { value: "MANUAL", label: "Manual" },
   ];
 
   const statusOptions = [
@@ -100,6 +100,15 @@ export default function EditLeadCompanyPage() {
     { value: "NEGOTIATION", label: "Negotiation" },
     { value: "CLOSED_WON", label: "Closed Won" },
     { value: "CLOSED_LOST", label: "Closed Lost" },
+  ];
+
+  const employeeSizeOptions = [
+    { value: "SIZE_1_10", label: "1-10 employees" },
+    { value: "SIZE_11_50", label: "11-50 employees" },
+    { value: "SIZE_51_200", label: "51-200 employees" },
+    { value: "SIZE_201_500", label: "201-500 employees" },
+    { value: "SIZE_501_1000", label: "501-1000 employees" },
+    { value: "SIZE_1000_PLUS", label: "1000+ employees" },
   ];
 
   const roleOptions = [
@@ -175,16 +184,22 @@ export default function EditLeadCompanyPage() {
   const fetchLeadCompany = async () => {
     try {
       setIsLoading(true);
-      const response = await leadCompanyService.getById(leadCompanyId, {
-        populate: "assignedTo,deals",
-      });
+      // Use default populate from service (includes contacts, assignedTo, deals, etc.)
+      const response = await leadCompanyService.getById(leadCompanyId);
 
       console.log("Lead company response:", response);
 
       // Handle different response structures
-      const leadCompany = response.data || response;
+      const leadCompany = response?.data || response;
 
-      if (leadCompany && leadCompany.id) {
+      if (!leadCompany) {
+        console.error("No lead company data found in response");
+        setErrors({ general: "Lead company not found" });
+        return;
+      }
+
+      // Check for both id and documentId (Strapi v4 uses documentId)
+      if (leadCompany.id || leadCompany.documentId) {
         console.log("Lead company data:", leadCompany);
 
         // Set company data with proper type conversion
@@ -204,11 +219,7 @@ export default function EditLeadCompanyPage() {
           country: leadCompany.country || leadCompany.attributes?.country || "",
           zipCode: leadCompany.zipCode || leadCompany.attributes?.zipCode || "",
           employees:
-            leadCompany.employees || leadCompany.attributes?.employees
-              ? (
-                  leadCompany.employees || leadCompany.attributes?.employees
-                ).toString()
-              : "",
+            leadCompany.employees || leadCompany.attributes?.employees || "",
           founded:
             leadCompany.founded || leadCompany.attributes?.founded
               ? (
@@ -223,6 +234,8 @@ export default function EditLeadCompanyPage() {
             leadCompany.linkedIn || leadCompany.attributes?.linkedIn || "",
           twitter: leadCompany.twitter || leadCompany.attributes?.twitter || "",
           leadSource:
+            leadCompany.source ||
+            leadCompany.attributes?.source ||
             leadCompany.leadSource ||
             leadCompany.attributes?.leadSource ||
             "WEBSITE",
@@ -241,12 +254,19 @@ export default function EditLeadCompanyPage() {
           "Lead company loaded successfully, contacts will be fetched separately"
         );
       } else {
-        console.error("No lead company data found");
+        console.error("No lead company data found - missing id or documentId");
+        console.error("Lead company object:", leadCompany);
         setErrors({ general: "Lead company not found" });
       }
     } catch (error) {
       console.error("Error fetching lead company:", error);
-      setErrors({ general: "Failed to load lead company data" });
+      console.error("Error details:", error.response?.data || error.message);
+      setErrors({
+        general:
+          error.response?.data?.error?.message ||
+          error.message ||
+          "Failed to load lead company data",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -367,15 +387,25 @@ export default function EditLeadCompanyPage() {
 
     try {
       // Update company data
+      // Map leadSource to source for backend compatibility
+      const { leadSource, ...restData } = companyData;
       const companyUpdateData = {
-        ...companyData,
-        employees: companyData.employees
-          ? parseInt(companyData.employees)
-          : null,
+        ...restData,
+        source: leadSource, // Map leadSource to source
+        // Employees is now an enum value like "SIZE_1_10", "SIZE_11_50", etc.
+        employees: companyData.employees || null,
         dealValue: companyData.dealValue
           ? parseFloat(companyData.dealValue)
           : null,
       };
+
+      // Remove empty string values and replace with null (except required fields)
+      // Industry is required, so we keep it even if empty (validation will catch it)
+      Object.keys(companyUpdateData).forEach((key) => {
+        if (key !== "industry" && companyUpdateData[key] === "") {
+          companyUpdateData[key] = null;
+        }
+      });
 
       await leadCompanyService.update(leadCompanyId, companyUpdateData);
 
@@ -537,23 +567,15 @@ export default function EditLeadCompanyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Industry *
-                  </label>
                   <Select
+                    label="Industry *"
                     value={companyData.industry}
-                    onChange={(e) =>
-                      handleCompanyChange("industry", e.target.value)
-                    }
+                    onChange={(value) => handleCompanyChange("industry", value)}
+                    options={industryOptions}
                     error={errors.industry}
-                  >
-                    <option value="">Select industry</option>
-                    {industryOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
+                    placeholder="Select industry"
+                    required
+                  />
                 </div>
 
                 <div>
@@ -599,17 +621,14 @@ export default function EditLeadCompanyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Employees
-                  </label>
-                  <Input
-                    type="number"
+                  <Select
+                    label="Company Size"
                     value={companyData.employees}
-                    onChange={(e) =>
-                      handleCompanyChange("employees", e.target.value)
+                    onChange={(value) =>
+                      handleCompanyChange("employees", value)
                     }
-                    placeholder="50"
-                    icon={Users}
+                    options={employeeSizeOptions}
+                    placeholder="Select company size"
                   />
                 </div>
               </div>
@@ -721,40 +740,26 @@ export default function EditLeadCompanyPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Lead Source *
-                  </label>
                   <Select
+                    label="Lead Source *"
                     value={companyData.leadSource}
-                    onChange={(e) =>
-                      handleCompanyChange("leadSource", e.target.value)
+                    onChange={(value) =>
+                      handleCompanyChange("leadSource", value)
                     }
+                    options={leadSourceOptions}
                     error={errors.leadSource}
-                  >
-                    {leadSourceOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
+                    placeholder="Select lead source"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
                   <Select
+                    label="Status"
                     value={companyData.status}
-                    onChange={(e) =>
-                      handleCompanyChange("status", e.target.value)
-                    }
-                  >
-                    {statusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
+                    onChange={(value) => handleCompanyChange("status", value)}
+                    options={statusOptions}
+                    placeholder="Select status"
+                  />
                 </div>
 
                 <div>

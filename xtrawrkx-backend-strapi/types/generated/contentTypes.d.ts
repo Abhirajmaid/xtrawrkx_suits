@@ -1522,7 +1522,16 @@ export interface ApiLeadCompanyLeadCompany extends Struct.CollectionTypeSchema {
     dealValue: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<0>;
     description: Schema.Attribute.Text;
     email: Schema.Attribute.Email;
-    employees: Schema.Attribute.String;
+    employees: Schema.Attribute.Enumeration<
+      [
+        'SIZE_1_10',
+        'SIZE_11_50',
+        'SIZE_51_200',
+        'SIZE_201_500',
+        'SIZE_501_1000',
+        'SIZE_1000_PLUS',
+      ]
+    >;
     founded: Schema.Attribute.String;
     healthScore: Schema.Attribute.Integer &
       Schema.Attribute.SetMinMax<
