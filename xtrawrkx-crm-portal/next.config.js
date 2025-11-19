@@ -1,9 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // transpilePackages: ['@xtrawrkx/ui', '@xtrawrkx/utils'],
+    // Production optimizations
+    reactStrictMode: true,
+    poweredByHeader: false,
+    compress: true,
+
+    // Performance optimizations
+    swcMinify: true,
+
+    // Image optimization
+    images: {
+        formats: ['image/avif', 'image/webp'],
+        minimumCacheTTL: 60,
+    },
+
     experimental: {
         externalDir: true,
     },
+
+    // Security headers
     async headers() {
         return [
             {
@@ -29,6 +44,14 @@ const nextConfig = {
                     {
                         key: 'Permissions-Policy',
                         value: 'camera=(), microphone=(), geolocation=()'
+                    },
+                    {
+                        key: 'X-XSS-Protection',
+                        value: '1; mode=block'
+                    },
+                    {
+                        key: 'Strict-Transport-Security',
+                        value: 'max-age=31536000; includeSubDomains'
                     }
                 ]
             }

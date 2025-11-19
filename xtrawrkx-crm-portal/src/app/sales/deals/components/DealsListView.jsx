@@ -52,7 +52,10 @@ export default function DealsListView({
                   Clear Search
                 </Button>
               ) : (
-                <Button onClick={onAddClick}>
+                <Button
+                  onClick={onAddClick}
+                  className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-xl text-white shadow-lg"
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Deal
                 </Button>

@@ -1,5 +1,5 @@
 import { Table, EmptyState, Button } from "../../../../components/ui";
-import { Plus } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 
 export default function InvoicesListView({
   filteredInvoices,
@@ -39,6 +39,7 @@ export default function InvoicesListView({
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">
           <EmptyState
+            icon={FileText}
             title="No invoices found"
             description={
               searchQuery.trim()

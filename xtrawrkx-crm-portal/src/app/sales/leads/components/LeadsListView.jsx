@@ -1,5 +1,5 @@
 import { Card, Table, EmptyState, Button } from "../../../../components/ui";
-import { Plus } from "lucide-react";
+import { Plus, TrendingUp } from "lucide-react";
 
 export default function LeadsListView({
   filteredLeads,
@@ -38,6 +38,7 @@ export default function LeadsListView({
         ) : (
           <div className="p-8 text-center">
             <EmptyState
+              icon={TrendingUp}
               title="No leads found"
               description={
                 searchQuery.trim()
@@ -52,7 +53,7 @@ export default function LeadsListView({
                 ) : (
                   <Button
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-xl text-white shadow-lg"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Lead

@@ -60,6 +60,7 @@ import {
   Edit,
   Trash2,
   RefreshCcw,
+  ExternalLink,
 } from "lucide-react";
 
 export default function ContactsPage() {
@@ -883,6 +884,25 @@ export default function ContactsPage() {
           >
             <Mail className="w-4 h-4" />
           </Button>
+
+          {/* Open LinkedIn */}
+          {contact.linkedIn && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                const linkedInUrl = contact.linkedIn.startsWith('http') 
+                  ? contact.linkedIn 
+                  : `https://${contact.linkedIn}`;
+                window.open(linkedInUrl, '_blank', 'noopener,noreferrer');
+              }}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              title="Open LinkedIn"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Button>
+          )}
 
           {/* Delete Contact */}
           <Button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -12,6 +12,8 @@ import {
 } from "../../../../components/ui";
 import PageHeader from "../../../../components/PageHeader";
 import contactService from "../../../../lib/api/contactService";
+import strapiClient from "../../../../lib/strapiClient";
+import { useAuth } from "../../../../contexts/AuthContext";
 import {
   User,
   Mail,
@@ -29,9 +31,14 @@ import {
 
 export default function AddContactPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Users for assignment dropdown
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Contact data
   const [contactData, setContactData] = useState({
@@ -57,6 +64,7 @@ export default function AddContactPage() {
     preferredContactMethod: "EMAIL",
     timezone: "",
     source: "MANUAL",
+    assignedTo: "", // Added assignedTo field
   });
 
   const statusOptions = [
@@ -83,6 +91,71 @@ export default function AddContactPage() {
     { value: "PARTNER", label: "Partner" },
     { value: "OTHER", label: "Other" },
   ];
+
+  // Fetch users on mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+
+      while (hasMore) {
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          populate: "primaryRole,userRoles",
+        };
+
+        const response = await strapiClient.getXtrawrkxUsers(queryParams);
+        const usersData = response?.data || [];
+
+        if (Array.isArray(usersData)) {
+          const extracted = usersData.map((u) =>
+            u.attributes
+              ? {
+                  id: u.id,
+                  documentId: u.id,
+                  ...u.attributes,
+                }
+              : u
+          );
+          allUsers = [...allUsers, ...extracted];
+
+          const pageCount = response?.meta?.pagination?.pageCount || 1;
+          hasMore = page < pageCount && usersData.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setUsers(allUsers);
+      console.log("Fetched users for assignment:", allUsers);
+
+      // Auto-select the current logged-in user if found
+      if (user?.email && allUsers.length > 0) {
+        const currentUser = allUsers.find((u) => u.email === user.email);
+        if (currentUser) {
+          setContactData((prev) => ({
+            ...prev,
+            assignedTo: currentUser.id.toString(),
+          }));
+          console.log("✅ Auto-selected current user:", currentUser.id);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setContactData((prev) => ({
@@ -169,6 +242,15 @@ export default function AddContactPage() {
         timezone: contactData.timezone,
         source: contactData.source,
       };
+
+      // Add assigned user if selected
+      if (contactData.assignedTo) {
+        contactPayload.assignedTo = parseInt(contactData.assignedTo);
+        console.log(
+          "✅ Assigning contact to user ID:",
+          contactPayload.assignedTo
+        );
+      }
 
       console.log("Creating contact with data:", contactPayload);
 
@@ -271,6 +353,25 @@ export default function AddContactPage() {
                   onChange={(value) => handleInputChange("status", value)}
                   options={statusOptions}
                   placeholder="Select status"
+                />
+              </div>
+
+              <div>
+                <Select
+                  label="Assigned To"
+                  value={contactData.assignedTo}
+                  onChange={(value) => handleInputChange("assignedTo", value)}
+                  options={[
+                    { value: "", label: "Unassigned" },
+                    ...users.map((u) => ({
+                      value: u.id.toString(),
+                      label:
+                        `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                        u.email,
+                    })),
+                  ]}
+                  disabled={loadingUsers}
+                  placeholder="Select owner"
                 />
               </div>
 

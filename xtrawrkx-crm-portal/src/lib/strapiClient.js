@@ -1,6 +1,6 @@
+// Use environment variable or fallback to production URL
 const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
 // const API_BASE_URL = 'http://localhost:1337';
-
 class StrapiClient {
     constructor() {
         this.baseURL = API_BASE_URL;
@@ -82,10 +82,44 @@ class StrapiClient {
     }
 
     /**
+     * Helper function to build Strapi query string from nested objects
+     */
+    buildQueryString(params, prefix = '') {
+        const parts = [];
+
+        for (const key in params) {
+            if (params.hasOwnProperty(key)) {
+                const value = params[key];
+                const paramKey = prefix ? `${prefix}[${key}]` : key;
+
+                if (value === null || value === undefined) {
+                    continue;
+                } else if (typeof value === 'object' && !Array.isArray(value)) {
+                    // Recursively build nested objects
+                    parts.push(this.buildQueryString(value, paramKey));
+                } else if (Array.isArray(value)) {
+                    // Handle arrays
+                    value.forEach((item, index) => {
+                        if (typeof item === 'object') {
+                            parts.push(this.buildQueryString(item, `${paramKey}[${index}]`));
+                        } else {
+                            parts.push(`${paramKey}[${index}]=${encodeURIComponent(item)}`);
+                        }
+                    });
+                } else {
+                    parts.push(`${paramKey}=${encodeURIComponent(value)}`);
+                }
+            }
+        }
+
+        return parts.filter(Boolean).join('&');
+    }
+
+    /**
      * GET request
      */
     async get(endpoint, params = {}) {
-        const queryString = new URLSearchParams(params).toString();
+        const queryString = this.buildQueryString(params);
         const url = queryString ? `${endpoint}?${queryString}` : endpoint;
         return this.request(url, { method: 'GET' });
     }

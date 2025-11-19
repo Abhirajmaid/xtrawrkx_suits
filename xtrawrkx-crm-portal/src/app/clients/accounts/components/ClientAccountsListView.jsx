@@ -39,6 +39,7 @@ export default function ClientAccountsListView({
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">
           <EmptyState
+            icon={Building2}
             title="No client accounts found"
             description={
               searchQuery.trim()

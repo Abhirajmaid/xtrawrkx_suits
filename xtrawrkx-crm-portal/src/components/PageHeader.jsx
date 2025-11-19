@@ -68,80 +68,120 @@ export default function PageHeader({
 
   const getUserInitials = () => {
     if (!user) {
-      console.log('PageHeader: No user data available');
       return "U";
     }
-    
+
     // Handle different user data structures
     const userData = user.attributes || user;
+
     const firstName = userData.firstName || userData.name?.split(" ")[0] || "";
     const lastName = userData.lastName || userData.name?.split(" ")[1] || "";
-    
+
     const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
-    if (initials && initials !== " ") {
+    if (initials && initials !== " " && initials.length === 2) {
       return initials;
     }
-    
-    return userData.email?.charAt(0).toUpperCase() || "U";
+
+    // Fallback to email first letter
+    if (userData.email) {
+      return userData.email.charAt(0).toUpperCase();
+    }
+
+    return "U";
   };
 
   const getUserDisplayName = () => {
     if (!user) {
-      console.log('PageHeader: No user data for display name');
       return "User";
     }
-    
+
     // Handle different user data structures
     const userData = user.attributes || user;
-    
+
+    // Try firstName and lastName first
     if (userData.firstName && userData.lastName) {
-      return `${userData.firstName} ${userData.lastName}`;
+      return `${userData.firstName} ${userData.lastName}`.trim();
     }
-    
+
+    // Try firstName only
+    if (userData.firstName) {
+      return userData.firstName;
+    }
+
+    // Try name field
     if (userData.name) {
       return userData.name;
     }
-    
+
+    // Try username
+    if (userData.username) {
+      return userData.username;
+    }
+
+    // Fallback to email
     if (userData.email) {
       return userData.email.split("@")[0];
     }
-    
+
     return "User";
   };
 
   const getUserRole = () => {
     if (!user) {
-      console.log('PageHeader: No user data for role');
       return "User";
     }
-    
+
     // Handle different user data structures
     const userData = user.attributes || user;
-    
+
     // Try primaryRole first
     if (userData.primaryRole) {
-      const roleName = typeof userData.primaryRole === 'object' 
-        ? userData.primaryRole.name || userData.primaryRole.attributes?.name
-        : userData.primaryRole;
-      if (roleName) return roleName;
+      const roleName =
+        typeof userData.primaryRole === "object"
+          ? userData.primaryRole.name ||
+            userData.primaryRole.attributes?.name ||
+            userData.primaryRole.data?.attributes?.name ||
+            userData.primaryRole.data?.name
+          : userData.primaryRole;
+      if (roleName) {
+        return roleName;
+      }
     }
-    
+
     // Try userRoles array
-    if (userData.userRoles && Array.isArray(userData.userRoles) && userData.userRoles.length > 0) {
+    if (
+      userData.userRoles &&
+      Array.isArray(userData.userRoles) &&
+      userData.userRoles.length > 0
+    ) {
       const firstRole = userData.userRoles[0];
-      const roleName = typeof firstRole === 'object'
-        ? firstRole.name || firstRole.attributes?.name
-        : firstRole;
-      if (roleName) return roleName;
+      const roleName =
+        typeof firstRole === "object"
+          ? firstRole.name ||
+            firstRole.attributes?.name ||
+            firstRole.data?.attributes?.name ||
+            firstRole.data?.name
+          : firstRole;
+      if (roleName) {
+        return roleName;
+      }
     }
-    
+
     // Fallback to role field
     if (userData.role) {
-      return typeof userData.role === 'object' 
-        ? userData.role.name || userData.role.attributes?.name || userData.role
-        : userData.role;
+      const roleName =
+        typeof userData.role === "object"
+          ? userData.role.name ||
+            userData.role.attributes?.name ||
+            userData.role.data?.attributes?.name ||
+            userData.role.data?.name ||
+            userData.role
+          : userData.role;
+      if (roleName) {
+        return roleName;
+      }
     }
-    
+
     return "User";
   };
 

@@ -12,10 +12,11 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
      */
     async find(ctx) {
         try {
+            console.log('Finding xtrawrkx-users with query:', ctx.query);
             const { query } = ctx;
 
-            // Get users with populated roles and departments
-            const users = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findMany({
+            // Use entityService which properly handles filters, pagination, etc.
+            const entities = await strapi.entityService.findMany('api::xtrawrkx-user.xtrawrkx-user', {
                 ...query,
                 populate: {
                     primaryRole: true,
@@ -24,50 +25,63 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
                 }
             });
 
-            // Transform data to include role and department information
-            const transformedUsers = users.map(user => ({
-                id: user.id,
-                attributes: {
-                    email: user.email,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    phone: user.phone,
-                    department: user.department ? {
-                        data: {
-                            id: user.department.id,
-                            attributes: user.department
-                        }
-                    } : null,
-                    isActive: user.isActive,
-                    emailVerified: user.emailVerified,
-                    lastLoginAt: user.lastLoginAt,
-                    createdAt: user.createdAt,
-                    updatedAt: user.updatedAt,
-                    primaryRole: user.primaryRole ? {
-                        data: {
-                            id: user.primaryRole.id,
-                            attributes: user.primaryRole
-                        }
-                    } : null,
-                    userRoles: user.userRoles ? {
-                        data: user.userRoles.map(role => ({
-                            id: role.id,
-                            attributes: role
-                        }))
-                    } : { data: [] }
-                }
-            }));
+            console.log('Found xtrawrkx-users:', entities);
 
-            ctx.send({
-                data: transformedUsers,
-                meta: {
-                    pagination: {
-                        total: transformedUsers.length
+            // entityService returns the data in Strapi v4 format already
+            // If it's already in the right format, return it directly
+            if (entities && typeof entities === 'object' && 'data' in entities) {
+                return entities;
+            }
+
+            // Otherwise, if it's an array, transform it to Strapi v4 format
+            if (Array.isArray(entities)) {
+                const transformedUsers = entities.map(user => ({
+                    id: user.id,
+                    attributes: {
+                        email: user.email,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        phone: user.phone,
+                        department: user.department ? {
+                            data: {
+                                id: user.department.id,
+                                attributes: user.department
+                            }
+                        } : null,
+                        isActive: user.isActive,
+                        emailVerified: user.emailVerified,
+                        lastLoginAt: user.lastLoginAt,
+                        createdAt: user.createdAt,
+                        updatedAt: user.updatedAt,
+                        primaryRole: user.primaryRole ? {
+                            data: {
+                                id: user.primaryRole.id,
+                                attributes: user.primaryRole
+                            }
+                        } : null,
+                        userRoles: user.userRoles ? {
+                            data: user.userRoles.map(role => ({
+                                id: role.id,
+                                attributes: role
+                            }))
+                        } : { data: [] }
                     }
-                }
-            });
+                }));
+
+                return {
+                    data: transformedUsers,
+                    meta: {
+                        pagination: {
+                            total: transformedUsers.length
+                        }
+                    }
+                };
+            }
+
+            return entities;
         } catch (error) {
             console.error('Error fetching users:', error);
+            console.error('Error details:', error.message);
             ctx.internalServerError('Failed to fetch users');
         }
     },

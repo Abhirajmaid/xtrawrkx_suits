@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import PageHeader from "../../../../components/PageHeader";
-import { Card, Badge, Button, Avatar } from "../../../../components/ui";
+import { Card, Badge, Button, Avatar, Table } from "../../../../components/ui";
 import ActivitiesPanel from "../../../../components/activities/ActivitiesPanel";
 import dealService from "../../../../lib/api/dealService";
 import contactService from "../../../../lib/api/contactService";
@@ -49,6 +49,7 @@ import {
   XCircle,
   ExternalLink,
   Star,
+  MoreVertical,
 } from "lucide-react";
 
 export default function DealDetailPage() {
@@ -70,6 +71,19 @@ export default function DealDetailPage() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [contactFormData, setContactFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    title: "",
+    department: "",
+    role: "PRIMARY_CONTACT",
+  });
+  const [tabLoading, setTabLoading] = useState({
+    contacts: false,
+  });
 
   const isAdmin = () => {
     if (!user) return false;
@@ -94,6 +108,12 @@ export default function DealDetailPage() {
       fetchUsers();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (deal && activeTab === "contacts" && deal.leadCompany?.id) {
+      fetchContacts();
+    }
+  }, [activeTab, deal]);
 
   const fetchDealDetails = async () => {
     try {
@@ -196,8 +216,10 @@ export default function DealDetailPage() {
                   title: contactData.title || "",
                   email: contactData.email || "",
                   phone: contactData.phone || "",
-                  role:
-                    contactData.role?.replace(/_/g, " ") || "TECHNICAL CONTACT",
+                  role: contactData.role || "TECHNICAL_CONTACT",
+                  status: contactData.status || "ACTIVE",
+                  department: contactData.department || "",
+                  avatar: contactData.avatar,
                 };
               })
             : [];
@@ -393,6 +415,284 @@ export default function DealDetailPage() {
       day: "numeric",
     });
   };
+
+  const fetchContacts = async () => {
+    if (!deal?.leadCompany?.id) {
+      setContacts([]);
+      return;
+    }
+
+    try {
+      setTabLoading((prev) => ({ ...prev, contacts: true }));
+      const leadCompanyId = deal.leadCompany.id || deal.leadCompany.documentId;
+
+      const contactsResponse = await contactService.getByLeadCompany(
+        leadCompanyId
+      );
+      const contactsData = contactsResponse?.data || contactsResponse || [];
+
+      const transformedContacts = Array.isArray(contactsData)
+        ? contactsData.map((contact) => {
+            const contactData = contact.attributes || contact;
+            return {
+              id: contact.id || contactData.id,
+              firstName: contactData.firstName || "",
+              lastName: contactData.lastName || "",
+              title: contactData.title || "",
+              email: contactData.email || "",
+              phone: contactData.phone || "",
+              role: contactData.role || "TECHNICAL_CONTACT",
+              status: contactData.status || "ACTIVE",
+              department: contactData.department || "",
+              avatar: contactData.avatar,
+            };
+          })
+        : [];
+
+      setContacts(transformedContacts);
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      setContacts([]);
+    } finally {
+      setTabLoading((prev) => ({ ...prev, contacts: false }));
+    }
+  };
+
+  const handleAddContact = () => {
+    setContactFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      title: "",
+      department: "",
+      role: "PRIMARY_CONTACT",
+    });
+    setShowAddContactModal(true);
+  };
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!deal?.leadCompany?.id) {
+      alert("No lead company associated with this deal");
+      return;
+    }
+
+    // Validate required fields
+    if (!contactFormData.firstName.trim()) {
+      alert("First name is required");
+      return;
+    }
+    if (!contactFormData.lastName.trim()) {
+      alert("Last name is required");
+      return;
+    }
+    if (!contactFormData.email.trim()) {
+      alert("Email is required");
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(contactFormData.email)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      const leadCompanyId = deal.leadCompany.id || deal.leadCompany.documentId;
+
+      const contactData = {
+        firstName: contactFormData.firstName.trim(),
+        lastName: contactFormData.lastName.trim(),
+        email: contactFormData.email.trim(),
+        phone: contactFormData.phone?.trim() || "",
+        title: contactFormData.title?.trim() || "",
+        department: contactFormData.department?.trim() || "",
+        role: contactFormData.role,
+        leadCompany: leadCompanyId,
+        status: "ACTIVE",
+        source: "MANUAL",
+      };
+
+      await contactService.create(contactData);
+
+      // Refresh contacts
+      await fetchContacts();
+
+      setShowAddContactModal(false);
+      setContactFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        title: "",
+        department: "",
+        role: "PRIMARY_CONTACT",
+      });
+      alert("Contact added successfully!");
+    } catch (error) {
+      let errorMessage = "Failed to add contact";
+      if (
+        error.message.includes("duplicate") ||
+        error.message.includes("unique")
+      ) {
+        errorMessage = "A contact with this email already exists";
+      } else if (error.message.includes("validation")) {
+        errorMessage = "Please check your input and try again";
+      } else if (error.message) {
+        errorMessage = `Failed to add contact: ${error.message}`;
+      }
+
+      alert(errorMessage);
+    }
+  };
+
+  const handleSetPrimaryContact = async (contactId) => {
+    try {
+      // First, remove primary contact role from all other contacts
+      const updatePromises = contacts.map(async (contact) => {
+        if (contact.id !== contactId && contact.role === "PRIMARY_CONTACT") {
+          return contactService.update(contact.id, {
+            role: "TECHNICAL_CONTACT",
+          });
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(updatePromises);
+
+      // Set the selected contact as primary
+      await contactService.update(contactId, { role: "PRIMARY_CONTACT" });
+
+      // Refresh contacts
+      await fetchContacts();
+
+      alert("Primary contact updated successfully!");
+    } catch (error) {
+      console.error("Error setting primary contact:", error);
+      alert("Failed to set primary contact");
+    }
+  };
+
+  const contactColumns = [
+    {
+      key: "contact",
+      label: "CONTACT",
+      render: (_, contact) => (
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <Avatar
+            src={contact.avatar}
+            alt={`${contact.firstName} ${contact.lastName}`}
+            fallback={`${contact.firstName?.[0] || ""}${
+              contact.lastName?.[0] || ""
+            }`}
+            className="w-10 h-10"
+          />
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="font-medium text-gray-900">
+                {contact.firstName} {contact.lastName}
+              </div>
+              {contact.role === "PRIMARY_CONTACT" && (
+                <Badge variant="success" className="text-xs">
+                  Primary
+                </Badge>
+              )}
+            </div>
+            <div className="text-sm text-gray-500">{contact.title}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "contact_info",
+      label: "CONTACT INFO",
+      render: (_, contact) => (
+        <div className="min-w-[180px]">
+          <div className="flex items-center gap-1 text-sm text-gray-900 mb-1">
+            <Mail className="w-3 h-3" />
+            {contact.email || "No email"}
+          </div>
+          <div className="flex items-center gap-1 text-sm text-gray-500">
+            <Phone className="w-3 h-3" />
+            {contact.phone || "No phone"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      label: "ROLE",
+      render: (_, contact) => (
+        <Badge
+          variant={
+            contact.role === "PRIMARY_CONTACT"
+              ? "success"
+              : contact.role === "DECISION_MAKER"
+              ? "warning"
+              : contact.role === "INFLUENCER"
+              ? "info"
+              : "secondary"
+          }
+        >
+          {contact.role?.replace(/_/g, " ") || "TECHNICAL CONTACT"}
+        </Badge>
+      ),
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      render: (_, contact) => (
+        <div className="min-w-[120px]">
+          <Badge
+            variant={
+              contact.status === "ACTIVE"
+                ? "success"
+                : contact.status === "INACTIVE"
+                ? "secondary"
+                : "warning"
+            }
+          >
+            {contact.status || "ACTIVE"}
+          </Badge>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (_, contact) => (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(`/sales/contacts/${contact.id}`)}
+            title="View Contact"
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
+          {contact.role !== "PRIMARY_CONTACT" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleSetPrimaryContact(contact.id)}
+              title="Set as Primary Contact"
+              className="text-orange-600 hover:text-orange-700"
+            >
+              <Star className="w-4 h-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {}}
+            title="More Actions"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   // Tab items
   const tabItems = [
@@ -1156,76 +1456,36 @@ export default function DealDetailPage() {
 
             {activeTab === "contacts" && (
               <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Deal Contacts & Stakeholders
                   </h3>
                   <Button
                     size="sm"
+                    onClick={handleAddContact}
                     className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Contact
                   </Button>
                 </div>
-                {contacts.length > 0 ? (
-                  <div className="space-y-4">
-                    {contacts.map((contact) => (
-                      <div
-                        key={contact.id}
-                        className="flex items-center justify-between p-4 bg-white/50 rounded-xl border border-white/40 hover:bg-white/70 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <Avatar
-                            fallback={`${contact.firstName?.[0] || ""}${
-                              contact.lastName?.[0] || ""
-                            }`}
-                            className="w-12 h-12"
-                          />
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {contact.firstName} {contact.lastName}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {contact.title}
-                            </p>
-                            <div className="flex items-center gap-4 mt-1">
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <Mail className="w-3 h-3" />
-                                <span>{contact.email}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <Phone className="w-3 h-3" />
-                                <span>{contact.phone}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant="secondary" className="text-xs">
-                            {contact.role}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              router.push(`/sales/contacts/${contact.id}`)
-                            }
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                {tabLoading.contacts ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                    <span className="ml-2 text-gray-600">
+                      Loading contacts...
+                    </span>
                   </div>
+                ) : contacts.length > 0 ? (
+                  <Table columns={contactColumns} data={contacts} />
                 ) : (
-                  <div className="text-center py-12">
-                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 font-medium">
-                      No contacts added yet
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 text-4xl mb-2">👥</div>
+                    <p className="text-gray-600">
+                      No contacts found for this deal
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      Add contacts to track stakeholders for this deal
+                      Add contacts to start building relationships
                     </p>
                   </div>
                 )}
@@ -1633,6 +1893,179 @@ export default function DealDetailPage() {
                 >
                   Update Owner
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Contact Modal */}
+        {showAddContactModal && deal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Add Contact
+                  </h2>
+                  <Button
+                    onClick={() => setShowAddContactModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                    variant="ghost"
+                    size="sm"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={contactFormData.firstName}
+                        onChange={(e) =>
+                          setContactFormData({
+                            ...contactFormData,
+                            firstName: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={contactFormData.lastName}
+                        onChange={(e) =>
+                          setContactFormData({
+                            ...contactFormData,
+                            lastName: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={contactFormData.email}
+                      onChange={(e) =>
+                        setContactFormData({
+                          ...contactFormData,
+                          email: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={contactFormData.phone}
+                        onChange={(e) =>
+                          setContactFormData({
+                            ...contactFormData,
+                            phone: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Job Title
+                      </label>
+                      <input
+                        type="text"
+                        value={contactFormData.title}
+                        onChange={(e) =>
+                          setContactFormData({
+                            ...contactFormData,
+                            title: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Department
+                      </label>
+                      <input
+                        type="text"
+                        value={contactFormData.department}
+                        onChange={(e) =>
+                          setContactFormData({
+                            ...contactFormData,
+                            department: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Role
+                      </label>
+                      <select
+                        value={contactFormData.role}
+                        onChange={(e) =>
+                          setContactFormData({
+                            ...contactFormData,
+                            role: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="PRIMARY_CONTACT">Primary Contact</option>
+                        <option value="DECISION_MAKER">Decision Maker</option>
+                        <option value="INFLUENCER">Influencer</option>
+                        <option value="TECHNICAL_CONTACT">
+                          Technical Contact
+                        </option>
+                        <option value="GATEKEEPER">Gatekeeper</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-4">
+                    <Button
+                      type="button"
+                      onClick={() => setShowAddContactModal(false)}
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
+                    >
+                      Add Contact
+                    </Button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>

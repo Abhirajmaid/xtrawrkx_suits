@@ -13,6 +13,7 @@ import {
 import PageHeader from "../../../../components/PageHeader";
 import leadCompanyService from "../../../../lib/api/leadCompanyService";
 import contactService from "../../../../lib/api/contactService";
+import strapiClient from "../../../../lib/strapiClient";
 import { useAuth } from "../../../../contexts/AuthContext";
 import {
   Building2,
@@ -39,6 +40,10 @@ export default function AddLeadCompanyPage() {
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Users for assignment dropdown
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   // Company data
   const [companyData, setCompanyData] = useState({
     companyName: "",
@@ -60,6 +65,7 @@ export default function AddLeadCompanyPage() {
     status: "NEW",
     dealValue: "",
     notes: "",
+    assignedTo: "", // Added assignedTo field
   });
 
   // Contacts data - array of contacts
@@ -122,6 +128,71 @@ export default function AddLeadCompanyPage() {
     { value: "SIZE_501_1000", label: "501-1000 employees" },
     { value: "SIZE_1000_PLUS", label: "1000+ employees" },
   ];
+
+  // Fetch users on mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+
+      while (hasMore) {
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          populate: "primaryRole,userRoles",
+        };
+
+        const response = await strapiClient.getXtrawrkxUsers(queryParams);
+        const usersData = response?.data || [];
+
+        if (Array.isArray(usersData)) {
+          const extracted = usersData.map((u) =>
+            u.attributes
+              ? {
+                  id: u.id,
+                  documentId: u.id,
+                  ...u.attributes,
+                }
+              : u
+          );
+          allUsers = [...allUsers, ...extracted];
+
+          const pageCount = response?.meta?.pagination?.pageCount || 1;
+          hasMore = page < pageCount && usersData.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setUsers(allUsers);
+      console.log("Fetched users for assignment:", allUsers);
+
+      // Auto-select the current logged-in user if found
+      if (user?.email && allUsers.length > 0) {
+        const currentUser = allUsers.find((u) => u.email === user.email);
+        if (currentUser) {
+          setCompanyData((prev) => ({
+            ...prev,
+            assignedTo: currentUser.id.toString(),
+          }));
+          console.log("✅ Auto-selected current user:", currentUser.id);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const handleCompanyChange = (field, value) => {
     setCompanyData((prev) => ({ ...prev, [field]: value }));
@@ -223,34 +294,55 @@ export default function AddLeadCompanyPage() {
 
     try {
       // Prepare lead company data
+      // Build the payload - only include fields with values
       const leadCompanyPayload = {
-        companyName: companyData.companyName,
+        companyName: companyData.companyName.trim(),
         industry: companyData.industry,
-        website: companyData.website,
-        phone: companyData.phone,
-        email: companyData.email,
-        address: companyData.address,
-        city: companyData.city,
-        state: companyData.state,
-        country: companyData.country,
-        zipCode: companyData.zipCode,
-        employees: companyData.employees,
-        founded: companyData.founded,
-        description: companyData.description,
-        linkedIn: companyData.linkedIn,
-        twitter: companyData.twitter,
-        leadSource: companyData.leadSource,
         status: companyData.status,
+        source: companyData.leadSource,
+        segment: "WARM",
+        score: Math.floor(Math.random() * 100) + 1,
+        healthScore: Math.floor(Math.random() * 100) + 1,
         dealValue: companyData.dealValue
           ? parseFloat(companyData.dealValue)
           : 0,
-        notes: companyData.notes,
-        leadScore: Math.floor(Math.random() * 100) + 1, // Random for now
-        healthScore: Math.floor(Math.random() * 100) + 1, // Random for now
-        segment: "WARM", // Default segment
-        // Auto-assign to creator
-        assignedTo: user?.id || user?.documentId || null,
       };
+
+      // Add optional fields only if they have values
+      if (companyData.website?.trim())
+        leadCompanyPayload.website = companyData.website.trim();
+      if (companyData.phone?.trim())
+        leadCompanyPayload.phone = companyData.phone.trim();
+      if (companyData.email?.trim())
+        leadCompanyPayload.email = companyData.email.trim();
+      if (companyData.address?.trim())
+        leadCompanyPayload.address = companyData.address.trim();
+      if (companyData.city?.trim())
+        leadCompanyPayload.city = companyData.city.trim();
+      if (companyData.state?.trim())
+        leadCompanyPayload.state = companyData.state.trim();
+      if (companyData.country?.trim())
+        leadCompanyPayload.country = companyData.country.trim();
+      if (companyData.zipCode?.trim())
+        leadCompanyPayload.zipCode = companyData.zipCode.trim();
+      if (companyData.employees)
+        leadCompanyPayload.employees = companyData.employees;
+      if (companyData.founded?.trim())
+        leadCompanyPayload.founded = companyData.founded.trim();
+      if (companyData.description?.trim())
+        leadCompanyPayload.description = companyData.description.trim();
+      if (companyData.linkedIn?.trim())
+        leadCompanyPayload.linkedIn = companyData.linkedIn.trim();
+      if (companyData.twitter?.trim())
+        leadCompanyPayload.twitter = companyData.twitter.trim();
+      if (companyData.notes?.trim())
+        leadCompanyPayload.notes = companyData.notes.trim();
+
+      // Add assigned user if selected
+      if (companyData.assignedTo) {
+        leadCompanyPayload.assignedTo = parseInt(companyData.assignedTo);
+        console.log("✅ Assigning to user ID:", leadCompanyPayload.assignedTo);
+      }
 
       console.log("Creating lead company with data:", leadCompanyPayload);
 
@@ -306,9 +398,19 @@ export default function AddLeadCompanyPage() {
             status: "ACTIVE",
             source: "LEAD_CONVERSION",
             leadCompany: createdCompany.id, // Associate with the created lead company
+            isPrimary: contact.isPrimary || false, // Mark as primary if specified
           };
 
-          console.log("Creating contact:", contactData);
+          // Assign contact to the same user as the lead company
+          if (companyData.assignedTo) {
+            contactData.assignedTo = parseInt(companyData.assignedTo);
+            console.log(
+              "✅ Assigning contact to same user as lead company:",
+              contactData.assignedTo
+            );
+          }
+
+          console.log("Creating contact with data:", contactData);
 
           try {
             const createdContact = await contactService.create(contactData);
@@ -582,6 +684,24 @@ export default function AddLeadCompanyPage() {
                   value={companyData.leadSource}
                   onChange={(value) => handleCompanyChange("leadSource", value)}
                   options={leadSourceOptions}
+                />
+              </div>
+
+              <div>
+                <Select
+                  label="Assigned To"
+                  value={companyData.assignedTo}
+                  onChange={(value) => handleCompanyChange("assignedTo", value)}
+                  options={[
+                    { value: "", label: "Unassigned" },
+                    ...users.map((u) => ({
+                      value: u.id.toString(),
+                      label:
+                        `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                        u.email,
+                    })),
+                  ]}
+                  disabled={loadingUsers}
                 />
               </div>
 

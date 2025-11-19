@@ -528,6 +528,62 @@ const ContactDetailPage = ({ params }) => {
                           <p className="text-gray-900 mt-1">{contact.notes}</p>
                         </div>
                       )}
+                      {(contact.linkedIn || contact.twitter) && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500 mb-2">
+                            Social Media
+                          </label>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {contact.linkedIn && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const linkedInUrl =
+                                    contact.linkedIn.startsWith("http")
+                                      ? contact.linkedIn
+                                      : `https://${contact.linkedIn}`;
+                                  window.open(
+                                    linkedInUrl,
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                  );
+                                }}
+                                className="flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Open LinkedIn
+                              </Button>
+                            )}
+                            {contact.twitter && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const twitterUrl = contact.twitter.startsWith(
+                                    "http"
+                                  )
+                                    ? contact.twitter
+                                    : contact.twitter.startsWith("@")
+                                    ? `https://twitter.com/${contact.twitter.slice(
+                                        1
+                                      )}`
+                                    : `https://twitter.com/${contact.twitter}`;
+                                  window.open(
+                                    twitterUrl,
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                  );
+                                }}
+                                className="flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Open Twitter
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -718,7 +774,9 @@ const ContactDetailPage = ({ params }) => {
                                 }`.trim() ||
                                 contact.assignedTo.username ||
                                 "?"
-                              ).charAt(0).toUpperCase()
+                              )
+                                .charAt(0)
+                                .toUpperCase()
                             : "?"
                         }
                         size="lg"
@@ -737,21 +795,23 @@ const ContactDetailPage = ({ params }) => {
                           {(() => {
                             const assignedTo = contact?.assignedTo;
                             if (!assignedTo) return "Sales Manager";
-                            
+
                             // Handle different Strapi response structures
-                            const roleName = 
+                            const roleName =
                               assignedTo.primaryRole?.name ||
                               assignedTo.primaryRole?.data?.attributes?.name ||
                               assignedTo.primaryRole?.attributes?.name ||
                               assignedTo.role ||
                               null;
-                            
+
                             return roleName || "Sales Manager";
                           })()}
                         </p>
                         <div className="flex items-center gap-1 mt-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="text-sm text-gray-600">4.9 rating</span>
+                          <span className="text-sm text-gray-600">
+                            4.9 rating
+                          </span>
                         </div>
                       </div>
                       {isAdmin() && (
@@ -825,6 +885,99 @@ const ContactDetailPage = ({ params }) => {
                           <Badge variant="warning">WARM</Badge>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Links */}
+                  <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Quick Links
+                    </h3>
+                    <div className="space-y-3">
+                      {contact.linkedIn && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                          onClick={() => {
+                            const linkedInUrl = contact.linkedIn.startsWith(
+                              "http"
+                            )
+                              ? contact.linkedIn
+                              : `https://${contact.linkedIn}`;
+                            window.open(
+                              linkedInUrl,
+                              "_blank",
+                              "noopener,noreferrer"
+                            );
+                          }}
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Open LinkedIn Profile
+                        </Button>
+                      )}
+                      {contact.email && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                          onClick={() => {
+                            const subject = encodeURIComponent(
+                              `Follow up - ${contact.firstName} ${contact.lastName}`
+                            );
+                            window.open(
+                              `mailto:${contact.email}?subject=${subject}`,
+                              "_self"
+                            );
+                          }}
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          Send Email
+                        </Button>
+                      )}
+                      {contact.phone && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                          onClick={() => {
+                            window.open(`tel:${contact.phone}`, "_self");
+                          }}
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Call Contact
+                        </Button>
+                      )}
+                      {contact.twitter && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-sky-600 hover:text-sky-700 hover:bg-sky-50 border-sky-200"
+                          onClick={() => {
+                            const twitterUrl = contact.twitter.startsWith(
+                              "http"
+                            )
+                              ? contact.twitter
+                              : contact.twitter.startsWith("@")
+                              ? `https://twitter.com/${contact.twitter.slice(
+                                  1
+                                )}`
+                              : `https://twitter.com/${contact.twitter}`;
+                            window.open(
+                              twitterUrl,
+                              "_blank",
+                              "noopener,noreferrer"
+                            );
+                          }}
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Open Twitter
+                        </Button>
+                      )}
+                      {!contact.linkedIn &&
+                        !contact.email &&
+                        !contact.phone &&
+                        !contact.twitter && (
+                          <p className="text-sm text-gray-500 text-center py-4">
+                            No quick links available
+                          </p>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -982,7 +1135,10 @@ const ContactDetailPage = ({ params }) => {
               <div className="mb-6">
                 <p className="text-gray-700 mb-4">
                   Select a user to assign{" "}
-                  <strong>{contact.firstName} {contact.lastName}</strong> to:
+                  <strong>
+                    {contact.firstName} {contact.lastName}
+                  </strong>{" "}
+                  to:
                 </p>
                 <Select
                   label="Assign To"
