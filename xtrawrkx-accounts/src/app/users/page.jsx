@@ -30,6 +30,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Trash2,
+  X,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import strapiClient from "@/lib/strapiClient";
@@ -70,6 +71,26 @@ function UserManagementPage() {
     fetchAvailableRoles();
     fetchDepartments();
   }, []);
+
+  // Auto-dismiss success message after 5 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  // Auto-dismiss error message after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const checkUserPermissions = async () => {
     try {
@@ -988,11 +1009,21 @@ function UserManagementPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
           className="glass-card rounded-2xl p-4 border-l-4 border-red-500 bg-red-50"
         >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-            <p className="text-red-700 font-medium">{error}</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <p className="text-red-700 font-medium">{error}</p>
+            </div>
+            <button
+              onClick={() => setError("")}
+              className="flex-shrink-0 p-1 hover:bg-red-100 rounded-full transition-colors"
+              aria-label="Close error message"
+            >
+              <X className="w-4 h-4 text-red-600" />
+            </button>
           </div>
         </motion.div>
       )}
@@ -1001,11 +1032,21 @@ function UserManagementPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
           className="glass-card rounded-2xl p-4 border-l-4 border-green-500 bg-green-50"
         >
-          <div className="flex items-center gap-3">
-            <UserCheck className="w-5 h-5 text-green-600" />
-            <p className="text-green-700 font-medium">{success}</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <UserCheck className="w-5 h-5 text-green-600" />
+              <p className="text-green-700 font-medium">{success}</p>
+            </div>
+            <button
+              onClick={() => setSuccess("")}
+              className="flex-shrink-0 p-1 hover:bg-green-100 rounded-full transition-colors"
+              aria-label="Close success message"
+            >
+              <X className="w-4 h-4 text-green-600" />
+            </button>
           </div>
         </motion.div>
       )}
@@ -1451,11 +1492,11 @@ function UserManagementPage() {
                   setShowEditModal(false);
                   setEditingUser(null);
                 }}
-                className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300 px-4 py-2"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={creating}>
+              <Button type="submit" disabled={creating} className="px-4 py-2">
                 {creating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1578,11 +1619,15 @@ function UserManagementPage() {
                   setEditingUser(null);
                   setUserRoles([]);
                 }}
-                className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300 px-4 py-2"
               >
                 Cancel
               </Button>
-              <Button onClick={handleUpdateUserRoles} disabled={creating}>
+              <Button
+                onClick={handleUpdateUserRoles}
+                disabled={creating}
+                className="px-4 py-2"
+              >
                 {creating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1636,14 +1681,14 @@ function UserManagementPage() {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
+            <div className="flex justify-end space-x-2 pt-4 pr-0 border-t border-gray-200">
               <Button
                 type="button"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setDeletingUser(null);
                 }}
-                className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300 px-4 py-2"
                 disabled={creating}
               >
                 Cancel
@@ -1651,7 +1696,7 @@ function UserManagementPage() {
               <Button
                 onClick={confirmDeleteUser}
                 disabled={creating}
-                className="bg-red-600 text-white hover:bg-red-700"
+                className="bg-red-600 text-white hover:bg-red-700 px-4 py-2"
               >
                 {creating ? (
                   <>

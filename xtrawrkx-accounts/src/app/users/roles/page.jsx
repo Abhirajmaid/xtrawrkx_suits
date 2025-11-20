@@ -20,6 +20,7 @@ import {
   Eye,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
   Loader2,
   Settings,
 } from "lucide-react";
@@ -48,6 +49,8 @@ function UserRolesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingRole, setDeletingRole] = useState(null);
   const [editingRole, setEditingRole] = useState(null);
   const [creating, setCreating] = useState(false);
 
@@ -145,6 +148,26 @@ function UserRolesPage() {
   useEffect(() => {
     fetchRoles();
   }, []);
+
+  // Auto-dismiss success message after 3 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  // Auto-dismiss error message after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const fetchRoles = async () => {
     try {
@@ -278,23 +301,34 @@ function UserRolesPage() {
     }
   };
 
-  const handleDeleteRole = async (roleId) => {
-    if (!confirm("Are you sure you want to delete this role?")) {
-      return;
-    }
+  const handleDeleteRole = (role) => {
+    setDeletingRole(role);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteRole = async () => {
+    if (!deletingRole) return;
 
     try {
+      setCreating(true);
+      setError("");
+      setSuccess("");
+
       const AuthService = (await import("@/lib/authService")).default;
 
-      await AuthService.apiRequest(`/user-roles/${roleId}`, {
+      await AuthService.apiRequest(`/user-roles/${deletingRole.id}`, {
         method: "DELETE",
       });
 
       setSuccess("Role deleted successfully!");
+      setShowDeleteModal(false);
+      setDeletingRole(null);
       fetchRoles(); // Refresh the roles list
     } catch (error) {
       console.error("Delete role error:", error);
       setError("Failed to delete role: " + error.message);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -413,11 +447,21 @@ function UserRolesPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
           className="glass-card rounded-2xl p-4 border-l-4 border-red-500 bg-red-50"
         >
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <p className="text-red-700 font-medium">{error}</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <p className="text-red-700 font-medium">{error}</p>
+            </div>
+            <button
+              onClick={() => setError("")}
+              className="flex-shrink-0 p-1 hover:bg-red-100 rounded-full transition-colors"
+              aria-label="Close error message"
+            >
+              <X className="w-4 h-4 text-red-600" />
+            </button>
           </div>
         </motion.div>
       )}
@@ -426,11 +470,21 @@ function UserRolesPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
           className="glass-card rounded-2xl p-4 border-l-4 border-green-500 bg-green-50"
         >
-          <div className="flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <p className="text-green-700 font-medium">{success}</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <p className="text-green-700 font-medium">{success}</p>
+            </div>
+            <button
+              onClick={() => setSuccess("")}
+              className="flex-shrink-0 p-1 hover:bg-green-100 rounded-full transition-colors"
+              aria-label="Close success message"
+            >
+              <X className="w-4 h-4 text-green-600" />
+            </button>
           </div>
         </motion.div>
       )}
@@ -533,22 +587,22 @@ function UserRolesPage() {
                   </div>
                 </div>
 
-                {!role.isSystemRole && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleEditRole(role)}
-                      className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRole(role.id)}
-                      className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleEditRole(role)}
+                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit Role"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRole(role)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete Role"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Role Description */}
@@ -734,11 +788,11 @@ function UserRolesPage() {
             <Button
               type="button"
               onClick={() => setShowCreateModal(false)}
-              className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+              className="bg-gray-200 text-gray-800 hover:bg-gray-300 px-4 py-2"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={creating}>
+            <Button type="submit" disabled={creating} className="px-4 py-2">
               {creating ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -872,11 +926,11 @@ function UserRolesPage() {
                   setShowEditModal(false);
                   setEditingRole(null);
                 }}
-                className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300 px-4 py-2"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={creating}>
+              <Button type="submit" disabled={creating} className="px-4 py-2">
                 {creating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -904,6 +958,89 @@ function UserRolesPage() {
         {editingRole && (
           <div className="space-y-4">
             <PermissionsMatrix roleData={editingRole} isEditing={false} />
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Role Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletingRole(null);
+        }}
+        title="Delete Role"
+        size="md"
+      >
+        {deletingRole && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Are you sure you want to delete this role?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  This action cannot be undone. The role{" "}
+                  <span className="font-semibold text-gray-900">
+                    {deletingRole.name}
+                  </span>{" "}
+                  will be permanently removed from the system.
+                </p>
+                {deletingRole.isSystemRole && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Warning:</strong> This is a system role. Deleting
+                      it may affect system functionality and user permissions.
+                    </p>
+                  </div>
+                )}
+                {deletingRole.userCount > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> This role is assigned to{" "}
+                      {deletingRole.userCount} user(s). These users will lose
+                      this role assignment.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingRole(null);
+                }}
+                className="bg-gray-200 text-gray-800 hover:bg-gray-300 px-4 py-2"
+                disabled={creating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteRole}
+                disabled={creating}
+                className="bg-red-600 text-white hover:bg-red-700 px-4 py-2"
+              >
+                {creating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Role
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
       </Modal>

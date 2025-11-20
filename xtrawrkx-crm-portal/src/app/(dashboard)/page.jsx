@@ -244,12 +244,9 @@ export default function Home() {
           } • ${getCurrentDate()}`}
           breadcrumb={[{ label: "Dashboard", href: "/" }]}
           showSearch={true}
-          showActions={true}
+          showActions={false}
           searchPlaceholder="Search anything..."
           onSearchChange={setSearchQuery}
-          onAddClick={() => console.log("Add clicked")}
-          onFilterClick={() => console.log("Filter clicked")}
-          onImportClick={() => console.log("Import clicked")}
           onShareImageClick={handleShareImage}
         />
 
