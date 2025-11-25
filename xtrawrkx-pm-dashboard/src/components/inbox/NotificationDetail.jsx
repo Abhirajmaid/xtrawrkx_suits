@@ -3,15 +3,18 @@
 import { Bell, Archive } from "lucide-react";
 import { Card } from "../ui";
 
-export default function NotificationDetail({ selectedNotification, onMarkAllRead }) {
+export default function NotificationDetail({
+  selectedNotification,
+  onMarkAllRead,
+}) {
   const formatDate = (date) => {
     if (!date) return "";
-    return new Date(date).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -20,20 +23,29 @@ export default function NotificationDetail({ selectedNotification, onMarkAllRead
       <Card glass={true} className="flex-1 flex items-center justify-center">
         <div className="text-center text-gray-500">
           <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No notification selected</h3>
-          <p className="text-sm">Select a notification from the list to view details</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No notification selected
+          </h3>
+          <p className="text-sm">
+            Select a notification from the list to view details
+          </p>
         </div>
       </Card>
     );
   }
 
   return (
-    <Card glass={true} className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden">
+    <Card
+      glass={true}
+      className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden"
+    >
       {/* Header */}
       <div className="p-6 border-b border-gray-200 flex-shrink-0 bg-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Notification Details</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Notification Details
+            </h2>
             <p className="text-sm text-gray-500 mt-1">
               {formatDate(selectedNotification.date)}
             </p>
@@ -79,7 +91,10 @@ export default function NotificationDetail({ selectedNotification, onMarkAllRead
                 </p>
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <p className="text-xs text-gray-500">
-                    Type: <span className="font-medium">{selectedNotification.type || 'Notification'}</span>
+                    Type:{" "}
+                    <span className="font-medium">
+                      {selectedNotification.type || "Notification"}
+                    </span>
                   </p>
                 </div>
               </div>

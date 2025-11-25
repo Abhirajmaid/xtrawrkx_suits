@@ -51,8 +51,9 @@ function ComingSoonContent() {
 
               {/* Description */}
               <p className="text-gray-500 mb-8 leading-relaxed max-w-md mx-auto">
-                <strong>{featureName}</strong> is currently under development and will be available
-                soon. We're working hard to bring you the best experience possible.
+                <strong>{featureName}</strong> is currently under development
+                and will be available soon. We're working hard to bring you the
+                best experience possible.
               </p>
 
               {/* Status indicator */}
@@ -116,5 +117,3 @@ export default function ComingSoonPage() {
     </Suspense>
   );
 }
-
-

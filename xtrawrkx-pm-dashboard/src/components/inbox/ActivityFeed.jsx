@@ -2,18 +2,22 @@
 
 import { Bell } from "lucide-react";
 
-export default function ActivityFeed({ notifications, selectedNotification, onSelectNotification }) {
+export default function ActivityFeed({
+  notifications,
+  selectedNotification,
+  onSelectNotification,
+}) {
   const formatTimeAgo = (date) => {
     if (!date) return "";
     const now = new Date();
     const notificationDate = new Date(date);
     const diffInHours = Math.floor((now - notificationDate) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 24) {
-      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+      return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
     } else {
       const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+      return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
     }
   };
 
@@ -46,18 +50,24 @@ export default function ActivityFeed({ notifications, selectedNotification, onSe
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className={`text-sm font-medium truncate ${
-                      notification.isRead ? "text-gray-700" : "text-gray-900 font-semibold"
-                    }`}>
+                    <p
+                      className={`text-sm font-medium truncate ${
+                        notification.isRead
+                          ? "text-gray-700"
+                          : "text-gray-900 font-semibold"
+                      }`}
+                    >
                       {notification.name}
                     </p>
                     <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
                       {notification.timeAgo || formatTimeAgo(notification.date)}
                     </span>
                   </div>
-                  <p className={`text-sm mt-1 line-clamp-2 ${
-                    notification.isRead ? "text-gray-600" : "text-gray-900"
-                  }`}>
+                  <p
+                    className={`text-sm mt-1 line-clamp-2 ${
+                      notification.isRead ? "text-gray-600" : "text-gray-900"
+                    }`}
+                  >
                     {notification.title || notification.message}
                   </p>
                   {notification.message && notification.title && (

@@ -15,7 +15,7 @@ class NotificationService {
       };
 
       const response = await apiClient.get('/api/notifications', params);
-      
+
       // Handle different response structures
       let notifications = [];
       if (response?.data && Array.isArray(response.data)) {
@@ -71,12 +71,12 @@ class NotificationService {
     try {
       const notifications = await this.getNotifications(userId);
       const unreadNotifications = notifications.filter(n => !n.isRead);
-      
+
       // Mark all unread notifications
       await Promise.all(
         unreadNotifications.map(n => this.markAsRead(n.id))
       );
-      
+
       return true;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -113,7 +113,7 @@ class NotificationService {
     if (minutes < 60) return `${minutes} min ago`;
     if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
-    
+
     return date.toLocaleDateString();
   }
 

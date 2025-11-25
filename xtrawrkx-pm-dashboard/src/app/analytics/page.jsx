@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Filter, MoreVertical, ArrowUp, ArrowDown, FolderOpen, CheckSquare, UserCheck, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Filter,
+  MoreVertical,
+  ArrowUp,
+  ArrowDown,
+  FolderOpen,
+  CheckSquare,
+  UserCheck,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import PageHeader from "../../components/shared/PageHeader";
 import taskService from "../../lib/taskService";
 import projectService from "../../lib/projectService";
@@ -56,7 +66,10 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
     {
       title: "Total Projects",
       value: stats.totalProjects?.toString() || "0",
-      trend: calculateTrend(stats.totalProjects || 0, previousStats?.totalProjects || 0),
+      trend: calculateTrend(
+        stats.totalProjects || 0,
+        previousStats?.totalProjects || 0
+      ),
       color: "bg-blue-50",
       borderColor: "border-blue-200",
       iconColor: "text-blue-600",
@@ -65,7 +78,10 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
     {
       title: "Total Tasks",
       value: stats.totalTasks?.toString() || "0",
-      trend: calculateTrend(stats.totalTasks || 0, previousStats?.totalTasks || 0),
+      trend: calculateTrend(
+        stats.totalTasks || 0,
+        previousStats?.totalTasks || 0
+      ),
       color: "bg-gray-50",
       borderColor: "border-gray-200",
       iconColor: "text-gray-600",
@@ -74,7 +90,10 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
     {
       title: "Assigned Tasks",
       value: stats.assignedTasks?.toString() || "0",
-      trend: calculateTrend(stats.assignedTasks || 0, previousStats?.assignedTasks || 0),
+      trend: calculateTrend(
+        stats.assignedTasks || 0,
+        previousStats?.assignedTasks || 0
+      ),
       color: "bg-yellow-50",
       borderColor: "border-yellow-200",
       iconColor: "text-yellow-600",
@@ -83,7 +102,10 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
     {
       title: "Completed Tasks",
       value: stats.completedTasks?.toString() || "0",
-      trend: calculateTrend(stats.completedTasks || 0, previousStats?.completedTasks || 0),
+      trend: calculateTrend(
+        stats.completedTasks || 0,
+        previousStats?.completedTasks || 0
+      ),
       color: "bg-green-50",
       borderColor: "border-green-200",
       iconColor: "text-green-600",
@@ -92,7 +114,10 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
     {
       title: "Overdue Tasks",
       value: stats.overdueTasks?.toString() || "0",
-      trend: calculateTrend(stats.overdueTasks || 0, previousStats?.overdueTasks || 0),
+      trend: calculateTrend(
+        stats.overdueTasks || 0,
+        previousStats?.overdueTasks || 0
+      ),
       color: "bg-red-50",
       borderColor: "border-red-200",
       iconColor: "text-red-600",
@@ -105,12 +130,14 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
       {metrics.map((metric, index) => {
         const IconComponent = metric.icon;
         return (
-          <Card key={index} glass={true} className="p-4 hover:shadow-lg transition-all duration-200">
+          <Card
+            key={index}
+            glass={true}
+            className="p-4 hover:shadow-lg transition-all duration-200"
+          >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm text-gray-600 mb-1">
-                  {metric.title}
-                </p>
+                <p className="text-sm text-gray-600 mb-1">{metric.title}</p>
                 <p className="text-3xl font-bold text-gray-900">
                   {metric.value}
                 </p>
@@ -124,7 +151,11 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
                   <span className="mr-2">
                     {metric.value === "0"
                       ? `No ${metric.title.toLowerCase()}`
-                      : `${metric.value} ${metric.value === "1" ? metric.title.slice(0, -1).toLowerCase() : metric.title.toLowerCase()}`}
+                      : `${metric.value} ${
+                          metric.value === "1"
+                            ? metric.title.slice(0, -1).toLowerCase()
+                            : metric.title.toLowerCase()
+                        }`}
                   </span>
                   {metric.trend.value !== "+0" && (
                     <div
@@ -139,7 +170,9 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
                       ) : (
                         <ArrowDown className="h-2.5 w-2.5" />
                       )}
-                      <span className="font-semibold">{metric.trend.value}</span>
+                      <span className="font-semibold">
+                        {metric.trend.value}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -164,8 +197,8 @@ const UpcomingTasksByStatus = ({ tasks }) => {
     "To Do": 0,
     "In Progress": 0,
     "In Review": 0,
-    "Done": 0,
-    "Cancelled": 0,
+    Done: 0,
+    Cancelled: 0,
   };
 
   tasks.forEach((task) => {
@@ -173,7 +206,8 @@ const UpcomingTasksByStatus = ({ tasks }) => {
     if (status === "to-do" || status === "todo") statusCounts["To Do"]++;
     else if (status === "in-progress") statusCounts["In Progress"]++;
     else if (status === "in-review") statusCounts["In Review"]++;
-    else if (status === "done" || status === "completed") statusCounts["Done"]++;
+    else if (status === "done" || status === "completed")
+      statusCounts["Done"]++;
     else if (status === "cancelled") statusCounts["Cancelled"]++;
   });
 
@@ -181,8 +215,8 @@ const UpcomingTasksByStatus = ({ tasks }) => {
     "To Do": "#3B82F6", // blue-500
     "In Progress": "#EAB308", // yellow-500
     "In Review": "#A855F7", // purple-500
-    "Done": "#22C55E", // green-500
-    "Cancelled": "#EF4444", // red-500
+    Done: "#22C55E", // green-500
+    Cancelled: "#EF4444", // red-500
   };
 
   const statusData = Object.entries(statusCounts)
@@ -193,7 +227,8 @@ const UpcomingTasksByStatus = ({ tasks }) => {
       color: statusColors[name] || "#808080",
     }));
 
-  const maxValue = statusData.length > 0 ? Math.max(...statusData.map((d) => d.value)) : 1;
+  const maxValue =
+    statusData.length > 0 ? Math.max(...statusData.map((d) => d.value)) : 1;
 
   if (statusData.length === 0) {
     return (
@@ -208,9 +243,7 @@ const UpcomingTasksByStatus = ({ tasks }) => {
   return (
     <Card glass={true} className="p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Tasks by Status
-        </h3>
+        <h3 className="text-lg font-semibold text-gray-900">Tasks by Status</h3>
         <div className="flex items-center space-x-2">
           <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
             <Filter className="h-4 w-4" />
@@ -249,11 +282,11 @@ const UpcomingTasksByStatus = ({ tasks }) => {
 const TasksByProject = ({ tasks, projects }) => {
   // Group tasks by project
   const projectTaskMap = {};
-  
+
   tasks.forEach((task) => {
     const projectId = task.project?.id || "unassigned";
     const projectName = task.project?.name || "Unassigned";
-    
+
     if (!projectTaskMap[projectId]) {
       projectTaskMap[projectId] = {
         id: projectId,
@@ -262,7 +295,7 @@ const TasksByProject = ({ tasks, projects }) => {
         incomplete: 0,
       };
     }
-    
+
     const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
     if (status === "done" || status === "completed") {
       projectTaskMap[projectId].completed++;
@@ -364,25 +397,25 @@ const TasksByProject = ({ tasks, projects }) => {
 const TaskByAssignee = ({ tasks }) => {
   // Group tasks by assignee
   const assigneeMap = {};
-  
+
   tasks.forEach((task) => {
     const assignee = task.assignee;
     if (!assignee) return;
-    
+
     const assigneeId = assignee.id || assignee._id || "unknown";
     const assigneeName =
       assignee.name ||
       (assignee.firstName && assignee.lastName
         ? `${assignee.firstName} ${assignee.lastName}`
         : assignee.firstName || assignee.email || "Unknown");
-    
+
     const initials = assigneeName
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .substring(0, 2);
-    
+
     if (!assigneeMap[assigneeId]) {
       assigneeMap[assigneeId] = {
         id: assigneeId,
@@ -391,7 +424,7 @@ const TaskByAssignee = ({ tasks }) => {
         value: 0,
       };
     }
-    
+
     assigneeMap[assigneeId].value++;
   });
 
@@ -399,7 +432,8 @@ const TaskByAssignee = ({ tasks }) => {
     .sort((a, b) => b.value - a.value)
     .slice(0, 7); // Top 7 assignees
 
-  const maxValue = assigneeData.length > 0 ? Math.max(...assigneeData.map((d) => d.value)) : 1;
+  const maxValue =
+    assigneeData.length > 0 ? Math.max(...assigneeData.map((d) => d.value)) : 1;
 
   if (assigneeData.length === 0) {
     return (
@@ -469,13 +503,13 @@ const TaskCompletionOverTime = ({ tasks }) => {
     "To Do": { completed: 0, incomplete: 0 },
     "In Progress": { completed: 0, incomplete: 0 },
     "In Review": { completed: 0, incomplete: 0 },
-    "Done": { completed: 0, incomplete: 0 },
+    Done: { completed: 0, incomplete: 0 },
   };
 
   tasks.forEach((task) => {
     const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
     const isCompleted = status === "done" || status === "completed";
-    
+
     if (status === "to-do" || status === "todo") {
       if (isCompleted) statusCounts["To Do"].completed++;
       else statusCounts["To Do"].incomplete++;
@@ -572,24 +606,38 @@ const TaskCompletionOverTime = ({ tasks }) => {
             {timeData.length > 0 && (
               <>
                 <path
-                  d={`M 0,${300 - (timeData[0].incomplete / maxValue) * 250} ${timeData
+                  d={`M 0,${
+                    300 - (timeData[0].incomplete / maxValue) * 250
+                  } ${timeData
                     .map(
                       (item, index) =>
-                        `L ${(index * 400) / timeData.length},${300 - (item.incomplete / maxValue) * 250}`
+                        `L ${(index * 400) / timeData.length},${
+                          300 - (item.incomplete / maxValue) * 250
+                        }`
                     )
-                    .join(" ")} L ${400},${300 - (timeData[timeData.length - 1].incomplete / maxValue) * 250} L 400,300 L 0,300 Z`}
+                    .join(" ")} L ${400},${
+                    300 -
+                    (timeData[timeData.length - 1].incomplete / maxValue) * 250
+                  } L 400,300 L 0,300 Z`}
                   fill="#EAB308"
                   opacity="0.4"
                 />
 
                 {/* Area chart for completed tasks */}
                 <path
-                  d={`M 0,${300 - (timeData[0].completed / maxValue) * 250} ${timeData
+                  d={`M 0,${
+                    300 - (timeData[0].completed / maxValue) * 250
+                  } ${timeData
                     .map(
                       (item, index) =>
-                        `L ${(index * 400) / timeData.length},${300 - (item.completed / maxValue) * 250}`
+                        `L ${(index * 400) / timeData.length},${
+                          300 - (item.completed / maxValue) * 250
+                        }`
                     )
-                    .join(" ")} L ${400},${300 - (timeData[timeData.length - 1].completed / maxValue) * 250} L 400,300 L 0,300 Z`}
+                    .join(" ")} L ${400},${
+                    300 -
+                    (timeData[timeData.length - 1].completed / maxValue) * 250
+                  } L 400,300 L 0,300 Z`}
                   fill="#22C55E"
                   opacity="0.6"
                 />
@@ -633,25 +681,29 @@ export default function AnalyticsPage() {
     const loadAnalyticsData = async () => {
       try {
         setLoading(true);
-        
+
         // Store previous stats for trend calculation
         setPreviousStats({ ...stats });
 
         // Fetch tasks and projects in parallel
         const [tasksResponse, projectsResponse] = await Promise.all([
-          taskService.getAllTasks({
-            pageSize: 1000,
-            populate: ["project", "assignee", "createdBy"],
-          }).catch((err) => {
-            console.error("Error fetching tasks:", err);
-            return { data: [] };
-          }),
-          projectService.getAllProjects({
-            pageSize: 100,
-          }).catch((err) => {
-            console.error("Error fetching projects:", err);
-            return { data: [] };
-          }),
+          taskService
+            .getAllTasks({
+              pageSize: 1000,
+              populate: ["project", "assignee", "createdBy"],
+            })
+            .catch((err) => {
+              console.error("Error fetching tasks:", err);
+              return { data: [] };
+            }),
+          projectService
+            .getAllProjects({
+              pageSize: 100,
+            })
+            .catch((err) => {
+              console.error("Error fetching projects:", err);
+              return { data: [] };
+            }),
         ]);
 
         // Transform tasks
@@ -711,13 +763,17 @@ export default function AnalyticsPage() {
     const pollInterval = setInterval(async () => {
       try {
         const [tasksResponse, projectsResponse] = await Promise.all([
-          taskService.getAllTasks({
-            pageSize: 1000,
-            populate: ["project", "assignee", "createdBy"],
-          }).catch(() => ({ data: [] })),
-          projectService.getAllProjects({
-            pageSize: 100,
-          }).catch(() => ({ data: [] })),
+          taskService
+            .getAllTasks({
+              pageSize: 1000,
+              populate: ["project", "assignee", "createdBy"],
+            })
+            .catch(() => ({ data: [] })),
+          projectService
+            .getAllProjects({
+              pageSize: 100,
+            })
+            .catch(() => ({ data: [] })),
         ]);
 
         const transformedTasks = (tasksResponse.data || [])
@@ -771,7 +827,7 @@ export default function AnalyticsPage() {
             completedTasks,
             overdueTasks,
           };
-          
+
           // Only update previous stats if current stats changed
           if (
             prev.totalTasks !== newStats.totalTasks ||
@@ -779,7 +835,7 @@ export default function AnalyticsPage() {
           ) {
             setPreviousStats({ ...prev });
           }
-          
+
           return newStats;
         });
       } catch (error) {
