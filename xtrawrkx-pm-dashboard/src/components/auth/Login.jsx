@@ -22,7 +22,7 @@ const Login = ({ onStateChange }) => {
   // Redirect if already authenticated
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      router.push("/dashboard");
+      router.push("/");
     }
   }, [isAuthenticated, loading, router]);
 
@@ -75,7 +75,7 @@ const Login = ({ onStateChange }) => {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
-        router.replace("/dashboard");
+        router.replace("/");
       } else {
         setLoginError(result.error || "Login failed. Please try again.");
       }

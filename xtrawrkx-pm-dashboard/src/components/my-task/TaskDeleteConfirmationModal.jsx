@@ -1,46 +1,84 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 
 const TaskDeleteConfirmationModal = ({ isOpen, onClose, onConfirm, taskName }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
-        {/* Content */}
-        <div className="p-6 text-center">
-          {/* Icon */}
-          <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Trash2 className="w-8 h-8 text-white" />
-          </div>
-          
-          {/* Title */}
-          <h2 className="text-lg font-bold text-gray-900 mb-2">
-            Deleting {taskName} Task...
-          </h2>
-          
-          {/* Count */}
-          <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-sm">4</span>
-          </div>
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onConfirm}
-              className="px-6 py-2 text-sm font-bold text-white bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-lg transition-all shadow-lg"
-            >
-              Delete {taskName}
-            </button>
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+            <Trash2 className="w-6 h-6 text-red-600" />
           </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Delete Task
+            </h3>
+            <p className="text-sm text-gray-500">
+              This action cannot be undone
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <p className="text-gray-700 mb-3">
+            Are you sure you want to delete{" "}
+            <strong>{taskName || "this task"}</strong>?
+          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-sm text-red-700 font-medium mb-2">
+              ⚠️ This will permanently delete:
+            </p>
+            <ul className="text-sm text-red-600 space-y-1">
+              <li>• Task information and details</li>
+              <li>• All associated subtasks</li>
+              <li>• All comments and activity history</li>
+              <li>• Task assignments and collaborators</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={isDeleting}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={isDeleting}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isDeleting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                Delete Task
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

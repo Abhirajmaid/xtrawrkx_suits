@@ -30,6 +30,15 @@ export function Table({
                   "px-6 py-5 text-left text-xs font-black text-gray-800 uppercase tracking-wider first:rounded-tl-3xl last:rounded-tr-3xl shadow-sm",
                   column.headerClassName
                 )}
+                style={
+                  column.width
+                    ? {
+                        width: column.width,
+                        minWidth: column.width,
+                        maxWidth: column.width,
+                      }
+                    : {}
+                }
               >
                 {column.title || column.label || ""}
               </th>
@@ -59,6 +68,15 @@ export function Table({
                     "px-6 py-4 text-sm text-gray-800 group-hover:text-gray-900 transition-colors duration-300",
                     column.className
                   )}
+                  style={
+                    column.width
+                      ? {
+                          width: column.width,
+                          minWidth: column.width,
+                          maxWidth: column.width,
+                        }
+                      : {}
+                  }
                 >
                   {column.render
                     ? column.render(row[column.key], row, rowIndex)

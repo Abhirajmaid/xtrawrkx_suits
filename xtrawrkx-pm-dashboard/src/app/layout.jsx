@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import "../styles/globals.css";
 import Sidebar from "../components/shared/Sidebar";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
@@ -17,7 +17,6 @@ function LayoutContent({ children }) {
   const { isAuthenticated, loading } = useAuth();
   const { createWorkspace } = useWorkspace();
   const pathname = usePathname();
-  const router = useRouter();
 
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isManageWorkspaceModalOpen, setIsManageWorkspaceModalOpen] =
@@ -25,31 +24,20 @@ function LayoutContent({ children }) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Don't show sidebar on login page
-  const isLoginPage = pathname === "/login";
-  const isSignupPage = pathname === "/signup" || pathname === "/signup-demo";
-  const isUnauthorizedPage = pathname === "/unauthorized";
+  // Don't show sidebar on login page - check both pathname and window.location as fallback
+  const currentPath =
+    typeof window !== "undefined" ? window.location.pathname : pathname;
+  const isLoginPage = pathname === "/login" || currentPath === "/login";
+  const isSignupPage =
+    pathname === "/signup" ||
+    pathname === "/signup-demo" ||
+    currentPath === "/signup" ||
+    currentPath === "/signup-demo";
+  const isUnauthorizedPage =
+    pathname === "/unauthorized" || currentPath === "/unauthorized";
 
-  // Handle authentication redirect - MUST be at the top before any conditional returns
-  // Only redirect unauthenticated users to login (like CRM)
-  useEffect(() => {
-    if (
-      !loading &&
-      !isAuthenticated &&
-      !isLoginPage &&
-      !isUnauthorizedPage &&
-      !isSignupPage
-    ) {
-      router.push("/login");
-    }
-  }, [
-    isAuthenticated,
-    loading,
-    isLoginPage,
-    isUnauthorizedPage,
-    isSignupPage,
-    router,
-  ]);
+  // Note: Authentication redirect is handled by middleware.js
+  // We only need to show appropriate UI based on auth state here
 
   // Workspace modal handlers
   const handleCreateWorkspace = useCallback(
@@ -128,7 +116,7 @@ function LayoutContent({ children }) {
         />
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col overflow-hidden relative z-10">
+        <main className="flex-1 flex flex-col overflow-y-auto relative z-10 bg-white">
           {isValidElement(children)
             ? cloneElement(children, { onSearchClick: openSearchModal })
             : children}
@@ -156,7 +144,19 @@ function LayoutContent({ children }) {
     );
   }
 
-  // For unauthenticated users on protected routes, show loading while redirecting
+  // For unauthenticated users on protected routes
+  // Check actual window location to prevent showing redirect message if already on login page
+  const actualPath =
+    typeof window !== "undefined" ? window.location.pathname : pathname;
+  const isActuallyOnLoginPage =
+    actualPath === "/login" || actualPath.startsWith("/login");
+
+  // If we're actually on the login page, render it (middleware might have redirected)
+  if (isActuallyOnLoginPage) {
+    return <div className="min-h-screen">{children}</div>;
+  }
+
+  // Otherwise show redirecting message (middleware will handle the actual redirect)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="flex flex-col items-center space-y-4">

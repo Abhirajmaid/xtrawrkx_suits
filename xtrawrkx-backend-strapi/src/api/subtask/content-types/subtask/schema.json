@@ -42,6 +42,7 @@
             "enum": [
                 "SCHEDULED",
                 "IN_PROGRESS",
+                "IN_REVIEW",
                 "COMPLETED",
                 "CANCELLED"
             ],

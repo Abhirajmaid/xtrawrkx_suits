@@ -59,8 +59,8 @@ const PrivateNotepad = () => {
   };
 
   return (
-    <div className="card flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-gray-200">
+    <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl flex flex-col h-full">
+      <div className="px-6 py-5 border-b border-white/30">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-gray-900">Private Notepad</h3>

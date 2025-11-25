@@ -4,3 +4,6 @@ export { Table } from './Table';
 export { StatCard } from './StatCard';
 export { Input } from './Input';
 export { Select } from './Select';
+export { Textarea } from './Textarea';
+export { EmptyState } from './EmptyState';
+export { Button } from './Button';

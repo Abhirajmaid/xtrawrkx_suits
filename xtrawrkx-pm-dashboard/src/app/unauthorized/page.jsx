@@ -14,7 +14,7 @@ export default function UnauthorizedPage() {
   };
 
   const handleGoHome = () => {
-    router.push("/dashboard");
+    router.push("/");
   };
 
   const handleLogout = () => {

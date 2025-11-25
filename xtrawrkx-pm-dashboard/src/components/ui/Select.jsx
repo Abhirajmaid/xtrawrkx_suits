@@ -36,6 +36,7 @@ export function Select({
             className
           )}
           onChange={handleChange}
+          value={props.value || ""}
           {...props}
         >
           <option value="">{placeholder}</option>

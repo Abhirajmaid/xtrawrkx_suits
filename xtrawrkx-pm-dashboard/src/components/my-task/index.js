@@ -6,3 +6,5 @@ export { default as TasksListView } from "./TasksListView";
 export { default as TaskKanban } from "./TaskKanban";
 export { default as TaskDetailModal } from "./TaskDetailModal";
 export { default as TaskDeleteConfirmationModal } from "./TaskDeleteConfirmationModal";
+export { default as AddTaskModal } from "./AddTaskModal";
+export { default as CollaboratorModal } from "./CollaboratorModal";

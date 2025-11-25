@@ -12,10 +12,6 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
      */
     async findAll(ctx) {
         try {
-            console.log('=== findAll method called ===');
-            console.log('Request URL:', ctx.request.url);
-            console.log('Request method:', ctx.request.method);
-            console.log('Query object:', ctx.query);
 
             const { query } = ctx;
 
@@ -63,11 +59,8 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 }
             }
 
-            console.log('Query parameters:', { filters, sort, pagination });
-
             // First, let's check if there are any tasks at all without filters
             const allTasksCount = await strapi.db.query('api::task.task').count();
-            console.log('Total tasks in database (using db.query):', allTasksCount);
 
             // Always use our own populate configuration - ignore any populate from query
             const tasks = await strapi.entityService.findPage('api::task.task', {
@@ -75,6 +68,8 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 populate: {
                     createdBy: true,
                     assignee: true,
+                    projects: true,
+                    collaborators: true,
                     leadCompany: true,
                     clientAccount: true,
                     contact: true,
@@ -84,25 +79,13 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 pagination
             });
 
-            console.log('Tasks fetched from database (entityService.findPage):', tasks);
-            console.log('Number of tasks:', tasks?.data?.length || 0);
-            console.log('Tasks response structure:', {
-                hasData: !!tasks?.data,
-                dataIsArray: Array.isArray(tasks?.data),
-                dataLength: tasks?.data?.length || 0,
-                hasMeta: !!tasks?.meta,
-                metaPagination: tasks?.meta?.pagination
-            });
-
             // Also try using db.query directly as a fallback
             if ((!tasks?.data || tasks.data.length === 0) && allTasksCount > 0) {
-                console.log('Warning: entityService returned empty but db.query shows tasks exist. Trying db.query...');
                 const dbTasks = await strapi.db.query('api::task.task').findMany({
                     orderBy: sort,
                     limit: pagination.pageSize,
                     offset: (pagination.page - 1) * pagination.pageSize,
                 });
-                console.log('Tasks from db.query:', dbTasks.length);
 
                 if (dbTasks.length > 0) {
                     // Populate manually
@@ -112,6 +95,8 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                                 populate: {
                                     createdBy: true,
                                     assignee: true,
+                                    projects: true,
+                                    collaborators: true,
                                     leadCompany: true,
                                     clientAccount: true,
                                     contact: true,
@@ -189,7 +174,8 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 },
                 populate: {
                     createdBy: true,
-                    assignee: true
+                    assignee: true,
+                    collaborators: true
                 },
                 sort: {
                     createdAt: 'desc'
@@ -204,6 +190,73 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
     },
 
     /**
+     * Get a single task by ID
+     */
+    async findOne(ctx) {
+        try {
+            const { id } = ctx.params;
+            const { query } = ctx;
+
+            // Parse populate from query string - SIMPLIFIED VERSION
+            let populate = {};
+            if (query.populate) {
+                const populateFields = typeof query.populate === 'string'
+                    ? query.populate.split(',')
+                    : Array.isArray(query.populate)
+                        ? query.populate
+                        : [];
+
+                // Field name mapping for backward compatibility
+                const fieldMapping = {
+                    'project': 'projects' // Map singular "project" to plural "projects"
+                };
+
+                // Simple approach: only handle top-level fields for now
+                // Nested populate will be handled separately if needed
+                populateFields.forEach(field => {
+                    const trimmedField = field.trim();
+                    // Skip nested fields (containing '.') for now
+                    if (trimmedField && !trimmedField.includes('.')) {
+                        // Map field name if needed
+                        const mappedField = fieldMapping[trimmedField] || trimmedField;
+                        populate[mappedField] = true;
+                    }
+                });
+
+            } else {
+                // Default populate
+                populate = {
+                    createdBy: true,
+                    assignee: true,
+                    projects: true,
+                    subtasks: {
+                        assignee: true,
+                        childSubtasks: true
+                    },
+                    leadCompany: true,
+                    clientAccount: true,
+                    contact: true,
+                    deal: true,
+                    collaborators: true
+                };
+            }
+
+            const task = await strapi.entityService.findOne('api::task.task', id, {
+                populate
+            });
+
+            if (!task) {
+                return ctx.notFound('Task not found');
+            }
+
+            return { data: task };
+        } catch (error) {
+            console.error('Error fetching task:', error);
+            return ctx.badRequest(`Failed to fetch task: ${error.message}`);
+        }
+    },
+
+    /**
      * Create a new task
      */
     async create(ctx) {
@@ -212,23 +265,6 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
 
             if (!data || !data.title) {
                 return ctx.badRequest('Title is required');
-            }
-
-            // Map entity types to correct field names
-            const entityFieldMap = {
-                leadCompany: 'leadCompany',
-                clientAccount: 'clientAccount',
-                contact: 'contact',
-                deal: 'deal'
-            };
-
-            const entityField = entityFieldMap[data.entityType];
-            if (!entityField) {
-                return ctx.badRequest('Invalid entity type');
-            }
-
-            if (!data.entityId) {
-                return ctx.badRequest('Entity ID is required');
             }
 
             let userId = data.createdBy || ctx.state?.user?.id;
@@ -257,33 +293,8 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 return ctx.badRequest('Failed to verify user');
             }
 
-            // Verify entity exists and get numeric ID
-            const entityModelMap = {
-                leadCompany: 'api::lead-company.lead-company',
-                clientAccount: 'api::client-account.client-account',
-                contact: 'api::contact.contact',
-                deal: 'api::deal.deal'
-            };
-
-            const entityModel = entityModelMap[data.entityType];
-            const entityIdNum = parseInt(data.entityId);
-
-            try {
-                const entity = await strapi.db.query(entityModel).findOne({
-                    where: { id: entityIdNum },
-                });
-
-                if (!entity) {
-                    return ctx.badRequest(`Entity ${entityField} with ID ${entityIdNum} not found`);
-                }
-            } catch (entityError) {
-                console.error('Error verifying entity:', entityError);
-                return ctx.badRequest('Failed to verify entity');
-            }
-
             // Prepare task data with numeric IDs for relations
             const userRelationIdNum = userRecord.id || parseInt(userRecord.documentId) || parseInt(userId);
-            const entityRelationIdNum = entityIdNum;
 
             // Handle assignee if provided
             let assigneeId = null;
@@ -301,18 +312,98 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 }
             }
 
+            // Determine if this is a CRM task or PM task
+            let entityField = null;
+            let entityRelationIdNum = null;
+
+            // Check if it's a CRM task (has entityType and entityId)
+            if (data.entityType && data.entityId) {
+                // Map entity types to correct field names
+                const entityFieldMap = {
+                    leadCompany: 'leadCompany',
+                    clientAccount: 'clientAccount',
+                    contact: 'contact',
+                    deal: 'deal'
+                };
+
+                entityField = entityFieldMap[data.entityType];
+                if (!entityField) {
+                    return ctx.badRequest('Invalid entity type');
+                }
+
+                // Verify entity exists and get numeric ID
+                const entityModelMap = {
+                    leadCompany: 'api::lead-company.lead-company',
+                    clientAccount: 'api::client-account.client-account',
+                    contact: 'api::contact.contact',
+                    deal: 'api::deal.deal'
+                };
+
+                const entityModel = entityModelMap[data.entityType];
+                const entityIdNum = parseInt(data.entityId);
+
+                try {
+                    const entity = await strapi.db.query(entityModel).findOne({
+                        where: { id: entityIdNum },
+                    });
+
+                    if (!entity) {
+                        return ctx.badRequest(`Entity ${entityField} with ID ${entityIdNum} not found`);
+                    }
+                    entityRelationIdNum = entityIdNum;
+                } catch (entityError) {
+                    console.error('Error verifying entity:', entityError);
+                    return ctx.badRequest('Failed to verify entity');
+                }
+            }
+
+            // Handle projects if provided (PM task)
+            let projectIds = [];
+            if (data.projects !== undefined && Array.isArray(data.projects) && data.projects.length > 0) {
+                try {
+                    const projectIdNums = data.projects
+                        .map(p => typeof p === 'object' ? p.id : p)
+                        .map(id => parseInt(id))
+                        .filter(id => !isNaN(id));
+                    
+                    // Verify all projects exist
+                    for (const projectId of projectIdNums) {
+                        const projectRecord = await strapi.db.query('api::project.project').findOne({
+                            where: { id: projectId },
+                        });
+                        if (projectRecord) {
+                            projectIds.push(projectRecord.id);
+                        }
+                    }
+                } catch (projectError) {
+                    console.error('Error finding projects:', projectError);
+                    return ctx.badRequest('One or more projects not found');
+                }
+            }
+
+            // Build task data
             const taskData = {
                 title: data.title,
                 description: data.description || null,
                 status: data.status || 'SCHEDULED',
                 priority: data.priority || 'MEDIUM',
                 scheduledDate: data.scheduledDate || null,
+                progress: data.progress || 0,
+                tags: data.tags || null,
                 createdBy: userRelationIdNum,
-                [entityField]: entityRelationIdNum,
             };
 
+            // Add relations
             if (assigneeId) {
                 taskData.assignee = assigneeId;
+            }
+
+            if (entityField && entityRelationIdNum) {
+                taskData[entityField] = entityRelationIdNum;
+            }
+
+            if (projectIds.length > 0) {
+                taskData.projects = projectIds;
             }
 
             // Create task
@@ -324,7 +415,12 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             const populatedTask = await strapi.entityService.findOne('api::task.task', task.id, {
                 populate: {
                     createdBy: true,
-                    assignee: true
+                    assignee: true,
+                    projects: true,
+                    leadCompany: true,
+                    clientAccount: true,
+                    contact: true,
+                    deal: true
                 }
             });
 
@@ -350,20 +446,93 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             const { id } = ctx.params;
             const { data } = ctx.request.body;
 
+
             // Get the existing task
             const existingTask = await strapi.entityService.findOne('api::task.task', id, {
                 populate: ['createdBy', 'assignee']
             });
 
             if (!existingTask) {
+                console.error(`Task ${id} not found`);
                 return ctx.notFound('Task not found');
             }
 
+
             // Handle status change to COMPLETED
             const updateData = { ...data };
-            if (data.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
+            
+            // Remove any 'project' key (old schema) - we handle 'projects' separately below
+            if (updateData.project !== undefined) {
+                delete updateData.project;
+            }
+
+            // Map frontend status values to backend enum values
+            // Handle both frontend format and already-transformed Strapi format
+            if (data.status !== undefined && data.status !== null) {
+                // Normalize the status to handle case variations
+                const normalizedStatus = String(data.status).trim();
+
+                const statusMap = {
+                    // Frontend formats (case-insensitive matching)
+                    'to do': 'SCHEDULED',
+                    'todo': 'SCHEDULED',
+                    'in progress': 'IN_PROGRESS',
+                    'in review': 'IN_REVIEW',
+                    'done': 'COMPLETED',
+                    'completed': 'COMPLETED',
+                    'cancelled': 'CANCELLED',
+                    'canceled': 'CANCELLED', // Handle US spelling
+                    // Exact matches (case-sensitive for already-transformed values)
+                    'To Do': 'SCHEDULED',
+                    'In Progress': 'IN_PROGRESS',
+                    'In Review': 'IN_REVIEW',
+                    'Done': 'COMPLETED',
+                    'Cancelled': 'CANCELLED',
+                    // Already in Strapi format - pass through
+                    'SCHEDULED': 'SCHEDULED',
+                    'IN_PROGRESS': 'IN_PROGRESS',
+                    'IN_REVIEW': 'IN_REVIEW',
+                    'COMPLETED': 'COMPLETED',
+                    'CANCELLED': 'CANCELLED'
+                };
+
+                // Try exact match first, then case-insensitive
+                let mappedStatus = statusMap[normalizedStatus] || statusMap[normalizedStatus.toLowerCase()];
+
+                if (mappedStatus) {
+                    updateData.status = mappedStatus;
+                } else {
+                    // If not in map, try to normalize to uppercase with underscores
+                    const normalized = normalizedStatus.toUpperCase().replace(/\s+/g, '_');
+                    // Validate against schema enum values
+                    const validStatuses = ['SCHEDULED', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'CANCELLED'];
+                    if (validStatuses.includes(normalized)) {
+                        updateData.status = normalized;
+                    } else {
+                        updateData.status = data.status;
+                    }
+                }
+            }
+
+            // Map frontend priority values to backend enum values
+            if (data.priority !== undefined && data.priority !== null) {
+                const priorityMap = {
+                    'Low': 'LOW',
+                    'low': 'LOW',
+                    'LOW': 'LOW',
+                    'Medium': 'MEDIUM',
+                    'medium': 'MEDIUM',
+                    'MEDIUM': 'MEDIUM',
+                    'High': 'HIGH',
+                    'high': 'HIGH',
+                    'HIGH': 'HIGH'
+                };
+                updateData.priority = priorityMap[data.priority] || data.priority;
+            }
+
+            if (updateData.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
                 updateData.completedDate = new Date().toISOString();
-            } else if (data.status !== 'COMPLETED' && existingTask.status === 'COMPLETED') {
+            } else if (updateData.status !== 'COMPLETED' && existingTask.status === 'COMPLETED') {
                 updateData.completedDate = null;
             }
 
@@ -388,13 +557,85 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 }
             }
 
+            // Handle projects if provided
+            if (data.projects !== undefined) {
+                if (Array.isArray(data.projects) && data.projects.length > 0) {
+                    try {
+                        const projectIdNums = data.projects
+                            .map(p => typeof p === 'object' ? p.id : p)
+                            .map(id => parseInt(id))
+                            .filter(id => !isNaN(id));
+                        
+                        // Verify all projects exist
+                        const validProjectIds = [];
+                        for (const projectId of projectIdNums) {
+                            const projectRecord = await strapi.db.query('api::project.project').findOne({
+                                where: { id: projectId },
+                            });
+                            if (projectRecord) {
+                                validProjectIds.push(projectRecord.id);
+                            }
+                        }
+                        updateData.projects = validProjectIds;
+                    } catch (projectError) {
+                        console.error('Error finding projects:', projectError);
+                        delete updateData.projects;
+                    }
+                } else {
+                    // Empty array means remove all projects
+                    updateData.projects = [];
+                }
+            }
+
+            // Handle collaborators if provided
+            if (data.collaborators !== undefined) {
+                if (Array.isArray(data.collaborators) && data.collaborators.length > 0) {
+                    try {
+                        // Convert collaborator IDs to integers and validate they exist
+                        const collaboratorIds = data.collaborators
+                            .map(collabId => {
+                                const id = typeof collabId === 'object' ? collabId.id : collabId;
+                                return parseInt(id, 10);
+                            })
+                            .filter(id => !isNaN(id));
+
+                        // Verify all collaborator IDs exist
+                        const validCollaborators = [];
+                        for (const collabId of collaboratorIds) {
+                            const userRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                                where: { id: collabId },
+                            });
+                            if (userRecord) {
+                                validCollaborators.push(userRecord.id);
+                            }
+                        }
+                        updateData.collaborators = validCollaborators;
+                    } catch (collabError) {
+                        console.error('Error finding collaborators:', collabError);
+                        // Don't update collaborators if there's an error
+                        delete updateData.collaborators;
+                    }
+                } else {
+                    // Empty array means remove all collaborators
+                    updateData.collaborators = [];
+                }
+            }
+
+            // Remove any remaining 'project' key (old schema) before sending to entityService
+            if (updateData.project !== undefined) {
+                delete updateData.project;
+            }
+
             const updatedTask = await strapi.entityService.update('api::task.task', id, {
                 data: updateData,
                 populate: {
                     createdBy: true,
-                    assignee: true
+                    assignee: true,
+                    projects: true,
+                    collaborators: true
                 }
             });
+
 
             return { data: updatedTask };
         } catch (error) {

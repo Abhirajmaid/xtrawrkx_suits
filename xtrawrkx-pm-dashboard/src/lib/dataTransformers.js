@@ -10,6 +10,7 @@ export const transformStatus = (strapiStatus) => {
     const statusMap = {
         'SCHEDULED': 'To Do',
         'IN_PROGRESS': 'In Progress',
+        'IN_REVIEW': 'In Review',
         'COMPLETED': 'Done',
         'CANCELLED': 'Cancelled',
         'TODO': 'To Do',
@@ -24,25 +25,74 @@ export const transformStatus = (strapiStatus) => {
 };
 
 /**
+ * Transform Strapi project status to frontend status
+ * @param {string} strapiStatus - Strapi project status enum
+ * @returns {string} - Frontend project status
+ */
+export const transformProjectStatus = (strapiStatus) => {
+    const statusMap = {
+        'PLANNING': 'Planning',
+        'ACTIVE': 'Active',
+        'IN_PROGRESS': 'In Progress',
+        'COMPLETED': 'Completed',
+        'ON_HOLD': 'On Hold',
+        'CANCELLED': 'Cancelled'
+    };
+    
+    return statusMap[strapiStatus] || strapiStatus || 'Planning';
+};
+
+/**
  * Transform frontend status to Strapi status
  * @param {string} frontendStatus - Frontend status
  * @returns {string} - Strapi status enum
  */
 export const transformStatusToStrapi = (frontendStatus) => {
+    if (!frontendStatus) return 'SCHEDULED';
+    
     const statusMap = {
+        // Task statuses
         'To Do': 'SCHEDULED',
         'In Progress': 'IN_PROGRESS',
+        'In Review': 'IN_REVIEW',
         'Done': 'COMPLETED',
-        'Completed': 'COMPLETED',
         'Cancelled': 'CANCELLED',
+        'Canceled': 'CANCELLED', // Handle US spelling
         // Project statuses
         'Planning': 'PLANNING',
         'Active': 'ACTIVE',
-        'In Progress': 'IN_PROGRESS',
+        'Completed': 'COMPLETED',
         'On Hold': 'ON_HOLD'
     };
     
-    return statusMap[frontendStatus] || frontendStatus.toUpperCase().replace(' ', '_');
+    // Try exact match first
+    if (statusMap[frontendStatus]) {
+        return statusMap[frontendStatus];
+    }
+    
+    // Try case-insensitive match
+    const lowerStatus = frontendStatus.toLowerCase();
+    const lowerMap = {
+        // Task statuses
+        'to do': 'SCHEDULED',
+        'in progress': 'IN_PROGRESS',
+        'in review': 'IN_REVIEW',
+        'done': 'COMPLETED',
+        'completed': 'COMPLETED',
+        'cancelled': 'CANCELLED',
+        'canceled': 'CANCELLED',
+        // Project statuses
+        'planning': 'PLANNING',
+        'active': 'ACTIVE',
+        'on hold': 'ON_HOLD'
+    };
+    
+    if (lowerMap[lowerStatus]) {
+        return lowerMap[lowerStatus];
+    }
+    
+    // Fallback: normalize to uppercase with underscores
+    return frontendStatus.toUpperCase().replace(/\s+/g, '_');
 };
 
 /**
@@ -144,17 +194,28 @@ export const formatRelativeDate = (date) => {
 export const transformUser = (strapiUser) => {
     if (!strapiUser) return null;
     
+    // Handle case where strapiUser might be just an ID
+    if (typeof strapiUser === 'number' || typeof strapiUser === 'string') {
+        return null; // Can't transform just an ID without full user data
+    }
+    
+    // Handle case where user data might be minimal
+    const name = strapiUser.name || 
+                 `${strapiUser.firstName || ''} ${strapiUser.lastName || ''}`.trim() ||
+                 strapiUser.username ||
+                 'Unknown User';
+    
     return {
         id: strapiUser.id,
-        name: `${strapiUser.firstName || ''} ${strapiUser.lastName || ''}`.trim(),
+        name: name,
         firstName: strapiUser.firstName,
         lastName: strapiUser.lastName,
         email: strapiUser.email,
         avatar: strapiUser.avatar?.url || null,
-        initials: getInitials(strapiUser.firstName, strapiUser.lastName),
+        initials: getInitials(strapiUser.firstName, strapiUser.lastName) || name.charAt(0).toUpperCase(),
         color: getUserColor(strapiUser.id),
-        role: strapiUser.primaryRole?.name || 'User',
-        isActive: strapiUser.isActive
+        role: strapiUser.primaryRole?.name || strapiUser.role || 'User',
+        isActive: strapiUser.isActive !== undefined ? strapiUser.isActive : true
     };
 };
 
@@ -198,7 +259,7 @@ export const transformProject = (strapiProject) => {
         name: strapiProject.name,
         slug: strapiProject.slug,
         description: strapiProject.description,
-        status: transformStatus(strapiProject.status),
+        status: transformProjectStatus(strapiProject.status),
         startDate: formatDate(strapiProject.startDate),
         endDate: formatDate(strapiProject.endDate),
         budget: strapiProject.budget,
@@ -288,15 +349,18 @@ export const transformTask = (strapiTask) => {
         progress: strapiTask.progress || 0,
         tags: strapiTask.tags || [],
         // Relations
-        project: transformProject(strapiTask.project),
+        projects: (strapiTask.projects || (strapiTask.project ? [strapiTask.project] : [])).map(transformProject).filter(Boolean),
+        // Backward compatibility: keep project as first project for components that still reference it
+        project: transformProject(strapiTask.projects?.[0] || strapiTask.project),
         assignee: transformUser(strapiTask.assignee),
         assigneeId: strapiTask.assignee?.id,
         createdBy: transformUser(strapiTask.createdBy),
+        collaborators: strapiTask.collaborators?.map(transformUser) || [],
         subtasks: strapiTask.subtasks?.map(transformSubtask) || [],
         // Additional computed fields
         time: strapiTask.scheduledDate ? formatDate(strapiTask.scheduledDate, { includeTime: true }) : null,
-        hasMultipleAssignees: false, // Single assignee in current schema
-        borderColor: getTaskBorderColor(strapiTask.project?.name)
+        hasMultipleAssignees: (strapiTask.collaborators?.length || 0) > 1 || false,
+        borderColor: getTaskBorderColor(strapiTask.projects?.[0]?.name || strapiTask.project?.name)
     };
 };
 
@@ -468,6 +532,7 @@ export const flattenHierarchy = (tree, childrenKey = 'children') => {
 // Export all transformers as default object
 export default {
     transformStatus,
+    transformProjectStatus,
     transformStatusToStrapi,
     transformPriority,
     transformPriorityToStrapi,

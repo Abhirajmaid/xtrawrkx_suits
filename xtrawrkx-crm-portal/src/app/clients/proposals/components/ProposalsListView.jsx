@@ -23,12 +23,16 @@ export default function ProposalsListView({
             if (selected) {
               setSelectedProposals([...selectedProposals, id]);
             } else {
-              setSelectedProposals(selectedProposals.filter((item) => item !== id));
+              setSelectedProposals(
+                selectedProposals.filter((item) => item !== id)
+              );
             }
           }}
           onSelectAll={(selected) => {
             if (selected) {
-              setSelectedProposals(filteredProposals.map((proposal) => proposal.id));
+              setSelectedProposals(
+                filteredProposals.map((proposal) => proposal.id)
+              );
             } else {
               setSelectedProposals([]);
             }
@@ -67,4 +71,3 @@ export default function ProposalsListView({
     </div>
   );
 }
-

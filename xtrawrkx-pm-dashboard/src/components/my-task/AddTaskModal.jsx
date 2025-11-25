@@ -1,0 +1,525 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { X, Save, Calendar, Target, Tag, Plus } from "lucide-react";
+import { Input } from "../ui/Input";
+import { Select } from "../ui/Select";
+import taskService from "../../lib/taskService";
+import projectService from "../../lib/projectService";
+import apiClient from "../../lib/apiClient";
+import { useAuth } from "../../contexts/AuthContext";
+
+const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    project: "",
+    assignee: "",
+    scheduledDate: "",
+    priority: "MEDIUM",
+    status: "SCHEDULED",
+    progress: 0,
+  });
+  const [newTag, setNewTag] = useState("");
+  const [tags, setTags] = useState([]);
+  const [errors, setErrors] = useState({});
+
+  // Load projects and users when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadFormData();
+    } else {
+      // Reset form when modal closes
+      setFormData({
+        title: "",
+        description: "",
+        project: "",
+        assignee: "",
+        scheduledDate: "",
+        priority: "MEDIUM",
+        status: "SCHEDULED",
+        progress: 0,
+      });
+      setTags([]);
+      setNewTag("");
+      setErrors({});
+    }
+  }, [isOpen]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  const loadFormData = async () => {
+    setLoadingData(true);
+
+    // Load projects and users independently so one failure doesn't break the other
+    let projectsData = [];
+    let usersData = [];
+
+    // Try to load projects (but don't fail if it errors)
+    try {
+      const projectsResponse = await projectService.getAllProjects({
+        pageSize: 100,
+        populate: ["projectManager", "teamMembers"],
+      });
+      projectsData = projectsResponse.data || [];
+      setProjects(projectsData);
+    } catch (projectError) {
+      console.error("Error fetching projects:", projectError);
+      setProjects([]); // Set empty array but continue
+    }
+
+    // Always try to fetch users from API (independent of projects)
+    try {
+      const usersResponse = await apiClient.get("/api/xtrawrkx-users", {
+        "pagination[pageSize]": 100,
+        populate: "primaryRole,userRoles,department",
+        "filters[isActive][$eq]": "true", // Strapi might expect string
+      });
+
+      // Process users from API response
+      // Strapi v4 can return: { data: [{ id, attributes: {...} }], meta: {...} } or just an array
+      if (usersResponse) {
+        // Check if response has data property (Strapi v4 format)
+        if (usersResponse.data && Array.isArray(usersResponse.data)) {
+          usersData = usersResponse.data;
+        }
+        // Check if response is directly an array
+        else if (Array.isArray(usersResponse)) {
+          usersData = usersResponse;
+        }
+        // Check if response has a different structure
+        else if (usersResponse.users && Array.isArray(usersResponse.users)) {
+          usersData = usersResponse.users;
+        }
+      }
+    } catch (userError) {
+      console.error("Error fetching users from API:", userError);
+      console.error("Error details:", userError.message);
+      // Fallback: Extract users from projects if available
+      if (projectsData.length > 0) {
+        const allUsers = new Map();
+        projectsData.forEach((project) => {
+          if (project.teamMembers && Array.isArray(project.teamMembers)) {
+            project.teamMembers.forEach((member) => {
+              if (member && member.id && !allUsers.has(member.id)) {
+                allUsers.set(member.id, member);
+              }
+            });
+          }
+          if (
+            project.projectManager &&
+            project.projectManager.id &&
+            !allUsers.has(project.projectManager.id)
+          ) {
+            allUsers.set(project.projectManager.id, project.projectManager);
+          }
+        });
+        usersData = Array.from(allUsers.values());
+      }
+    }
+
+    // Transform users to consistent format
+    const transformedUsers = usersData
+      .filter((user) => user && user.id) // Filter out invalid users
+      .map((user) => {
+        // Handle Strapi v4 format (with attributes) or direct format
+        const userData = user.attributes || user;
+        const firstName = userData.firstName || "";
+        const lastName = userData.lastName || "";
+        const email = userData.email || "";
+        const name =
+          `${firstName} ${lastName}`.trim() || email || "Unknown User";
+
+        return {
+          id: user.id,
+          firstName,
+          lastName,
+          email,
+          name,
+        };
+      });
+
+    setUsers(transformedUsers);
+    setLoadingData(false);
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: "",
+      }));
+    }
+  };
+
+  const handleAddTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) {
+      newErrors.title = "Task title is required";
+    }
+    // Project is optional for now
+    if (!formData.assignee) {
+      newErrors.assignee = "Assignee is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      // Prepare task data for Strapi
+      const taskData = {
+        title: formData.title,
+        description: formData.description || "",
+        // Project is optional - only include if provided
+        ...(formData.project && { project: parseInt(formData.project) }),
+        assignee: parseInt(formData.assignee),
+        scheduledDate: formData.scheduledDate
+          ? new Date(formData.scheduledDate + "T00:00:00").toISOString()
+          : null,
+        priority: formData.priority,
+        status: formData.status,
+        progress: formData.progress,
+        tags: tags.length > 0 ? tags : null,
+        // Add createdBy - use user ID from auth context
+        createdBy: user?.id || user?._id || user?.xtrawrkxUserId || 1,
+      };
+
+      const response = await taskService.createTask(taskData);
+
+      // Handle Strapi response format - response.data is already returned from taskService
+      if (onTaskCreated) {
+        onTaskCreated(response);
+      }
+
+      onClose();
+    } catch (error) {
+      console.error("Error creating task:", error);
+      setErrors({ submit: error.message || "Failed to create task" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const priorityOptions = [
+    { value: "LOW", label: "Low" },
+    { value: "MEDIUM", label: "Medium" },
+    { value: "HIGH", label: "High" },
+  ];
+
+  const statusOptions = [
+    { value: "SCHEDULED", label: "To Do" },
+    { value: "IN_PROGRESS", label: "In Progress" },
+    { value: "COMPLETED", label: "Done" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ];
+
+  const projectOptions = projects.map((project) => ({
+    value: project.id,
+    label: project.name,
+  }));
+
+  const userOptions =
+    users.length > 0
+      ? users.map((user) => {
+          const label =
+            user.name ||
+            `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+            user.email ||
+            "Unknown User";
+          return {
+            value: String(user.id), // Ensure value is a string for select
+            label: label,
+          };
+        })
+      : [];
+
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
+      onClick={handleBackdropClick}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Create New Task
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+          {loadingData ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading form data...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Target className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Basic Information
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  <Input
+                    label="Task Title"
+                    placeholder="Enter task title"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange("title", e.target.value)}
+                    error={errors.title}
+                    required
+                  />
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      placeholder="Describe the task requirements"
+                      value={formData.description}
+                      onChange={(e) =>
+                        handleInputChange("description", e.target.value)
+                      }
+                      className="block w-full rounded-lg border border-gray-300 shadow-sm px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Select
+                      label="Project"
+                      value={formData.project}
+                      onChange={(value) => handleInputChange("project", value)}
+                      options={projectOptions}
+                      placeholder="Select a project (optional)"
+                      error={errors.project}
+                    />
+
+                    <Select
+                      label="Assignee"
+                      value={formData.assignee}
+                      onChange={(value) => handleInputChange("assignee", value)}
+                      options={userOptions}
+                      placeholder="Select an assignee"
+                      error={errors.assignee}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Task Details */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Task Details
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  <Input
+                    label="Due Date"
+                    type="date"
+                    value={formData.scheduledDate}
+                    onChange={(e) =>
+                      handleInputChange("scheduledDate", e.target.value)
+                    }
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Select
+                      label="Priority"
+                      value={formData.priority}
+                      onChange={(value) => handleInputChange("priority", value)}
+                      options={priorityOptions}
+                    />
+
+                    <Select
+                      label="Status"
+                      value={formData.status}
+                      onChange={(value) => handleInputChange("status", value)}
+                      options={statusOptions}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Progress (%)
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={formData.progress}
+                      onChange={(e) =>
+                        handleInputChange("progress", parseInt(e.target.value))
+                      }
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0%</span>
+                      <span className="font-medium">{formData.progress}%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Tag className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Tags</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a tag"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddTag();
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddTag}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="hover:bg-blue-200 rounded-full p-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {errors.submit && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{errors.submit}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </form>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting || loadingData}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Creating...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Create Task
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AddTaskModal;

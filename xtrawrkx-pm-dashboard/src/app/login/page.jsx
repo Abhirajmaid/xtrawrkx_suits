@@ -23,7 +23,7 @@ export default function LoginPage() {
   // Redirect if already authenticated (like CRM)
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      router.push("/dashboard");
+      router.push("/");
     }
   }, [isAuthenticated, loading, router]);
 
@@ -80,7 +80,7 @@ export default function LoginPage() {
         console.log("Login successful, redirecting to dashboard");
         // Small delay to ensure localStorage is saved
         setTimeout(() => {
-          window.location.href = "/dashboard";
+          window.location.href = "/";
         }, 100);
       } else {
         setLoginError(result.error || "Login failed. Please try again.");

@@ -3,10 +3,6 @@
 import {
   Plus,
   Calendar,
-  Columns,
-  Filter,
-  ChevronUp,
-  ChevronDown,
   CheckSquare,
   User,
   Clock,
@@ -15,8 +11,6 @@ import {
   Share,
   MessageSquare,
   Users,
-  Table,
-  LayoutGrid,
   Paperclip,
   Smile,
   Search,
@@ -25,31 +19,84 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  FileText,
+  DollarSign,
+  Target,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Check,
+  GitBranch,
+  ChevronRight,
+  ChevronDown,
+  Eye,
+  Trash2,
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
-  getProjectBySlug,
   getChannelsByProjectId,
   getMessagesByChannelId,
   teamMembers,
 } from "../../../data/centralData";
+import { TaskContextMenuProject } from "../../../components/projects";
 import {
-  TaskContextMenuProject,
-  TaskKanban,
-} from "../../../components/projects";
-import { TaskDetailModal } from "../../../components/shared";
-import { getEnrichedTask } from "../../../data/centralData";
+  TaskDetailModal,
+  TasksListView,
+  TaskDeleteConfirmationModal,
+} from "../../../components/my-task";
+import ProjectSelector from "../../../components/my-task/ProjectSelector";
 import PageHeader from "../../../components/shared/PageHeader";
 import { useRouter } from "next/navigation";
+import projectService from "../../../lib/projectService";
+import {
+  transformProject,
+  transformTask,
+  transformSubtask,
+  transformStatusToStrapi,
+  transformPriorityToStrapi,
+  transformComment,
+  formatDate,
+} from "../../../lib/dataTransformers";
+import taskService from "../../../lib/taskService";
+import subtaskService from "../../../lib/subtaskService";
+import commentService from "../../../lib/commentService";
+import CollaboratorModal from "../../../components/my-task/CollaboratorModal";
 
 export default function ProjectDetail({ params }) {
   const router = useRouter();
   const [project, setProject] = useState(null);
-  const [activeTab, setActiveTab] = useState("tasks");
-  const [activeView, setActiveView] = useState("table");
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [newMessage, setNewMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTaskName, setEditingTaskName] = useState("");
+  const [collaboratorModal, setCollaboratorModal] = useState({
+    isOpen: false,
+    task: null,
+  });
+  const [expandedSubtasks, setExpandedSubtasks] = useState({});
+  const [loadedSubtasks, setLoadedSubtasks] = useState({});
+  const [subtaskDropdownPositions, setSubtaskDropdownPositions] = useState({});
+  const subtaskButtonRefs = useRef({});
+
+  // Close subtask dropdowns on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setExpandedSubtasks({});
+    };
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, []);
+  const [projects, setProjects] = useState([]);
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    task: null,
+  });
 
   // Row dropdown state
   const [rowDropdown, setRowDropdown] = useState({
@@ -89,19 +136,259 @@ export default function ProjectDetail({ params }) {
 
   // Note: Drag and drop functionality can be added in the future
 
-  // Load project data
+  // Load project data from API
   useEffect(() => {
-    const projectData = getProjectBySlug(params.slug);
-    setProject(projectData);
+    const loadProject = async () => {
+      if (!params?.slug) return;
 
-    // Set first channel as selected when project loads
-    if (projectData) {
-      const channels = getChannelsByProjectId(projectData.id);
-      if (channels.length > 0) {
-        setSelectedChannel(channels[0]);
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Handle both Promise-based and direct params (Next.js App Router compatibility)
+        let slugParam;
+        if (params.slug instanceof Promise) {
+          const resolvedParams = await params;
+          slugParam = resolvedParams.slug;
+        } else {
+          slugParam = params.slug;
+        }
+
+        if (!slugParam) {
+          throw new Error("Project identifier is required");
+        }
+
+        let strapiProject = null;
+
+        // Try to parse as ID first (if it's numeric)
+        const parsedId = parseInt(slugParam, 10);
+        if (!isNaN(parsedId)) {
+          // It's a numeric ID, fetch by ID
+          try {
+            strapiProject = await projectService.getProjectById(parsedId, [
+              "projectManager",
+              "teamMembers",
+              "tasks",
+              "tasks.assignee",
+              "tasks.collaborators",
+              "tasks.project",
+              "tasks.subtasks",
+              "account",
+            ]);
+          } catch (idError) {
+            console.log("Failed to fetch by ID, trying by slug:", idError);
+          }
+        }
+
+        // If not found by ID or not numeric, try by slug
+        if (!strapiProject) {
+          try {
+            strapiProject = await projectService.getProjectBySlug(slugParam, [
+              "projectManager",
+              "teamMembers",
+              "tasks",
+              "tasks.assignee",
+              "tasks.collaborators",
+              "tasks.project",
+              "tasks.subtasks",
+              "account",
+            ]);
+          } catch (slugError) {
+            console.error("Failed to fetch by slug:", slugError);
+            throw new Error("Project not found");
+          }
+        }
+
+        if (!strapiProject) {
+          throw new Error("Project not found");
+        }
+
+        // Transform to frontend format
+        const transformedProject = transformProject(strapiProject);
+
+        // Debug: Check raw Strapi data for assignees/collaborators
+        console.log(
+          "Raw Strapi project tasks:",
+          strapiProject.tasks?.slice(0, 2).map((t) => ({
+            id: t.id,
+            title: t.title,
+            assignee: t.assignee,
+            collaborators: t.collaborators,
+            assigneeId: t.assignee?.id,
+            collaboratorIds: t.collaborators?.map((c) => c?.id),
+          }))
+        );
+        console.log(
+          "Transformed project tasks:",
+          transformedProject.tasks?.slice(0, 2).map((t) => ({
+            id: t.id,
+            name: t.name,
+            assignee: t.assignee,
+            collaborators: t.collaborators,
+          }))
+        );
+
+        // Load all projects for ProjectSelector
+        try {
+          const projectsResponse = await projectService.getAllProjects({
+            pageSize: 50,
+          });
+          const transformedProjects =
+            projectsResponse.data?.map((p) => ({
+              id: p.id,
+              name: p.name,
+              slug: p.slug,
+              color: p.color,
+              icon: p.icon,
+            })) || [];
+          setProjects(transformedProjects);
+        } catch (error) {
+          console.error("Error loading projects:", error);
+        }
+
+        // Calculate stats
+        let stats = {
+          totalTasks: transformedProject.tasks?.length || 0,
+          completedTasks: 0,
+          incompleteTasks: 0,
+          assignedTasks: 0,
+          overdueTasks: 0,
+        };
+
+        if (transformedProject.tasks && transformedProject.tasks.length > 0) {
+          transformedProject.tasks.forEach((task) => {
+            if (task.status === "Done" || task.status === "COMPLETED") {
+              stats.completedTasks++;
+            } else {
+              stats.incompleteTasks++;
+            }
+            if (
+              task.assignee ||
+              (task.assigneeIds && task.assigneeIds.length > 0)
+            ) {
+              stats.assignedTasks++;
+            }
+            // Check if overdue
+            if (task.dueDate) {
+              const dueDate = new Date(task.dueDate);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              if (
+                dueDate < today &&
+                task.status !== "Done" &&
+                task.status !== "COMPLETED"
+              ) {
+                stats.overdueTasks++;
+              }
+            }
+          });
+        }
+
+        // Ensure all tasks have the project relation set (since we're on project details page)
+        // Also ensure assignee/collaborators are properly set
+        const tasksWithProject =
+          transformedProject.tasks?.map((task) => {
+            // Debug: Log task data to see what we're working with
+            if (process.env.NODE_ENV === "development") {
+              console.log("Task before processing:", {
+                id: task.id,
+                name: task.name,
+                assignee: task.assignee,
+                collaborators: task.collaborators,
+                rawAssignee: strapiProject.tasks?.find((t) => t.id === task.id)
+                  ?.assignee,
+                rawCollaborators: strapiProject.tasks?.find(
+                  (t) => t.id === task.id
+                )?.collaborators,
+              });
+            }
+
+            // Ensure assignee is included in collaborators if not already there
+            let collaborators = task.collaborators || [];
+
+            // If assignee exists and is not in collaborators, add it
+            if (task.assignee) {
+              const assigneeInCollaborators = collaborators.find(
+                (c) => c?.id === task.assignee?.id
+              );
+              if (!assigneeInCollaborators) {
+                collaborators = [task.assignee, ...collaborators];
+              }
+            }
+
+            // Final collaborators array - ensure it's not empty if assignee exists
+            const finalCollaborators =
+              collaborators.length > 0
+                ? collaborators
+                : task.assignee
+                ? [task.assignee]
+                : [];
+
+            if (
+              process.env.NODE_ENV === "development" &&
+              finalCollaborators.length > 0
+            ) {
+              console.log("Task after processing:", {
+                id: task.id,
+                name: task.name,
+                finalCollaborators: finalCollaborators,
+              });
+            }
+
+            return {
+              ...task,
+              project: task.project || {
+                id: transformedProject.id,
+                name: transformedProject.name,
+                slug: transformedProject.slug,
+                color: transformedProject.color,
+                icon: transformedProject.icon,
+              },
+              // Ensure collaborators array is set
+              collaborators: finalCollaborators,
+            };
+          }) || [];
+
+        // Add stats and team to project
+        // Store original dates for calculations (formatDate returns formatted strings)
+        const enrichedProject = {
+          ...transformedProject,
+          tasks: tasksWithProject,
+          stats,
+          team: transformedProject.teamMembers || [],
+          client: strapiProject.account
+            ? {
+                id: strapiProject.account.id,
+                name:
+                  strapiProject.account.name ||
+                  strapiProject.account.companyName ||
+                  "N/A",
+              }
+            : null,
+          // Store original ISO dates for calculations
+          originalStartDate: strapiProject.startDate,
+          originalEndDate: strapiProject.endDate,
+        };
+
+        setProject(enrichedProject);
+
+        // Set first channel as selected when project loads
+        if (enrichedProject.id) {
+          const channels = getChannelsByProjectId(enrichedProject.id);
+          if (channels.length > 0) {
+            setSelectedChannel(channels[0]);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading project:", err);
+        setError(err.message || "Failed to load project");
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [params.slug]);
+    };
+
+    loadProject();
+  }, [params]);
 
   // Update to current date on client mount
   useEffect(() => {
@@ -146,22 +433,6 @@ export default function ProjectDetail({ params }) {
   //   }));
   // };
 
-  // Handle context menu
-  const handleContextMenuOpen = (event, task) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    setContextMenu({
-      isOpen: true,
-      position: {
-        x: rect.right - 180,
-        y: rect.top + rect.height / 2,
-      },
-      task,
-    });
-  };
-
   const handleContextMenuClose = () => {
     setContextMenu({
       isOpen: false,
@@ -170,38 +441,58 @@ export default function ProjectDetail({ params }) {
     });
   };
 
-  // Task detail handlers
-  const handleTaskClick = (task) => {
-    console.log("Original task in handleTaskClick:", task);
-    console.log("Task ID:", task.id);
+  // Task detail handlers - matching my-task page
+  const handleTaskClick = async (task) => {
+    if (!task?.id) return;
 
-    // Get fully enriched task data including subtasks and comments
-    const enrichedTaskData = getEnrichedTask(task.id);
-    console.log("Enriched task data from getEnrichedTask:", enrichedTaskData);
+    try {
+      // Fetch full task details with all relations
+      const fullTaskData = await taskService.getTaskById(task.id, [
+        "project",
+        "assignee",
+        "createdBy",
+        "subtasks",
+        "subtasks.assignee",
+        "subtasks.childSubtasks",
+        "collaborators",
+      ]);
 
-    // Enrich task with project data for the modal
-    const enrichedTask = {
-      ...enrichedTaskData,
-      id: task.id, // Ensure id is explicitly included
-      project: {
-        id: project.id,
-        name: project.name,
-        color: project.color,
-        icon: project.icon,
-        slug: project.slug,
-      },
-      hasMultipleAssignees: task.assigneeIds && task.assigneeIds.length > 1,
-      time: task.dueTime || null,
-    };
+      // Transform the task data
+      const transformedTask = transformTask(fullTaskData);
 
-    console.log("Final enriched task:", enrichedTask);
-    console.log("Enriched task subtasks:", enrichedTask.subtasks);
-    console.log("Enriched task comments:", enrichedTask.comments);
+      // Format due date for display
+      const formattedDueDate = transformedTask.scheduledDate
+        ? new Date(transformedTask.scheduledDate).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        : "No due date";
 
-    setTaskDetailModal({
-      isOpen: true,
-      task: enrichedTask,
-    });
+      // Enrich task with project data for the modal
+      const enrichedTask = {
+        ...transformedTask,
+        id: task.id,
+        project: {
+          id: project.id,
+          name: project.name,
+          color: project.color,
+          icon: project.icon,
+          slug: project.slug,
+        },
+        dueDate: formattedDueDate,
+        hasMultipleAssignees:
+          transformedTask.collaborators &&
+          transformedTask.collaborators.length > 1,
+      };
+
+      setTaskDetailModal({
+        isOpen: true,
+        task: enrichedTask,
+      });
+    } catch (error) {
+      console.error("Error loading task details:", error);
+    }
   };
 
   const handleTaskDetailClose = () => {
@@ -240,16 +531,162 @@ export default function ProjectDetail({ params }) {
     // Navigate to project page if needed
   };
 
-  if (!project) {
+  // Filter and sort tasks (moved before early returns to satisfy React hooks rules)
+  // Load subtask counts for all tasks in the project
+  useEffect(() => {
+    if (!project?.tasks || project.tasks.length === 0 || isLoading) return;
+
+    const loadSubtaskCounts = async () => {
+      // Load subtask counts for tasks that don't have them loaded yet
+      const tasksNeedingCounts = project.tasks.filter(
+        (task) => task.id && !loadedSubtasks[task.id]
+      );
+
+      if (tasksNeedingCounts.length === 0) return;
+
+      // Load subtask counts in parallel (limit to avoid too many requests)
+      const tasksToLoad = tasksNeedingCounts.slice(0, 10);
+
+      try {
+        const subtaskCountPromises = tasksToLoad.map(async (task) => {
+          try {
+            const response = await subtaskService.getRootSubtasksByTask(
+              task.id,
+              {
+                populate: ["assignee"],
+              }
+            );
+
+            // Handle different response structures
+            let subtasksData = [];
+            if (Array.isArray(response.data)) {
+              subtasksData = response.data;
+            } else if (
+              response.data?.data &&
+              Array.isArray(response.data.data)
+            ) {
+              subtasksData = response.data.data;
+            } else if (Array.isArray(response)) {
+              subtasksData = response;
+            }
+
+            const transformedSubtasks = subtasksData
+              .map(transformSubtask)
+              .filter(Boolean);
+
+            console.log(
+              `Loaded ${transformedSubtasks.length} subtasks for task ${task.id}`,
+              transformedSubtasks
+            );
+
+            return { taskId: task.id, subtasks: transformedSubtasks };
+          } catch (error) {
+            console.error(`Error loading subtasks for task ${task.id}:`, error);
+            return { taskId: task.id, subtasks: [] };
+          }
+        });
+
+        const results = await Promise.all(subtaskCountPromises);
+
+        // Update loaded subtasks state
+        setLoadedSubtasks((prev) => {
+          const updated = { ...prev };
+          results.forEach(({ taskId, subtasks }) => {
+            updated[taskId] = subtasks;
+          });
+          return updated;
+        });
+      } catch (error) {
+        console.error("Error loading subtask counts:", error);
+      }
+    };
+
+    loadSubtaskCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.tasks, isLoading]);
+
+  const filteredAndSortedTasks = useMemo(() => {
+    if (!project?.tasks) return [];
+
+    let tasks = project.tasks;
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      tasks = tasks.filter((task) =>
+        task.name?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Filter by status
+    if (filterStatus !== "all") {
+      tasks = tasks.filter((task) => {
+        const taskStatus =
+          task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+        return taskStatus === filterStatus.toLowerCase().replace(/\s+/g, "-");
+      });
+    }
+
+    return tasks;
+  }, [project?.tasks, searchQuery, filterStatus]);
+
+  // Show loading state
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-brand-foreground mb-2">
-            Project Not Found
-          </h2>
-          <p className="text-brand-text-light">
-            The requested project could not be found.
-          </p>
+      <div className="flex flex-col h-full bg-gray-50">
+        <div className="p-6">
+          <PageHeader
+            title="Project"
+            subtitle="Loading project..."
+            breadcrumb={[
+              { label: "Dashboard", href: "/" },
+              { label: "Projects", href: "/projects" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading project...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error || !project) {
+    return (
+      <div className="flex flex-col h-full bg-gray-50">
+        <div className="p-6">
+          <PageHeader
+            title="Project"
+            subtitle="Error loading project"
+            breadcrumb={[
+              { label: "Dashboard", href: "/" },
+              { label: "Projects", href: "/projects" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              {error ? "Error Loading Project" : "Project Not Found"}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {error || "The requested project could not be found."}
+            </p>
+            <button
+              onClick={() => router.push("/projects")}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              Back to Projects
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -295,15 +732,787 @@ export default function ProjectDetail({ params }) {
   ];
 
   const tabs = [
+    { id: "overview", label: "Overview", icon: FileText },
     { id: "tasks", label: "Tasks", icon: CheckSquare },
     { id: "members", label: "Members", icon: Users },
     { id: "discussion", label: "Discussion", icon: MessageSquare },
   ];
 
-  const taskViews = [
-    { id: "table", label: "Table", icon: Table },
-    { id: "kanban", label: "Kanban", icon: LayoutGrid },
-    { id: "calendar", label: "Calendar", icon: Calendar },
+  // Handle due date updates
+  const handleDueDateUpdate = async (taskId, newDate) => {
+    if (!taskId) return;
+
+    try {
+      const scheduledDate = newDate
+        ? new Date(newDate + "T00:00:00").toISOString()
+        : null;
+
+      await taskService.updateTask(taskId, { scheduledDate });
+
+      // Update project tasks in real-time
+      setProject((prevProject) => ({
+        ...prevProject,
+        tasks: prevProject.tasks.map((task) =>
+          task.id === taskId ? { ...task, scheduledDate } : task
+        ),
+      }));
+
+      // Update taskDetailModal if it's currently open
+      if (taskDetailModal.isOpen && taskDetailModal.task?.id === taskId) {
+        setTaskDetailModal((prev) => ({
+          ...prev,
+          task: {
+            ...prev.task,
+            scheduledDate,
+          },
+        }));
+      }
+    } catch (error) {
+      console.error("Error updating due date:", error);
+    }
+  };
+
+  // Handle status updates
+  const handleStatusUpdate = async (taskId, newStatus) => {
+    if (!taskId) return;
+
+    const strapiStatus = transformStatusToStrapi(newStatus);
+
+    // Update project tasks immediately (optimistic update)
+    setProject((prevProject) => ({
+      ...prevProject,
+      tasks: prevProject.tasks.map((task) =>
+        task.id === taskId ? { ...task, status: newStatus } : task
+      ),
+    }));
+
+    // Update taskDetailModal immediately if it's currently open
+    if (taskDetailModal.isOpen && taskDetailModal.task?.id === taskId) {
+      setTaskDetailModal((prev) => ({
+        ...prev,
+        task: {
+          ...prev.task,
+          status: newStatus,
+        },
+      }));
+    }
+
+    try {
+      await taskService.updateTaskStatus(taskId, strapiStatus);
+    } catch (error) {
+      console.error("Error updating task status:", error);
+      // Revert on error
+      const updatedProject = await projectService.getProjectById(project.id, [
+        "projectManager",
+        "teamMembers",
+        "tasks",
+        "tasks.assignee",
+        "tasks.collaborators",
+        "tasks.project",
+        "tasks.subtasks",
+        "account",
+      ]);
+      const transformedProject = transformProject(updatedProject);
+      setProject({ ...project, tasks: transformedProject.tasks });
+    }
+  };
+
+  // Handle priority updates
+  const handlePriorityUpdate = async (taskId, newPriority) => {
+    if (!taskId) return;
+
+    const strapiPriority = transformPriorityToStrapi(newPriority);
+
+    // Update project tasks immediately (optimistic update)
+    setProject((prevProject) => ({
+      ...prevProject,
+      tasks: prevProject.tasks.map((task) =>
+        task.id === taskId ? { ...task, priority: newPriority } : task
+      ),
+    }));
+
+    // Update taskDetailModal immediately if it's currently open
+    if (taskDetailModal.isOpen && taskDetailModal.task?.id === taskId) {
+      setTaskDetailModal((prev) => ({
+        ...prev,
+        task: {
+          ...prev.task,
+          priority: newPriority,
+        },
+      }));
+    }
+
+    try {
+      await taskService.updateTask(taskId, { priority: strapiPriority });
+    } catch (error) {
+      console.error("Error updating task priority:", error);
+      // Revert on error
+      const updatedProject = await projectService.getProjectById(project.id, [
+        "projectManager",
+        "teamMembers",
+        "tasks",
+        "tasks.assignee",
+        "tasks.collaborators",
+        "tasks.project",
+        "tasks.subtasks",
+        "account",
+      ]);
+      const transformedProject = transformProject(updatedProject);
+      setProject({ ...project, tasks: transformedProject.tasks });
+    }
+  };
+
+  // Task table columns - matching my-task page exactly
+  const taskColumnsTable = [
+    {
+      key: "name",
+      label: "TASK NAME",
+      render: (_, task) => {
+        const isDone =
+          task.status?.toLowerCase() === "done" ||
+          task.status?.toLowerCase() === "completed";
+        const isEditing = editingTaskId === task.id;
+
+        const handleNameClick = (e) => {
+          e.stopPropagation();
+          setEditingTaskId(task.id);
+          setEditingTaskName(task.name || "");
+        };
+
+        const handleNameChange = (e) => {
+          setEditingTaskName(e.target.value);
+        };
+
+        const handleNameBlur = async () => {
+          if (editingTaskId === task.id) {
+            const newName = editingTaskName.trim();
+            if (newName && newName !== task.name) {
+              try {
+                await taskService.updateTask(task.id, { title: newName });
+                setProject((prevProject) => ({
+                  ...prevProject,
+                  tasks: prevProject.tasks.map((t) =>
+                    t.id === task.id ? { ...t, name: newName } : t
+                  ),
+                }));
+              } catch (error) {
+                console.error("Error updating task name:", error);
+              }
+            }
+            setEditingTaskId(null);
+            setEditingTaskName("");
+          }
+        };
+
+        const handleNameKeyDown = (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleNameBlur();
+          } else if (e.key === "Escape") {
+            setEditingTaskId(null);
+            setEditingTaskName("");
+          }
+        };
+
+        // Check if task has subtasks
+        const taskSubtasks = task.subtasks || [];
+        const loadedTaskSubtasks = loadedSubtasks[task.id] || [];
+        const allSubtasks =
+          loadedTaskSubtasks.length > 0 ? loadedTaskSubtasks : taskSubtasks;
+        const rootSubtasks = allSubtasks.filter((st) => {
+          return (
+            !st.parentSubtask ||
+            st.parentSubtask === null ||
+            (typeof st.parentSubtask === "object" && !st.parentSubtask.id)
+          );
+        });
+        const hasSubtasks = rootSubtasks.length > 0;
+
+        return (
+          <div className="flex items-center gap-3 min-w-[200px]">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isDone) {
+                  handleStatusUpdate(task.id, "To Do");
+                } else {
+                  handleStatusUpdate(task.id, "Done");
+                }
+              }}
+              className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+                isDone
+                  ? "bg-green-500 border-green-500 text-white hover:bg-green-600"
+                  : "border-gray-300 hover:border-green-500 hover:bg-green-50 cursor-pointer"
+              }`}
+              title={
+                isDone ? "Click to mark as incomplete" : "Mark as complete"
+              }
+            >
+              {isDone && <Check className="w-4 h-4 stroke-[3]" />}
+            </button>
+            <div className="min-w-0 flex-1 flex items-center gap-2">
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editingTaskName}
+                  onChange={handleNameChange}
+                  onBlur={handleNameBlur}
+                  onKeyDown={handleNameKeyDown}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`w-full font-medium px-2 py-1 rounded border-2 border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    isDone ? "line-through text-gray-500" : "text-gray-900"
+                  }`}
+                  autoFocus
+                />
+              ) : (
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div
+                    onClick={handleNameClick}
+                    className={`font-medium truncate cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors flex-1 min-w-0 ${
+                      isDone ? "line-through text-gray-500" : "text-gray-900"
+                    }`}
+                    title="Click to edit task name"
+                  >
+                    {task.name}
+                  </div>
+                  {hasSubtasks && (
+                    <div
+                      className="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"
+                      title={`${rootSubtasks.length} ${
+                        rootSubtasks.length === 1 ? "subtask" : "subtasks"
+                      }`}
+                    >
+                      <GitBranch className="w-3.5 h-3.5" />
+                      <span className="text-xs font-medium">
+                        {rootSubtasks.length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "assignee",
+      label: "ASSIGNEE",
+      render: (_, task) => {
+        // Get collaborators - prefer collaborators array, fallback to assignee
+        let collaborators = [];
+        if (
+          task.collaborators &&
+          Array.isArray(task.collaborators) &&
+          task.collaborators.length > 0
+        ) {
+          collaborators = task.collaborators;
+        } else if (task.assignee) {
+          collaborators = [task.assignee];
+        }
+
+        const hasCollaborators = collaborators.length > 0;
+
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCollaboratorModal({ isOpen: true, task });
+            }}
+            className="flex items-center gap-2 min-w-[140px] hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors text-left"
+          >
+            {hasCollaborators ? (
+              <div className="flex items-center gap-1">
+                {collaborators.slice(0, 3).map((person, index) => {
+                  const name =
+                    person?.name ||
+                    (person?.firstName && person?.lastName
+                      ? `${person.firstName} ${person.lastName}`
+                      : person?.firstName || person?.lastName || "Unknown");
+                  const initial = name?.charAt(0)?.toUpperCase() || "U";
+                  return (
+                    <div
+                      key={person?.id || index}
+                      className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0 border border-white"
+                      title={name}
+                      style={{
+                        marginLeft: index > 0 ? "-4px" : "0",
+                        zIndex: 10 - index,
+                      }}
+                    >
+                      {initial}
+                    </div>
+                  );
+                })}
+                {collaborators.length > 3 && (
+                  <div
+                    className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium text-gray-700 flex-shrink-0 border border-white"
+                    title={`${collaborators.length - 3} more`}
+                    style={{ marginLeft: "-4px", zIndex: 7 }}
+                  >
+                    +{collaborators.length - 3}
+                  </div>
+                )}
+                <span className="text-sm text-gray-600 truncate ml-1">
+                  {collaborators.length === 1
+                    ? collaborators[0]?.name ||
+                      (collaborators[0]?.firstName && collaborators[0]?.lastName
+                        ? `${collaborators[0].firstName} ${collaborators[0].lastName}`
+                        : collaborators[0]?.firstName ||
+                          collaborators[0]?.lastName ||
+                          "Unassigned")
+                    : `${collaborators.length} people`}
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+                  U
+                </div>
+                <span className="text-sm text-gray-600 truncate">
+                  Click to assign
+                </span>
+              </>
+            )}
+          </button>
+        );
+      },
+    },
+    {
+      key: "dueDate",
+      label: "DUE DATE",
+      render: (_, task) => {
+        const getDateValue = (dateString) => {
+          if (!dateString) return "";
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        };
+
+        const currentValue = getDateValue(task.scheduledDate);
+
+        return (
+          <div
+            className="flex items-center gap-2 min-w-[150px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Calendar className="w-4 h-4 flex-shrink-0 text-gray-500" />
+            <input
+              type="date"
+              value={currentValue}
+              onChange={(e) => {
+                handleDueDateUpdate(task.id, e.target.value);
+              }}
+              className="flex-1 text-sm text-gray-700 px-2 py-1 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              placeholder="No due date"
+            />
+          </div>
+        );
+      },
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      render: (_, task) => {
+        const statusOptions = [
+          { value: "To Do", label: "To Do" },
+          { value: "In Progress", label: "In Progress" },
+          { value: "In Review", label: "In Review" },
+          { value: "Done", label: "Done" },
+          { value: "Cancelled", label: "Cancelled" },
+        ];
+
+        const currentStatus = task.status || "To Do";
+        const status = currentStatus?.toLowerCase().replace(/\s+/g, "-") || "";
+
+        const statusColors = {
+          "to-do": {
+            bg: "bg-blue-100",
+            text: "text-blue-800",
+            border: "border-blue-400",
+          },
+          "in-progress": {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+          },
+          "in-review": {
+            bg: "bg-purple-100",
+            text: "text-purple-800",
+            border: "border-purple-400",
+          },
+          done: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+          },
+          completed: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+          },
+          cancelled: {
+            bg: "bg-gray-100",
+            text: "text-gray-800",
+            border: "border-gray-400",
+          },
+        };
+
+        const colors = statusColors[status] || {
+          bg: "bg-gray-100",
+          text: "text-gray-800",
+          border: "border-gray-400",
+        };
+
+        return (
+          <div className="min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+            <select
+              value={currentStatus}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleStatusUpdate(task.id, e.target.value);
+              }}
+              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 0.5rem center",
+                paddingRight: "2rem",
+              }}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      },
+    },
+    {
+      key: "priority",
+      label: "PRIORITY",
+      render: (_, task) => {
+        const priorityOptions = [
+          { value: "Low", label: "Low" },
+          { value: "Medium", label: "Medium" },
+          { value: "High", label: "High" },
+        ];
+
+        const currentPriority = task.priority || "Medium";
+        const priorityLower = currentPriority.toLowerCase();
+
+        const priorityColors = {
+          high: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+          },
+          medium: {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+          },
+          low: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+          },
+        };
+
+        const colors = priorityColors[priorityLower] || {
+          bg: "bg-gray-100",
+          text: "text-gray-800",
+          border: "border-gray-400",
+        };
+
+        return (
+          <div className="min-w-[120px]" onClick={(e) => e.stopPropagation()}>
+            <select
+              value={currentPriority}
+              onChange={(e) => {
+                e.stopPropagation();
+                handlePriorityUpdate(task.id, e.target.value);
+              }}
+              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 0.5rem center",
+                paddingRight: "2rem",
+              }}
+            >
+              {priorityOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      },
+    },
+    {
+      key: "subtasks",
+      label: "SUBTASKS",
+      render: (_, task) => {
+        const taskId = task.id;
+        const isExpanded = expandedSubtasks[taskId] || false;
+
+        const loadedTaskSubtasks = loadedSubtasks[taskId] || [];
+        const taskSubtasks = task.subtasks || [];
+        const allSubtasks =
+          loadedTaskSubtasks.length > 0 ? loadedTaskSubtasks : taskSubtasks;
+
+        const rootSubtasks = allSubtasks.filter((st) => {
+          return (
+            !st.parentSubtask ||
+            st.parentSubtask === null ||
+            (typeof st.parentSubtask === "object" && !st.parentSubtask.id)
+          );
+        });
+        const subtaskCount = rootSubtasks.length;
+
+        const handleToggleExpand = async (e) => {
+          e.stopPropagation();
+
+          const newExpandedState = !isExpanded;
+
+          // Update position when expanding
+          if (newExpandedState && subtaskButtonRefs.current[taskId]) {
+            const rect =
+              subtaskButtonRefs.current[taskId].getBoundingClientRect();
+            setSubtaskDropdownPositions((prev) => ({
+              ...prev,
+              [taskId]: {
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+                width: rect.width,
+              },
+            }));
+          }
+
+          if (newExpandedState) {
+            try {
+              const response = await subtaskService.getRootSubtasksByTask(
+                taskId,
+                {
+                  populate: ["assignee", "childSubtasks"],
+                }
+              );
+
+              let subtasksData = [];
+              if (Array.isArray(response.data)) {
+                subtasksData = response.data;
+              } else if (
+                response.data?.data &&
+                Array.isArray(response.data.data)
+              ) {
+                subtasksData = response.data.data;
+              } else if (Array.isArray(response)) {
+                subtasksData = response;
+              }
+
+              const transformedSubtasks = subtasksData
+                .map(transformSubtask)
+                .filter(Boolean);
+
+              setLoadedSubtasks((prev) => ({
+                ...prev,
+                [taskId]: transformedSubtasks,
+              }));
+            } catch (error) {
+              console.error("Error loading subtasks:", error);
+            }
+          }
+
+          setExpandedSubtasks((prev) => ({
+            ...prev,
+            [taskId]: newExpandedState,
+          }));
+        };
+
+        const handleSubtaskClick = (e) => {
+          e.stopPropagation();
+          router.push(`/my-task/${task.slug || task.id}`);
+        };
+
+        const hasSubtasks = subtaskCount > 0;
+        const dropdownPosition = subtaskDropdownPositions[taskId];
+        const dropdownContent =
+          isExpanded && rootSubtasks.length > 0 && dropdownPosition ? (
+            <div
+              className="fixed z-[9999] border border-gray-200 rounded-lg bg-white shadow-lg max-h-60 overflow-y-auto"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+                width: `${dropdownPosition.width}px`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-2 space-y-1">
+                {rootSubtasks.map((subtask) => {
+                  const isSubtaskDone =
+                    subtask.status?.toLowerCase() === "done" ||
+                    subtask.status?.toLowerCase() === "completed";
+                  const childCount =
+                    subtask.childSubtasks?.length ||
+                    subtask.subtasks?.length ||
+                    0;
+                  return (
+                    <button
+                      key={subtask.id}
+                      onClick={handleSubtaskClick}
+                      className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200 ${
+                        isSubtaskDone ? "opacity-60" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`text-sm font-medium truncate ${
+                              isSubtaskDone
+                                ? "line-through text-gray-500"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {subtask.name || subtask.title}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {subtask.assignee && (
+                              <div className="text-xs text-gray-500 truncate">
+                                {typeof subtask.assignee === "object"
+                                  ? subtask.assignee?.name || "Unassigned"
+                                  : subtask.assignee || "Unassigned"}
+                              </div>
+                            )}
+                            {childCount > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-gray-400">
+                                <GitBranch className="w-3 h-3" />
+                                <span>{childCount}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null;
+
+        return (
+          <>
+            <div className="min-w-[180px]" onClick={(e) => e.stopPropagation()}>
+              {hasSubtasks ? (
+                <div className="relative">
+                  <button
+                    ref={(el) => {
+                      if (el) subtaskButtonRefs.current[taskId] = el;
+                    }}
+                    onClick={handleToggleExpand}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 w-full"
+                  >
+                    <GitBranch className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-700">
+                      {subtaskCount}{" "}
+                      {subtaskCount === 1 ? "subtask" : "subtasks"}
+                    </span>
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4 text-gray-500 ml-auto" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-500 ml-auto" />
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <span className="text-sm text-gray-500">No subtasks</span>
+              )}
+            </div>
+            {typeof window !== "undefined" &&
+              isExpanded &&
+              rootSubtasks.length > 0 &&
+              dropdownPosition &&
+              createPortal(dropdownContent, document.body)}
+          </>
+        );
+      },
+    },
+    {
+      key: "project",
+      label: "PROJECT",
+      render: (_, task) => (
+        <ProjectSelector
+          task={task}
+          projects={projects}
+          onUpdate={(updatedTask) => {
+            setProject((prevProject) => ({
+              ...prevProject,
+              tasks: prevProject.tasks.map((t) =>
+                t.id === updatedTask.id ? updatedTask : t
+              ),
+            }));
+            if (taskDetailModal.task?.id === updatedTask.id) {
+              setTaskDetailModal((prev) => ({
+                ...prev,
+                task: updatedTask,
+              }));
+            }
+          }}
+        />
+      ),
+    },
+    {
+      key: "progress",
+      label: "PROGRESS",
+      render: (_, task) => (
+        <div className="min-w-[120px]">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all"
+                style={{ width: `${task.progress || 0}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium text-gray-900">
+              {task.progress || 0}%
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      label: "ACTIONS",
+      render: (_, task) => (
+        <div className="flex items-center gap-1 min-w-[120px]">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTaskClick(task);
+            }}
+            className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+            title="View Task"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteModal({ isOpen: true, task: task });
+            }}
+            className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+            title="Delete Task"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
   ];
 
   // Function to get status badge colors matching my-task page (unused but kept for future functionality)
@@ -361,7 +1570,7 @@ export default function ProjectDetail({ params }) {
             title="Project"
             subtitle="Loading project..."
             breadcrumb={[
-              { label: "Dashboard", href: "/dashboard" },
+              { label: "Dashboard", href: "/" },
               { label: "Projects", href: "/projects" },
             ]}
             showSearch={false}
@@ -379,17 +1588,22 @@ export default function ProjectDetail({ params }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Project Header */}
-      <div className="p-6">
+    <div className="min-h-screen bg-white">
+      <div className="p-4 space-y-4">
         <PageHeader
           title={project.name}
-          subtitle="Manage project and tasks here"
+          subtitle={`${project.status || "No Status"} • ${
+            project.client?.name || "No Client"
+          }`}
           breadcrumb={[
-            { label: "Dashboard", href: "/dashboard" },
+            { label: "Dashboard", href: "/" },
             { label: "Projects", href: "/projects" },
-            { label: project.name, href: `/projects/${params.slug}` },
+            {
+              label: project.name,
+              href: `/projects/${project.slug || project.id}`,
+            },
           ]}
+          showProfile={true}
           showSearch={true}
           showActions={true}
           onAddClick={() => router.push(`/tasks/add?projectId=${project.id}`)}
@@ -397,34 +1611,33 @@ export default function ProjectDetail({ params }) {
             {
               icon: Star,
               onClick: () => console.log("Star project"),
+              title: "Star Project",
             },
             {
               icon: UserPlus,
               onClick: () => console.log("Invite team member"),
               className: "hidden lg:flex",
+              title: "Invite Member",
             },
             {
               icon: Share,
               onClick: () => console.log("Share project"),
               className: "hidden lg:flex",
+              title: "Share Project",
             },
           ]}
         />
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 px-6 pb-6 overflow-auto bg-gray-50">
         {/* Project Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           {stats.map((stat, index) => (
             <div
               key={index}
-              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200"
+              className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6 hover:shadow-2xl transition-all duration-200"
             >
               <div className="space-y-3">
                 {/* Header with title and trend */}
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-500 font-medium">
+                  <p className="text-sm text-gray-600 font-medium">
                     {stat.title}
                   </p>
                   <div
@@ -456,508 +1669,757 @@ export default function ProjectDetail({ params }) {
           ))}
         </div>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-          <div className="border-b border-gray-200">
-            <div className="flex items-center justify-between px-6 py-4">
-              <div className="flex space-x-8">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 pb-4 border-b-2 transition-all duration-300 ${
-                        activeTab === tab.id
-                          ? "border-blue-600 text-blue-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="font-medium">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl p-2 shadow-lg">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                    activeTab === tab.id
+                      ? "bg-orange-500 text-white shadow-lg"
+                      : "bg-transparent text-gray-700 hover:bg-white/50"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          <div className="p-6">
-            {/* Tasks Tab */}
-            {activeTab === "tasks" && (
-              <div className="space-y-6">
-                {/* View Controls */}
-                <div className="flex items-center justify-between">
-                  <div className="flex space-x-1 bg-gray-100 border border-gray-200 rounded-lg p-1">
-                    {taskViews.map((view) => {
-                      const Icon = view.icon;
-                      return (
-                        <button
-                          key={view.id}
-                          onClick={() => setActiveView(view.id)}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
-                            activeView === view.id
-                              ? "bg-white text-gray-900 shadow-sm"
-                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          {view.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* Date Filter */}
-                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-700">
-                        January 2024
+        {/* Tab Content */}
+        <div>
+          {/* Overview Tab */}
+          {activeTab === "overview" && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - Project Details */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Project Details Card */}
+                <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Project Details
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">
+                          Start Date
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {project.startDate || "Not set"}
                       </span>
                     </div>
-
-                    {/* Columns */}
-                    <button className="flex items-center gap-2 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors">
-                      <Columns className="w-4 h-4" />
-                      <span className="text-sm">Columns</span>
-                    </button>
-
-                    {/* Filter */}
-                    <button className="flex items-center gap-2 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors">
-                      <Filter className="w-4 h-4" />
-                      <span className="text-sm">Filter</span>
-                    </button>
-
-                    {/* Sort */}
-                    <button
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors"
-                      onClick={() =>
-                        setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-                      }
-                    >
-                      <span className="text-sm">Nearest Due Date</span>
-                      {sortOrder === "asc" ? (
-                        <ChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </button>
-
-                    {/* New Task Button */}
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-300 shadow-sm">
-                      <Plus className="w-4 h-4" />
-                      New
-                    </button>
-                  </div>
-                </div>
-
-                {/* Content based on active view */}
-                {activeView === "table" && (
-                  <div className="p-8 text-center text-gray-500">
-                    <p>Table view is currently unavailable.</p>
-                    <p className="text-sm mt-2">
-                      Please use Kanban view instead.
-                    </p>
-                  </div>
-                )}
-                {activeView === "kanban" && (
-                  <TaskKanban
-                    tasks={project?.tasks || []}
-                    project={project}
-                    onTaskClick={handleTaskClick}
-                    onContextMenuOpen={handleContextMenuOpen}
-                    onTaskStatusChange={(task, newStatus) => {
-                      console.log(`Moving task ${task.name} to ${newStatus}`);
-                    }}
-                  />
-                )}
-                {activeView === "calendar" && (
-                  <div className="p-8 text-center text-gray-500">
-                    <p>Calendar view is currently unavailable.</p>
-                    <p className="text-sm mt-2">
-                      Please use Kanban view instead.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Members Tab */}
-            {activeTab === "members" && (
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-brand-foreground">
-                    Member Assigned
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors">
-                      <ArrowUpDown className="w-4 h-4" />
-                      <span className="text-sm font-medium">A-Z</span>
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/80 transition-colors">
-                      <UserPlus className="w-4 h-4" />
-                      <span className="text-sm font-medium">Invite</span>
-                    </button>
-                    <button className="p-2 text-gray-600 hover:text-gray-900 transition-colors">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Members Table */}
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                          <th className="px-6 py-3 text-left">
-                            <input
-                              type="checkbox"
-                              className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
-                            />
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Name
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Invited
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center gap-1">
-                              Task Assigned
-                              <ExternalLink className="w-3 h-3" />
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center gap-1">
-                              Task Completed
-                              <ExternalLink className="w-3 h-3" />
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center gap-1">
-                              Task Incompleted
-                              <ExternalLink className="w-3 h-3" />
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center gap-1">
-                              Task Overdue
-                              <ExternalLink className="w-3 h-3" />
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 text-left">
-                            <span className="sr-only">Actions</span>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {project.team.map((member) => {
-                          // Mock task data for each member
-                          const taskStats = {
-                            assigned: Math.floor(Math.random() * 5) + 1,
-                            completed: Math.floor(Math.random() * 3) + 1,
-                            incompleted: Math.floor(Math.random() * 2),
-                            overdue: Math.floor(Math.random() * 2),
-                          };
-
-                          const invitedDate = new Date();
-                          invitedDate.setDate(
-                            invitedDate.getDate() -
-                              Math.floor(Math.random() * 10) +
-                              1
-                          );
-
-                          return (
-                            <tr
-                              key={member.id}
-                              className="hover:bg-gray-50 transition-colors"
-                            >
-                              <td className="px-6 py-4">
-                                <input
-                                  type="checkbox"
-                                  className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
-                                />
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`w-10 h-10 ${member.color} rounded-full flex items-center justify-center text-white font-bold text-sm`}
-                                  >
-                                    {member.avatar}
-                                  </div>
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {member.name}
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                      {member.email ||
-                                        `${member.name
-                                          .toLowerCase()
-                                          .replace(/\s+/g, "")}@example.com`}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                {invitedDate.toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                {taskStats.assigned}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                {taskStats.completed}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                {taskStats.incompleted}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                {taskStats.overdue}
-                              </td>
-                              <td className="px-6 py-4">
-                                <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                                  <MoreVertical className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>{project.team.length} Members</span>
-                </div>
-              </div>
-            )}
-
-            {/* Discussion Tab */}
-            {activeTab === "discussion" && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
-                {/* Channels List */}
-                <div className="lg:col-span-1 bg-white rounded-lg border border-gray-200 p-4">
-                  <div className="space-y-4 h-full flex flex-col">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">
-                        Channel
-                      </h3>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search channel or message"
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">End Date</span>
                       </div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {project.endDate || "Not set"}
+                      </span>
                     </div>
-
-                    <div className="flex-1 space-y-2 overflow-y-auto">
-                      {project &&
-                        getChannelsByProjectId(project.id).map((channel) => (
-                          <div
-                            key={channel.id}
-                            onClick={() => setSelectedChannel(channel)}
-                            className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                              selectedChannel?.id === channel.id
-                                ? "bg-gray-100"
-                                : "hover:bg-gray-50"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-gray-900 text-sm">
-                                  {channel.name}
-                                </h4>
-                                {channel.unreadCount > 0 && (
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                )}
-                              </div>
-                              <span className="text-xs text-gray-500">
-                                {channel.lastActivity}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-600 truncate">
-                              {channel.lastMessage}
-                            </p>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Discussion Area */}
-                <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 flex flex-col">
-                  {selectedChannel ? (
-                    <>
-                      {/* Header */}
-                      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                        <h3 className="text-lg font-medium text-gray-900">
-                          {selectedChannel.name}
-                        </h3>
+                    {project.budget && project.budget !== null && (
+                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
                         <div className="flex items-center gap-2">
-                          <button className="flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-                            <Plus className="w-4 h-4" />
-                            <span className="text-sm">Attach Task</span>
-                          </button>
-                          <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                          <DollarSign className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-600">Budget</span>
                         </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          ${project.budget.toLocaleString()}
+                        </span>
                       </div>
-
-                      {/* Messages */}
-                      <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                        {getMessagesByChannelId(selectedChannel.id).map(
-                          (message) => {
-                            const sender = teamMembers[message.senderId];
-                            const isCurrentUser = message.senderId === 1; // Assuming current user is ID 1
-                            const messageDate = new Date(message.timestamp);
-
-                            return (
-                              <div
-                                key={message.id}
-                                className={`flex ${
-                                  isCurrentUser
-                                    ? "justify-end"
-                                    : "justify-start"
-                                }`}
-                              >
-                                <div
-                                  className={`flex gap-3 max-w-[70%] ${
-                                    isCurrentUser
-                                      ? "flex-row-reverse"
-                                      : "flex-row"
-                                  }`}
-                                >
-                                  {!isCurrentUser && (
-                                    <div
-                                      className={`w-8 h-8 ${
-                                        sender?.color || "bg-gray-500"
-                                      } rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
-                                    >
-                                      {sender?.avatar || "U"}
-                                    </div>
-                                  )}
-                                  <div
-                                    className={`flex flex-col ${
-                                      isCurrentUser
-                                        ? "items-end"
-                                        : "items-start"
-                                    }`}
-                                  >
-                                    <div
-                                      className={`px-4 py-2 rounded-lg ${
-                                        isCurrentUser
-                                          ? "bg-blue-500 text-white"
-                                          : "bg-gray-100 text-gray-900"
-                                      }`}
-                                    >
-                                      <p className="text-sm">
-                                        {message.content}
-                                      </p>
-                                    </div>
-                                    <div
-                                      className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
-                                        isCurrentUser
-                                          ? "flex-row-reverse"
-                                          : "flex-row"
-                                      }`}
-                                    >
-                                      <span>
-                                        {messageDate.toLocaleDateString(
-                                          "en-US",
-                                          {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                          }
-                                        )}
-                                      </span>
-                                      <span>
-                                        {sender?.name || "Unknown User"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {isCurrentUser && (
-                                    <div
-                                      className={`w-8 h-8 ${
-                                        sender?.color || "bg-gray-500"
-                                      } rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
-                                    >
-                                      {sender?.avatar || "U"}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          }
-                        )}
+                    )}
+                    {project.spent !== undefined && project.spent !== null && (
+                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-600">Spent</span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          ${project.spent.toLocaleString()}
+                        </span>
                       </div>
+                    )}
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Target className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">Status</span>
+                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-lg text-xs font-medium ${
+                          project.status === "In Progress"
+                            ? "bg-blue-100 text-blue-700"
+                            : project.status === "Completed"
+                            ? "bg-green-100 text-green-700"
+                            : project.status === "On Hold"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {project.status}
+                      </span>
+                    </div>
+                    {project.client && (
+                      <div className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-600">Client</span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          {project.client.name || "N/A"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                      {/* Message Input */}
-                      <div className="p-4 border-t border-gray-200">
-                        <div className="flex items-end gap-3">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                            JB
+                {/* Progress Card */}
+                <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Project Progress
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">
+                          Completion
+                        </span>
+                        <span className="text-lg font-bold text-gray-900">
+                          {project.progress || 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${project.progress || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    {project.budget &&
+                      project.budget !== null &&
+                      project.spent !== undefined &&
+                      project.spent !== null && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-gray-600">
+                              Budget Usage
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              ${project.spent.toLocaleString()} / $
+                              {project.budget.toLocaleString()}
+                            </span>
                           </div>
-                          <div className="flex-1">
-                            <textarea
-                              value={newMessage}
-                              onChange={(e) => setNewMessage(e.target.value)}
-                              placeholder="Write a message"
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              rows={3}
-                            />
-                            <div className="flex items-center justify-between mt-2">
-                              <div className="flex items-center gap-3">
-                                <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                                  <Plus className="w-4 h-4" />
-                                </button>
-                                <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                                  <Paperclip className="w-4 h-4" />
-                                </button>
-                                <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                                  <Smile className="w-4 h-4" />
-                                </button>
+                          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div
+                              className={`h-3 rounded-full transition-all duration-500 ${
+                                (project.spent / project.budget) * 100 > 90
+                                  ? "bg-gradient-to-r from-red-500 to-red-600"
+                                  : (project.spent / project.budget) * 100 > 75
+                                  ? "bg-gradient-to-r from-yellow-500 to-yellow-600"
+                                  : "bg-gradient-to-r from-green-500 to-green-600"
+                              }`}
+                              style={{
+                                width: `${Math.min(
+                                  (project.spent / project.budget) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {(
+                              ((project.budget - project.spent) /
+                                project.budget) *
+                              100
+                            ).toFixed(1)}
+                            % remaining
+                          </p>
+                        </div>
+                      )}
+                    {project.originalStartDate &&
+                      project.originalEndDate &&
+                      (() => {
+                        // Use original ISO dates for calculations
+                        const startDateObj = new Date(
+                          project.originalStartDate
+                        );
+                        const endDateObj = new Date(project.originalEndDate);
+                        const isValidStart = !isNaN(startDateObj.getTime());
+                        const isValidEnd = !isNaN(endDateObj.getTime());
+
+                        if (isValidStart && isValidEnd) {
+                          const daysDiff = Math.ceil(
+                            (endDateObj - startDateObj) / (1000 * 60 * 60 * 24)
+                          );
+                          return (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm text-gray-600">
+                                  Timeline
+                                </span>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {daysDiff} days
+                                </span>
                               </div>
-                              <button
-                                onClick={() => {
-                                  // Handle send message
-                                  setNewMessage("");
-                                }}
-                                disabled={!newMessage.trim()}
-                                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                              >
-                                Send Message
-                              </button>
+                              <div className="text-xs text-gray-500">
+                                {project.startDate} - {project.endDate}
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                  </div>
+                </div>
+
+                {/* Description Card */}
+                {project.description && (
+                  <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                      Description
+                    </h3>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      {project.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column - Key Metrics */}
+              <div className="space-y-6">
+                {/* Key Metrics */}
+                <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Quick Stats
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <CheckSquare className="w-5 h-5 text-blue-600" />
                       </div>
-                    </>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center">
-                        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">
-                          Select a channel to start the discussion
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Total Tasks</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {project.stats?.totalTasks || 0}
                         </p>
                       </div>
                     </div>
-                  )}
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Completed</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {project.stats?.completedTasks || 0}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <Clock className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">In Progress</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {project.stats?.incompleteTasks || 0}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <AlertCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Overdue</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {project.stats?.overdueTasks || 0}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Team Members Preview */}
+                {project.team && project.team.length > 0 && (
+                  <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Team Members
+                      </h3>
+                      <button
+                        onClick={() => setActiveTab("members")}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        View All
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {project.team.slice(0, 6).map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center gap-2 px-3 py-2 bg-white/50 rounded-lg"
+                        >
+                          <div
+                            className={`w-8 h-8 ${
+                              member.color || "bg-gray-500"
+                            } rounded-full flex items-center justify-center text-white text-xs font-bold`}
+                          >
+                            {member.avatar ||
+                              member.name?.charAt(0)?.toUpperCase() ||
+                              "U"}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">
+                            {member.name}
+                          </span>
+                        </div>
+                      ))}
+                      {project.team.length > 6 && (
+                        <div className="flex items-center px-3 py-2 bg-white/50 rounded-lg">
+                          <span className="text-sm text-gray-600">
+                            +{project.team.length - 6} more
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tasks Tab */}
+          {activeTab === "tasks" && (
+            <div className="space-y-6">
+              {/* Header with Search and Actions */}
+              <div className="flex items-center justify-between gap-4">
+                {/* Search */}
+                <div className="flex-1 max-w-md relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white/70 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Filter and Actions */}
+                <div className="flex items-center gap-3">
+                  {/* Status Filter */}
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-gray-200 bg-white/70 backdrop-blur-sm text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="to-do">To Do</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="in-review">In Review</option>
+                    <option value="done">Done</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+
+                  {/* New Task Button */}
+                  <button
+                    onClick={() =>
+                      router.push(`/tasks/add?projectId=${project.id}`)
+                    }
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white rounded-xl font-medium transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Task
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Tasks Table - Using TasksListView component */}
+              <TasksListView
+                filteredTasks={filteredAndSortedTasks}
+                taskColumnsTable={taskColumnsTable}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                setIsModalOpen={() =>
+                  router.push(`/tasks/add?projectId=${project.id}`)
+                }
+                onRowClick={handleTaskClick}
+              />
+            </div>
+          )}
+
+          {/* Members Tab */}
+          {activeTab === "members" && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-brand-foreground">
+                  Member Assigned
+                </h3>
+                <div className="flex items-center gap-3">
+                  <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors">
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span className="text-sm font-medium">A-Z</span>
+                  </button>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/80 transition-colors">
+                    <UserPlus className="w-4 h-4" />
+                    <span className="text-sm font-medium">Invite</span>
+                  </button>
+                  <button className="p-2 text-gray-600 hover:text-gray-900 transition-colors">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Members Table */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Invited
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <div className="flex items-center gap-1">
+                            Task Assigned
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <div className="flex items-center gap-1">
+                            Task Completed
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <div className="flex items-center gap-1">
+                            Task Incompleted
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <div className="flex items-center gap-1">
+                            Task Overdue
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                        </th>
+                        <th className="px-6 py-3 text-left">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {project.team.map((member) => {
+                        // Mock task data for each member
+                        const taskStats = {
+                          assigned: Math.floor(Math.random() * 5) + 1,
+                          completed: Math.floor(Math.random() * 3) + 1,
+                          incompleted: Math.floor(Math.random() * 2),
+                          overdue: Math.floor(Math.random() * 2),
+                        };
+
+                        const invitedDate = new Date();
+                        invitedDate.setDate(
+                          invitedDate.getDate() -
+                            Math.floor(Math.random() * 10) +
+                            1
+                        );
+
+                        return (
+                          <tr
+                            key={member.id}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="px-6 py-4">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+                              />
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`w-10 h-10 ${member.color} rounded-full flex items-center justify-center text-white font-bold text-sm`}
+                                >
+                                  {member.avatar}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {member.name}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {member.email ||
+                                      `${member.name
+                                        .toLowerCase()
+                                        .replace(/\s+/g, "")}@example.com`}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {invitedDate.toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                              {taskStats.assigned}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                              {taskStats.completed}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                              {taskStats.incompleted}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                              {taskStats.overdue}
+                            </td>
+                            <td className="px-6 py-4">
+                              <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between text-sm text-gray-500">
+                <span>{project.team.length} Members</span>
+              </div>
+            </div>
+          )}
+
+          {/* Discussion Tab */}
+          {activeTab === "discussion" && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+              {/* Channels List */}
+              <div className="lg:col-span-1 rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-4">
+                <div className="space-y-4 h-full flex flex-col">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Channel
+                    </h3>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search channel or message"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-2 overflow-y-auto">
+                    {project &&
+                      getChannelsByProjectId(project.id).map((channel) => (
+                        <div
+                          key={channel.id}
+                          onClick={() => setSelectedChannel(channel)}
+                          className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                            selectedChannel?.id === channel.id
+                              ? "bg-gray-100"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-gray-900 text-sm">
+                                {channel.name}
+                              </h4>
+                              {channel.unreadCount > 0 && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {channel.lastActivity}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 truncate">
+                            {channel.lastMessage}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Discussion Area */}
+              <div className="lg:col-span-2 rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl flex flex-col">
+                {selectedChannel ? (
+                  <>
+                    {/* Header */}
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {selectedChannel.name}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <button className="flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                          <Plus className="w-4 h-4" />
+                          <span className="text-sm">Attach Task</span>
+                        </button>
+                        <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                      {getMessagesByChannelId(selectedChannel.id).map(
+                        (message) => {
+                          const sender = teamMembers[message.senderId];
+                          const isCurrentUser = message.senderId === 1; // Assuming current user is ID 1
+                          const messageDate = new Date(message.timestamp);
+
+                          return (
+                            <div
+                              key={message.id}
+                              className={`flex ${
+                                isCurrentUser ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              <div
+                                className={`flex gap-3 max-w-[70%] ${
+                                  isCurrentUser
+                                    ? "flex-row-reverse"
+                                    : "flex-row"
+                                }`}
+                              >
+                                {!isCurrentUser && (
+                                  <div
+                                    className={`w-8 h-8 ${
+                                      sender?.color || "bg-gray-500"
+                                    } rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
+                                  >
+                                    {sender?.avatar || "U"}
+                                  </div>
+                                )}
+                                <div
+                                  className={`flex flex-col ${
+                                    isCurrentUser ? "items-end" : "items-start"
+                                  }`}
+                                >
+                                  <div
+                                    className={`px-4 py-2 rounded-lg ${
+                                      isCurrentUser
+                                        ? "bg-blue-500 text-white"
+                                        : "bg-gray-100 text-gray-900"
+                                    }`}
+                                  >
+                                    <p className="text-sm">{message.content}</p>
+                                  </div>
+                                  <div
+                                    className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${
+                                      isCurrentUser
+                                        ? "flex-row-reverse"
+                                        : "flex-row"
+                                    }`}
+                                  >
+                                    <span>
+                                      {messageDate.toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })}
+                                    </span>
+                                    <span>
+                                      {sender?.name || "Unknown User"}
+                                    </span>
+                                  </div>
+                                </div>
+                                {isCurrentUser && (
+                                  <div
+                                    className={`w-8 h-8 ${
+                                      sender?.color || "bg-gray-500"
+                                    } rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
+                                  >
+                                    {sender?.avatar || "U"}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+
+                    {/* Message Input */}
+                    <div className="p-4 border-t border-gray-200">
+                      <div className="flex items-end gap-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                          JB
+                        </div>
+                        <div className="flex-1">
+                          <textarea
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Write a message"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows={3}
+                          />
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-3">
+                              <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                                <Plus className="w-4 h-4" />
+                              </button>
+                              <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                                <Paperclip className="w-4 h-4" />
+                              </button>
+                              <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                                <Smile className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => {
+                                // Handle send message
+                                setNewMessage("");
+                              }}
+                              disabled={!newMessage.trim()}
+                              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Send Message
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                      <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">
+                        Select a channel to start the discussion
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -980,6 +2442,149 @@ export default function ProjectDetail({ params }) {
         task={taskDetailModal.task}
         onOpenFullPage={handleOpenFullPage}
         onOpenProject={handleOpenProject}
+        onTaskRefresh={async () => {
+          // Refresh task data in modal AND update the task list in real-time
+          if (taskDetailModal.task?.id) {
+            const taskId = taskDetailModal.task.id;
+            try {
+              // Get the updated task first to update the table immediately
+              const fullTaskData = await taskService.getTaskById(taskId, [
+                "project",
+                "assignee",
+                "createdBy",
+                "subtasks",
+                "subtasks.assignee",
+                "subtasks.childSubtasks",
+                "collaborators",
+              ]);
+
+              const transformedTask = transformTask(fullTaskData);
+
+              // Update project tasks immediately with the updated task (real-time update)
+              setProject((prevProject) => ({
+                ...prevProject,
+                tasks: prevProject.tasks.map((task) =>
+                  task.id === taskId ? transformedTask : task
+                ),
+              }));
+
+              // Refresh subtask count for this task
+              try {
+                const response = await subtaskService.getRootSubtasksByTask(
+                  taskId,
+                  {
+                    populate: ["assignee"],
+                  }
+                );
+
+                let subtasksData = [];
+                if (Array.isArray(response.data)) {
+                  subtasksData = response.data;
+                } else if (
+                  response.data?.data &&
+                  Array.isArray(response.data.data)
+                ) {
+                  subtasksData = response.data.data;
+                } else if (Array.isArray(response)) {
+                  subtasksData = response;
+                }
+
+                const transformedSubtasks = subtasksData
+                  .map(transformSubtask)
+                  .filter(Boolean);
+
+                // Update loaded subtasks state to refresh the count
+                setLoadedSubtasks((prev) => ({
+                  ...prev,
+                  [taskId]: transformedSubtasks,
+                }));
+              } catch (subtaskError) {
+                console.error(
+                  `Error refreshing subtasks for task ${taskId}:`,
+                  subtaskError
+                );
+              }
+
+              // Update modal task
+              const formattedDueDate = transformedTask.scheduledDate
+                ? formatDate(transformedTask.scheduledDate)
+                : "No due date";
+
+              let comments = [];
+              try {
+                const commentsResponse = await commentService.getTaskComments(
+                  taskId
+                );
+                comments = commentsResponse.data?.map(transformComment) || [];
+              } catch (commentError) {
+                console.error("Error fetching comments:", commentError);
+              }
+
+              const taskForModal = {
+                ...transformedTask,
+                dueDate: formattedDueDate,
+                description: transformedTask.description || "",
+                subtasks:
+                  transformedTask.subtasks || fullTaskData.subtasks || [],
+                comments: comments,
+              };
+
+              setTaskDetailModal((prev) => ({
+                ...prev,
+                task: taskForModal,
+              }));
+            } catch (error) {
+              console.error("Error refreshing task:", error);
+            }
+          }
+        }}
+      />
+
+      {/* Collaborator Modal */}
+      <CollaboratorModal
+        isOpen={collaboratorModal.isOpen}
+        task={collaboratorModal.task}
+        onClose={() => setCollaboratorModal({ isOpen: false, task: null })}
+        onUpdate={(updatedTask) => {
+          setProject((prevProject) => ({
+            ...prevProject,
+            tasks: prevProject.tasks.map((t) =>
+              t.id === updatedTask.id ? updatedTask : t
+            ),
+          }));
+          if (taskDetailModal.task?.id === updatedTask.id) {
+            setTaskDetailModal((prev) => ({
+              ...prev,
+              task: updatedTask,
+            }));
+          }
+        }}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <TaskDeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        task={deleteModal.task}
+        onClose={() => setDeleteModal({ isOpen: false, task: null })}
+        onConfirm={async (taskToDelete) => {
+          if (!taskToDelete?.id) return;
+
+          try {
+            await taskService.deleteTask(taskToDelete.id);
+            // Remove task from project
+            setProject((prevProject) => ({
+              ...prevProject,
+              tasks: prevProject.tasks.filter((t) => t.id !== taskToDelete.id),
+            }));
+            // Close modal if it's open for this task
+            if (taskDetailModal.task?.id === taskToDelete.id) {
+              setTaskDetailModal({ isOpen: false, task: null });
+            }
+            setDeleteModal({ isOpen: false, task: null });
+          } catch (error) {
+            console.error("Error deleting task:", error);
+          }
+        }}
       />
     </div>
   );

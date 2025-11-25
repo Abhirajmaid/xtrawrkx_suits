@@ -204,12 +204,27 @@ class CommentService {
                 throw new Error('commentableType must be either TASK or SUBTASK');
             }
 
+            console.log('Creating comment with data:', commentData);
             const response = await apiClient.post('/api/task-comments', {
                 data: commentData
             });
-            return response.data;
+            console.log('Comment creation response:', response);
+            
+            // Handle different response structures
+            if (response.data) {
+                return response.data;
+            } else if (response) {
+                return response;
+            } else {
+                throw new Error('Unexpected response structure from comment creation');
+            }
         } catch (error) {
             console.error('Error creating comment:', error);
+            console.error('Error details:', {
+                message: error.message,
+                response: error.response,
+                stack: error.stack
+            });
             throw error;
         }
     }

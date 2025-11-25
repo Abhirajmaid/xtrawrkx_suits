@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect } from "react";
+import { CheckSquare, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import {
   StatsCards,
   AssignedTasksTable,
@@ -10,12 +11,12 @@ import {
   People,
   PrivateNotepad,
   RecentActivity,
-} from "../../components/dashboard";
-import PageHeader from "../../components/shared/PageHeader";
-import { useAuth } from "../../contexts/AuthContext";
-import projectService from "../../lib/projectService";
-import taskService from "../../lib/taskService";
-import { transformProject, transformTask } from "../../lib/dataTransformers";
+} from "../components/dashboard";
+import PageHeader from "../components/shared/PageHeader";
+import { useAuth } from "../contexts/AuthContext";
+import projectService from "../lib/projectService";
+import taskService from "../lib/taskService";
+import { transformProject, transformTask } from "../lib/dataTransformers";
 
 // Helper function to get greeting
 const getGreeting = () => {
@@ -28,7 +29,12 @@ const getGreeting = () => {
 // Helper function to get current date
 const getCurrentDate = () => {
   const date = new Date();
-  const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+  const options = {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  };
   return date.toLocaleDateString("en-US", options);
 };
 
@@ -37,7 +43,6 @@ export default function DashboardPage() {
   const [hasData] = useState(true); // Default to filled state to show the dashboard with data
   const [projects, setProjects] = useState([]);
   const [assignedTasks, setAssignedTasks] = useState([]);
-  const [taskStats, setTaskStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -48,23 +53,73 @@ export default function DashboardPage() {
         setLoading(true);
         setError(null);
 
-        const currentUserId = 1; // TODO: Get from auth context
+        // Get user ID from auth context
+        const currentUserId =
+          user?.id || user?._id || user?.xtrawrkxUserId || 1;
 
-        // Load projects, tasks, and stats in parallel
-        const [projectsResponse, tasksResponse, statsResponse] = await Promise.all([
+        // Load projects and tasks in parallel
+        const [projectsResponse, allTasksResponse] = await Promise.all([
           projectService.getAllProjects({ pageSize: 10 }),
-          taskService.getTasksByAssignee(currentUserId, { pageSize: 10 }),
-          taskService.getTaskStats(currentUserId)
+          taskService.getAllTasks({
+            pageSize: 100,
+            populate: [
+              "projects",
+              "assignee",
+              "createdBy",
+              "subtasks",
+              "collaborators",
+            ],
+          }),
         ]);
 
         // Transform data
-        const transformedProjects = projectsResponse.data?.map(transformProject) || [];
-        const transformedTasks = tasksResponse.data?.map(transformTask) || [];
+        const transformedProjects =
+          projectsResponse.data?.map(transformProject) || [];
+        const allTransformedTasks =
+          allTasksResponse.data?.map(transformTask) || [];
+
+        // Filter out CRM tasks (PM tasks only)
+        const allPMTasks = allTransformedTasks.filter((task) => {
+          const hasCRMRelation = !!(
+            task.leadCompany ||
+            task.clientAccount ||
+            task.contact ||
+            task.deal
+          );
+          return !hasCRMRelation;
+        });
+
+        // Filter tasks where user is a collaborator
+        const normalizedCurrentUserId =
+          typeof currentUserId === "string"
+            ? parseInt(currentUserId)
+            : currentUserId;
+
+        const collaboratorTasks = allPMTasks.filter((task) => {
+          // Check if user is assignee
+          const taskAssigneeId =
+            task.assignee?.id || task.assignee?._id || task.assignee;
+          const normalizedTaskAssigneeId =
+            typeof taskAssigneeId === "string"
+              ? parseInt(taskAssigneeId)
+              : taskAssigneeId;
+          const isAssignee =
+            normalizedTaskAssigneeId === normalizedCurrentUserId;
+
+          // Check if user is in collaborators
+          const collaborators = task.collaborators || [];
+          const isCollaborator = collaborators.some((collab) => {
+            const collabId = collab?.id || collab?._id || collab;
+            const normalizedCollabId =
+              typeof collabId === "string" ? parseInt(collabId) : collabId;
+            return normalizedCollabId === normalizedCurrentUserId;
+          });
+
+          return isAssignee || isCollaborator;
+        });
 
         setProjects(transformedProjects);
-        setAssignedTasks(transformedTasks);
-        setTaskStats(statsResponse);
-
+        setAssignedTasks(collaboratorTasks);
       } catch (error) {
         console.error("Error loading dashboard data:", error);
         setError(error.message);
@@ -73,8 +128,10 @@ export default function DashboardPage() {
       }
     };
 
-    loadDashboardData();
-  }, []);
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
 
   // Get real assigned tasks data
   const getRealAssignedTasksData = () => {
@@ -82,7 +139,7 @@ export default function DashboardPage() {
 
     return assignedTasks.slice(0, 3).map((task) => {
       let dueDateText = "No due date";
-      
+
       if (task.dueDate) {
         const dueDate = new Date(task.scheduledDate);
         const now = new Date();
@@ -137,34 +194,79 @@ export default function DashboardPage() {
     });
   };
 
-  // Get real stats from API data
-  const getRealStatsData = () => {
-    if (!hasData) {
-      return {
-        totalProjects: 1,
-        totalTasks: 3,
-        assignedTasks: 0,
-        completedTasks: 0,
-        overdueTasks: 0,
-      };
-    }
-
-    return {
-      totalProjects: projects.length,
-      totalTasks: taskStats.totalTasks || 0,
-      assignedTasks: assignedTasks.length,
-      completedTasks: taskStats.completedTasks || 0,
-      overdueTasks: taskStats.overdueTasks || 0,
+  // Calculate task statistics similar to my-task page
+  const getTaskStats = () => {
+    const stats = {
+      "to-do": 0,
+      "in-progress": 0,
+      done: 0,
+      overdue: 0,
     };
+
+    const now = new Date();
+    assignedTasks.forEach((task) => {
+      const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+      if (status === "to-do" || status === "todo") stats["to-do"]++;
+      else if (status === "in-progress") stats["in-progress"]++;
+      else if (status === "done" || status === "completed") stats.done++;
+
+      // Check for overdue
+      if (
+        task.scheduledDate &&
+        new Date(task.scheduledDate) < now &&
+        status !== "done" &&
+        status !== "completed"
+      ) {
+        stats.overdue++;
+      }
+    });
+
+    return stats;
   };
 
-  const statsData = getRealStatsData();
+  const taskStats = getTaskStats();
+
+  // Status statistics for KPIs (similar to my-task page)
+  const statusStats = [
+    {
+      label: "To Do",
+      count: taskStats["to-do"],
+      color: "bg-blue-50",
+      borderColor: "border-blue-200",
+      iconColor: "text-blue-600",
+      icon: CheckSquare,
+    },
+    {
+      label: "In Progress",
+      count: taskStats["in-progress"],
+      color: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      iconColor: "text-yellow-600",
+      icon: Clock,
+    },
+    {
+      label: "Done",
+      count: taskStats.done,
+      color: "bg-green-50",
+      borderColor: "border-green-200",
+      iconColor: "text-green-600",
+      icon: CheckCircle,
+    },
+    {
+      label: "Overdue",
+      count: taskStats.overdue,
+      color: "bg-red-50",
+      borderColor: "border-red-200",
+      iconColor: "text-red-600",
+      icon: AlertCircle,
+    },
+  ];
 
   // Handle task completion
   const handleTaskComplete = async (taskId, newStatus) => {
     try {
       await taskService.updateTaskStatus(taskId, newStatus);
-      
+
       setAssignedTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.id === taskId ? { ...task, status: newStatus } : task
@@ -223,10 +325,12 @@ export default function DashboardPage() {
         dueDate:
           status === "Completed"
             ? "Completed"
-            : endDate ? endDate.toLocaleDateString("en-US", {
+            : endDate
+            ? endDate.toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
-              }) : "No due date",
+              })
+            : "No due date",
         team,
       };
     });
@@ -277,20 +381,21 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
-        <div className="p-6">
+      <div className="bg-white w-full flex-1 min-h-full">
+        <div className="p-4">
           <PageHeader
             title="Dashboard"
-            subtitle={`${getGreeting()}, ${user?.firstName || user?.name?.split(" ")[0] || "User"} • ${getCurrentDate()}`}
-            breadcrumb={[{ label: "Dashboard", href: "/dashboard" }]}
+            subtitle={`${getGreeting()}, ${
+              user?.firstName || user?.name?.split(" ")[0] || "User"
+            } • ${getCurrentDate()}`}
+            breadcrumb={[{ label: "Dashboard", href: "/" }]}
             showSearch={true}
             showActions={false}
           />
         </div>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Loading dashboard...</p>
           </div>
         </div>
@@ -300,24 +405,27 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col h-full relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
-        <div className="p-6">
+      <div className="bg-white w-full flex-1 min-h-full">
+        <div className="p-4">
           <PageHeader
             title="Dashboard"
-            subtitle={`${getGreeting()}, ${user?.firstName || user?.name?.split(" ")[0] || "User"} • ${getCurrentDate()}`}
-            breadcrumb={[{ label: "Dashboard", href: "/dashboard" }]}
+            subtitle={`${getGreeting()}, ${
+              user?.firstName || user?.name?.split(" ")[0] || "User"
+            } • ${getCurrentDate()}`}
+            breadcrumb={[{ label: "Dashboard", href: "/" }]}
             showSearch={true}
             showActions={false}
           />
         </div>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Error Loading Dashboard
+            </h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-lg transition-all duration-300"
             >
               Retry
             </button>
@@ -328,54 +436,43 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col h-full relative">
-      {/* Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 -z-10"></div>
-
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-yellow-400/10 to-orange-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-gradient-to-tr from-blue-500/8 to-purple-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-gradient-to-bl from-green-400/8 to-teal-500/5 rounded-full blur-3xl" />
-      </div>
-
-      <div className="p-6">
+    <div className="bg-white w-full h-full min-h-full">
+      <div className="p-4 space-y-4 pb-8">
         <PageHeader
           title="Dashboard"
-          subtitle={`${getGreeting()}, ${user?.firstName || user?.name?.split(" ")[0] || "User"} • ${getCurrentDate()}`}
-          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }]}
+          subtitle={`${getGreeting()}, ${
+            user?.firstName || user?.name?.split(" ")[0] || "User"
+          } • ${getCurrentDate()}`}
+          breadcrumb={[{ label: "Dashboard", href: "/" }]}
           showSearch={true}
           showActions={false}
         />
-      </div>
 
-      <div className="flex-1 px-6 pb-6 overflow-auto relative z-10">
-        <div className="max-w-full mx-auto">
-          <div className="mb-6">
-            <StatsCards data={statsData} />
+        <div className="mb-6">
+          <StatsCards statusStats={statusStats} />
+        </div>
+
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-2">
+              <AssignedTasksTable
+                data={assignedTasks}
+                onTaskComplete={handleTaskComplete}
+                projects={projects}
+              />
+            </div>
+            <div className="space-y-6">
+              <ProjectsTable data={projectsData.slice(0, 4)} />
+              <RecentActivity />
+            </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2">
-                <AssignedTasksTable
-                  data={assignedTasks}
-                  onTaskComplete={handleTaskComplete}
-                />
-              </div>
-              <div className="space-y-6">
-                <ProjectsTable data={projectsData.slice(0, 4)} />
-                <RecentActivity />
-              </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div>
+              <People data={peopleData} />
             </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div>
-                <People data={peopleData} />
-              </div>
-              <div className="xl:col-span-2">
-                <PrivateNotepad />
-              </div>
+            <div className="xl:col-span-2">
+              <PrivateNotepad />
             </div>
           </div>
         </div>

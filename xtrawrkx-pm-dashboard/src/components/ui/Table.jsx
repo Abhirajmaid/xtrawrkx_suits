@@ -31,12 +31,12 @@ export function Table({
   };
 
   return (
-    <div className={clsx("overflow-x-auto", className)} {...props}>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-white/40 backdrop-blur-sm border-b border-white/30">
+    <div className="overflow-x-auto rounded-3xl bg-white/70 backdrop-blur-xl border border-white/40 shadow-2xl hover:shadow-3xl transition-shadow duration-300">
+      <table className={clsx("min-w-full rounded-3xl overflow-hidden", className)} {...props}>
+        <thead className="bg-white/90 backdrop-blur-lg border-b border-orange-200/50 shadow-sm">
           <tr>
             {selectable && (
-              <th className="px-6 py-3 text-left">
+              <th className="px-6 py-5 text-left first:rounded-tl-3xl">
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-gray-300 text-blue-600"
@@ -47,11 +47,13 @@ export function Table({
                 />
               </th>
             )}
-            {columns.map((column) => (
+            {columns.map((column, index) => (
               <th
                 key={column.key}
                 className={clsx(
-                  "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                  "px-6 py-5 text-left text-xs font-black text-gray-800 uppercase tracking-wider shadow-sm",
+                  !selectable && index === 0 && "first:rounded-tl-3xl",
+                  index === columns.length - 1 && "last:rounded-tr-3xl",
                   column.sortable && "cursor-pointer hover:bg-gray-100"
                 )}
                 onClick={() => column.sortable && handleSort(column.key)}
@@ -64,7 +66,7 @@ export function Table({
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
+        <tbody className="bg-white/60 backdrop-blur-sm divide-y divide-white/20">
           {data.length === 0 ? (
             <tr>
               <td
@@ -75,14 +77,23 @@ export function Table({
               </td>
             </tr>
           ) : (
-            data.map((row, rowIndex) => (
+            data.map((row, rowIndex) => {
+              // Check if task is done/completed
+              const isDone =
+                row.status?.toLowerCase() === "done" ||
+                row.status?.toLowerCase() === "completed";
+              
+              return (
               <tr
                 key={row.id || rowIndex}
                 className={clsx(
-                  "hover:bg-white/40 hover:backdrop-blur-sm transition-all duration-200",
+                  "hover:bg-orange-50/50 hover:shadow-lg transition-all duration-300 group shadow-sm hover:shadow-orange-100/50",
                   onRowClick && "cursor-pointer",
                   selectedRows.includes(row.id) &&
-                    "bg-blue-50/50 backdrop-blur-sm"
+                    "bg-blue-50/50 backdrop-blur-sm",
+                  isDone
+                    ? "bg-gray-100/60 opacity-75"
+                    : "bg-white/40"
                 )}
                 onClick={() => onRowClick && onRowClick(row)}
               >
@@ -102,7 +113,7 @@ export function Table({
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                    className="px-6 py-4 text-sm text-gray-800 group-hover:text-gray-900 transition-colors duration-300"
                   >
                     {column.render
                       ? column.render(row[column.key], row)
@@ -110,7 +121,8 @@ export function Table({
                   </td>
                 ))}
               </tr>
-            ))
+            );
+            })
           )}
         </tbody>
       </table>

@@ -1,8 +1,13 @@
 "use client";
 
-import React from "react";
-import { Filter, MoreVertical, ArrowUp, ArrowDown } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Filter, MoreVertical, ArrowUp, ArrowDown, FolderOpen, CheckSquare, UserCheck, CheckCircle, AlertCircle } from "lucide-react";
 import PageHeader from "../../components/shared/PageHeader";
+import taskService from "../../lib/taskService";
+import projectService from "../../lib/projectService";
+import { transformTask } from "../../lib/dataTransformers";
+import { useAuth } from "../../contexts/AuthContext";
+import { Card } from "../../components/ui";
 
 // Error boundary component for charts
 // class ChartErrorBoundary extends React.Component {
@@ -36,106 +41,181 @@ import PageHeader from "../../components/shared/PageHeader";
 // }
 
 // Key Metrics Cards Component
-const KeyMetricsCards = () => {
-  const stats = [
+const KeyMetricsCards = ({ stats, previousStats }) => {
+  const calculateTrend = (current, previous) => {
+    if (!previous || previous === 0) return { value: "+0", isPositive: true };
+    const diff = current - previous;
+    const sign = diff >= 0 ? "+" : "";
+    return {
+      value: `${sign}${diff}`,
+      isPositive: diff >= 0,
+    };
+  };
+
+  const metrics = [
     {
-      title: "Total Project",
-      value: "7",
-      trend: "+2",
-      isPositive: true,
-      color: "text-blue-600",
+      title: "Total Projects",
+      value: stats.totalProjects?.toString() || "0",
+      trend: calculateTrend(stats.totalProjects || 0, previousStats?.totalProjects || 0),
+      color: "bg-blue-50",
+      borderColor: "border-blue-200",
+      iconColor: "text-blue-600",
+      icon: FolderOpen,
     },
     {
       title: "Total Tasks",
-      value: "49",
-      trend: "+4",
-      isPositive: true,
-      color: "text-green-600",
+      value: stats.totalTasks?.toString() || "0",
+      trend: calculateTrend(stats.totalTasks || 0, previousStats?.totalTasks || 0),
+      color: "bg-gray-50",
+      borderColor: "border-gray-200",
+      iconColor: "text-gray-600",
+      icon: CheckSquare,
     },
     {
       title: "Assigned Tasks",
-      value: "12",
-      trend: "-3",
-      isPositive: false,
-      color: "text-orange-600",
+      value: stats.assignedTasks?.toString() || "0",
+      trend: calculateTrend(stats.assignedTasks || 0, previousStats?.assignedTasks || 0),
+      color: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      iconColor: "text-yellow-600",
+      icon: UserCheck,
     },
     {
       title: "Completed Tasks",
-      value: "6",
-      trend: "+1",
-      isPositive: true,
-      color: "text-green-600",
+      value: stats.completedTasks?.toString() || "0",
+      trend: calculateTrend(stats.completedTasks || 0, previousStats?.completedTasks || 0),
+      color: "bg-green-50",
+      borderColor: "border-green-200",
+      iconColor: "text-green-600",
+      icon: CheckCircle,
     },
     {
       title: "Overdue Tasks",
-      value: "3",
-      trend: "+2",
-      isPositive: true,
-      color: "text-red-600",
+      value: stats.overdueTasks?.toString() || "0",
+      trend: calculateTrend(stats.overdueTasks || 0, previousStats?.overdueTasks || 0),
+      color: "bg-red-50",
+      borderColor: "border-red-200",
+      iconColor: "text-red-600",
+      icon: AlertCircle,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6 mb-6">
-      {stats.map((stat, index) => (
-        <div
-          key={index}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200"
-        >
-          <div className="space-y-3">
-            {/* Header with title and trend */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {metrics.map((metric, index) => {
+        const IconComponent = metric.icon;
+        return (
+          <Card key={index} glass={true} className="p-4 hover:shadow-lg transition-all duration-200">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500 font-medium">{stat.title}</p>
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-1">
+                  {metric.title}
+                </p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {metric.value}
+                </p>
+                <div className="mt-2 flex items-center text-xs text-gray-500">
+                  <span
+                    className={`w-2 h-2 ${metric.color.replace(
+                      "-50",
+                      "-400"
+                    )} rounded-full mr-2`}
+                  ></span>
+                  <span className="mr-2">
+                    {metric.value === "0"
+                      ? `No ${metric.title.toLowerCase()}`
+                      : `${metric.value} ${metric.value === "1" ? metric.title.slice(0, -1).toLowerCase() : metric.title.toLowerCase()}`}
+                  </span>
+                  {metric.trend.value !== "+0" && (
+                    <div
+                      className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-xs ${
+                        metric.trend.isPositive
+                          ? "bg-green-50 text-green-600"
+                          : "bg-red-50 text-red-600"
+                      }`}
+                    >
+                      {metric.trend.isPositive ? (
+                        <ArrowUp className="h-2.5 w-2.5" />
+                      ) : (
+                        <ArrowDown className="h-2.5 w-2.5" />
+                      )}
+                      <span className="font-semibold">{metric.trend.value}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div
-                className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                  stat.isPositive
-                    ? "bg-green-50 text-green-600"
-                    : "bg-red-50 text-red-600"
-                }`}
+                className={`w-14 h-14 ${metric.color} backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border ${metric.borderColor}`}
               >
-                {stat.isPositive ? (
-                  <ArrowUp className="h-3 w-3" />
-                ) : (
-                  <ArrowDown className="h-3 w-3" />
-                )}
-                <span>{stat.trend}</span>
+                <IconComponent className={`w-7 h-7 ${metric.iconColor}`} />
               </div>
             </div>
-
-            {/* Main value */}
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          </div>
-        </div>
-      ))}
+          </Card>
+        );
+      })}
     </div>
   );
 };
 
 // Upcoming Tasks by Status Chart
-const UpcomingTasksByStatus = () => {
-  const statusData = [
-    { name: "Backlog", value: 25, color: "#FF69B4" },
-    { name: "To Do", value: 15, color: "#FF8C00" },
-    { name: "In Progress", value: 20, color: "#FFD700" },
-    { name: "Done", value: 8, color: "#32CD32" },
-    { name: "In Review", value: 12, color: "#90EE90" },
-  ];
+const UpcomingTasksByStatus = ({ tasks }) => {
+  // Calculate tasks by status
+  const statusCounts = {
+    "To Do": 0,
+    "In Progress": 0,
+    "In Review": 0,
+    "Done": 0,
+    "Cancelled": 0,
+  };
 
-  const maxValue = Math.max(...statusData.map((d) => d.value));
+  tasks.forEach((task) => {
+    const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+    if (status === "to-do" || status === "todo") statusCounts["To Do"]++;
+    else if (status === "in-progress") statusCounts["In Progress"]++;
+    else if (status === "in-review") statusCounts["In Review"]++;
+    else if (status === "done" || status === "completed") statusCounts["Done"]++;
+    else if (status === "cancelled") statusCounts["Cancelled"]++;
+  });
+
+  const statusColors = {
+    "To Do": "#3B82F6", // blue-500
+    "In Progress": "#EAB308", // yellow-500
+    "In Review": "#A855F7", // purple-500
+    "Done": "#22C55E", // green-500
+    "Cancelled": "#EF4444", // red-500
+  };
+
+  const statusData = Object.entries(statusCounts)
+    .filter(([_, value]) => value > 0)
+    .map(([name, value]) => ({
+      name,
+      value,
+      color: statusColors[name] || "#808080",
+    }));
+
+  const maxValue = statusData.length > 0 ? Math.max(...statusData.map((d) => d.value)) : 1;
+
+  if (statusData.length === 0) {
+    return (
+      <Card glass={true} className="p-4">
+        <div className="flex items-center justify-center h-80">
+          <p className="text-gray-500">No task status data available</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg p-6 border border-gray-200">
-      <div className="flex items-center justify-between mb-6">
+    <Card glass={true} className="p-4">
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">
-          Upcoming Tasks by Status
+          Tasks by Status
         </h3>
         <div className="flex items-center space-x-2">
-          <button className="p-1 text-gray-400 hover:text-gray-600">
+          <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
             <Filter className="h-4 w-4" />
           </button>
-          <button className="p-1 text-gray-400 hover:text-gray-600">
+          <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
             <MoreVertical className="h-4 w-4" />
           </button>
         </div>
@@ -161,48 +241,82 @@ const UpcomingTasksByStatus = () => {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 };
 
 // Tasks by Project Chart
-const TasksByProject = () => {
-  const projectData = [
-    { icon: "⚪", completed: 10, incomplete: 5, maxHeight: 15 },
-    { icon: "🟡", completed: 12, incomplete: 8, maxHeight: 20 },
-    { icon: "🔵", completed: 18, incomplete: 7, maxHeight: 25 },
-    { icon: "🟣", completed: 8, incomplete: 12, maxHeight: 20 },
-    { icon: "🟢", completed: 14, incomplete: 6, maxHeight: 20 },
-    { icon: "🟠", completed: 16, incomplete: 4, maxHeight: 20 },
-    { icon: "⚫", completed: 12, incomplete: 8, maxHeight: 20 },
-  ];
+const TasksByProject = ({ tasks, projects }) => {
+  // Group tasks by project
+  const projectTaskMap = {};
+  
+  tasks.forEach((task) => {
+    const projectId = task.project?.id || "unassigned";
+    const projectName = task.project?.name || "Unassigned";
+    
+    if (!projectTaskMap[projectId]) {
+      projectTaskMap[projectId] = {
+        id: projectId,
+        name: projectName,
+        completed: 0,
+        incomplete: 0,
+      };
+    }
+    
+    const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+    if (status === "done" || status === "completed") {
+      projectTaskMap[projectId].completed++;
+    } else {
+      projectTaskMap[projectId].incomplete++;
+    }
+  });
 
-  const maxTotal = Math.max(
-    ...projectData.map((p) => p.completed + p.incomplete)
-  );
+  // Get project icons/colors
+  const projectIcons = ["⚪", "🟡", "🔵", "🟣", "🟢", "🟠", "⚫", "🔴", "🟤"];
+  const projectData = Object.values(projectTaskMap)
+    .slice(0, 9) // Limit to 9 projects for display
+    .map((project, index) => ({
+      ...project,
+      icon: projectIcons[index % projectIcons.length],
+    }));
+
+  const maxTotal =
+    projectData.length > 0
+      ? Math.max(...projectData.map((p) => p.completed + p.incomplete))
+      : 1;
+
+  if (projectData.length === 0) {
+    return (
+      <Card glass={true} className="p-4">
+        <div className="flex items-center justify-center h-80">
+          <p className="text-gray-500">No project data available</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg p-6 border border-gray-200">
-      <div className="flex items-center justify-between mb-6">
+    <Card glass={true} className="p-4">
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">
           Tasks by Project
         </h3>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
+              <div className="w-3 h-3 bg-green-500 rounded"></div>
               <span className="text-gray-600">Completed</span>
             </div>
             <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 bg-blue-200 rounded"></div>
+              <div className="w-3 h-3 bg-yellow-500 rounded"></div>
               <span className="text-gray-600">Incomplete</span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <button className="p-1 text-gray-400 hover:text-gray-600">
+            <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
               <Filter className="h-4 w-4" />
             </button>
-            <button className="p-1 text-gray-400 hover:text-gray-600">
+            <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
               <MoreVertical className="h-4 w-4" />
             </button>
           </div>
@@ -221,59 +335,95 @@ const TasksByProject = () => {
             >
               <div className="flex flex-col items-center w-full">
                 <div
-                  className="w-full bg-blue-200 rounded-t-md"
+                  className="w-full bg-yellow-500 rounded-t-md"
                   style={{
                     height: `${incompleteHeight}px`,
                     minHeight: project.incomplete > 0 ? "10px" : "0px",
                   }}
                 />
                 <div
-                  className="w-full bg-blue-500"
+                  className="w-full bg-green-500"
                   style={{
                     height: `${completedHeight}px`,
                     minHeight: project.completed > 0 ? "10px" : "0px",
                   }}
                 />
               </div>
-              <div className="text-lg">{project.icon}</div>
+              <div className="text-lg" title={project.name}>
+                {project.icon}
+              </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 };
 
 // Task by Assignee Chart
-const TaskByAssignee = () => {
-  const assigneeData = [
-    { avatar: "👩‍💼", name: "JA", value: 12, color: "#3B82F6" },
-    { avatar: "🧑‍💼", name: "JC", value: 18, color: "#3B82F6" },
-    { avatar: "👨‍💼", name: "TC", value: 8, color: "#3B82F6" },
-    { avatar: "👩‍💼", name: "SD", value: 15, color: "#3B82F6" },
-    { avatar: "🧑‍💼", name: "MR", value: 6, color: "#3B82F6" },
-    { avatar: "👨‍💼", name: "DS", value: 12, color: "#3B82F6" },
-    { avatar: "👩‍💼", name: "JW", value: 10, color: "#3B82F6" },
-  ];
+const TaskByAssignee = ({ tasks }) => {
+  // Group tasks by assignee
+  const assigneeMap = {};
+  
+  tasks.forEach((task) => {
+    const assignee = task.assignee;
+    if (!assignee) return;
+    
+    const assigneeId = assignee.id || assignee._id || "unknown";
+    const assigneeName =
+      assignee.name ||
+      (assignee.firstName && assignee.lastName
+        ? `${assignee.firstName} ${assignee.lastName}`
+        : assignee.firstName || assignee.email || "Unknown");
+    
+    const initials = assigneeName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+    
+    if (!assigneeMap[assigneeId]) {
+      assigneeMap[assigneeId] = {
+        id: assigneeId,
+        name: assigneeName,
+        initials,
+        value: 0,
+      };
+    }
+    
+    assigneeMap[assigneeId].value++;
+  });
 
-  const maxValue = Math.max(...assigneeData.map((d) => d.value));
+  const assigneeData = Object.values(assigneeMap)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7); // Top 7 assignees
+
+  const maxValue = assigneeData.length > 0 ? Math.max(...assigneeData.map((d) => d.value)) : 1;
+
+  if (assigneeData.length === 0) {
+    return (
+      <Card glass={true} className="p-4">
+        <div className="flex items-center justify-center h-80">
+          <p className="text-gray-500">No assignee data available</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg p-6 border border-gray-200">
-      <div className="flex items-center justify-between mb-6">
+    <Card glass={true} className="p-4">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded">
-            Yellow Branding
-          </div>
           <h3 className="text-lg font-semibold text-gray-900">
-            Task by Assignee
+            Tasks by Assignee
           </h3>
         </div>
         <div className="flex items-center space-x-2">
-          <button className="p-1 text-gray-400 hover:text-gray-600">
+          <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
             <Filter className="h-4 w-4" />
           </button>
-          <button className="p-1 text-gray-400 hover:text-gray-600">
+          <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
             <MoreVertical className="h-4 w-4" />
           </button>
         </div>
@@ -291,56 +441,98 @@ const TaskByAssignee = () => {
               <div className="flex flex-col items-center">
                 <div className="w-3 h-3 bg-blue-500 rounded-full mb-1" />
                 <div
-                  className="w-1 bg-blue-500"
+                  className="w-1 bg-blue-500 rounded"
                   style={{
                     height: `${barHeight}px`,
                     minHeight: "20px",
                   }}
                 />
               </div>
-              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs">
-                {assignee.name}
+              <div
+                className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-xs text-white font-bold"
+                title={assignee.name}
+              >
+                {assignee.initials}
               </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 };
 
 // Task Completion Over Time Chart
-const TaskCompletionOverTime = () => {
-  const timeData = [
-    { name: "Backlog", completed: 10, incomplete: 30 },
-    { name: "To Do", completed: 15, incomplete: 25 },
-    { name: "In Progress", completed: 25, incomplete: 15 },
-    { name: "Done", completed: 35, incomplete: 5 },
-    { name: "In Review", completed: 20, incomplete: 20 },
-  ];
+const TaskCompletionOverTime = ({ tasks }) => {
+  // Group tasks by status
+  const statusCounts = {
+    "To Do": { completed: 0, incomplete: 0 },
+    "In Progress": { completed: 0, incomplete: 0 },
+    "In Review": { completed: 0, incomplete: 0 },
+    "Done": { completed: 0, incomplete: 0 },
+  };
+
+  tasks.forEach((task) => {
+    const status = task.status?.toLowerCase().replace(/\s+/g, "-") || "";
+    const isCompleted = status === "done" || status === "completed";
+    
+    if (status === "to-do" || status === "todo") {
+      if (isCompleted) statusCounts["To Do"].completed++;
+      else statusCounts["To Do"].incomplete++;
+    } else if (status === "in-progress") {
+      if (isCompleted) statusCounts["In Progress"].completed++;
+      else statusCounts["In Progress"].incomplete++;
+    } else if (status === "in-review") {
+      if (isCompleted) statusCounts["In Review"].completed++;
+      else statusCounts["In Review"].incomplete++;
+    } else if (status === "done" || status === "completed") {
+      statusCounts["Done"].completed++;
+    }
+  });
+
+  const timeData = Object.entries(statusCounts).map(([name, counts]) => ({
+    name,
+    completed: counts.completed,
+    incomplete: counts.incomplete,
+  }));
+
+  const maxValue = Math.max(
+    ...timeData.map((d) => d.completed + d.incomplete),
+    1
+  );
+
+  if (timeData.length === 0) {
+    return (
+      <Card glass={true} className="p-4">
+        <div className="flex items-center justify-center h-80">
+          <p className="text-gray-500">No completion data available</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg p-6 border border-gray-200">
-      <div className="flex items-center justify-between mb-6">
+    <Card glass={true} className="p-4">
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">
           Task Completion Over Time
         </h3>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
+              <div className="w-3 h-3 bg-green-500 rounded"></div>
               <span className="text-gray-600">Completed</span>
             </div>
             <div className="flex items-center space-x-1">
-              <div className="w-3 h-3 bg-blue-200 rounded"></div>
+              <div className="w-3 h-3 bg-yellow-500 rounded"></div>
               <span className="text-gray-600">Incomplete</span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <button className="p-1 text-gray-400 hover:text-gray-600">
+            <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
               <Filter className="h-4 w-4" />
             </button>
-            <button className="p-1 text-gray-400 hover:text-gray-600">
+            <button className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
               <MoreVertical className="h-4 w-4" />
             </button>
           </div>
@@ -349,10 +541,10 @@ const TaskCompletionOverTime = () => {
 
       <div className="h-80 relative">
         <div className="absolute inset-0 flex flex-col justify-between text-xs text-gray-400 pr-2">
-          <span>40</span>
-          <span>30</span>
-          <span>20</span>
-          <span>10</span>
+          <span>{maxValue}</span>
+          <span>{Math.round(maxValue * 0.75)}</span>
+          <span>{Math.round(maxValue * 0.5)}</span>
+          <span>{Math.round(maxValue * 0.25)}</span>
           <span>0</span>
         </div>
 
@@ -362,12 +554,12 @@ const TaskCompletionOverTime = () => {
             <defs>
               <pattern
                 id="grid"
-                width="80"
+                width={400 / timeData.length}
                 height="60"
                 patternUnits="userSpaceOnUse"
               >
                 <path
-                  d="M 80 0 L 0 0 0 60"
+                  d={`M ${400 / timeData.length} 0 L 0 0 0 60`}
                   fill="none"
                   stroke="#f0f0f0"
                   strokeWidth="1"
@@ -376,19 +568,33 @@ const TaskCompletionOverTime = () => {
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
 
-            {/* Area chart for incomplete (lighter blue) */}
-            <path
-              d="M 0,240 L 80,225 L 160,285 L 240,270 L 320,180 L 400,180 L 400,300 L 0,300 Z"
-              fill="#BFDBFE"
-              opacity="0.6"
-            />
+            {/* Calculate path for incomplete tasks */}
+            {timeData.length > 0 && (
+              <>
+                <path
+                  d={`M 0,${300 - (timeData[0].incomplete / maxValue) * 250} ${timeData
+                    .map(
+                      (item, index) =>
+                        `L ${(index * 400) / timeData.length},${300 - (item.incomplete / maxValue) * 250}`
+                    )
+                    .join(" ")} L ${400},${300 - (timeData[timeData.length - 1].incomplete / maxValue) * 250} L 400,300 L 0,300 Z`}
+                  fill="#EAB308"
+                  opacity="0.4"
+                />
 
-            {/* Area chart for completed (darker blue) */}
-            <path
-              d="M 0,270 L 80,255 L 160,180 L 240,120 L 320,240 L 400,180 L 400,300 L 0,300 Z"
-              fill="#3B82F6"
-              opacity="0.8"
-            />
+                {/* Area chart for completed tasks */}
+                <path
+                  d={`M 0,${300 - (timeData[0].completed / maxValue) * 250} ${timeData
+                    .map(
+                      (item, index) =>
+                        `L ${(index * 400) / timeData.length},${300 - (item.completed / maxValue) * 250}`
+                    )
+                    .join(" ")} L ${400},${300 - (timeData[timeData.length - 1].completed / maxValue) * 250} L 400,300 L 0,300 Z`}
+                  fill="#22C55E"
+                  opacity="0.6"
+                />
+              </>
+            )}
           </svg>
 
           {/* X-axis labels */}
@@ -401,41 +607,242 @@ const TaskCompletionOverTime = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 
 // Main Analytics Page Component
 export default function AnalyticsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [stats, setStats] = useState({
+    totalProjects: 0,
+    totalTasks: 0,
+    assignedTasks: 0,
+    completedTasks: 0,
+    overdueTasks: 0,
+  });
+  const [previousStats, setPreviousStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load analytics data
+  useEffect(() => {
+    if (authLoading) return;
+
+    const loadAnalyticsData = async () => {
+      try {
+        setLoading(true);
+        
+        // Store previous stats for trend calculation
+        setPreviousStats({ ...stats });
+
+        // Fetch tasks and projects in parallel
+        const [tasksResponse, projectsResponse] = await Promise.all([
+          taskService.getAllTasks({
+            pageSize: 1000,
+            populate: ["project", "assignee", "createdBy"],
+          }).catch((err) => {
+            console.error("Error fetching tasks:", err);
+            return { data: [] };
+          }),
+          projectService.getAllProjects({
+            pageSize: 100,
+          }).catch((err) => {
+            console.error("Error fetching projects:", err);
+            return { data: [] };
+          }),
+        ]);
+
+        // Transform tasks
+        const transformedTasks = (tasksResponse.data || [])
+          .map(transformTask)
+          .filter((task) => {
+            // Filter out CRM tasks - only PM tasks
+            const hasCRMRelation = !!(
+              task.leadCompany ||
+              task.clientAccount ||
+              task.contact ||
+              task.deal
+            );
+            return !hasCRMRelation;
+          });
+
+        setTasks(transformedTasks);
+        setProjects(projectsResponse.data || []);
+
+        // Calculate statistics
+        const now = new Date();
+        const assignedTasks = transformedTasks.filter((t) => t.assignee).length;
+        const completedTasks = transformedTasks.filter(
+          (t) =>
+            t.status?.toLowerCase() === "done" ||
+            t.status?.toLowerCase() === "completed"
+        ).length;
+        const overdueTasks = transformedTasks.filter(
+          (t) =>
+            t.scheduledDate &&
+            new Date(t.scheduledDate) < now &&
+            t.status?.toLowerCase() !== "done" &&
+            t.status?.toLowerCase() !== "completed"
+        ).length;
+
+        setStats({
+          totalProjects: projectsResponse.data?.length || 0,
+          totalTasks: transformedTasks.length,
+          assignedTasks,
+          completedTasks,
+          overdueTasks,
+        });
+      } catch (error) {
+        console.error("Error loading analytics data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAnalyticsData();
+  }, [authLoading]);
+
+  // Real-time updates: Poll for new data every 10 seconds
+  useEffect(() => {
+    if (authLoading || loading) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const [tasksResponse, projectsResponse] = await Promise.all([
+          taskService.getAllTasks({
+            pageSize: 1000,
+            populate: ["project", "assignee", "createdBy"],
+          }).catch(() => ({ data: [] })),
+          projectService.getAllProjects({
+            pageSize: 100,
+          }).catch(() => ({ data: [] })),
+        ]);
+
+        const transformedTasks = (tasksResponse.data || [])
+          .map(transformTask)
+          .filter((task) => {
+            const hasCRMRelation = !!(
+              task.leadCompany ||
+              task.clientAccount ||
+              task.contact ||
+              task.deal
+            );
+            return !hasCRMRelation;
+          });
+
+        // Only update if data changed
+        setTasks((prev) => {
+          if (prev.length !== transformedTasks.length) {
+            return transformedTasks;
+          }
+          return prev;
+        });
+
+        setProjects((prev) => {
+          if (prev.length !== (projectsResponse.data?.length || 0)) {
+            return projectsResponse.data || [];
+          }
+          return prev;
+        });
+
+        // Update stats
+        const now = new Date();
+        const assignedTasks = transformedTasks.filter((t) => t.assignee).length;
+        const completedTasks = transformedTasks.filter(
+          (t) =>
+            t.status?.toLowerCase() === "done" ||
+            t.status?.toLowerCase() === "completed"
+        ).length;
+        const overdueTasks = transformedTasks.filter(
+          (t) =>
+            t.scheduledDate &&
+            new Date(t.scheduledDate) < now &&
+            t.status?.toLowerCase() !== "done" &&
+            t.status?.toLowerCase() !== "completed"
+        ).length;
+
+        setStats((prev) => {
+          const newStats = {
+            totalProjects: projectsResponse.data?.length || 0,
+            totalTasks: transformedTasks.length,
+            assignedTasks,
+            completedTasks,
+            overdueTasks,
+          };
+          
+          // Only update previous stats if current stats changed
+          if (
+            prev.totalTasks !== newStats.totalTasks ||
+            prev.completedTasks !== newStats.completedTasks
+          ) {
+            setPreviousStats({ ...prev });
+          }
+          
+          return newStats;
+        });
+      } catch (error) {
+        console.error("Error polling analytics data:", error);
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [authLoading, loading]);
+
+  if (authLoading || loading) {
+    return (
+      <div className="bg-white min-h-screen">
+        <div className="p-4 space-y-4">
+          <PageHeader
+            title="Analytics"
+            subtitle="Analyze and manage your projects and tasks"
+            breadcrumb={[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: "Analytics", href: "/analytics" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading analytics...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Header */}
-      <div className="p-6">
+    <div className="bg-white min-h-screen">
+      <div className="p-4 space-y-4">
+        {/* Page Header */}
         <PageHeader
           title="Analytics"
           subtitle="Analyze and manage your projects and tasks"
-          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Analytics", href: "/analytics" }]}
-          showSearch={true}
-          showActions={true}
-          onExportClick={() => console.log("Export analytics")}
+          breadcrumb={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Analytics", href: "/analytics" },
+          ]}
+          showSearch={false}
+          showActions={false}
         />
-      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 px-6 pb-6 overflow-auto bg-gray-50">
-        <div className="max-w-7xl mx-auto px-2 lg:px-4">
+        <div className="space-y-4">
           {/* Key Metrics Cards */}
-          <KeyMetricsCards />
+          <KeyMetricsCards stats={stats} previousStats={previousStats} />
 
           {/* Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Top Row */}
-            <UpcomingTasksByStatus />
-            <TasksByProject />
+            <UpcomingTasksByStatus tasks={tasks} />
+            <TasksByProject tasks={tasks} projects={projects} />
 
             {/* Bottom Row */}
-            <TaskByAssignee />
-            <TaskCompletionOverTime />
+            <TaskByAssignee tasks={tasks} />
+            <TaskCompletionOverTime tasks={tasks} />
           </div>
         </div>
       </div>

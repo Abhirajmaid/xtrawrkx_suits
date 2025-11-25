@@ -14,9 +14,9 @@ class ApiClient {
      */
     getAuthToken() {
         if (typeof window === 'undefined') return null;
-        return localStorage.getItem('xtrawrkx-authToken') || 
-               localStorage.getItem('fluxx-authToken') || 
-               localStorage.getItem('auth_token');
+        return localStorage.getItem('xtrawrkx-authToken') ||
+            localStorage.getItem('fluxx-authToken') ||
+            localStorage.getItem('auth_token');
     }
 
     /**
@@ -42,19 +42,53 @@ class ApiClient {
      * @returns {Promise<Object>} - Parsed response data
      */
     async handleResponse(response) {
-        let data;
-        
+        // Get content type to determine if response is JSON
+        const contentType = response.headers.get('content-type');
+        const isJson = contentType && contentType.includes('application/json');
+
+        let data = {};
+        let responseText = '';
+
+        // Read response text first
         try {
-            const text = await response.text();
-            data = text ? JSON.parse(text) : {};
+            responseText = await response.text();
         } catch (error) {
-            console.error('Error parsing response:', error);
-            throw new Error('Invalid response format');
+            console.error('Error reading response:', error);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            throw new Error('Failed to read response');
         }
 
+        // Try to parse as JSON only if content-type indicates JSON or if response is OK
+        if (isJson || response.ok) {
+            if (responseText) {
+                try {
+                    data = JSON.parse(responseText);
+                } catch (error) {
+                    // If parsing fails but response is OK, return empty object
+                    if (response.ok) {
+                        console.warn('Response is not valid JSON, but status is OK');
+                        return {};
+                    }
+                    // If parsing fails and response is not OK, use the text as error message
+                    console.error('Error parsing JSON response:', error);
+                    data = { message: responseText || response.statusText };
+                }
+            }
+        } else if (responseText) {
+            // Non-JSON error response
+            data = { message: responseText };
+        }
+
+        // Handle error responses
         if (!response.ok) {
-            const errorMessage = data.message || data.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-            
+            const errorMessage = data.message ||
+                data.error?.message ||
+                data.error?.error?.message ||
+                responseText ||
+                `HTTP ${response.status}: ${response.statusText}`;
+
             // Handle specific error cases
             if (response.status === 401) {
                 // Token expired or invalid
@@ -64,10 +98,12 @@ class ApiClient {
                 throw new Error('Access denied. You do not have permission to perform this action.');
             } else if (response.status === 404) {
                 throw new Error('Resource not found.');
+            } else if (response.status === 405) {
+                throw new Error('Method not allowed. The requested endpoint does not support this HTTP method.');
             } else if (response.status >= 500) {
                 throw new Error('Server error. Please try again later.');
             }
-            
+
             throw new Error(errorMessage);
         }
 
@@ -88,7 +124,7 @@ class ApiClient {
             localStorage.removeItem('auth_user');
             localStorage.removeItem('auth_token');
             localStorage.removeItem('user_data');
-            
+
             // Clear cookie
             document.cookie = 'xtrawrkx-authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         }
@@ -102,7 +138,7 @@ class ApiClient {
      */
     async get(endpoint, params = {}) {
         const url = new URL(`${this.baseURL}${endpoint}`);
-        
+
         // Add query parameters
         Object.keys(params).forEach(key => {
             if (params[key] !== undefined && params[key] !== null) {
@@ -122,8 +158,24 @@ class ApiClient {
 
             return await this.handleResponse(response);
         } catch (error) {
+            // Log more details for debugging
+            console.error('API GET Error:', {
+                url: url.toString(),
+                endpoint,
+                baseURL: this.baseURL,
+                errorName: error.name,
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
+
             if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
-                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running.`);
+                // Check if it's a CORS issue
+                const corsError = error.message?.includes('CORS') ||
+                    error.message?.includes('Access-Control');
+                if (corsError) {
+                    throw new Error(`CORS error: The backend at ${this.baseURL} is blocking requests. Please check CORS configuration in Strapi.`);
+                }
+                throw new Error(`Network error: Cannot connect to the server at ${this.baseURL}. Please ensure the backend API is running and CORS is configured.`);
             }
             throw error;
         }

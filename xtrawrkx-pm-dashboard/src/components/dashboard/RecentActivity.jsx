@@ -46,8 +46,8 @@ const RecentActivity = () => {
   ];
 
   return (
-    <div className="card flex flex-col">
-      <div className="px-6 py-5 border-b border-gray-200">
+    <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl flex flex-col">
+      <div className="px-6 py-5 border-b border-white/30">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-gray-900">Recent Activity</h3>
@@ -65,7 +65,7 @@ const RecentActivity = () => {
             return (
               <div
                 key={activity.id}
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/50 transition-colors"
               >
                 <div
                   className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 ${activity.color}`}

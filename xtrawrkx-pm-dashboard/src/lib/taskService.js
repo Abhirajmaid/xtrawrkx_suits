@@ -13,7 +13,7 @@ class TaskService {
             pageSize = 25,
             sort = 'createdAt:desc',
             filters = {},
-            populate = ['project', 'assignee', 'createdBy', 'subtasks']
+            populate = ['projects', 'assignee', 'createdBy', 'subtasks']
         } = options;
 
         const params = {
@@ -45,12 +45,17 @@ class TaskService {
      * @param {Array} populate - Relations to populate
      * @returns {Promise<Object>} - Task data
      */
-    async getTaskById(id, populate = ['project', 'assignee', 'createdBy', 'subtasks', 'subtasks.assignee', 'subtasks.childSubtasks']) {
+    async getTaskById(id, populate = ['projects', 'assignee', 'createdBy', 'subtasks', 'subtasks.assignee', 'subtasks.childSubtasks']) {
         try {
-            const params = {
-                populate: populate.join(',')
-            };
+            // Filter out any null/undefined values and ensure all are strings
+            const validPopulate = populate
+                .filter(p => p && typeof p === 'string')
+                .join(',');
             
+            const params = {
+                populate: validPopulate
+            };
+
             const response = await apiClient.get(`/api/tasks/${id}`, params);
             return response.data;
         } catch (error) {
@@ -101,7 +106,7 @@ class TaskService {
             page = 1,
             pageSize = 50,
             sort = 'scheduledDate:asc',
-            populate = ['project', 'assignee', 'createdBy', 'subtasks']
+            populate = ['projects', 'assignee', 'createdBy', 'subtasks']
         } = options;
 
         try {
@@ -117,6 +122,55 @@ class TaskService {
             return response;
         } catch (error) {
             console.error(`Error fetching tasks for user ${userId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get PM tasks assigned to user (project-related tasks, excluding CRM tasks)
+     * PM tasks are those that have a project relation and no CRM entity relations
+     * @param {string|number} userId - User ID
+     * @param {Object} options - Query options
+     * @returns {Promise<Object>} - PM Tasks data
+     */
+    async getPMTasksByAssignee(userId, options = {}) {
+        const {
+            page = 1,
+            pageSize = 50,
+            sort = 'scheduledDate:asc',
+            populate = ['projects', 'assignee', 'createdBy', 'subtasks']
+        } = options;
+
+        try {
+            // Build query params - PM tasks are those without CRM relations
+            // Project is optional, so we don't filter by project existence
+            // Ensure userId is a number for proper comparison
+            const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
+            
+            const params = {
+                'pagination[page]': page,
+                'pagination[pageSize]': pageSize,
+                sort,
+                populate: populate.join(','),
+                // Filter: assigned to user (strict filter - must match exactly)
+                'filters[assignee][id][$eq]': userIdNum
+            };
+
+            const response = await apiClient.get('/api/tasks', params);
+
+            // Filter out CRM tasks on client side (tasks with CRM entity relations)
+            // PM tasks are those without CRM relations (project is optional)
+            if (response.data && Array.isArray(response.data)) {
+                response.data = response.data.filter(task => {
+                    // PM tasks should NOT have CRM entity relations
+                    const hasCRMRelation = !!(task.leadCompany || task.clientAccount || task.contact || task.deal);
+                    return !hasCRMRelation;
+                });
+            }
+
+            return response;
+        } catch (error) {
+            console.error(`Error fetching PM tasks for user ${userId}:`, error);
             throw error;
         }
     }
@@ -146,12 +200,21 @@ class TaskService {
      */
     async updateTask(id, taskData) {
         try {
+            console.log(`Updating task ${id} with data:`, taskData);
             const response = await apiClient.put(`/api/tasks/${id}`, {
                 data: taskData
             });
-            return response.data;
+            console.log(`Task ${id} update response:`, response);
+            
+            // Verify the response structure
+            if (!response || (!response.data && !response)) {
+                console.warn(`Unexpected response structure for task ${id}:`, response);
+            }
+            
+            return response.data || response;
         } catch (error) {
             console.error(`Error updating task ${id}:`, error);
+            console.error('Error details:', error.response?.data || error.message);
             throw error;
         }
     }
@@ -217,7 +280,7 @@ class TaskService {
         const {
             page = 1,
             pageSize = 25,
-            populate = ['project', 'assignee', 'createdBy']
+            populate = ['projects', 'assignee', 'createdBy']
         } = options;
 
         try {
@@ -247,7 +310,7 @@ class TaskService {
         const {
             page = 1,
             pageSize = 25,
-            populate = ['project', 'assignee', 'createdBy']
+            populate = ['projects', 'assignee', 'createdBy']
         } = options;
 
         try {
@@ -275,7 +338,7 @@ class TaskService {
         const {
             page = 1,
             pageSize = 25,
-            populate = ['project', 'assignee', 'createdBy']
+            populate = ['projects', 'assignee', 'createdBy']
         } = options;
 
         try {
@@ -306,13 +369,13 @@ class TaskService {
         const {
             page = 1,
             pageSize = 25,
-            populate = ['project', 'assignee', 'createdBy']
+            populate = ['projects', 'assignee', 'createdBy']
         } = options;
 
         try {
             const now = new Date();
             const futureDate = new Date(now.getTime() + (days * 24 * 60 * 60 * 1000));
-            
+
             const params = {
                 'pagination[page]': page,
                 'pagination[pageSize]': pageSize,
@@ -377,7 +440,7 @@ class TaskService {
             const task = await this.getTaskById(taskId, []);
             const currentTags = task.tags || [];
             const newTags = [...new Set([...currentTags, ...tags])]; // Remove duplicates
-            
+
             const response = await apiClient.put(`/api/tasks/${taskId}`, {
                 data: { tags: newTags }
             });
@@ -400,7 +463,7 @@ class TaskService {
             const task = await this.getTaskById(taskId, []);
             const currentTags = task.tags || [];
             const newTags = currentTags.filter(tag => !tagsToRemove.includes(tag));
-            
+
             const response = await apiClient.put(`/api/tasks/${taskId}`, {
                 data: { tags: newTags }
             });
@@ -412,26 +475,36 @@ class TaskService {
     }
 
     /**
-     * Get task statistics for dashboard
+     * Get task statistics for dashboard (PM tasks only)
      * @param {string|number} userId - User ID (optional, for user-specific stats)
      * @returns {Promise<Object>} - Task statistics
      */
     async getTaskStats(userId = null) {
         try {
-            const filters = {};
+            // Get PM tasks only (project-related, excluding CRM tasks)
             if (userId) {
-                filters['assignee.id'] = userId;
+                const allTasks = await this.getPMTasksByAssignee(userId, {
+                    pageSize: 1000 // Get a large number to calculate stats
+                });
+                var tasks = allTasks.data || [];
+            } else {
+                // For global stats, get all PM tasks
+                const allTasks = await this.getAllTasks({
+                    pageSize: 1000,
+                    filters: {
+                        'project.id': { $notNull: true }
+                    }
+                });
+                var tasks = allTasks.data || [];
+                // Filter out CRM tasks
+                tasks = tasks.filter(task => {
+                    const hasProject = !!task.project;
+                    const hasCRMRelation = !!(task.leadCompany || task.clientAccount || task.contact || task.deal);
+                    return hasProject && !hasCRMRelation;
+                });
             }
-
-            // Get all tasks for the user or globally
-            const allTasks = await this.getAllTasks({ 
-                pageSize: 1000, // Get a large number to calculate stats
-                filters 
-            });
-
-            const tasks = allTasks.data || [];
             const totalTasks = tasks.length;
-            
+
             let completedTasks = 0;
             let inProgressTasks = 0;
             let scheduledTasks = 0;

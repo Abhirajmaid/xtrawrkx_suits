@@ -24,6 +24,7 @@
             "enum": [
                 "SCHEDULED",
                 "IN_PROGRESS",
+                "IN_REVIEW",
                 "COMPLETED",
                 "CANCELLED"
             ],
@@ -80,9 +81,9 @@
             "target": "api::deal.deal",
             "inversedBy": "tasks"
         },
-        "project": {
+        "projects": {
             "type": "relation",
-            "relation": "manyToOne",
+            "relation": "manyToMany",
             "target": "api::project.project",
             "inversedBy": "tasks"
         },
@@ -100,6 +101,11 @@
             "relation": "oneToMany",
             "target": "api::subtask.subtask",
             "mappedBy": "task"
+        },
+        "collaborators": {
+            "type": "relation",
+            "relation": "manyToMany",
+            "target": "api::xtrawrkx-user.xtrawrkx-user"
         }
     }
 }

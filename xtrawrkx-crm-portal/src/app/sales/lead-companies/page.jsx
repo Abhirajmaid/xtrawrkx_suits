@@ -366,6 +366,7 @@ export default function LeadCompaniesPage() {
     {
       key: "company",
       label: "COMPANY",
+      width: "350px",
       render: (_, company) => (
         <div className="flex items-center gap-3 min-w-[200px]">
           <Avatar
@@ -389,6 +390,7 @@ export default function LeadCompaniesPage() {
     {
       key: "contact",
       label: "PRIMARY CONTACT",
+      width: "220px",
       render: (_, company) => (
         <div className="space-y-1 min-w-[200px]">
           <div className="flex items-center gap-2 text-sm text-gray-900">
@@ -413,6 +415,7 @@ export default function LeadCompaniesPage() {
     {
       key: "status",
       label: "STATUS",
+      width: "140px",
       render: (_, company) => {
         const status = company.status?.toLowerCase() || "new";
         const statusColors = {
@@ -465,15 +468,17 @@ export default function LeadCompaniesPage() {
     {
       key: "source",
       label: "SOURCE",
+      width: "130px",
       render: (_, company) => (
         <span className="text-sm text-gray-600 capitalize whitespace-nowrap min-w-[100px]">
-          {company.source.replace("_", " ")}
+          {company.source?.replace("_", " ") || "N/A"}
         </span>
       ),
     },
     {
       key: "value",
       label: "DEAL VALUE",
+      width: "140px",
       render: (_, company) => {
         // Calculate total deal value from actual deals
         const totalDealValue = company.deals
@@ -493,6 +498,7 @@ export default function LeadCompaniesPage() {
     {
       key: "contactsCount",
       label: "CONTACTS",
+      width: "120px",
       render: (_, company) => (
         <div className="flex items-center gap-2 min-w-[100px]">
           <UserPlus className="w-4 h-4 text-gray-400" />
@@ -505,6 +511,7 @@ export default function LeadCompaniesPage() {
     {
       key: "assignedTo",
       label: "ASSIGNED TO",
+      width: "200px",
       render: (_, company) => {
         const assignedUser = company.assignedTo;
         const assignedName = assignedUser
@@ -557,6 +564,7 @@ export default function LeadCompaniesPage() {
     {
       key: "createdAt",
       label: "CREATED",
+      width: "140px",
       render: (_, company) => (
         <div className="flex items-center gap-2 text-sm text-gray-500 min-w-[120px]">
           <Calendar className="w-4 h-4 flex-shrink-0" />
@@ -569,6 +577,7 @@ export default function LeadCompaniesPage() {
     {
       key: "actions",
       label: "ACTIONS",
+      width: "200px",
       render: (_, company) => (
         <div
           className="flex items-center gap-1 min-w-[120px]"

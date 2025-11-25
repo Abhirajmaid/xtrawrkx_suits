@@ -53,6 +53,7 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
   const [subSidebarOpen, setSubSidebarOpen] = useState(false);
   const [currentSection, setCurrentSection] = useState(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [toolsCollapsed, setToolsCollapsed] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -792,29 +793,38 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           <div className="flex-1">
             <div className="px-4 mb-4">
               <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 shadow-lg">
-                <div className="flex items-center justify-between text-sm font-medium text-brand-foreground mb-3">
+                <button
+                  onClick={() => setToolsCollapsed(!toolsCollapsed)}
+                  className="flex items-center justify-between w-full text-sm font-medium text-brand-foreground mb-3 hover:opacity-80 transition-opacity"
+                >
                   <span className="flex items-center gap-2">
                     <Target className="w-4 h-4" />
                     Tools
                   </span>
-                  <ChevronDown className="w-4 h-4" />
-                </div>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      toolsCollapsed ? "" : "rotate-180"
+                    }`}
+                  />
+                </button>
 
-                <div className="space-y-2">
-                  {crmTools.map((item, index) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={index}
-                        href={item.href}
-                        className="flex items-center gap-3 text-xs text-brand-text-light p-2 rounded-lg"
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span className="font-medium">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
+                {!toolsCollapsed && (
+                  <div className="space-y-2">
+                    {crmTools.map((item, index) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={index}
+                          href={item.href}
+                          className="flex items-center gap-3 text-xs text-brand-text-light p-2 rounded-lg hover:bg-white/20 transition-colors"
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span className="font-medium">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>

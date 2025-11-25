@@ -1,167 +1,113 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Save,
-  Calendar,
-  Users,
-  Target,
-  Building2,
-} from "lucide-react";
-import { Card } from "../../../components/ui/Card.jsx";
-import { Input } from "../../../components/ui/Input.jsx";
-import { Select } from "../../../components/ui/Select.jsx";
-import { teamMembers, clients } from "../../../data/centralData";
+import { Card, Button, Input, Select, Textarea } from "../../../components/ui";
 import PageHeader from "../../../components/shared/PageHeader";
+import projectService from "../../../lib/projectService";
+import { useAuth } from "../../../contexts/AuthContext";
+import {
+  FolderOpen,
+  Calendar,
+  Building2,
+  Save,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle2,
+  DollarSign,
+} from "lucide-react";
 
 export default function AddProjectPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
+  const [errors, setErrors] = useState({});
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Users for project manager dropdown
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Project data
+  const [projectData, setProjectData] = useState({
     name: "",
     description: "",
-    status: "Planning",
+    status: "PLANNING",
     startDate: "",
     endDate: "",
-    clientId: "",
-    teamMemberIds: [],
-    icon: "",
-    color: "from-blue-400 to-blue-600",
+    budget: "",
+    projectManager: "",
   });
 
-  const [errors, setErrors] = useState({});
-
-  // Early return if data is not available
-  if (!clients || !teamMembers) {
-    return (
-      <div className="min-h-screen bg-white p-6 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading project data...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Color options for project
-  const colorOptions = [
-    { value: "from-blue-400 to-blue-600", label: "Blue", color: "bg-blue-500" },
-    {
-      value: "from-green-400 to-green-600",
-      label: "Green",
-      color: "bg-green-500",
-    },
-    {
-      value: "from-purple-400 to-purple-600",
-      label: "Purple",
-      color: "bg-purple-500",
-    },
-    { value: "from-pink-400 to-pink-600", label: "Pink", color: "bg-pink-500" },
-    {
-      value: "from-orange-400 to-orange-600",
-      label: "Orange",
-      color: "bg-orange-500",
-    },
-    { value: "from-red-400 to-red-600", label: "Red", color: "bg-red-500" },
-    { value: "from-teal-400 to-teal-600", label: "Teal", color: "bg-teal-500" },
-    {
-      value: "from-indigo-400 to-indigo-600",
-      label: "Indigo",
-      color: "bg-indigo-500",
-    },
-  ];
-
-  // Status options
   const statusOptions = [
-    { value: "Planning", label: "Planning" },
-    { value: "Active", label: "Active" },
-    { value: "In Progress", label: "In Progress" },
-    { value: "On Hold", label: "On Hold" },
-    { value: "Completed", label: "Completed" },
+    { value: "PLANNING", label: "Planning" },
+    { value: "ACTIVE", label: "Active" },
+    { value: "IN_PROGRESS", label: "In Progress" },
+    { value: "ON_HOLD", label: "On Hold" },
+    { value: "COMPLETED", label: "Completed" },
+    { value: "CANCELLED", label: "Cancelled" },
   ];
 
-  // Client options
-  const clientOptions = clients
-    ? Object.values(clients).map((client) => ({
-        value: client.id,
-        label: client.name,
-      }))
-    : [];
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      // For now, we'll use an empty array
+      // In a real implementation, you would fetch users from the API
+      setUsers([]);
 
-  // Team member options
-  const teamOptions = teamMembers
-    ? Object.values(teamMembers).map((member) => ({
-        value: member.id,
-        label: member.name,
-        role: member.role,
-        avatar: member.avatar,
-        color: member.color,
-      }))
-    : [];
-
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: "",
-      }));
+      // Auto-select the current logged-in user if available
+      if (user?.id) {
+        setProjectData((prev) => ({
+          ...prev,
+          projectManager: user.id.toString(),
+        }));
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
-  const handleTeamMemberToggle = (memberId) => {
-    setFormData((prev) => ({
-      ...prev,
-      teamMemberIds: prev.teamMemberIds.includes(memberId)
-        ? prev.teamMemberIds.filter((id) => id !== memberId)
-        : [...prev.teamMemberIds, memberId],
-    }));
+  // Fetch users on mount
+  useEffect(() => {
+    if (!authLoading) {
+      fetchUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  const handleProjectChange = (field, value) => {
+    setProjectData((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: null }));
+    }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
+    // Project validation
+    if (!projectData.name.trim()) {
       newErrors.name = "Project name is required";
     }
-
-    if (!formData.description.trim()) {
+    if (!projectData.description.trim()) {
       newErrors.description = "Project description is required";
     }
-
-    if (!formData.startDate) {
+    if (!projectData.startDate) {
       newErrors.startDate = "Start date is required";
     }
-
-    if (!formData.endDate) {
+    if (!projectData.endDate) {
       newErrors.endDate = "End date is required";
     }
-
     if (
-      formData.startDate &&
-      formData.endDate &&
-      new Date(formData.startDate) > new Date(formData.endDate)
+      projectData.startDate &&
+      projectData.endDate &&
+      new Date(projectData.startDate) > new Date(projectData.endDate)
     ) {
       newErrors.endDate = "End date must be after start date";
-    }
-
-    if (!formData.clientId) {
-      newErrors.clientId = "Client is required";
-    }
-
-    if (formData.teamMemberIds.length === 0) {
-      newErrors.teamMemberIds = "At least one team member is required";
     }
 
     setErrors(newErrors);
@@ -179,401 +125,350 @@ export default function AddProjectPage() {
 
     try {
       // Generate slug from name
-      const slug = formData.name
+      const slug = projectData.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 
       // Generate icon from first letter of name
-      const icon = formData.name.charAt(0).toUpperCase();
+      const icon = projectData.name.charAt(0).toUpperCase();
 
-      // Create new project data
-      const newProject = {
-        ...formData,
-        slug,
-        icon,
-        teamMemberIds: formData.teamMemberIds,
-        budget: 0,
-        spent: 0,
-        progress: 0,
-        tasksCount: "no task",
-        bgColor: formData.color.includes("blue")
-          ? "bg-blue-100"
-          : formData.color.includes("green")
-            ? "bg-green-100"
-            : formData.color.includes("purple")
-              ? "bg-purple-100"
-              : formData.color.includes("pink")
-                ? "bg-pink-100"
-                : formData.color.includes("orange")
-                  ? "bg-orange-100"
-                  : formData.color.includes("red")
-                    ? "bg-red-100"
-                    : formData.color.includes("teal")
-                      ? "bg-teal-100"
-                      : formData.color.includes("indigo")
-                        ? "bg-indigo-100"
-                        : "bg-blue-100",
-        textColor: formData.color.includes("blue")
-          ? "text-blue-800"
-          : formData.color.includes("green")
-            ? "text-green-800"
-            : formData.color.includes("purple")
-              ? "text-purple-800"
-              : formData.color.includes("pink")
-                ? "text-pink-800"
-                : formData.color.includes("orange")
-                  ? "text-orange-800"
-                  : formData.color.includes("red")
-                    ? "text-red-800"
-                    : formData.color.includes("teal")
-                      ? "text-teal-800"
-                      : formData.color.includes("indigo")
-                        ? "text-indigo-800"
-                        : "text-blue-800",
+      // Prepare project payload
+      const projectPayload = {
+        name: projectData.name.trim(),
+        slug: slug,
+        description: projectData.description.trim(),
+        status: projectData.status,
+        icon: icon,
+        color: "from-blue-400 to-blue-600", // Default color
       };
 
-      // In a real app, you would save this to your backend
-      console.log("New project data:", newProject);
+      // Add optional fields only if they have values
+      if (projectData.startDate) {
+        projectPayload.startDate = new Date(
+          projectData.startDate
+        ).toISOString();
+      }
+      if (projectData.endDate) {
+        projectPayload.endDate = new Date(projectData.endDate).toISOString();
+      }
+      if (projectData.budget) {
+        projectPayload.budget = parseFloat(projectData.budget);
+      }
+      if (projectData.projectManager) {
+        projectPayload.projectManager = parseInt(projectData.projectManager);
+      }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("Creating project with data:", projectPayload);
 
-      // Redirect to projects page
-      router.push("/projects");
+      // Create the project
+      const createdProject = await projectService.createProject(projectPayload);
+
+      console.log("Created project:", createdProject);
+
+      // Show success message
+      setShowSuccess(true);
+
+      // Redirect to the new project detail page after a short delay
+      setTimeout(() => {
+        if (createdProject.slug) {
+          router.push(`/projects/${createdProject.slug}`);
+        } else if (createdProject.id) {
+          router.push(`/projects/${createdProject.id}`);
+        } else {
+          router.push("/projects");
+        }
+      }, 2000);
     } catch (error) {
       console.error("Error creating project:", error);
+      setErrors({
+        submit:
+          error?.response?.data?.error?.message ||
+          error?.message ||
+          "Failed to create project. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-white overflow-y-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="p-6">
-          <PageHeader
-            title="Create New Project"
-            subtitle="Set up a new project and assign team members"
-            breadcrumb={[
-              { label: "Dashboard", href: "/dashboard" },
-              { label: "Projects", href: "/projects" },
-              { label: "Create Project", href: "/projects/add" },
-            ]}
-            showSearch={false}
-            showActions={false}
-          />
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Success!</h2>
+          <p className="text-gray-600 mb-4">Project created successfully</p>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-2">
+            Redirecting to project details...
+          </p>
         </div>
+      </div>
+    );
+  }
 
-        <div className="px-6 pb-6">
-          <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Form */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Basic Information */}
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-6">
-                  <Target className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Basic Information
-                  </h2>
-                </div>
+  return (
+    <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 p-4 space-y-6">
+        <PageHeader
+          title="Add New Project"
+          subtitle="Create a new project and assign team members"
+          breadcrumb={[
+            { label: "Dashboard", href: "/" },
+            { label: "Projects", href: "/projects" },
+            { label: "Add New", href: "/projects/add" },
+          ]}
+          showProfile={true}
+          showSearch={false}
+          showActions={false}
+        />
 
-                <div className="space-y-4">
-                  <Input
-                    label="Project Name"
-                    placeholder="Enter project name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    error={errors.name}
-                    required
-                  />
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Project Description
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <textarea
-                      placeholder="Describe the project goals and requirements"
-                      value={formData.description}
-                      onChange={(e) =>
-                        handleInputChange("description", e.target.value)
-                      }
-                      className={`block w-full rounded-lg border shadow-sm px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 resize-none ${
-                        errors.description
-                          ? "border-red-300 text-red-900"
-                          : "border-gray-300"
-                      }`}
-                      rows={4}
-                    />
-                    {errors.description && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Project Icon
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter project icon (e.g., Y, M, F)"
-                        value={formData.icon}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "icon",
-                            e.target.value.toUpperCase()
-                          )
-                        }
-                        maxLength={1}
-                        className="block w-full rounded-lg border shadow-sm px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-center text-xl font-bold"
-                      />
-                    </div>
-
-                    <Select
-                      label="Status"
-                      value={formData.status}
-                      onChange={(e) =>
-                        handleInputChange("status", e.target.value)
-                      }
-                      options={statusOptions}
-                      required
-                    />
-                  </div>
-                </div>
-              </Card>
-
-              {/* Project Timeline */}
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-6">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Project Timeline
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Start Date"
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) =>
-                      handleInputChange("startDate", e.target.value)
-                    }
-                    error={errors.startDate}
-                    required
-                  />
-
-                  <Input
-                    label="End Date"
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) =>
-                      handleInputChange("endDate", e.target.value)
-                    }
-                    error={errors.endDate}
-                    required
-                  />
-                </div>
-              </Card>
-
-              {/* Client Selection */}
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-6">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Client
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  <Select
-                    label="Client"
-                    value={formData.clientId}
-                    onChange={(e) =>
-                      handleInputChange("clientId", e.target.value)
-                    }
-                    options={clientOptions}
-                    placeholder="Select a client"
-                    error={errors.clientId}
-                    required
-                  />
-                </div>
-              </Card>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Project Information */}
+          <Card className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center">
+                <FolderOpen className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Project Information
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Basic information about the project
+                </p>
+              </div>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Project Color */}
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Project Color
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {colorOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleInputChange("color", option.value)}
-                      className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                        formData.color === option.value
-                          ? "border-blue-500 ring-2 ring-blue-200"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div
-                        className={`w-full h-8 rounded ${option.color} mb-2`}
-                      ></div>
-                      <span className="text-xs text-gray-600">
-                        {option.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <Input
+                  label="Project Name *"
+                  value={projectData.name}
+                  onChange={(e) => handleProjectChange("name", e.target.value)}
+                  error={errors.name}
+                  placeholder="Enter project name"
+                  required
+                />
+              </div>
+              <div>
+                <Select
+                  label="Status *"
+                  value={projectData.status}
+                  onChange={(value) => handleProjectChange("status", value)}
+                  options={statusOptions}
+                  error={errors.status}
+                  placeholder="Select status"
+                  required
+                />
+              </div>
 
-              {/* Team Members */}
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Team Members
-                  </h3>
-                </div>
-
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {teamOptions && teamOptions.length > 0 ? (
-                    teamOptions.map((member) => (
-                      <div
-                        key={member.value}
-                        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                          formData.teamMemberIds.includes(member.value)
-                            ? "bg-blue-50 border border-blue-200"
-                            : "hover:bg-gray-50 border border-transparent"
-                        }`}
-                        onClick={() => handleTeamMemberToggle(member.value)}
-                      >
-                        <div
-                          className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white text-xs font-bold`}
-                        >
-                          {member.avatar}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {member.label}
-                          </p>
-                          <p className="text-xs text-gray-600 truncate">
-                            {member.role}
-                          </p>
-                        </div>
-                        <div
-                          className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                            formData.teamMemberIds.includes(member.value)
-                              ? "bg-blue-500 border-blue-500"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {formData.teamMemberIds.includes(member.value) && (
-                            <div className="w-2 h-2 bg-white rounded-full"></div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-gray-500 text-sm">
-                        No team members available
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {errors.teamMemberIds && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {errors.teamMemberIds}
-                  </p>
-                )}
-              </Card>
-
-              {/* Project Preview */}
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Preview
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-12 h-12 bg-gradient-to-br ${formData.color} rounded-xl flex items-center justify-center shadow-lg`}
-                    >
-                      <span className="text-white font-bold text-lg">
-                        {formData.icon || formData.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">
-                        {formData.name || "Project Name"}
-                      </h4>
-                      <span className="text-xs font-medium px-2 py-1 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">
-                        {formData.status}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {formData.description ||
-                      "Project description will appear here"}
-                  </p>
-                </div>
-              </Card>
+              <div className="lg:col-span-3">
+                <Textarea
+                  label="Project Description *"
+                  value={projectData.description}
+                  onChange={(e) =>
+                    handleProjectChange("description", e.target.value)
+                  }
+                  error={errors.description}
+                  placeholder="Describe the project goals and requirements..."
+                  rows={4}
+                  required
+                />
+              </div>
             </div>
-          </div>
+          </Card>
 
-          {/* Form Actions */}
-          <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-            <button
+          {/* Project Timeline */}
+          <Card className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Project Timeline
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Set the start and end dates for the project
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Input
+                  label="Start Date *"
+                  type="date"
+                  value={projectData.startDate}
+                  onChange={(e) =>
+                    handleProjectChange("startDate", e.target.value)
+                  }
+                  error={errors.startDate}
+                  required
+                />
+              </div>
+              <div>
+                <Input
+                  label="End Date *"
+                  type="date"
+                  value={projectData.endDate}
+                  onChange={(e) =>
+                    handleProjectChange("endDate", e.target.value)
+                  }
+                  error={errors.endDate}
+                  required
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Project Budget & Manager */}
+          <Card className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Budget & Assignment
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Set project budget and assign project manager
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Input
+                  label="Budget"
+                  type="number"
+                  value={projectData.budget}
+                  onChange={(e) =>
+                    handleProjectChange("budget", e.target.value)
+                  }
+                  placeholder="25000"
+                  min="0"
+                  step="0.01"
+                  icon={DollarSign}
+                />
+              </div>
+              <div>
+                <Select
+                  label="Project Manager"
+                  value={projectData.projectManager}
+                  onChange={(value) =>
+                    handleProjectChange("projectManager", value)
+                  }
+                  options={[
+                    { value: "", label: "Unassigned" },
+                    ...users.map((u) => ({
+                      value: u.id.toString(),
+                      label:
+                        `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                        u.email ||
+                        u.name,
+                    })),
+                  ]}
+                  disabled={loadingUsers}
+                  placeholder="Select project manager"
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Project Preview */}
+          <Card className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Preview</h3>
+                <p className="text-sm text-gray-600">
+                  Preview how your project will appear
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gradient-to-br from-white/60 to-white/40 backdrop-blur-sm border border-white/30">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-lg">
+                    {projectData.name.charAt(0).toUpperCase() || "P"}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">
+                    {projectData.name || "Project Name"}
+                  </h4>
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded-full border ${
+                      projectData.status === "ACTIVE" ||
+                      projectData.status === "IN_PROGRESS"
+                        ? "bg-blue-100 text-blue-700 border-blue-200"
+                        : projectData.status === "PLANNING"
+                        ? "bg-yellow-100 text-yellow-700 border-yellow-200"
+                        : projectData.status === "COMPLETED"
+                        ? "bg-green-100 text-green-700 border-green-200"
+                        : projectData.status === "ON_HOLD"
+                        ? "bg-red-100 text-red-700 border-red-200"
+                        : "bg-gray-100 text-gray-700 border-gray-200"
+                    }`}
+                  >
+                    {statusOptions.find((s) => s.value === projectData.status)
+                      ?.label || projectData.status}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 line-clamp-2 mt-3">
+                {projectData.description ||
+                  "Project description will appear here"}
+              </p>
+            </div>
+          </Card>
+
+          {/* Error Message */}
+          {errors.submit && (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4 flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <p className="text-red-700">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-6">
+            <Button
               type="button"
               onClick={() => router.back()}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
+              variant="outline"
+              className="flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Projects
-            </button>
+              Cancel
+            </Button>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                disabled={isSubmitting}
-                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Creating Project...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Create Project
-                  </>
-                )}
-              </button>
-            </div>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white flex items-center gap-2 min-w-[140px]"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Create Project
+                </>
+              )}
+            </Button>
           </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   );

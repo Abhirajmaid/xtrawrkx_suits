@@ -1,158 +1,245 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "../../components/shared/PageHeader";
 import { ActivityFeed, NotificationDetail } from "../../components/inbox";
+import notificationService from "../../lib/notificationService";
+import { useAuth } from "../../contexts/AuthContext";
+import { Card } from "../../components/ui";
 
 export default function Inbox() {
+  const { user, loading: authLoading } = useAuth();
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all"); // all, unread, read
 
-  // Mock data for notifications
-  const notifications = [
-    {
-      id: 1,
-      name: "Mark Atenson",
-      initials: "MA",
-      avatar: null,
-      action: "Assigned you to",
-      project: "Mogo Web Design project",
-      timeAgo: "9 hours ago",
-      date: "2024-01-29T15:00:00Z",
-    },
-    {
-      id: 2,
-      name: "Susan Drake",
-      initials: "SD",
-      avatar: null,
-      action: "Commented on",
-      project: "Logo Options task",
-      timeAgo: "1 day ago",
-      date: "2024-01-28T10:00:00Z",
-    },
-    {
-      id: 3,
-      name: "Jane Cooper",
-      initials: "JC",
-      avatar: null,
-      action: "Mentioned you in the",
-      project: "About Us Illustration comment",
-      date: "2024-01-28T08:00:00Z",
-    },
-    {
-      id: 4,
-      name: "Mark Atenson",
-      initials: "MA",
-      avatar: null,
-      action: "Invited James Hubner to this workspace",
-      project: null,
-      date: "2024-01-26T14:00:00Z",
-    },
-    {
-      id: 5,
-      name: "Ronald Richards",
-      initials: "RR",
-      avatar: null,
-      action: "Marked",
-      project: "Homepage Wireframe as Done",
-      date: "2024-01-26T11:00:00Z",
-    },
-    {
-      id: 6,
-      name: "Jane Cooper",
-      initials: "JC",
-      avatar: null,
-      action: "Set",
-      project: "Order Flow to be due Feb 13, 2024",
-      date: "2024-01-25T16:00:00Z",
-    },
-    {
-      id: 7,
-      name: "Mark Atenson",
-      initials: "MA",
-      avatar: null,
-      action: "Created",
-      project: "Moodboarding Task for Carl UI/UX...",
-      date: "2024-01-24T09:00:00Z",
-    },
-    {
-      id: 8,
-      name: "Susan Drake",
-      initials: "SD",
-      avatar: null,
-      action: "Invited you to",
-      project: "Hajime Illustration project",
-      date: "2024-01-24T13:00:00Z",
-    },
-    {
-      id: 9,
-      name: "Susan Drake",
-      initials: "SD",
-      avatar: null,
-      action: "Removed you from",
-      project: "Pink AI project...",
-      date: "2024-01-23T15:00:00Z",
-    },
-  ];
+  // Get current user ID
+  const getCurrentUserId = () => {
+    return user?.id || user?._id || user?.xtrawrkxUserId || null;
+  };
 
-  // Mock data for comments
-  const comments = [
-    {
-      name: "Jane Cooper",
-      initials: "JC",
-      avatar: null,
-      message: "mentioned you in the About Us Illustration comment",
-      date: "2024-01-28T08:00:00Z",
-    },
-    {
-      name: "Jonathan Bustos",
-      initials: "JB",
-      avatar: null,
-      message:
-        "Hi Jane, please check this and make sure all the URL's is accessible",
-      date: "2024-01-27T10:00:00Z",
-    },
-    {
-      name: "Jane Cooper",
-      initials: "JC",
-      avatar: null,
-      message:
-        "Hi @Jonathan Bustos, The client's figma file is broken and I need a permission to access the google drive. Could you please assist me with this? 😊",
-      date: "2024-01-28T08:30:00Z",
-      link: "View Original Comment",
-    },
-  ];
+  // Load notifications
+  useEffect(() => {
+    if (authLoading) return;
 
-  const handleSelectNotification = (notification) => {
+    const loadNotifications = async () => {
+      try {
+        setLoading(true);
+        const currentUserId = getCurrentUserId();
+        
+        if (!currentUserId) {
+          console.warn("No user ID found");
+          setLoading(false);
+          return;
+        }
+
+        const notificationsData = await notificationService.getNotifications(currentUserId);
+        const transformed = notificationsData.map(notificationService.transformNotification);
+        setNotifications(transformed);
+      } catch (error) {
+        console.error("Error loading notifications:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNotifications();
+  }, [user, authLoading]);
+
+  // Real-time updates: Poll for new notifications every 5 seconds
+  useEffect(() => {
+    if (authLoading) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const currentUserId = getCurrentUserId();
+        if (!currentUserId) return;
+
+        const notificationsData = await notificationService.getNotifications(currentUserId);
+        const transformed = notificationsData.map(notificationService.transformNotification);
+        
+        // Only update if notifications changed
+        setNotifications((prev) => {
+          const prevIds = new Set(prev.map((n) => n.id));
+          const newIds = new Set(transformed.map((n) => n.id));
+          
+          const hasChanges =
+            prev.length !== transformed.length ||
+            prev.some((n) => {
+              const updated = transformed.find((tn) => tn.id === n.id);
+              return !updated || updated.isRead !== n.isRead;
+            }) ||
+            transformed.some((n) => !prevIds.has(n.id));
+          
+          return hasChanges ? transformed : prev;
+        });
+      } catch (error) {
+        console.error("Error polling notifications:", error);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [user?.id, authLoading]);
+
+  // Handle selecting notification
+  const handleSelectNotification = async (notification) => {
     setSelectedNotification(notification);
+    
+    // Mark as read when selected
+    if (!notification.isRead) {
+      try {
+        await notificationService.markAsRead(notification.id);
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notification.id ? { ...n, isRead: true } : n
+          )
+        );
+      } catch (error) {
+        console.error("Error marking notification as read:", error);
+      }
+    }
   };
 
-  const handleMarkAllRead = () => {
-    console.log("Marking all notifications as read");
+  // Handle mark all as read
+  const handleMarkAllRead = async () => {
+    try {
+      const currentUserId = getCurrentUserId();
+      if (!currentUserId) return;
+
+      await notificationService.markAllAsRead(currentUserId);
+      
+      // Update local state
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, isRead: true }))
+      );
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
   };
+
+  // Filter notifications
+  const filteredNotifications = notifications.filter((notification) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      notification.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      notification.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      notification.name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesTab =
+      activeTab === "all" ||
+      (activeTab === "unread" && !notification.isRead) ||
+      (activeTab === "read" && notification.isRead);
+
+    return matchesSearch && matchesTab;
+  });
+
+  // Get stats
+  const stats = {
+    all: notifications.length,
+    unread: notifications.filter((n) => !n.isRead).length,
+    read: notifications.filter((n) => n.isRead).length,
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="bg-white min-h-screen">
+        <div className="p-4 space-y-4">
+          <PageHeader
+            title="Inbox"
+            subtitle="Stay updated with all your notifications"
+            breadcrumb={[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: "Inbox", href: "/inbox" },
+            ]}
+            showSearch={false}
+            showActions={false}
+          />
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading notifications...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <div className="p-6">
+    <div className="bg-white min-h-screen">
+      <div className="p-4 space-y-4">
+        {/* Page Header */}
         <PageHeader
           title="Inbox"
           subtitle="Stay updated with all your notifications"
-          breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Inbox", href: "/inbox" }]}
+          breadcrumb={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Inbox", href: "/inbox" },
+          ]}
           showSearch={true}
           showActions={false}
+          searchPlaceholder="Search notifications..."
+          onSearchChange={setSearchQuery}
         />
-      </div>
-      <div className="flex-1 flex overflow-hidden min-h-0 px-6 pb-6">
-        <div className="flex w-full max-w-7xl mx-auto px-4">
-          <ActivityFeed
-            notifications={notifications}
-            selectedNotification={selectedNotification}
-            onSelectNotification={handleSelectNotification}
-          />
-          <NotificationDetail
-            selectedNotification={selectedNotification}
-            comments={comments}
-            onMarkAllRead={handleMarkAllRead}
-          />
+
+        <div className="flex gap-4 h-[calc(100vh-200px)]">
+          {/* Left Sidebar - Notifications List */}
+          <div className="w-96 space-y-4 flex-shrink-0">
+            {/* Tabs */}
+            <Card glass={true} className="p-0 overflow-hidden">
+              <div className="flex border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab("all")}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === "all"
+                      ? "text-orange-600 border-b-2 border-orange-500 bg-orange-50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  All ({stats.all})
+                </button>
+                <button
+                  onClick={() => setActiveTab("unread")}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === "unread"
+                      ? "text-orange-600 border-b-2 border-orange-500 bg-orange-50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  Unread ({stats.unread})
+                </button>
+                <button
+                  onClick={() => setActiveTab("read")}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === "read"
+                      ? "text-orange-600 border-b-2 border-orange-500 bg-orange-50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  Read ({stats.read})
+                </button>
+              </div>
+            </Card>
+
+            {/* Notifications List */}
+            <Card glass={true} className="p-0 overflow-hidden flex-1 overflow-y-auto">
+              <ActivityFeed
+                notifications={filteredNotifications}
+                selectedNotification={selectedNotification}
+                onSelectNotification={handleSelectNotification}
+              />
+            </Card>
+          </div>
+
+          {/* Right Side - Notification Detail */}
+          <div className="flex-1 flex flex-col">
+            <NotificationDetail
+              selectedNotification={selectedNotification}
+              onMarkAllRead={handleMarkAllRead}
+            />
+          </div>
         </div>
       </div>
     </div>

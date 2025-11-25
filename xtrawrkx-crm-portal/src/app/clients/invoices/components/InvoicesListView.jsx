@@ -23,12 +23,16 @@ export default function InvoicesListView({
             if (selected) {
               setSelectedInvoices([...selectedInvoices, id]);
             } else {
-              setSelectedInvoices(selectedInvoices.filter((item) => item !== id));
+              setSelectedInvoices(
+                selectedInvoices.filter((item) => item !== id)
+              );
             }
           }}
           onSelectAll={(selected) => {
             if (selected) {
-              setSelectedInvoices(filteredInvoices.map((invoice) => invoice.id));
+              setSelectedInvoices(
+                filteredInvoices.map((invoice) => invoice.id)
+              );
             } else {
               setSelectedInvoices([]);
             }
@@ -67,4 +71,3 @@ export default function InvoicesListView({
     </div>
   );
 }
-

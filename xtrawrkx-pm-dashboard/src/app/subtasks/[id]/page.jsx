@@ -411,7 +411,7 @@ export default function SubtaskDetailPage({ params }) {
 
   // Convert breadcrumbs to PageHeader format
   const pageHeaderBreadcrumbs = [
-    { label: "Dashboard", href: "/dashboard" },
+    { label: "Dashboard", href: "/" },
     ...breadcrumbs.map(crumb => ({ label: crumb.label, href: crumb.href })),
     { label: subtask.name, href: `/subtasks/${subtask.id}` },
   ];

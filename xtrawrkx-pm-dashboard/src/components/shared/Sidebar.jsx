@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Home,
+  LayoutDashboard,
   CheckSquare,
   Inbox,
   MessageCircle,
@@ -29,6 +29,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useAuth } from "../../contexts/AuthContext";
 import Link from "next/link";
+import projectService from "../../lib/projectService";
+import { transformProject } from "../../lib/dataTransformers";
 
 const Sidebar = memo(function Sidebar({
   onOpenWorkspaceModal,
@@ -43,6 +45,9 @@ const Sidebar = memo(function Sidebar({
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [toolsCollapsed, setToolsCollapsed] = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const workspaceDropdownRef = useRef(null);
   const quickActionsRef = useRef(null);
 
@@ -90,8 +95,7 @@ const Sidebar = memo(function Sidebar({
   // Memoize the active item calculation with improved path matching
   const activeItem = useMemo(() => {
     // Handle root and home routes
-    if (pathname === "/" || pathname === "/home" || pathname === "/dashboard")
-      return "home";
+    if (pathname === "/" || pathname === "/home") return "home";
     // Handle my-tasks routes (including dynamic routes)
     if (pathname.startsWith("/my-task")) return "my-tasks";
     // Handle inbox routes
@@ -108,7 +112,13 @@ const Sidebar = memo(function Sidebar({
   // Memoize navigation items to prevent re-creation on every render
   const navigationItems = useMemo(
     () => [
-      { id: "home", label: "Dashboard", icon: Home, path: "/dashboard", priority: "high" },
+      {
+        id: "home",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+        path: "/",
+        priority: "high",
+      },
       {
         id: "my-tasks",
         label: "My Tasks",
@@ -116,7 +126,13 @@ const Sidebar = memo(function Sidebar({
         path: "/my-task",
         priority: "high",
       },
-      { id: "inbox", label: "Inbox", icon: Inbox, path: "/inbox", priority: "high" },
+      {
+        id: "inbox",
+        label: "Inbox",
+        icon: Inbox,
+        path: "/inbox",
+        priority: "high",
+      },
       {
         id: "message",
         label: "Message",
@@ -177,61 +193,42 @@ const Sidebar = memo(function Sidebar({
     }
   };
 
-  // Memoize projects to prevent re-creation on every render
-  const projects = useMemo(
-    () => [
-      {
-        id: 1,
-        name: "Yellow Branding",
-        color: "from-yellow-400 to-yellow-600",
-        bgColor: "bg-yellow-100",
-        icon: "Y",
-      },
-      {
-        id: 2,
-        name: "Mogo Web Design",
-        color: "from-purple-400 to-purple-600",
-        bgColor: "bg-purple-100",
-        icon: "M",
-      },
-      {
-        id: 3,
-        name: "Futurework",
-        color: "from-blue-400 to-blue-600",
-        bgColor: "bg-blue-100",
-        icon: "F",
-      },
-      {
-        id: 4,
-        name: "Resto Dashboard",
-        color: "from-pink-400 to-pink-600",
-        bgColor: "bg-pink-100",
-        icon: "R",
-      },
-      {
-        id: 5,
-        name: "Hajime Illustration",
-        color: "from-green-400 to-green-600",
-        bgColor: "bg-green-100",
-        icon: "H",
-      },
-      {
-        id: 6,
-        name: "Carl UI/UX",
-        color: "from-orange-400 to-orange-600",
-        bgColor: "bg-orange-100",
-        icon: "C",
-      },
-      {
-        id: 7,
-        name: "The Run Branding & Graphic",
-        color: "from-green-400 to-green-600",
-        bgColor: "bg-green-100",
-        icon: "T",
-      },
-    ],
-    []
-  );
+  // Fetch real projects from API
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        const response = await projectService.getAllProjects({
+          pageSize: 50,
+          populate: ["projectManager"],
+        });
+
+        const transformedProjects = (response.data || []).map((project) => {
+          const transformed = transformProject(project);
+          return {
+            id: transformed.id,
+            name: transformed.name,
+            slug: transformed.slug || project.slug,
+            color: transformed.color || "from-blue-400 to-blue-600",
+            bgColor: transformed.bgColor || "bg-blue-100",
+            icon:
+              transformed.icon ||
+              transformed.name?.charAt(0)?.toUpperCase() ||
+              "P",
+          };
+        });
+
+        setProjects(transformedProjects);
+      } catch (error) {
+        console.error("Error fetching projects for sidebar:", error);
+        setProjects([]);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   // Optimized navigation handler with loading state and performance improvements
   const handleNavigation = useCallback(
@@ -253,14 +250,17 @@ const Sidebar = memo(function Sidebar({
 
   // Optimized project navigation handler with loading state
   const handleProjectNavigation = useCallback(
-    async (projectName) => {
+    async (project) => {
       if (isNavigating) return; // Prevent navigation during loading
 
-      const projectSlug = projectName
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/&/g, "")
-        .replace(/\//g, "-");
+      // Use slug if available, otherwise generate from name
+      const projectSlug =
+        project.slug ||
+        project.name
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/&/g, "")
+          .replace(/\//g, "-");
       const projectPath = `/projects/${projectSlug}`;
 
       if (pathname === projectPath) return; // Prevent duplicate navigation
@@ -291,15 +291,11 @@ const Sidebar = memo(function Sidebar({
     router.push("/projects/add");
   }, [router]);
 
-  // Handle load more projects
-  const handleLoadMoreProjects = useCallback(() => {
-    setShowAllProjects(true);
-  }, []);
-
-  // Get projects to display (limited initially)
+  // Get projects to display (limited initially - show 4 recent projects)
   const displayedProjects = useMemo(() => {
-    return showAllProjects ? projects : projects.slice(0, 3);
-  }, [projects, showAllProjects]);
+    if (loadingProjects) return [];
+    return showAllProjects ? projects : projects.slice(0, 4);
+  }, [projects, showAllProjects, loadingProjects]);
 
   const isActive = (href) => {
     if (!href || href === "/") return pathname === "/";
@@ -310,44 +306,49 @@ const Sidebar = memo(function Sidebar({
     setQuickActionsOpen(!quickActionsOpen);
   };
 
+  // Helper function to generate coming-soon URL with feature name
+  const comingSoonUrl = (featureName) => {
+    return `/coming-soon?feature=${encodeURIComponent(featureName)}`;
+  };
+
   // PM Tools section
   const pmTools = [
     {
       label: "Documents",
       icon: FileText,
-      href: "#",
+      href: comingSoonUrl("Documents"),
     },
     {
       label: "Calendar",
       icon: Calendar,
-      href: "#",
+      href: comingSoonUrl("Calendar"),
     },
     {
       label: "Settings",
       icon: Settings,
-      href: "#",
+      href: comingSoonUrl("Settings"),
     },
   ];
 
   return (
     <div
       className={`${
-        collapsed ? "w-16" : "w-72"
+        collapsed ? "w-16" : "w-64"
       } h-full bg-white backdrop-blur-xl border-r border-white/30 flex flex-col shadow-xl overflow-y-auto transition-[width] duration-300 flex-shrink-0`}
     >
       {/* Header */}
       <div className="p-4 border-b border-white/20">
         <div className="flex items-center justify-between mb-4">
           {!collapsed && (
-            <span className="font-bold text-xl text-gray-900">
+            <span className="font-bold text-xl text-brand-foreground">
               PM Dashboard
             </span>
           )}
           <button onClick={onToggle} className="p-2 rounded-lg">
             {collapsed ? (
-              <ChevronRight className="w-5 h-5 text-gray-900" />
+              <ChevronRight className="w-5 h-5 text-brand-foreground" />
             ) : (
-              <ChevronLeft className="w-5 h-5 text-gray-900" />
+              <ChevronLeft className="w-5 h-5 text-brand-foreground" />
             )}
           </button>
         </div>
@@ -355,11 +356,11 @@ const Sidebar = memo(function Sidebar({
         {/* Search Bar */}
         {!collapsed && (
           <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-light" />
             <input
               type="text"
               placeholder="Search here..."
-              className="w-full pl-10 pr-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white/25 transition-[background-color,border-color,box-shadow] duration-300 text-sm placeholder:text-gray-500 shadow-lg"
+              className="w-full pl-10 pr-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/25 transition-[background-color,border-color,box-shadow] duration-300 text-sm placeholder:text-brand-text-light shadow-lg"
             />
           </div>
         )}
@@ -380,7 +381,7 @@ const Sidebar = memo(function Sidebar({
                   {activeWorkspace?.icon || "4"}
                 </span>
               </div>
-              <span className="text-sm font-medium text-gray-900 flex-1 text-left truncate">
+              <span className="text-sm font-medium text-brand-foreground flex-1 text-left truncate">
                 {activeWorkspace?.name || "Fourtwo Studio"}
               </span>
               <ChevronDown
@@ -448,7 +449,7 @@ const Sidebar = memo(function Sidebar({
               quickActionsOpen
                 ? "border-orange-300/60"
                 : "border-white/30 hover:border-orange-200/50"
-            } text-gray-900 rounded-xl py-3 px-4 flex items-center ${
+            } text-brand-foreground rounded-xl py-3 px-4 flex items-center ${
               collapsed ? "justify-center" : "justify-between gap-2"
             } shadow-lg hover:shadow-xl transition-all duration-300 group`}
           >
@@ -512,9 +513,7 @@ const Sidebar = memo(function Sidebar({
       <div className="p-4 space-y-4">
         {/* Primary Navigation - Top 4 */}
         <div
-          className={`grid gap-3 ${
-            collapsed ? "grid-cols-1" : "grid-cols-2"
-          }`}
+          className={`grid gap-3 ${collapsed ? "grid-cols-1" : "grid-cols-2"}`}
         >
           {navigationItems
             .filter((item) => item.priority === "high")
@@ -528,10 +527,10 @@ const Sidebar = memo(function Sidebar({
                   href={item.path}
                   className={`${
                     active
-                      ? "bg-orange-500 text-white border-orange-500/50"
-                      : "bg-white/20 backdrop-blur-md border border-white/30 text-gray-900 hover:bg-white/30 hover:border-white/40"
+                      ? "bg-gradient-to-br from-yellow-400/30 to-yellow-500/20 border-yellow-300/50 text-yellow-800"
+                      : "bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40"
                   } 
-                    rounded-xl p-4 flex flex-col items-center gap-3 transition-[background-color,border-color,color] duration-300 shadow-lg group`}
+                      rounded-xl p-4 flex flex-col items-center gap-3 transition-[background-color,border-color,color] duration-300 shadow-lg group`}
                   title={collapsed ? item.label : undefined}
                 >
                   <Icon className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
@@ -546,99 +545,144 @@ const Sidebar = memo(function Sidebar({
         </div>
       </div>
 
-      {/* PM Tools Section */}
+      {/* Projects Section - Moved to top */}
       {!collapsed && (
         <div className="flex-1">
-          <div className="px-4 mb-4">
-            <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 shadow-lg">
-              <div className="flex items-center justify-between text-sm font-medium text-gray-900 mb-3">
-                <span className="flex items-center gap-2">
-                  <Target className="w-4 h-4" />
-                  Tools
-                </span>
-                <ChevronDown className="w-4 h-4" />
-              </div>
-
-              <div className="space-y-2">
-                {pmTools.map((item, index) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={index}
-                      href={item.href}
-                      className="flex items-center gap-3 text-xs text-gray-600 p-2 rounded-lg hover:bg-white/20 hover:text-gray-900 transition-colors"
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="font-medium">{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Projects Section */}
-          <div className="px-4 mb-4">
-            <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 shadow-lg">
-              <div className="flex items-center justify-between text-sm font-medium text-gray-900 mb-3">
-                <span className="flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4" />
+          <div className="px-3 mb-2">
+            <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-2.5 shadow-lg">
+              <div className="flex items-center justify-between text-sm font-medium text-brand-foreground mb-2">
+                <span className="flex items-center gap-1.5">
+                  <FolderOpen className="w-3.5 h-3.5" />
                   Projects
                 </span>
                 <button
                   onClick={handleCreateProject}
-                  className="w-6 h-6 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center hover:bg-white/30 transition-all duration-200 group shadow-sm border border-white/20"
+                  className="w-5 h-5 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center hover:bg-white/30 transition-all duration-200 group shadow-sm border border-white/20"
                   title="Create New Project"
                 >
-                  <Plus className="w-3 h-3 text-gray-600 group-hover:text-gray-900 transition-colors" />
+                  <Plus className="w-2.5 h-2.5 text-gray-600 group-hover:text-gray-900 transition-colors" />
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {displayedProjects.map((project) => {
-                  const isProjectActive = pathname.startsWith(
-                    `/projects/${project.name
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")
-                      .replace(/&/g, "")
-                      .replace(/\//g, "-")}`
-                  );
-                  return (
-                    <button
-                      key={project.id}
-                      onClick={() => handleProjectNavigation(project.name)}
-                      disabled={isNavigating}
-                      className={`w-full flex items-center gap-3 p-2 rounded-lg text-xs text-gray-700 hover:bg-white/20 transition-all duration-200 ${
-                        isProjectActive
-                          ? "bg-orange-50 text-orange-700 border border-orange-200"
-                          : ""
-                      } ${isNavigating ? "opacity-75 cursor-not-allowed" : ""}`}
-                    >
-                      <div
-                        className={`w-4 h-4 bg-gradient-to-br ${project.color} rounded flex items-center justify-center flex-shrink-0`}
-                      >
-                        <span className="text-white font-bold text-xs">
-                          {project.icon}
-                        </span>
-                      </div>
-                      <span className="font-medium truncate flex-1 text-left">
-                        {project.name}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                {loadingProjects ? (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-orange-500"></div>
+                  </div>
+                ) : displayedProjects.length === 0 ? (
+                  <div className="text-center py-2 text-xs text-brand-text-light">
+                    No projects yet
+                  </div>
+                ) : (
+                  displayedProjects.map((project) => {
+                    const projectSlug =
+                      project.slug ||
+                      project.name
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")
+                        .replace(/&/g, "")
+                        .replace(/\//g, "-");
+                    const isProjectActive = pathname.startsWith(
+                      `/projects/${projectSlug}`
+                    );
 
-                {/* Load More Button */}
-                {!showAllProjects && projects.length > 3 && (
+                    return (
+                      <button
+                        key={project.id}
+                        onClick={() => handleProjectNavigation(project)}
+                        disabled={isNavigating}
+                        className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs text-brand-text-light hover:bg-white/20 transition-all duration-200 ${
+                          isProjectActive
+                            ? "bg-orange-50 text-orange-700 border border-orange-200"
+                            : ""
+                        } ${
+                          isNavigating ? "opacity-75 cursor-not-allowed" : ""
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 bg-gradient-to-br ${project.color} rounded flex items-center justify-center flex-shrink-0 shadow-sm`}
+                        >
+                          <span className="text-white font-bold text-[10px]">
+                            {project.icon}
+                          </span>
+                        </div>
+                        <span className="font-medium truncate flex-1 text-left">
+                          {project.name}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+
+                {/* Load More / Show Less Buttons */}
+                {!showAllProjects && projects.length > 4 && (
                   <button
-                    onClick={handleLoadMoreProjects}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200 group mt-2 rounded-lg"
+                    onClick={() => setShowAllProjects(true)}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200 group mt-1.5 rounded-lg"
                   >
                     <span className="font-medium">Load More</span>
-                    <ChevronDown className="w-3 h-3" />
+                    <ChevronDown className="w-2.5 h-2.5" />
+                  </button>
+                )}
+                {showAllProjects && projects.length > 4 && (
+                  <button
+                    onClick={() => setShowAllProjects(false)}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200 group mt-1.5 rounded-lg"
+                  >
+                    <span className="font-medium">Show Less</span>
+                    <ChevronDown className="w-2.5 h-2.5 rotate-180" />
+                  </button>
+                )}
+
+                {/* Show All Projects Button */}
+                {projects.length > 0 && (
+                  <button
+                    onClick={() => router.push("/projects")}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200 group mt-1.5 rounded-lg border border-orange-200"
+                  >
+                    <span>Show All Projects</span>
+                    <ChevronRight className="w-2.5 h-2.5" />
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* PM Tools Section - Moved below Projects and made collapsible */}
+          <div className="px-4 mb-4">
+            <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 shadow-lg">
+              <button
+                onClick={() => setToolsCollapsed(!toolsCollapsed)}
+                className="w-full flex items-center justify-between text-sm font-medium text-brand-foreground mb-3"
+              >
+                <span className="flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Tools
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    toolsCollapsed ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {!toolsCollapsed && (
+                <div className="space-y-2">
+                  {pmTools.map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={index}
+                        href={item.href}
+                        className="flex items-center gap-3 text-xs text-brand-text-light p-2 rounded-lg hover:bg-white/20 hover:text-gray-900 transition-colors"
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="font-medium">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -651,7 +695,9 @@ const Sidebar = memo(function Sidebar({
           {!collapsed && (
             <div className="flex items-center gap-4 px-2 mb-4">
               <div className="flex-1 h-px bg-white/20"></div>
-              <span className="text-xs text-gray-500 font-medium">System</span>
+              <span className="text-xs text-brand-text-light font-medium">
+                System
+              </span>
               <div className="flex-1 h-px bg-white/20"></div>
             </div>
           )}
@@ -670,8 +716,8 @@ const Sidebar = memo(function Sidebar({
                     href={item.path}
                     className={`w-full bg-white/15 backdrop-blur-md border ${
                       active
-                        ? "border-orange-300/50 bg-orange-50/30 text-orange-700"
-                        : "border-white/25 text-gray-600"
+                        ? "border-yellow-300/50 bg-yellow-50/30 text-yellow-800"
+                        : "border-white/25 text-brand-text-light"
                     } rounded-xl p-3 flex flex-col items-center gap-2 shadow-md hover:bg-white/20 hover:border-white/30 transition-all duration-200 group`}
                     title={collapsed ? item.label : undefined}
                   >
@@ -695,7 +741,7 @@ const Sidebar = memo(function Sidebar({
             }`}
           >
             <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
-              <span className="text-orange-500 text-sm font-medium">
+              <span className="text-brand-primary text-sm font-medium">
                 {user
                   ? (user.firstName?.charAt(0) ||
                       user.name?.charAt(0) ||
@@ -710,20 +756,20 @@ const Sidebar = memo(function Sidebar({
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-brand-foreground truncate">
                     {user
                       ? user.firstName && user.lastName
                         ? `${user.firstName} ${user.lastName}`
                         : user.name || user.email || "User"
                       : "User"}
                   </p>
-                  <p className="text-xs text-gray-600 truncate">
+                  <p className="text-xs text-brand-text-light truncate">
                     {user
                       ? user.primaryRole?.name || user.role || "User"
                       : "User"}
                   </p>
                 </div>
-                <button className="text-gray-600">
+                <button className="text-brand-text-light">
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </>

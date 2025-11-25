@@ -20,7 +20,7 @@ export function middleware(request) {
   
   // If user is authenticated and trying to access login page, redirect to dashboard
   if (token && pathname === '/login') {
-    const dashboardUrl = new URL('/dashboard', request.url)
+    const dashboardUrl = new URL('/', request.url)
     return NextResponse.redirect(dashboardUrl)
   }
 

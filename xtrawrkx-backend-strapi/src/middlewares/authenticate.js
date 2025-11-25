@@ -30,6 +30,9 @@ module.exports = (config, { strapi }) => {
                 ctx.request.path.startsWith('/api/deals') ||
                 ctx.request.path.startsWith('/api/activities') ||
                 ctx.request.path.startsWith('/api/proposals') ||
+                ctx.request.path.startsWith('/api/task-comments') ||
+                ctx.request.path.startsWith('/api/tasks') ||
+                ctx.request.path.startsWith('/api/subtasks') ||
                 publicRoutes.includes(ctx.request.path)) {
                 console.log('Skipping authentication for path:', ctx.request.path);
                 return await next();

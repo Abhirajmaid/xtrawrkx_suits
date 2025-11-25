@@ -1,76 +1,58 @@
-import React from "react";
-import { TrendingUp, TrendingDown, ArrowUp, ArrowDown } from "lucide-react";
+"use client";
 
-const StatsCards = ({ data }) => {
-  const stats = [
-    {
-      title: "Total Project",
-      value: data.totalProjects,
-      trend: "+2",
-      isPositive: true,
-      color: "text-blue-600",
-    },
-    {
-      title: "Total Tasks",
-      value: data.totalTasks,
-      trend: "+4",
-      isPositive: true,
-      color: "text-green-600",
-    },
-    {
-      title: "Assigned Tasks",
-      value: data.assignedTasks,
-      trend: "-3",
-      isPositive: false,
-      color: "text-orange-600",
-    },
-    {
-      title: "Completed Tasks",
-      value: data.completedTasks,
-      trend: "+1",
-      isPositive: true,
-      color: "text-green-600",
-    },
-    {
-      title: "Overdue Tasks",
-      value: data.overdueTasks,
-      trend: "+2",
-      isPositive: true,
-      color: "text-red-600",
-    },
-  ];
+import React from "react";
+import { Card } from "../ui";
+import {
+  CheckSquare,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+
+const StatsCards = ({ statusStats }) => {
+  if (!statusStats || statusStats.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
-      {stats.map((stat, index) => (
-        <div key={index} className="card card-hover p-6">
-          <div className="space-y-3">
-            {/* Header with title and trend */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {statusStats.map((stat) => {
+        const IconComponent = stat.icon;
+        return (
+          <Card
+            key={stat.label}
+            glass={true}
+            className="p-4 hover:shadow-lg transition-all duration-200"
+          >
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500 font-medium">{stat.title}</p>
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-1">
+                  {stat.label} Tasks
+                </p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {stat.count}
+                </p>
+                <div className="mt-2 flex items-center text-xs text-gray-500">
+                  <span
+                    className={`w-2 h-2 ${stat.color.replace(
+                      "-50",
+                      "-400"
+                    )} rounded-full mr-2`}
+                  ></span>
+                  {stat.count === 0
+                    ? "No tasks"
+                    : `${stat.count} ${stat.count === 1 ? "task" : "tasks"}`}
+                </div>
+              </div>
               <div
-                className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                  stat.isPositive
-                    ? "bg-success-50 text-success-600"
-                    : "bg-error-50 text-error-600"
-                }`}
+                className={`w-14 h-14 ${stat.color} backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border ${stat.borderColor}`}
               >
-                {stat.isPositive ? (
-                  <ArrowUp className="h-3 w-3" />
-                ) : (
-                  <ArrowDown className="h-3 w-3" />
-                )}
-                <span>{stat.trend}</span>
+                <IconComponent className={`w-7 h-7 ${stat.iconColor}`} />
               </div>
             </div>
-
-            {/* Main value */}
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          </div>
-        </div>
-      ))}
+          </Card>
+        );
+      })}
     </div>
   );
 };

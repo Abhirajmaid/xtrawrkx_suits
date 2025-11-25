@@ -1799,7 +1799,7 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
       ['PLANNING', 'ACTIVE', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED']
     > &
       Schema.Attribute.DefaultTo<'PLANNING'>;
-    tasks: Schema.Attribute.Relation<'oneToMany', 'api::task.task'>;
+    tasks: Schema.Attribute.Relation<'manyToMany', 'api::task.task'>;
     teamMembers: Schema.Attribute.Relation<
       'manyToMany',
       'api::xtrawrkx-user.xtrawrkx-user'
@@ -1953,7 +1953,7 @@ export interface ApiSubtaskSubtask extends Struct.CollectionTypeSchema {
       Schema.Attribute.DefaultTo<0>;
     publishedAt: Schema.Attribute.DateTime;
     status: Schema.Attribute.Enumeration<
-      ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+      ['SCHEDULED', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'CANCELLED']
     > &
       Schema.Attribute.DefaultTo<'SCHEDULED'>;
     task: Schema.Attribute.Relation<'manyToOne', 'api::task.task'>;
@@ -2029,6 +2029,10 @@ export interface ApiTaskTask extends Struct.CollectionTypeSchema {
       'manyToOne',
       'api::client-account.client-account'
     >;
+    collaborators: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
     completedDate: Schema.Attribute.DateTime;
     contact: Schema.Attribute.Relation<'manyToOne', 'api::contact.contact'>;
     createdAt: Schema.Attribute.DateTime;
@@ -2054,11 +2058,11 @@ export interface ApiTaskTask extends Struct.CollectionTypeSchema {
         number
       > &
       Schema.Attribute.DefaultTo<0>;
-    project: Schema.Attribute.Relation<'manyToOne', 'api::project.project'>;
+    projects: Schema.Attribute.Relation<'manyToMany', 'api::project.project'>;
     publishedAt: Schema.Attribute.DateTime;
     scheduledDate: Schema.Attribute.DateTime;
     status: Schema.Attribute.Enumeration<
-      ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+      ['SCHEDULED', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'CANCELLED']
     > &
       Schema.Attribute.DefaultTo<'SCHEDULED'>;
     subtasks: Schema.Attribute.Relation<'oneToMany', 'api::subtask.subtask'>;
