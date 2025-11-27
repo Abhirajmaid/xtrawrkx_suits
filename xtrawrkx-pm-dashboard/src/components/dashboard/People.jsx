@@ -20,7 +20,7 @@ const People = ({ data }) => {
         </svg>
       </div>
       <p className="text-gray-900 font-semibold text-base mb-2">
-        There&apos;s no people in your workspace
+        There&apos;s no people yet
       </p>
       <p className="text-gray-500 text-sm text-center max-w-xs">
         Start inviting your co-workers now!

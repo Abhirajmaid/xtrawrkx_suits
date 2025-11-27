@@ -50,7 +50,6 @@ const Header = ({ onToggleData, title = "Home", subtitle = "Monitor all of your 
     { label: "General Settings", icon: Settings, hasArrow: false },
     { label: "Notifications", icon: Bell, hasArrow: false },
     { label: "Privacy & Security", icon: User, hasArrow: false },
-    { label: "Workspace Settings", icon: Package, hasArrow: false },
     { label: "Data & Storage", icon: HelpCircle, hasArrow: false },
   ];
 

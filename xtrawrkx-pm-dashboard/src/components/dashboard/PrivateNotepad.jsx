@@ -20,7 +20,7 @@ const PrivateNotepad = ({ userId }) => {
 
   // Get storage key for this user's notepad
   const getStorageKey = () => {
-    return `xtrawrkx-private-notepad-${userId || 'default'}`;
+    return `xtrawrkx-private-notepad-${userId || "default"}`;
   };
 
   // Load saved notes from localStorage on mount
@@ -48,7 +48,7 @@ const PrivateNotepad = ({ userId }) => {
     setNoteText(newText);
     setIsSaved(false);
     handleSelectionChange();
-    
+
     // Auto-save to localStorage after a short delay
     if (window.notepadSaveTimeout) {
       clearTimeout(window.notepadSaveTimeout);
@@ -78,22 +78,25 @@ const PrivateNotepad = ({ userId }) => {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = noteText.substring(start, end);
-    
+
     // Handle list formatting (requires selection)
-    if (formatType === 'bulletList' || formatType === 'numberedList') {
+    if (formatType === "bulletList" || formatType === "numberedList") {
       if (start === end) {
         // No selection, insert at cursor position
-        const lines = selectedText.split('\n');
-        let formattedText = '';
-        if (formatType === 'bulletList') {
-          formattedText = '• ';
+        const lines = selectedText.split("\n");
+        let formattedText = "";
+        if (formatType === "bulletList") {
+          formattedText = "• ";
         } else {
-          formattedText = '1. ';
+          formattedText = "1. ";
         }
-        const newText = noteText.substring(0, start) + formattedText + noteText.substring(end);
+        const newText =
+          noteText.substring(0, start) +
+          formattedText +
+          noteText.substring(end);
         setNoteText(newText);
         setIsSaved(false);
-        
+
         // Position cursor after the marker
         setTimeout(() => {
           if (textareaRef.current) {
@@ -102,7 +105,7 @@ const PrivateNotepad = ({ userId }) => {
             textareaRef.current.setSelectionRange(cursorPos, cursorPos);
           }
         }, 0);
-        
+
         // Auto-save
         const storageKey = getStorageKey();
         localStorage.setItem(storageKey, newText);
@@ -110,35 +113,43 @@ const PrivateNotepad = ({ userId }) => {
         setTimeout(() => setIsSaved(false), 2000);
         return;
       }
-      
+
       // Has selection - format the selected lines
-      const lines = selectedText.split('\n');
-      let formattedText = '';
-      
-      if (formatType === 'bulletList') {
-        formattedText = lines.map(line => line.trim() ? `• ${line.trim()}` : line).join('\n');
+      const lines = selectedText.split("\n");
+      let formattedText = "";
+
+      if (formatType === "bulletList") {
+        formattedText = lines
+          .map((line) => (line.trim() ? `• ${line.trim()}` : line))
+          .join("\n");
       } else {
         // numberedList
-        const nonEmptyLines = lines.filter(line => line.trim());
-        formattedText = lines.map(line => {
-          if (!line.trim()) return line;
-          const index = nonEmptyLines.indexOf(line.trim());
-          return `${index + 1}. ${line.trim()}`;
-        }).join('\n');
+        const nonEmptyLines = lines.filter((line) => line.trim());
+        formattedText = lines
+          .map((line) => {
+            if (!line.trim()) return line;
+            const index = nonEmptyLines.indexOf(line.trim());
+            return `${index + 1}. ${line.trim()}`;
+          })
+          .join("\n");
       }
-      
-      const newText = noteText.substring(0, start) + formattedText + noteText.substring(end);
+
+      const newText =
+        noteText.substring(0, start) + formattedText + noteText.substring(end);
       setNoteText(newText);
       setIsSaved(false);
-      
+
       // Restore selection after state update
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(start, start + formattedText.length);
+          textareaRef.current.setSelectionRange(
+            start,
+            start + formattedText.length
+          );
         }
       }, 0);
-      
+
       // Auto-save
       const storageKey = getStorageKey();
       localStorage.setItem(storageKey, newText);
@@ -146,31 +157,41 @@ const PrivateNotepad = ({ userId }) => {
       setTimeout(() => setIsSaved(false), 2000);
       return;
     }
-    
+
     // Handle text formatting (bold, italic, underline, strikethrough)
     if (start === end) {
       // No selection for text formatting, just insert markers at cursor
-      let markers = '';
+      let markers = "";
       switch (formatType) {
-        case 'bold': markers = '****'; break;
-        case 'italic': markers = '**'; break;
-        case 'underline': markers = '__'; break;
-        case 'strikethrough': markers = '~~'; break;
-        default: return;
+        case "bold":
+          markers = "****";
+          break;
+        case "italic":
+          markers = "**";
+          break;
+        case "underline":
+          markers = "__";
+          break;
+        case "strikethrough":
+          markers = "~~";
+          break;
+        default:
+          return;
       }
-      const newText = noteText.substring(0, start) + markers + noteText.substring(end);
+      const newText =
+        noteText.substring(0, start) + markers + noteText.substring(end);
       setNoteText(newText);
       setIsSaved(false);
-      
+
       // Position cursor in middle of markers
       setTimeout(() => {
         if (textareaRef.current) {
-          const cursorPos = start + (markers.length / 2);
+          const cursorPos = start + markers.length / 2;
           textareaRef.current.focus();
           textareaRef.current.setSelectionRange(cursorPos, cursorPos);
         }
       }, 0);
-      
+
       // Auto-save
       const storageKey = getStorageKey();
       localStorage.setItem(storageKey, newText);
@@ -185,28 +206,29 @@ const PrivateNotepad = ({ userId }) => {
     let newEnd = end;
 
     switch (formatType) {
-      case 'bold':
+      case "bold":
         formattedText = `**${selectedText}**`;
         break;
-      case 'italic':
+      case "italic":
         formattedText = `*${selectedText}*`;
         break;
-      case 'underline':
+      case "underline":
         formattedText = `__${selectedText}__`;
         break;
-      case 'strikethrough':
+      case "strikethrough":
         formattedText = `~~${selectedText}~~`;
         break;
       default:
         return;
     }
 
-    const newText = noteText.substring(0, start) + formattedText + noteText.substring(end);
+    const newText =
+      noteText.substring(0, start) + formattedText + noteText.substring(end);
     newEnd = start + formattedText.length;
 
     setNoteText(newText);
     setIsSaved(false);
-    
+
     // Restore selection after state update
     setTimeout(() => {
       if (textareaRef.current) {
@@ -247,9 +269,7 @@ const PrivateNotepad = ({ userId }) => {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-gray-900">Private Notepad</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Your personal workspace
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Your personal notes</p>
           </div>
           <div className="flex items-center space-x-2">
             <button

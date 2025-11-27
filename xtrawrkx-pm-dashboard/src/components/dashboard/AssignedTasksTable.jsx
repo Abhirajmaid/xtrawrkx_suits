@@ -3,23 +3,21 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Table } from "../ui";
-import {
-  Check,
-  Calendar,
-  Eye,
-  Trash2,
-  GitBranch,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { Check, Calendar, Eye, GitBranch } from "lucide-react";
 import ProjectSelector from "../my-task/ProjectSelector";
 import taskService from "../../lib/taskService";
-import subtaskService from "../../lib/subtaskService";
 import projectService from "../../lib/projectService";
-import { transformSubtask, transformStatusToStrapi, transformPriorityToStrapi } from "../../lib/dataTransformers";
+import {
+  transformStatusToStrapi,
+  transformPriorityToStrapi,
+} from "../../lib/dataTransformers";
 import { useAuth } from "../../contexts/AuthContext";
 
-const AssignedTasksTable = ({ data, onTaskComplete = () => {}, projects = [] }) => {
+const AssignedTasksTable = ({
+  data,
+  onTaskComplete = () => {},
+  projects = [],
+}) => {
   const router = useRouter();
   const { user } = useAuth();
   const [expandedSubtasks, setExpandedSubtasks] = useState({});
@@ -30,7 +28,13 @@ const AssignedTasksTable = ({ data, onTaskComplete = () => {}, projects = [] }) 
   React.useEffect(() => {
     if (projects.length === 0) {
       projectService.getAllProjects({ pageSize: 50 }).then((response) => {
-        setAllProjects(response.data?.map((p) => ({ id: p.id, name: p.name, slug: p.slug })) || []);
+        setAllProjects(
+          response.data?.map((p) => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+          })) || []
+        );
       });
     }
   }, [projects]);
@@ -58,7 +62,9 @@ const AssignedTasksTable = ({ data, onTaskComplete = () => {}, projects = [] }) 
 
   // Handle due date updates
   const handleDueDateUpdate = async (taskId, newDate) => {
-    const scheduledDate = newDate ? new Date(newDate + "T00:00:00").toISOString() : null;
+    const scheduledDate = newDate
+      ? new Date(newDate + "T00:00:00").toISOString()
+      : null;
     try {
       await taskService.updateTask(taskId, { scheduledDate });
     } catch (error) {
@@ -85,11 +91,14 @@ const AssignedTasksTable = ({ data, onTaskComplete = () => {}, projects = [] }) 
         // Check if task has subtasks
         const taskSubtasks = task.subtasks || [];
         const loadedTaskSubtasks = loadedSubtasks[task.id] || [];
-        const allSubtasks = loadedTaskSubtasks.length > 0 ? loadedTaskSubtasks : taskSubtasks;
+        const allSubtasks =
+          loadedTaskSubtasks.length > 0 ? loadedTaskSubtasks : taskSubtasks;
         const rootSubtasks = allSubtasks.filter((st) => {
-          return !st.parentSubtask || 
-                 st.parentSubtask === null || 
-                 (typeof st.parentSubtask === 'object' && !st.parentSubtask.id);
+          return (
+            !st.parentSubtask ||
+            st.parentSubtask === null ||
+            (typeof st.parentSubtask === "object" && !st.parentSubtask.id)
+          );
         });
         const hasSubtasks = rootSubtasks.length > 0;
 
@@ -109,7 +118,9 @@ const AssignedTasksTable = ({ data, onTaskComplete = () => {}, projects = [] }) 
                   ? "bg-green-500 border-green-500 text-white hover:bg-green-600"
                   : "border-gray-300 hover:border-green-500 hover:bg-green-50 cursor-pointer"
               }`}
-              title={isDone ? "Click to mark as incomplete" : "Mark as complete"}
+              title={
+                isDone ? "Click to mark as incomplete" : "Mark as complete"
+              }
             >
               {isDone && <Check className="w-4 h-4 stroke-[3]" />}
             </button>
@@ -127,12 +138,16 @@ const AssignedTasksTable = ({ data, onTaskComplete = () => {}, projects = [] }) 
                 {task.name}
               </div>
               {hasSubtasks && (
-                <div 
+                <div
                   className="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"
-                  title={`${rootSubtasks.length} ${rootSubtasks.length === 1 ? 'subtask' : 'subtasks'}`}
+                  title={`${rootSubtasks.length} ${
+                    rootSubtasks.length === 1 ? "subtask" : "subtasks"
+                  }`}
                 >
                   <GitBranch className="w-3.5 h-3.5" />
-                  <span className="text-xs font-medium">{rootSubtasks.length}</span>
+                  <span className="text-xs font-medium">
+                    {rootSubtasks.length}
+                  </span>
                 </div>
               )}
             </div>

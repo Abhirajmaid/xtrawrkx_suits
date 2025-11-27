@@ -5,22 +5,14 @@ import { usePathname } from "next/navigation";
 import "../styles/globals.css";
 import Sidebar from "../components/shared/Sidebar";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
-import { WorkspaceProvider } from "../contexts/WorkspaceContext";
-import WorkspaceModal from "../components/page/WorkspaceModal";
-import ManageWorkspaceModal from "../components/page/ManageWorkspaceModal";
 import GlobalSearchModal from "../components/page/GlobalSearchModal";
-import { useWorkspace } from "../contexts/WorkspaceContext";
 import { Loader2 } from "lucide-react";
 import { useCallback, cloneElement, isValidElement } from "react";
 
 function LayoutContent({ children }) {
   const { isAuthenticated, loading } = useAuth();
-  const { createWorkspace } = useWorkspace();
   const pathname = usePathname();
 
-  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
-  const [isManageWorkspaceModalOpen, setIsManageWorkspaceModalOpen] =
-    useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -38,23 +30,6 @@ function LayoutContent({ children }) {
 
   // Note: Authentication redirect is handled by middleware.js
   // We only need to show appropriate UI based on auth state here
-
-  // Workspace modal handlers
-  const handleCreateWorkspace = useCallback(
-    (workspaceData) => {
-      createWorkspace(workspaceData);
-      setIsWorkspaceModalOpen(false);
-    },
-    [createWorkspace]
-  );
-
-  const openWorkspaceModal = useCallback(() => {
-    setIsWorkspaceModalOpen(true);
-  }, []);
-
-  const openManageWorkspaceModal = useCallback(() => {
-    setIsManageWorkspaceModalOpen(true);
-  }, []);
 
   const openSearchModal = useCallback(() => {
     setIsSearchModalOpen(true);
@@ -109,8 +84,6 @@ function LayoutContent({ children }) {
 
         {/* PM Sidebar */}
         <Sidebar
-          onOpenWorkspaceModal={openWorkspaceModal}
-          onOpenManageWorkspaceModal={openManageWorkspaceModal}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
@@ -121,19 +94,6 @@ function LayoutContent({ children }) {
             ? cloneElement(children, { onSearchClick: openSearchModal })
             : children}
         </main>
-
-        {/* Workspace Modal */}
-        <WorkspaceModal
-          isOpen={isWorkspaceModalOpen}
-          onClose={() => setIsWorkspaceModalOpen(false)}
-          onCreateWorkspace={handleCreateWorkspace}
-        />
-
-        {/* Manage Workspace Modal */}
-        <ManageWorkspaceModal
-          isOpen={isManageWorkspaceModalOpen}
-          onClose={() => setIsManageWorkspaceModalOpen(false)}
-        />
 
         {/* Global Search Modal */}
         <GlobalSearchModal
@@ -212,9 +172,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="bg-white">
         <AuthProvider>
-          <WorkspaceProvider>
-            <LayoutContent>{children}</LayoutContent>
-          </WorkspaceProvider>
+          <LayoutContent>{children}</LayoutContent>
         </AuthProvider>
       </body>
     </html>

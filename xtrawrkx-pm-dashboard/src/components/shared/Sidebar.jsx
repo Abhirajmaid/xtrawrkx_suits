@@ -26,52 +26,22 @@ import React, {
   useRef,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useAuth } from "../../contexts/AuthContext";
 import Link from "next/link";
 import projectService from "../../lib/projectService";
 import { transformProject } from "../../lib/dataTransformers";
 
-const Sidebar = memo(function Sidebar({
-  onOpenWorkspaceModal,
-  onOpenManageWorkspaceModal,
-  collapsed = false,
-  onToggle,
-}) {
+const Sidebar = memo(function Sidebar({ collapsed = false, onToggle }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
   const [isNavigating, setIsNavigating] = useState(false);
-  const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [toolsCollapsed, setToolsCollapsed] = useState(true);
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
-  const workspaceDropdownRef = useRef(null);
   const quickActionsRef = useRef(null);
-
-  const { workspaces, activeWorkspace, switchWorkspace } = useWorkspace();
-
-  // Close workspace dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        workspaceDropdownRef.current &&
-        !workspaceDropdownRef.current.contains(event.target)
-      ) {
-        setShowWorkspaceDropdown(false);
-      }
-    };
-
-    if (showWorkspaceDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showWorkspaceDropdown]);
 
   // Close quick actions when clicking outside
   useEffect(() => {
@@ -91,23 +61,6 @@ const Sidebar = memo(function Sidebar({
       };
     }
   }, [quickActionsOpen]);
-
-  // Memoize the active item calculation with improved path matching
-  const activeItem = useMemo(() => {
-    // Handle root and home routes
-    if (pathname === "/" || pathname === "/home") return "home";
-    // Handle my-tasks routes (including dynamic routes)
-    if (pathname.startsWith("/my-task")) return "my-tasks";
-    // Handle inbox routes
-    if (pathname.startsWith("/inbox")) return "inbox";
-    // Handle message routes
-    if (pathname.startsWith("/message")) return "message";
-    // Handle analytics routes
-    if (pathname.startsWith("/analytics")) return "analytics";
-    // Handle projects routes (including dynamic routes)
-    if (pathname.startsWith("/projects")) return "projects";
-    return "home";
-  }, [pathname]);
 
   // Memoize navigation items to prevent re-creation on every render
   const navigationItems = useMemo(
@@ -169,18 +122,6 @@ const Sidebar = memo(function Sidebar({
       bgColor: "bg-blue-50",
       borderColor: "border-blue-200",
     },
-    {
-      label: "New Workspace",
-      icon: Target,
-      href: "#",
-      color: "text-green-600",
-      bgColor: "bg-green-50",
-      borderColor: "border-green-200",
-      onClick: () => {
-        onOpenWorkspaceModal();
-        setQuickActionsOpen(false);
-      },
-    },
   ];
 
   // Handle quick action navigation
@@ -230,24 +171,6 @@ const Sidebar = memo(function Sidebar({
     fetchProjects();
   }, []);
 
-  // Optimized navigation handler with loading state and performance improvements
-  const handleNavigation = useCallback(
-    async (path) => {
-      if (isNavigating || pathname === path) return; // Prevent duplicate navigation
-
-      setIsNavigating(true);
-      try {
-        await router.push(path);
-      } catch (error) {
-        console.error("Navigation error:", error);
-      } finally {
-        // Reset loading state after a short delay to show the transition
-        setTimeout(() => setIsNavigating(false), 100);
-      }
-    },
-    [router, pathname, isNavigating]
-  );
-
   // Optimized project navigation handler with loading state
   const handleProjectNavigation = useCallback(
     async (project) => {
@@ -275,15 +198,6 @@ const Sidebar = memo(function Sidebar({
       }
     },
     [router, pathname, isNavigating]
-  );
-
-  // Workspace management handlers
-  const handleWorkspaceSwitch = useCallback(
-    (workspaceId) => {
-      switchWorkspace(workspaceId);
-      setShowWorkspaceDropdown(false);
-    },
-    [switchWorkspace]
   );
 
   // Handle create project - navigate to add project page
@@ -362,82 +276,6 @@ const Sidebar = memo(function Sidebar({
               placeholder="Search here..."
               className="w-full pl-10 pr-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary focus:bg-white/25 transition-[background-color,border-color,box-shadow] duration-300 text-sm placeholder:text-brand-text-light shadow-lg"
             />
-          </div>
-        )}
-
-        {/* Workspace Dropdown */}
-        {!collapsed && (
-          <div className="relative mb-3" ref={workspaceDropdownRef}>
-            <button
-              onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
-              className="w-full flex items-center gap-3 p-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl hover:bg-white/30 hover:border-white/40 transition-all duration-300 shadow-lg"
-            >
-              <div
-                className={`w-6 h-6 bg-gradient-to-br ${
-                  activeWorkspace?.color || "from-green-400 to-green-600"
-                } rounded flex items-center justify-center flex-shrink-0`}
-              >
-                <span className="text-white font-bold text-xs">
-                  {activeWorkspace?.icon || "4"}
-                </span>
-              </div>
-              <span className="text-sm font-medium text-brand-foreground flex-1 text-left truncate">
-                {activeWorkspace?.name || "Fourtwo Studio"}
-              </span>
-              <ChevronDown
-                className={`w-4 h-4 text-gray-600 transition-transform flex-shrink-0 ${
-                  showWorkspaceDropdown ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {/* Workspace Dropdown Menu */}
-            {showWorkspaceDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-white/30 z-10">
-                <div className="p-2">
-                  {workspaces.map((workspace) => (
-                    <button
-                      key={workspace.id}
-                      onClick={() => handleWorkspaceSwitch(workspace.id)}
-                      className={`w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 ${
-                        workspace.isActive
-                          ? "bg-orange-50 text-orange-700 shadow-sm"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      <div
-                        className={`w-5 h-5 bg-gradient-to-br ${workspace.color} rounded flex items-center justify-center flex-shrink-0`}
-                      >
-                        <span className="text-white font-bold text-xs">
-                          {workspace.icon}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium flex-1 text-left truncate">
-                        {workspace.name}
-                      </span>
-                      {workspace.isActive && (
-                        <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0"></div>
-                      )}
-                    </button>
-                  ))}
-
-                  <div className="border-t border-white/20 my-2"></div>
-
-                  <button
-                    onClick={() => {
-                      onOpenWorkspaceModal();
-                      setShowWorkspaceDropdown(false);
-                    }}
-                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/50 transition-all duration-200 text-gray-700"
-                  >
-                    <div className="w-5 h-5 bg-gray-300 rounded flex items-center justify-center flex-shrink-0">
-                      <Plus className="w-3 h-3 text-gray-600" />
-                    </div>
-                    <span className="text-sm font-medium">+ New Workspace</span>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
