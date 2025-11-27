@@ -130,23 +130,23 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
       {metrics.map((metric, index) => {
         const IconComponent = metric.icon;
         return (
-          <Card
-            key={index}
-            glass={true}
-            className="p-4 hover:shadow-lg transition-all duration-200"
-          >
+        <div
+          key={index}
+            className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]"
+        >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm text-gray-600 mb-1">{metric.title}</p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  {metric.title}
+                </p>
+                <p className="text-3xl font-black text-gray-800">
                   {metric.value}
                 </p>
                 <div className="mt-2 flex items-center text-xs text-gray-500">
                   <span
-                    className={`w-2 h-2 ${metric.color.replace(
-                      "-50",
-                      "-400"
-                    )} rounded-full mr-2`}
+                    className={`w-2 h-2 rounded-full mr-2 ${
+                      metric.color?.replace("-50", "-500") || "bg-gray-500"
+                    }`}
                   ></span>
                   <span className="mr-2">
                     {metric.value === "0"
@@ -158,18 +158,18 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
                         }`}
                   </span>
                   {metric.trend.value !== "+0" && (
-                    <div
+              <div
                       className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-xs ${
                         metric.trend.isPositive
-                          ? "bg-green-50 text-green-600"
-                          : "bg-red-50 text-red-600"
-                      }`}
-                    >
+                    ? "bg-green-50 text-green-600"
+                    : "bg-red-50 text-red-600"
+                }`}
+              >
                       {metric.trend.isPositive ? (
                         <ArrowUp className="h-2.5 w-2.5" />
-                      ) : (
+                ) : (
                         <ArrowDown className="h-2.5 w-2.5" />
-                      )}
+                )}
                       <span className="font-semibold">
                         {metric.trend.value}
                       </span>
@@ -178,12 +178,18 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
                 </div>
               </div>
               <div
-                className={`w-14 h-14 ${metric.color} backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border ${metric.borderColor}`}
+                className={`w-16 h-16 ${
+                  metric.color || "bg-gray-50"
+                } backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border ${
+                  metric.borderColor || "border-gray-200"
+                }`}
               >
-                <IconComponent className={`w-7 h-7 ${metric.iconColor}`} />
+                <IconComponent
+                  className={`w-8 h-8 ${metric.iconColor || "text-gray-600"}`}
+                />
               </div>
             </div>
-          </Card>
+          </div>
         );
       })}
     </div>
@@ -325,7 +331,7 @@ const TasksByProject = ({ tasks, projects }) => {
           <p className="text-gray-500">No project data available</p>
         </div>
       </Card>
-    );
+  );
   }
 
   return (
@@ -605,7 +611,7 @@ const TaskCompletionOverTime = ({ tasks }) => {
             {/* Calculate path for incomplete tasks */}
             {timeData.length > 0 && (
               <>
-                <path
+            <path
                   d={`M 0,${
                     300 - (timeData[0].incomplete / maxValue) * 250
                   } ${timeData
@@ -621,10 +627,10 @@ const TaskCompletionOverTime = ({ tasks }) => {
                   } L 400,300 L 0,300 Z`}
                   fill="#EAB308"
                   opacity="0.4"
-                />
+            />
 
                 {/* Area chart for completed tasks */}
-                <path
+            <path
                   d={`M 0,${
                     300 - (timeData[0].completed / maxValue) * 250
                   } ${timeData
@@ -640,7 +646,7 @@ const TaskCompletionOverTime = ({ tasks }) => {
                   } L 400,300 L 0,300 Z`}
                   fill="#22C55E"
                   opacity="0.6"
-                />
+            />
               </>
             )}
           </svg>

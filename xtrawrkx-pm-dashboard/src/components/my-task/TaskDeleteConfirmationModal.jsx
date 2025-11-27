@@ -28,7 +28,7 @@ const TaskDeleteConfirmationModal = ({ isOpen, onClose, onConfirm, taskName }) =
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              Delete Task
+              {taskName?.includes("tasks") ? "Delete Tasks" : "Delete Task"}
             </h3>
             <p className="text-sm text-gray-500">
               This action cannot be undone
@@ -75,7 +75,7 @@ const TaskDeleteConfirmationModal = ({ isOpen, onClose, onConfirm, taskName }) =
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                Delete Task
+                {taskName?.includes("tasks") ? "Delete Tasks" : "Delete Task"}
               </>
             )}
           </button>

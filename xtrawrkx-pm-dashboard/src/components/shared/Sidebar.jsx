@@ -740,7 +740,7 @@ const Sidebar = memo(function Sidebar({
               collapsed ? "justify-center" : ""
             }`}
           >
-            <div className="w-8 h-8 bg-white/30 backdrop-blur-md border border-white/40 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
+            <div className="w-10 h-10 bg-white/30 backdrop-blur-md border border-white/40 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
               <span className="text-brand-primary text-sm font-medium">
                 {user
                   ? (user.firstName?.charAt(0) ||
@@ -756,7 +756,7 @@ const Sidebar = memo(function Sidebar({
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-brand-foreground truncate">
+                  <p className="text-sm font-semibold text-brand-foreground truncate">
                     {user
                       ? user.firstName && user.lastName
                         ? `${user.firstName} ${user.lastName}`
@@ -765,8 +765,8 @@ const Sidebar = memo(function Sidebar({
                   </p>
                   <p className="text-xs text-brand-text-light truncate">
                     {user
-                      ? user.primaryRole?.name || user.role || "User"
-                      : "User"}
+                      ? user.primaryRole?.name || user.role || "Team Member"
+                      : "Team Member"}
                   </p>
                 </div>
                 <button className="text-brand-text-light">

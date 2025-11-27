@@ -17,6 +17,7 @@ import { useAuth } from "../contexts/AuthContext";
 import projectService from "../lib/projectService";
 import taskService from "../lib/taskService";
 import { transformProject, transformTask } from "../lib/dataTransformers";
+import apiClient from "../lib/apiClient";
 
 // Helper function to get greeting
 const getGreeting = () => {
@@ -43,6 +44,7 @@ export default function DashboardPage() {
   const [hasData] = useState(true); // Default to filled state to show the dashboard with data
   const [projects, setProjects] = useState([]);
   const [assignedTasks, setAssignedTasks] = useState([]);
+  const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -57,8 +59,8 @@ export default function DashboardPage() {
         const currentUserId =
           user?.id || user?._id || user?.xtrawrkxUserId || 1;
 
-        // Load projects and tasks in parallel
-        const [projectsResponse, allTasksResponse] = await Promise.all([
+        // Load projects, tasks, and users in parallel
+        const [projectsResponse, allTasksResponse, usersResponse] = await Promise.all([
           projectService.getAllProjects({ pageSize: 10 }),
           taskService.getAllTasks({
             pageSize: 100,
@@ -70,6 +72,11 @@ export default function DashboardPage() {
               "collaborators",
             ],
           }),
+          apiClient.get("/api/xtrawrkx-users", {
+            "pagination[pageSize]": 100,
+            populate: "primaryRole,userRoles,department",
+            "filters[isActive][$eq]": "true",
+          }).catch(() => ({ data: [] })), // Don't fail if users can't be loaded
         ]);
 
         // Transform data
@@ -89,24 +96,14 @@ export default function DashboardPage() {
           return !hasCRMRelation;
         });
 
-        // Filter tasks where user is a collaborator
+        // Filter tasks where user is a collaborator (only collaborators, not assignees)
         const normalizedCurrentUserId =
           typeof currentUserId === "string"
             ? parseInt(currentUserId)
             : currentUserId;
 
         const collaboratorTasks = allPMTasks.filter((task) => {
-          // Check if user is assignee
-          const taskAssigneeId =
-            task.assignee?.id || task.assignee?._id || task.assignee;
-          const normalizedTaskAssigneeId =
-            typeof taskAssigneeId === "string"
-              ? parseInt(taskAssigneeId)
-              : taskAssigneeId;
-          const isAssignee =
-            normalizedTaskAssigneeId === normalizedCurrentUserId;
-
-          // Check if user is in collaborators
+          // Check if user is in collaborators array
           const collaborators = task.collaborators || [];
           const isCollaborator = collaborators.some((collab) => {
             const collabId = collab?.id || collab?._id || collab;
@@ -115,11 +112,47 @@ export default function DashboardPage() {
             return normalizedCollabId === normalizedCurrentUserId;
           });
 
-          return isAssignee || isCollaborator;
+          return isCollaborator;
         });
 
         setProjects(transformedProjects);
         setAssignedTasks(collaboratorTasks);
+
+        // Process and transform users
+        let usersData = [];
+        if (usersResponse) {
+          if (usersResponse.data && Array.isArray(usersResponse.data)) {
+            usersData = usersResponse.data;
+          } else if (Array.isArray(usersResponse)) {
+            usersData = usersResponse;
+          }
+        }
+
+        // Transform users to People component format
+        const transformedPeople = usersData
+          .filter((u) => u && (u.id || u._id)) // Filter out invalid users
+          .map((user) => {
+            // Handle Strapi v4 format (attributes) or direct format
+            const userData = user.attributes || user;
+            const firstName = userData.firstName || "";
+            const lastName = userData.lastName || "";
+            const name = firstName && lastName
+              ? `${firstName} ${lastName}`
+              : userData.name || userData.email || "Unknown User";
+            const email = userData.email || "";
+            const initials = firstName && lastName
+              ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+              : name.substring(0, 2).toUpperCase();
+
+            return {
+              id: user.id || user._id || user.documentId,
+              name,
+              email,
+              avatar: initials,
+            };
+          });
+
+        setPeople(transformedPeople);
       } catch (error) {
         console.error("Error loading dashboard data:", error);
         setError(error.message);
@@ -338,47 +371,6 @@ export default function DashboardPage() {
 
   const projectsData = getRealProjectsData();
 
-  const peopleData = hasData
-    ? [
-        {
-          id: 1,
-          name: "Marc Atenson",
-          email: "marcnine@gmail.com",
-          avatar: "MA",
-        },
-        {
-          id: 2,
-          name: "Susan Drake",
-          email: "contact@susandrak..",
-          avatar: "SD",
-        },
-        {
-          id: 3,
-          name: "Ronald Richards",
-          email: "ronaldrichard@gmai..",
-          avatar: "RR",
-        },
-        {
-          id: 4,
-          name: "Jane Cooper",
-          email: "janecooper@proton..",
-          avatar: "JC",
-        },
-        {
-          id: 5,
-          name: "Ian Warren",
-          email: "wadewarren@mail.co",
-          avatar: "IW",
-        },
-        {
-          id: 6,
-          name: "Darrell Steward",
-          email: "darrelsteward@gma..",
-          avatar: "DS",
-        },
-      ]
-    : [];
-
   if (loading) {
     return (
       <div className="bg-white w-full flex-1 min-h-full">
@@ -469,10 +461,10 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div>
-              <People data={peopleData} />
+              <People data={people} />
             </div>
             <div className="xl:col-span-2">
-              <PrivateNotepad />
+              <PrivateNotepad userId={user?.id || user?._id || user?.xtrawrkxUserId} />
             </div>
           </div>
         </div>

@@ -19,12 +19,19 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
     title: "",
     description: "",
     project: "",
-    assignee: "",
+    assignees: [], // Changed to array for multiple assignees
     scheduledDate: "",
     priority: "MEDIUM",
     status: "SCHEDULED",
     progress: 0,
   });
+
+  // Debug: Log form data changes
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Form data:", formData);
+    }
+  }, [formData, isOpen]);
   const [newTag, setNewTag] = useState("");
   const [tags, setTags] = useState([]);
   const [errors, setErrors] = useState({});
@@ -39,7 +46,7 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
         title: "",
         description: "",
         project: "",
-        assignee: "",
+        assignees: [], // Changed to array
         scheduledDate: "",
         priority: "MEDIUM",
         status: "SCHEDULED",
@@ -192,9 +199,9 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
     if (!formData.title.trim()) {
       newErrors.title = "Task title is required";
     }
-    // Project is optional for now
-    if (!formData.assignee) {
-      newErrors.assignee = "Assignee is required";
+    // At least one assignee is required
+    if (!formData.assignees || formData.assignees.length === 0) {
+      newErrors.assignees = "At least one assignee is required";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -207,12 +214,30 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
     setIsSubmitting(true);
     try {
       // Prepare task data for Strapi
+      // Note: Backend expects 'projects' (plural) as an array, not 'project' (singular)
+      const assigneeIds = formData.assignees
+        .map((id) => parseInt(id))
+        .filter((id) => !isNaN(id));
+      
+      // First assignee becomes the main assignee, and ALL selected users (including first) go to collaborators
+      const primaryAssignee = assigneeIds.length > 0 ? assigneeIds[0] : null;
+      // Include all assignees (including the first one) in collaborators
+      const collaborators = assigneeIds.length > 0 ? assigneeIds : [];
+      
       const taskData = {
         title: formData.title,
         description: formData.description || "",
-        // Project is optional - only include if provided
-        ...(formData.project && { project: parseInt(formData.project) }),
-        assignee: parseInt(formData.assignee),
+        // Projects is optional - only include if provided and not empty
+        // Backend expects projects as an array
+        ...(formData.project && formData.project !== "" && { 
+          projects: [parseInt(formData.project)]
+        }),
+        // Primary assignee (first selected)
+        assignee: primaryAssignee,
+        // All selected users (including first assignee) as collaborators
+        ...(collaborators.length > 0 && { 
+          collaborators: collaborators 
+        }),
         scheduledDate: formData.scheduledDate
           ? new Date(formData.scheduledDate + "T00:00:00").toISOString()
           : null,
@@ -224,11 +249,47 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
         createdBy: user?.id || user?._id || user?.xtrawrkxUserId || 1,
       };
 
+      console.log("Creating task with data:", taskData);
+      console.log("Form data values:", {
+        project: formData.project,
+        assignees: formData.assignees,
+        projectParsed: formData.project ? parseInt(formData.project) : null,
+        assigneesParsed: assigneeIds,
+        primaryAssignee: primaryAssignee,
+        collaborators: collaborators,
+      });
+      
       const response = await taskService.createTask(taskData);
+      console.log("Task created response:", response);
 
-      // Handle Strapi response format - response.data is already returned from taskService
-      if (onTaskCreated) {
-        onTaskCreated(response);
+      // Fetch the created task with populated relations to ensure assignee and project are included
+      if (response?.id || response?.data?.id) {
+        const taskId = response.id || response.data?.id;
+        try {
+          const populatedTask = await taskService.getTaskById(taskId, [
+            "project",
+            "assignee",
+            "createdBy",
+            "collaborators",
+          ]);
+          console.log("Populated task:", populatedTask);
+          
+          // Handle Strapi response format - response.data is already returned from taskService
+          if (onTaskCreated) {
+            onTaskCreated(populatedTask || response);
+          }
+        } catch (fetchError) {
+          console.error("Error fetching created task:", fetchError);
+          // Still call onTaskCreated with the original response
+          if (onTaskCreated) {
+            onTaskCreated(response);
+          }
+        }
+      } else {
+        // Fallback if response doesn't have an ID
+        if (onTaskCreated) {
+          onTaskCreated(response);
+        }
       }
 
       onClose();
@@ -347,25 +408,107 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select
-                      label="Project"
-                      value={formData.project}
-                      onChange={(value) => handleInputChange("project", value)}
-                      options={projectOptions}
-                      placeholder="Select a project (optional)"
-                      error={errors.project}
-                    />
+                  <Select
+                    label="Project"
+                    value={formData.project}
+                    onChange={(value) => handleInputChange("project", value)}
+                    options={projectOptions}
+                    placeholder="Select a project (optional)"
+                    error={errors.project}
+                  />
 
-                    <Select
-                      label="Assignee"
-                      value={formData.assignee}
-                      onChange={(value) => handleInputChange("assignee", value)}
-                      options={userOptions}
-                      placeholder="Select an assignee"
-                      error={errors.assignee}
-                      required
-                    />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Assignees <span className="text-red-500">*</span>
+                    </label>
+                    <div className="space-y-2">
+                      {/* Selected Assignees */}
+                      {formData.assignees.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {formData.assignees.map((assigneeId) => {
+                            const selectedUser = users.find(
+                              (u) => String(u.id) === String(assigneeId)
+                            );
+                            if (!selectedUser) return null;
+                            const userName =
+                              selectedUser.name ||
+                              `${selectedUser.firstName || ""} ${selectedUser.lastName || ""}`.trim() ||
+                              selectedUser.email ||
+                              "Unknown User";
+                            return (
+                              <span
+                                key={assigneeId}
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                              >
+                                {userName}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      assignees: prev.assignees.filter(
+                                        (id) => id !== assigneeId
+                                      ),
+                                    }));
+                                    if (errors.assignees) {
+                                      setErrors((prev) => ({
+                                        ...prev,
+                                        assignees: "",
+                                      }));
+                                    }
+                                  }}
+                                  className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* Assignee Select Dropdown */}
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          if (selectedId && !formData.assignees.includes(selectedId)) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              assignees: [...prev.assignees, selectedId],
+                            }));
+                            if (errors.assignees) {
+                              setErrors((prev) => ({
+                                ...prev,
+                                assignees: "",
+                              }));
+                            }
+                          }
+                          e.target.value = ""; // Reset select
+                        }}
+                        className="block w-full rounded-lg border shadow-sm appearance-none px-3 py-2.5 pr-10 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 border-gray-300"
+                      >
+                        <option value="">
+                          {formData.assignees.length === 0
+                            ? "Select assignees..."
+                            : "Add another assignee..."}
+                        </option>
+                        {userOptions
+                          .filter(
+                            (option) =>
+                              !formData.assignees.includes(option.value)
+                          )
+                          .map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </select>
+                      {errors.assignees && (
+                        <p className="mt-1 text-sm text-red-600">
+                          {errors.assignees}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

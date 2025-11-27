@@ -220,25 +220,25 @@ export default function Inbox() {
                 >
                   Read ({stats.read})
                 </button>
-              </div>
+      </div>
             </Card>
 
             {/* Notifications List */}
             <Card glass={true} className="p-0 overflow-hidden flex-1 overflow-y-auto">
-              <ActivityFeed
+          <ActivityFeed
                 notifications={filteredNotifications}
-                selectedNotification={selectedNotification}
-                onSelectNotification={handleSelectNotification}
-              />
+            selectedNotification={selectedNotification}
+            onSelectNotification={handleSelectNotification}
+          />
             </Card>
           </div>
 
           {/* Right Side - Notification Detail */}
           <div className="flex-1 flex flex-col">
-            <NotificationDetail
-              selectedNotification={selectedNotification}
-              onMarkAllRead={handleMarkAllRead}
-            />
+          <NotificationDetail
+            selectedNotification={selectedNotification}
+            onMarkAllRead={handleMarkAllRead}
+          />
           </div>
         </div>
       </div>

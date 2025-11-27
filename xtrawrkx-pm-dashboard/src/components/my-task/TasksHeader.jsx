@@ -14,6 +14,7 @@ import {
   User,
 } from "lucide-react";
 import { Card } from "../ui";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function TasksHeader({
   searchQuery,
@@ -26,7 +27,32 @@ export default function TasksHeader({
   handleExport,
   setIsModalOpen,
 }) {
+  const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const firstName = user.firstName || user.name?.split(" ")[0] || "";
+    const lastName = user.lastName || user.name?.split(" ")[1] || "";
+    return (
+      (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() ||
+      user.email?.charAt(0).toUpperCase() ||
+      "U"
+    );
+  };
+
+  const getUserDisplayName = () => {
+    if (!user) return "User";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user.name || user.email || "User";
+  };
+
+  const getUserRole = () => {
+    if (!user) return "Team Member";
+    return user.primaryRole?.name || user.role || "Team Member";
+  };
 
   return (
     <Card glass={true} className="relative z-50">
@@ -139,13 +165,17 @@ export default function TasksHeader({
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
-                    <User className="w-5 h-5 text-brand-primary" />
+                    <span className="text-brand-primary text-sm font-medium">
+                      {getUserInitials()}
+                    </span>
                   </div>
                   <div className="text-left hidden lg:block">
                     <p className="text-sm font-semibold text-brand-foreground">
-                      User
+                      {getUserDisplayName()}
                     </p>
-                    <p className="text-xs text-brand-text-light">Team Member</p>
+                    <p className="text-xs text-brand-text-light">
+                      {getUserRole()}
+                    </p>
                   </div>
                 </div>
                 <ChevronDown
@@ -154,6 +184,53 @@ export default function TasksHeader({
                   }`}
                 />
               </button>
+
+              {/* Profile Dropdown */}
+              {showProfileDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-[99998]"
+                    onClick={() => setShowProfileDropdown(false)}
+                  />
+                  <div
+                    className="fixed right-6 top-20 w-72 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999]"
+                    onMouseEnter={() => setShowProfileDropdown(true)}
+                    onMouseLeave={() => setShowProfileDropdown(false)}
+                    style={{ zIndex: 99999 }}
+                  >
+                    <div className="p-4 border-b border-white/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center shadow-lg">
+                          <span className="text-brand-primary text-sm font-medium">
+                            {getUserInitials()}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {getUserDisplayName()}
+                          </p>
+                          <p className="text-sm text-gray-600">{user?.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 rounded-lg transition-colors">
+                        <User className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-900">
+                          View Profile
+                        </span>
+                      </button>
+                      <div className="h-px bg-gray-200 my-2 mx-3"></div>
+                      <button
+                        onClick={logout}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600"
+                      >
+                        <span className="text-sm">Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

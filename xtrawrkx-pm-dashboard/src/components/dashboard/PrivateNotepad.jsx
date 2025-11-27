@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Bold,
   Italic,
@@ -11,34 +11,215 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 
-const PrivateNotepad = () => {
-  const [noteText, setNoteText] = useState("Write down anything here...");
+const PrivateNotepad = ({ userId }) => {
+  const textareaRef = useRef(null);
+  const [noteText, setNoteText] = useState("");
   const [isSaved, setIsSaved] = useState(true);
-  const [activeFormats, setActiveFormats] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    strikethrough: false,
-    bulletList: false,
-    numberedList: false,
-  });
+  const [selectionStart, setSelectionStart] = useState(0);
+  const [selectionEnd, setSelectionEnd] = useState(0);
+
+  // Get storage key for this user's notepad
+  const getStorageKey = () => {
+    return `xtrawrkx-private-notepad-${userId || 'default'}`;
+  };
+
+  // Load saved notes from localStorage on mount
+  useEffect(() => {
+    const storageKey = getStorageKey();
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setNoteText(saved);
+      setIsSaved(true);
+    } else {
+      setNoteText("");
+    }
+  }, [userId]);
+
+  // Save selection when textarea focus changes
+  const handleSelectionChange = () => {
+    if (textareaRef.current) {
+      setSelectionStart(textareaRef.current.selectionStart);
+      setSelectionEnd(textareaRef.current.selectionEnd);
+    }
+  };
 
   const handleTextChange = (e) => {
-    setNoteText(e.target.value);
+    const newText = e.target.value;
+    setNoteText(newText);
     setIsSaved(false);
+    handleSelectionChange();
+    
+    // Auto-save to localStorage after a short delay
+    if (window.notepadSaveTimeout) {
+      clearTimeout(window.notepadSaveTimeout);
+    }
+    window.notepadSaveTimeout = setTimeout(() => {
+      const storageKey = getStorageKey();
+      localStorage.setItem(storageKey, newText);
+      setIsSaved(true);
+      // Show saved indicator for 2 seconds
+      setTimeout(() => setIsSaved(false), 2000);
+    }, 1000); // Auto-save after 1 second of no typing
   };
 
   const handleSave = () => {
-    // Simulate save action
+    const storageKey = getStorageKey();
+    localStorage.setItem(storageKey, noteText);
     setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000); // Reset after 2 seconds
+    // Show saved indicator for 2 seconds
+    setTimeout(() => setIsSaved(false), 2000);
   };
 
-  const handleFormatToggle = (format) => {
-    setActiveFormats((prev) => ({
-      ...prev,
-      [format]: !prev[format],
-    }));
+  // Apply formatting to selected text
+  const applyFormatting = (formatType) => {
+    if (!textareaRef.current) return;
+
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = noteText.substring(start, end);
+    
+    // Handle list formatting (requires selection)
+    if (formatType === 'bulletList' || formatType === 'numberedList') {
+      if (start === end) {
+        // No selection, insert at cursor position
+        const lines = selectedText.split('\n');
+        let formattedText = '';
+        if (formatType === 'bulletList') {
+          formattedText = '• ';
+        } else {
+          formattedText = '1. ';
+        }
+        const newText = noteText.substring(0, start) + formattedText + noteText.substring(end);
+        setNoteText(newText);
+        setIsSaved(false);
+        
+        // Position cursor after the marker
+        setTimeout(() => {
+          if (textareaRef.current) {
+            const cursorPos = start + formattedText.length;
+            textareaRef.current.focus();
+            textareaRef.current.setSelectionRange(cursorPos, cursorPos);
+          }
+        }, 0);
+        
+        // Auto-save
+        const storageKey = getStorageKey();
+        localStorage.setItem(storageKey, newText);
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 2000);
+        return;
+      }
+      
+      // Has selection - format the selected lines
+      const lines = selectedText.split('\n');
+      let formattedText = '';
+      
+      if (formatType === 'bulletList') {
+        formattedText = lines.map(line => line.trim() ? `• ${line.trim()}` : line).join('\n');
+      } else {
+        // numberedList
+        const nonEmptyLines = lines.filter(line => line.trim());
+        formattedText = lines.map(line => {
+          if (!line.trim()) return line;
+          const index = nonEmptyLines.indexOf(line.trim());
+          return `${index + 1}. ${line.trim()}`;
+        }).join('\n');
+      }
+      
+      const newText = noteText.substring(0, start) + formattedText + noteText.substring(end);
+      setNoteText(newText);
+      setIsSaved(false);
+      
+      // Restore selection after state update
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(start, start + formattedText.length);
+        }
+      }, 0);
+      
+      // Auto-save
+      const storageKey = getStorageKey();
+      localStorage.setItem(storageKey, newText);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+      return;
+    }
+    
+    // Handle text formatting (bold, italic, underline, strikethrough)
+    if (start === end) {
+      // No selection for text formatting, just insert markers at cursor
+      let markers = '';
+      switch (formatType) {
+        case 'bold': markers = '****'; break;
+        case 'italic': markers = '**'; break;
+        case 'underline': markers = '__'; break;
+        case 'strikethrough': markers = '~~'; break;
+        default: return;
+      }
+      const newText = noteText.substring(0, start) + markers + noteText.substring(end);
+      setNoteText(newText);
+      setIsSaved(false);
+      
+      // Position cursor in middle of markers
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const cursorPos = start + (markers.length / 2);
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(cursorPos, cursorPos);
+        }
+      }, 0);
+      
+      // Auto-save
+      const storageKey = getStorageKey();
+      localStorage.setItem(storageKey, newText);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+      return;
+    }
+
+    // Has selection - apply formatting to selected text
+    let formattedText = selectedText;
+    let newStart = start;
+    let newEnd = end;
+
+    switch (formatType) {
+      case 'bold':
+        formattedText = `**${selectedText}**`;
+        break;
+      case 'italic':
+        formattedText = `*${selectedText}*`;
+        break;
+      case 'underline':
+        formattedText = `__${selectedText}__`;
+        break;
+      case 'strikethrough':
+        formattedText = `~~${selectedText}~~`;
+        break;
+      default:
+        return;
+    }
+
+    const newText = noteText.substring(0, start) + formattedText + noteText.substring(end);
+    newEnd = start + formattedText.length;
+
+    setNoteText(newText);
+    setIsSaved(false);
+    
+    // Restore selection after state update
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newStart, newEnd);
+      }
+    }, 0);
+
+    // Auto-save
+    const storageKey = getStorageKey();
+    localStorage.setItem(storageKey, newText);
+    setIsSaved(true);
+    setTimeout(() => setIsSaved(false), 2000);
   };
 
   const formatButtons = [
@@ -57,6 +238,8 @@ const PrivateNotepad = () => {
   const getWordCount = () => {
     return noteText.trim() ? noteText.trim().split(/\s+/).length : 0;
   };
+
+  const hasSelection = selectionStart !== selectionEnd;
 
   return (
     <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl flex flex-col h-full">
@@ -92,9 +275,13 @@ const PrivateNotepad = () => {
           {/* Enhanced Textarea */}
           <div className="flex-1 relative">
             <textarea
+              ref={textareaRef}
               value={noteText}
               onChange={handleTextChange}
-              placeholder="Start typing your thoughts, ideas, or notes..."
+              onSelect={handleSelectionChange}
+              onClick={handleSelectionChange}
+              onKeyUp={handleSelectionChange}
+              placeholder={noteText ? "" : "Write down anything here..."}
               className="w-full h-full p-4 border-0 resize-none focus:outline-none text-base text-gray-700 placeholder-gray-400 bg-gray-50 rounded-xl transition-colors focus:bg-white focus:shadow-sm"
               style={{ minHeight: "200px" }}
             />
@@ -107,10 +294,10 @@ const PrivateNotepad = () => {
                 {formatButtons.slice(0, 4).map(({ key, icon: Icon, label }) => (
                   <button
                     key={key}
-                    onClick={() => handleFormatToggle(key)}
+                    onClick={() => applyFormatting(key)}
                     className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
-                      activeFormats[key]
-                        ? "bg-blue-100 text-blue-600"
+                      hasSelection
+                        ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
                         : "text-gray-500"
                     }`}
                     title={label}
@@ -122,10 +309,10 @@ const PrivateNotepad = () => {
                 {formatButtons.slice(4).map(({ key, icon: Icon, label }) => (
                   <button
                     key={key}
-                    onClick={() => handleFormatToggle(key)}
+                    onClick={() => applyFormatting(key)}
                     className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
-                      activeFormats[key]
-                        ? "bg-blue-100 text-blue-600"
+                      hasSelection
+                        ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
                         : "text-gray-500"
                     }`}
                     title={label}

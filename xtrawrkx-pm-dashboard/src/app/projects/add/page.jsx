@@ -89,19 +89,12 @@ export default function AddProjectPage() {
   const validateForm = () => {
     const newErrors = {};
 
-    // Project validation
+    // Only validate project name (required field)
     if (!projectData.name.trim()) {
       newErrors.name = "Project name is required";
     }
-    if (!projectData.description.trim()) {
-      newErrors.description = "Project description is required";
-    }
-    if (!projectData.startDate) {
-      newErrors.startDate = "Start date is required";
-    }
-    if (!projectData.endDate) {
-      newErrors.endDate = "End date is required";
-    }
+    
+    // Validate date logic only if both dates are provided
     if (
       projectData.startDate &&
       projectData.endDate &&
@@ -137,7 +130,7 @@ export default function AddProjectPage() {
       const projectPayload = {
         name: projectData.name.trim(),
         slug: slug,
-        description: projectData.description.trim(),
+        description: projectData.description?.trim() || "",
         status: projectData.status,
         icon: icon,
         color: "from-blue-400 to-blue-600", // Default color
@@ -254,19 +247,18 @@ export default function AddProjectPage() {
               </div>
               <div>
                 <Select
-                  label="Status *"
+                  label="Status"
                   value={projectData.status}
                   onChange={(value) => handleProjectChange("status", value)}
                   options={statusOptions}
                   error={errors.status}
                   placeholder="Select status"
-                  required
                 />
               </div>
 
               <div className="lg:col-span-3">
                 <Textarea
-                  label="Project Description *"
+                  label="Project Description"
                   value={projectData.description}
                   onChange={(e) =>
                     handleProjectChange("description", e.target.value)
@@ -274,7 +266,6 @@ export default function AddProjectPage() {
                   error={errors.description}
                   placeholder="Describe the project goals and requirements..."
                   rows={4}
-                  required
                 />
               </div>
             </div>
@@ -299,26 +290,24 @@ export default function AddProjectPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Input
-                  label="Start Date *"
+                  label="Start Date"
                   type="date"
                   value={projectData.startDate}
                   onChange={(e) =>
                     handleProjectChange("startDate", e.target.value)
                   }
                   error={errors.startDate}
-                  required
                 />
               </div>
               <div>
                 <Input
-                  label="End Date *"
+                  label="End Date"
                   type="date"
                   value={projectData.endDate}
                   onChange={(e) =>
                     handleProjectChange("endDate", e.target.value)
                   }
                   error={errors.endDate}
-                  required
                 />
               </div>
             </div>

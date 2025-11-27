@@ -406,6 +406,38 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 taskData.projects = projectIds;
             }
 
+            // Handle collaborators if provided
+            if (data.collaborators !== undefined) {
+                if (Array.isArray(data.collaborators) && data.collaborators.length > 0) {
+                    try {
+                        // Convert collaborator IDs to integers and validate they exist
+                        const collaboratorIds = data.collaborators
+                            .map(collabId => {
+                                const id = typeof collabId === 'object' ? collabId.id : collabId;
+                                return parseInt(id, 10);
+                            })
+                            .filter(id => !isNaN(id));
+
+                        // Verify all collaborator IDs exist
+                        const validCollaborators = [];
+                        for (const collabId of collaboratorIds) {
+                            const userRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                                where: { id: collabId },
+                            });
+                            if (userRecord) {
+                                validCollaborators.push(userRecord.id);
+                            }
+                        }
+                        if (validCollaborators.length > 0) {
+                            taskData.collaborators = validCollaborators;
+                        }
+                    } catch (collabError) {
+                        console.error('Error finding collaborators:', collabError);
+                        // Don't fail task creation if collaborators can't be added
+                    }
+                }
+            }
+
             // Create task
             const task = await strapi.entityService.create('api::task.task', {
                 data: taskData
@@ -417,6 +449,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                     createdBy: true,
                     assignee: true,
                     projects: true,
+                    collaborators: true,
                     leadCompany: true,
                     clientAccount: true,
                     contact: true,

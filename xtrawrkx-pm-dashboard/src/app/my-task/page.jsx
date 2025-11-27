@@ -100,6 +100,10 @@ export default function MyTasks() {
   const [subtaskDropdownPositions, setSubtaskDropdownPositions] = useState({});
   const subtaskButtonRefs = useRef({});
 
+  // Bulk selection state
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
+  const [isBulkEditMode, setIsBulkEditMode] = useState(false);
+
   // Close subtask dropdowns on scroll
   useEffect(() => {
     const handleScroll = () => {
@@ -139,11 +143,17 @@ export default function MyTasks() {
               .getPMTasksByAssignee(currentUserId, {
                 pageSize: 100,
                 populate: [
-                  "project",
+                  "projects",
                   "assignee",
+                  "assignee.firstName",
+                  "assignee.lastName",
+                  "assignee.email",
                   "createdBy",
                   "subtasks",
                   "collaborators",
+                  "collaborators.firstName",
+                  "collaborators.lastName",
+                  "collaborators.email",
                 ],
               })
               .catch((err) => {
@@ -155,11 +165,17 @@ export default function MyTasks() {
               .getAllTasks({
                 pageSize: 100,
                 populate: [
-                  "project",
+                  "projects",
                   "assignee",
+                  "assignee.firstName",
+                  "assignee.lastName",
+                  "assignee.email",
                   "createdBy",
                   "subtasks",
                   "collaborators",
+                  "collaborators.firstName",
+                  "collaborators.lastName",
+                  "collaborators.email",
                 ],
                 filters: {
                   // Filter out CRM tasks - only PM tasks
@@ -604,8 +620,35 @@ export default function MyTasks() {
       label: "ASSIGNEE",
       render: (_, task) => {
         // Support both single assignee and multiple collaborators
-        const collaborators =
-          task.collaborators || (task.assignee ? [task.assignee] : []);
+        const assignee = task.assignee;
+
+        // Check if assignee is a valid user object (not null and has identifying properties)
+        const hasAssignee =
+          assignee &&
+          (assignee.id ||
+            assignee._id ||
+            assignee.firstName ||
+            assignee.lastName ||
+            assignee.name ||
+            assignee.email);
+
+        // Get collaborators - prefer task.collaborators array, fallback to assignee if no collaborators
+        let collaborators = [];
+        if (
+          task.collaborators &&
+          Array.isArray(task.collaborators) &&
+          task.collaborators.length > 0
+        ) {
+          // Filter out null/undefined collaborators
+          collaborators = task.collaborators.filter(
+            (c) =>
+              c &&
+              (c.id || c._id || c.firstName || c.lastName || c.name || c.email)
+          );
+        } else if (hasAssignee) {
+          collaborators = [assignee];
+        }
+
         const hasCollaborators = collaborators.length > 0;
 
         return (
@@ -1374,6 +1417,94 @@ export default function MyTasks() {
     }
   };
 
+  // Bulk selection handlers
+  const handleSelectTask = (taskId, isSelected) => {
+    if (isSelected) {
+      setSelectedTaskIds((prev) => [...prev, taskId]);
+    } else {
+      setSelectedTaskIds((prev) => prev.filter((id) => id !== taskId));
+    }
+  };
+
+  const handleSelectAll = (isSelected) => {
+    if (isSelected) {
+      setSelectedTaskIds(filteredTasks.map((task) => task.id));
+    } else {
+      setSelectedTaskIds([]);
+    }
+  };
+
+  // Toggle bulk edit mode
+  const handleToggleBulkEdit = () => {
+    setIsBulkEditMode((prev) => !prev);
+    // Clear selection when turning off bulk edit mode
+    if (isBulkEditMode) {
+      setSelectedTaskIds([]);
+    }
+  };
+
+  // Bulk action handlers
+  const handleBulkDelete = () => {
+    if (selectedTaskIds.length === 0) return;
+
+    // Find the first selected task for the delete modal
+    const firstSelectedTask = filteredTasks.find(
+      (task) => task.id === selectedTaskIds[0]
+    );
+
+    if (firstSelectedTask) {
+      setDeleteModal({
+        isOpen: true,
+        task: {
+          ...firstSelectedTask,
+          bulkDelete: true,
+          taskIds: selectedTaskIds,
+        },
+      });
+    }
+  };
+
+  const handleBulkStatusUpdate = async (newStatus) => {
+    if (selectedTaskIds.length === 0) return;
+
+    try {
+      const strapiStatus = transformStatusToStrapi(newStatus);
+
+      // Update all selected tasks
+      await Promise.all(
+        selectedTaskIds.map((taskId) =>
+          taskService.updateTaskStatus(taskId, strapiStatus)
+        )
+      );
+
+      // Update local state
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          selectedTaskIds.includes(task.id)
+            ? { ...task, status: newStatus }
+            : task
+        )
+      );
+      setAllTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          selectedTaskIds.includes(task.id)
+            ? { ...task, status: newStatus }
+            : task
+        )
+      );
+
+      // Clear selection
+      setSelectedTaskIds([]);
+
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (error) {
+      console.error("Error updating task statuses:", error);
+      setError("Failed to update task statuses");
+    }
+  };
+
   // Handle task creation
   const handleTaskCreated = async () => {
     // Reload tasks to include the newly created task
@@ -1389,21 +1520,33 @@ export default function MyTasks() {
         taskService.getPMTasksByAssignee(currentUserId, {
           pageSize: 100,
           populate: [
-            "project",
+            "projects",
             "assignee",
+            "assignee.firstName",
+            "assignee.lastName",
+            "assignee.email",
             "createdBy",
             "subtasks",
             "collaborators",
+            "collaborators.firstName",
+            "collaborators.lastName",
+            "collaborators.email",
           ],
         }),
         taskService.getAllTasks({
           pageSize: 100,
           populate: [
-            "project",
+            "projects",
             "assignee",
+            "assignee.firstName",
+            "assignee.lastName",
+            "assignee.email",
             "createdBy",
             "subtasks",
             "collaborators",
+            "collaborators.firstName",
+            "collaborators.lastName",
+            "collaborators.email",
           ],
         }),
       ]);
@@ -1607,6 +1750,8 @@ export default function MyTasks() {
               setSearchQuery={setSearchQuery}
               onAddClick={() => setIsAddTaskModalOpen(true)}
               onExportClick={handleExport}
+              isBulkEditMode={isBulkEditMode}
+              onToggleBulkEdit={handleToggleBulkEdit}
             />
 
             {/* Single Horizontal Scroll Container */}
@@ -1620,6 +1765,46 @@ export default function MyTasks() {
                   setSearchQuery={setSearchQuery}
                   setIsModalOpen={() => setIsAddTaskModalOpen(true)}
                   onRowClick={handleTaskClick}
+                  selectable={isBulkEditMode}
+                  selectedTaskIds={selectedTaskIds}
+                  onSelectTask={handleSelectTask}
+                  onSelectAll={handleSelectAll}
+                  bulkActions={
+                    isBulkEditMode && selectedTaskIds.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleBulkStatusUpdate(e.target.value);
+                              e.target.value = "";
+                            }
+                          }}
+                          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          defaultValue=""
+                        >
+                          <option value="">Change Status...</option>
+                          <option value="To Do">To Do</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="In Review">In Review</option>
+                          <option value="Done">Done</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                        <button
+                          onClick={handleBulkDelete}
+                          className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setSelectedTaskIds([])}
+                          className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    ) : null
+                  }
                 />
               )}
               {activeView === "board" && (
@@ -1778,22 +1963,42 @@ export default function MyTasks() {
           isOpen={deleteModal.isOpen}
           onClose={() => setDeleteModal({ isOpen: false, task: null })}
           onConfirm={async () => {
-            if (deleteModal.task?.id) {
+            if (deleteModal.task) {
               try {
-                await taskService.deleteTask(deleteModal.task.id);
-                setTasks((prevTasks) =>
-                  prevTasks.filter((task) => task.id !== deleteModal.task.id)
-                );
-                setAllTasks((prevTasks) =>
-                  prevTasks.filter((task) => task.id !== deleteModal.task.id)
-                );
+                // Handle bulk delete
+                if (deleteModal.task.bulkDelete && deleteModal.task.taskIds) {
+                  const taskIds = deleteModal.task.taskIds;
+                  await Promise.all(
+                    taskIds.map((taskId) => taskService.deleteTask(taskId))
+                  );
+                  setTasks((prevTasks) =>
+                    prevTasks.filter((task) => !taskIds.includes(task.id))
+                  );
+                  setAllTasks((prevTasks) =>
+                    prevTasks.filter((task) => !taskIds.includes(task.id))
+                  );
+                  setSelectedTaskIds([]);
+                } else if (deleteModal.task.id) {
+                  // Single task delete
+                  await taskService.deleteTask(deleteModal.task.id);
+                  setTasks((prevTasks) =>
+                    prevTasks.filter((task) => task.id !== deleteModal.task.id)
+                  );
+                  setAllTasks((prevTasks) =>
+                    prevTasks.filter((task) => task.id !== deleteModal.task.id)
+                  );
+                }
                 setDeleteModal({ isOpen: false, task: null });
               } catch (error) {
                 console.error("Error deleting task:", error);
               }
             }
           }}
-          taskName={deleteModal.task?.name || ""}
+          taskName={
+            deleteModal.task?.bulkDelete
+              ? `${deleteModal.task.taskIds?.length || 0} tasks`
+              : deleteModal.task?.name || ""
+          }
         />
 
         {/* Add Task Modal */}

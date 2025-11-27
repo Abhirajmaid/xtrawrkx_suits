@@ -190,7 +190,7 @@ export default function Message() {
     if (!newMessage.trim() || !selectedConversation || sending) return;
 
     const messageText = newMessage.trim();
-    setNewMessage("");
+      setNewMessage("");
     setSending(true);
 
     try {
@@ -372,7 +372,7 @@ export default function Message() {
         />
 
         <div className="flex gap-4 h-[calc(100vh-200px)]">
-          {/* Left Sidebar - Conversations List */}
+        {/* Left Sidebar - Conversations List */}
           <div className="w-80 space-y-4 flex-shrink-0">
             {/* Search */}
             <div className="relative">
@@ -384,40 +384,40 @@ export default function Message() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all duration-300 placeholder:text-gray-400"
               />
-            </div>
+          </div>
 
             {/* Users List */}
             <Card glass={true} className="p-0 overflow-hidden flex-1 overflow-y-auto">
               <div className="divide-y divide-gray-100">
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => (
-                    <div
+                <div
                       key={user.id}
                       onClick={() => handleSelectUser(user.id)}
-                      className={`p-4 cursor-pointer transition-colors duration-200 ${
+                  className={`p-4 cursor-pointer transition-colors duration-200 ${
                         selectedConversation?.userId === user.id
                           ? "bg-orange-50 border-l-4 border-orange-500"
                           : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
                           <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                             {user.initials}
-                          </div>
+                      </div>
                           {user.unread && (
                             <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
                             <h3 className="font-medium text-gray-900 truncate">
                               {user.name}
-                            </h3>
+                        </h3>
                             {user.timestamp && (
                               <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
                                 {formatMessageTime(user.timestamp)}
-                              </span>
+                        </span>
                             )}
                           </div>
                           <p className="text-sm text-gray-600 truncate">
@@ -439,29 +439,29 @@ export default function Message() {
                     </p>
                   </div>
                 )}
-              </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
+        </div>
 
-          {/* Right Side - Chat Interface */}
-          <div className="flex-1 flex flex-col">
+        {/* Right Side - Chat Interface */}
+        <div className="flex-1 flex flex-col">
             {selectedConversation ? (
               <Card glass={true} className="flex-1 flex flex-col p-0 overflow-hidden">
-                {/* Chat Header */}
+            {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
-                  <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                       {selectedConversation.initials}
-                    </div>
-                    <div>
+                </div>
+                <div>
                       <h3 className="font-semibold text-gray-900">
                         {selectedConversation.name}
-                      </h3>
-                    </div>
-                  </div>
+                  </h3>
                 </div>
+              </div>
+            </div>
 
-                {/* Messages Area */}
+            {/* Messages Area */}
                 <div
                   ref={messagesContainerRef}
                   className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50"
@@ -476,44 +476,44 @@ export default function Message() {
                         : selectedConversation.name;
 
                       return (
-                        <div
-                          key={message.id}
+                <div
+                  key={message.id}
                           className={`flex gap-3 ${
                             isMe ? "justify-end" : "justify-start"
                           }`}
-                        >
+                >
                           {!isMe && (
                             <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xs mt-1 flex-shrink-0">
                               {selectedConversation.initials}
-                            </div>
-                          )}
+                    </div>
+                  )}
 
                           <div className={`max-w-md ${isMe ? "order-first" : ""}`}>
-                            <div
+                  <div
                               className={`flex items-center gap-2 mb-1 ${
                                 isMe ? "justify-end" : "justify-start"
                               }`}
-                            >
+                  >
                               <span className="text-xs font-medium text-gray-700">
                                 {senderName}
-                              </span>
+                      </span>
                               <span className="text-xs text-gray-500">
                                 {formatMessageTime(message.createdAt)}
-                              </span>
-                            </div>
+                          </span>
+                    </div>
 
-                            <div
-                              className={`p-3 rounded-xl ${
+                    <div
+                      className={`p-3 rounded-xl ${
                                 isMe
                                   ? "bg-orange-500 text-white"
                                   : "bg-white text-gray-900 border border-gray-200"
-                              }`}
-                            >
+                      }`}
+                    >
                               <p className="text-sm whitespace-pre-wrap">
                                 {message.message || message.content}
                               </p>
-                            </div>
-                          </div>
+                    </div>
+                  </div>
 
                           {isMe && (
                             <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs mt-1 flex-shrink-0">
@@ -532,17 +532,17 @@ export default function Message() {
                     </div>
                   )}
                   <div ref={messagesEndRef} />
-                </div>
+            </div>
 
-                {/* Message Input */}
+            {/* Message Input */}
                 <div className="p-4 border-t border-gray-200 bg-white">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
+              <div className="flex items-center gap-3">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
                         placeholder="Write a message..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
@@ -551,29 +551,29 @@ export default function Message() {
                         }}
                         disabled={sending}
                         className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all duration-300 placeholder:text-gray-400 pr-20"
-                      />
+                  />
 
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
                         <button
                           className="p-1 hover:bg-gray-100 rounded transition-colors"
                           title="Attach file"
                         >
                           <Paperclip className="w-4 h-4 text-gray-500" />
-                        </button>
+                    </button>
                         <button
                           className="p-1 hover:bg-gray-100 rounded transition-colors"
                           title="Emoji"
                         >
                           <Smile className="w-4 h-4 text-gray-500" />
-                        </button>
-                      </div>
-                    </div>
+                    </button>
+                  </div>
+                </div>
 
-                    <button
-                      onClick={handleSendMessage}
+                <button
+                  onClick={handleSendMessage}
                       disabled={!newMessage.trim() || sending}
                       className="px-6 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2"
-                    >
+                >
                       {sending ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -585,10 +585,10 @@ export default function Message() {
                           <span>Send</span>
                         </>
                       )}
-                    </button>
-                  </div>
-                </div>
-              </Card>
+                </button>
+              </div>
+            </div>
+          </Card>
             ) : (
               <Card glass={true} className="flex-1 flex items-center justify-center">
                 <div className="text-center text-gray-500">

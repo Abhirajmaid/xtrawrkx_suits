@@ -1,6 +1,6 @@
 "use client";
 
-import { List, LayoutGrid, Search, Plus, Download } from "lucide-react";
+import { List, Search, Plus, Download, Edit } from "lucide-react";
 
 function TasksTabs({
   tabItems,
@@ -12,6 +12,8 @@ function TasksTabs({
   setSearchQuery,
   onAddClick,
   onExportClick,
+  isBulkEditMode,
+  onToggleBulkEdit,
 }) {
   return (
     <div className="flex items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl p-3">
@@ -78,17 +80,22 @@ function TasksTabs({
         >
           <List className="w-5 h-5" />
         </button>
-        <button
-          onClick={() => setActiveView("board")}
-          className={`w-10 h-10 rounded-full backdrop-blur-sm border transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center ${
-            activeView === "board"
-              ? "bg-orange-500 text-white border-orange-500/50"
-              : "bg-white/80 text-gray-700 border-white/40 hover:bg-white/90"
-          }`}
-          title="Board View"
-        >
-          <LayoutGrid className="w-5 h-5" />
-        </button>
+        {onToggleBulkEdit && (
+          <button
+            onClick={onToggleBulkEdit}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl backdrop-blur-sm border font-medium text-sm transition-all duration-300 shadow-md whitespace-nowrap ${
+              isBulkEditMode
+                ? "bg-orange-500 text-white border-orange-500/50 hover:bg-orange-600"
+                : "bg-white/80 text-gray-700 border-white/40 hover:bg-white/90"
+            }`}
+            title="Bulk Edit"
+          >
+            <Edit className="w-4 h-4" />
+            <span className="hidden lg:inline">
+              {isBulkEditMode ? "Exit Bulk Edit" : "Bulk Edit"}
+            </span>
+          </button>
+        )}
         {onExportClick && (
           <button
             onClick={() => onExportClick("export")}
