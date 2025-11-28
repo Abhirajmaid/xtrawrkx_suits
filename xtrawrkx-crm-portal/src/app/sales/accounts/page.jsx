@@ -684,6 +684,8 @@ export default function ClientAccountsPage() {
             showExportDropdown={showExportDropdown}
             setShowExportDropdown={setShowExportDropdown}
             exportDropdownRef={exportDropdownRef}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
           />
 
           {/* Single Horizontal Scroll Container */}

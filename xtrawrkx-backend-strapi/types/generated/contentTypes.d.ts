@@ -635,6 +635,8 @@ export interface ApiChatMessageChatMessage extends Struct.CollectionTypeSchema {
     editedAt: Schema.Attribute.DateTime;
     isDeleted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isEdited: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    isThreadStarter: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
     leadCompany: Schema.Attribute.Relation<
       'manyToOne',
       'api::lead-company.lead-company'
@@ -646,7 +648,15 @@ export interface ApiChatMessageChatMessage extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     message: Schema.Attribute.Text & Schema.Attribute.Required;
+    parentMessage: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::chat-message.chat-message'
+    >;
     publishedAt: Schema.Attribute.DateTime;
+    replies: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::chat-message.chat-message'
+    >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1977,7 +1987,9 @@ export interface ApiTaskCommentTaskComment extends Struct.CollectionTypeSchema {
   };
   attributes: {
     commentableId: Schema.Attribute.String & Schema.Attribute.Required;
-    commentableType: Schema.Attribute.Enumeration<['TASK', 'SUBTASK']> &
+    commentableType: Schema.Attribute.Enumeration<
+      ['TASK', 'SUBTASK', 'LEAD_COMPANY', 'CLIENT_ACCOUNT', 'DEAL', 'CONTACT']
+    > &
       Schema.Attribute.Required;
     content: Schema.Attribute.Text & Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;

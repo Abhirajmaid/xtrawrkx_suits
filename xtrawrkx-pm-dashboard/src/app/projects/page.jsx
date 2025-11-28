@@ -18,14 +18,16 @@ import {
   Search,
   UserPlus,
   UserMinus,
+  FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
-  ProjectsHeader,
   ProjectsKPIs,
   ProjectsTabs,
   ProjectsListView,
 } from "../../components/projects";
+import PageHeader from "../../components/shared/PageHeader";
 import { Card } from "../../components/ui";
 import projectService from "../../lib/projectService";
 import { transformProject, transformStatusToStrapi } from "../../lib/dataTransformers";
@@ -858,16 +860,19 @@ export default function ProjectsPage() {
     return (
       <div className="bg-white min-h-screen">
         <div className="p-4 space-y-4">
-          <ProjectsHeader
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            setIsFilterModalOpen={setIsFilterModalOpen}
-            setIsImportModalOpen={setIsImportModalOpen}
-            showExportDropdown={showExportDropdown}
-            setShowExportDropdown={setShowExportDropdown}
-            exportDropdownRef={exportDropdownRef}
-            handleExport={handleExport}
-            setIsModalOpen={() => router.push("/projects/add")}
+          <PageHeader
+            title="Projects"
+            subtitle="Manage and track all of your projects here"
+            breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Projects", href: "/projects" }]}
+            showSearch={true}
+            showActions={true}
+            showProfile={true}
+            searchPlaceholder="Search projects..."
+            onSearchChange={setSearchQuery}
+            onAddClick={() => router.push("/projects/add")}
+            onFilterClick={() => setIsFilterModalOpen(true)}
+            onImportClick={() => setIsImportModalOpen(true)}
+            onExportClick={() => setShowExportDropdown(!showExportDropdown)}
           />
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
@@ -889,16 +894,19 @@ export default function ProjectsPage() {
     return (
       <div className="bg-white min-h-screen">
         <div className="p-4 space-y-4">
-          <ProjectsHeader
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            setIsFilterModalOpen={setIsFilterModalOpen}
-            setIsImportModalOpen={setIsImportModalOpen}
-            showExportDropdown={showExportDropdown}
-            setShowExportDropdown={setShowExportDropdown}
-            exportDropdownRef={exportDropdownRef}
-            handleExport={handleExport}
-            setIsModalOpen={() => router.push("/projects/add")}
+          <PageHeader
+            title="Projects"
+            subtitle="Manage and track all of your projects here"
+            breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Projects", href: "/projects" }]}
+            showSearch={true}
+            showActions={true}
+            showProfile={true}
+            searchPlaceholder="Search projects..."
+            onSearchChange={setSearchQuery}
+            onAddClick={() => router.push("/projects/add")}
+            onFilterClick={() => setIsFilterModalOpen(true)}
+            onImportClick={() => setIsImportModalOpen(true)}
+            onExportClick={() => setShowExportDropdown(!showExportDropdown)}
           />
           <div className="space-y-4">
             {/* Stats Overview - show empty stats */}
@@ -1083,17 +1091,51 @@ export default function ProjectsPage() {
       <div className="min-h-screen bg-white">
         <div className="p-4 space-y-4">
           {/* Page Header */}
-          <ProjectsHeader
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            setIsFilterModalOpen={setIsFilterModalOpen}
-            setIsImportModalOpen={setIsImportModalOpen}
-            showExportDropdown={showExportDropdown}
-            setShowExportDropdown={setShowExportDropdown}
-            exportDropdownRef={exportDropdownRef}
-            handleExport={handleExport}
-            setIsModalOpen={() => router.push("/projects/add")}
-          />
+          <div className="relative">
+            <PageHeader
+              title="Projects"
+              subtitle="Manage and track all of your projects here"
+              breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Projects", href: "/projects" }]}
+              showSearch={true}
+              showActions={true}
+              showProfile={true}
+              searchPlaceholder="Search projects..."
+              onSearchChange={setSearchQuery}
+              onAddClick={() => router.push("/projects/add")}
+              onFilterClick={() => setIsFilterModalOpen(true)}
+              onImportClick={() => setIsImportModalOpen(true)}
+              onExportClick={() => setShowExportDropdown(!showExportDropdown)}
+            />
+            
+            {/* Export Dropdown */}
+            {showExportDropdown && (
+              <div className="absolute right-4 top-20 w-48 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-50" ref={exportDropdownRef}>
+                <div className="py-1">
+                  <button
+                    onClick={() => handleExport("pdf")}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <FileText className="w-4 h-4 mr-3 text-red-500" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => handleExport("excel")}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 mr-3 text-green-500" />
+                    Excel
+                  </button>
+                  <button
+                    onClick={() => handleExport("csv")}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 mr-3 text-blue-500" />
+                    CSV
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-4">
             {/* Stats Overview */}

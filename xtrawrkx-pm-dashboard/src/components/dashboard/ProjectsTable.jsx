@@ -18,10 +18,27 @@ const ProjectsTable = ({ data }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleViewProject = (project) => {
-    if (project?.slug) {
-      router.push(`/projects/${project.slug}`);
-    } else if (project?.id) {
-      router.push(`/projects/${project.id}`);
+    if (!project) return;
+    
+    // Use slug if available, otherwise generate from name, or fall back to id
+    let projectPath = null;
+    
+    if (project.slug) {
+      projectPath = `/projects/${project.slug}`;
+    } else if (project.name) {
+      // Generate slug from name (same logic as sidebar)
+      const projectSlug = project.name
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/&/g, "")
+        .replace(/\//g, "-");
+      projectPath = `/projects/${projectSlug}`;
+    } else if (project.id) {
+      projectPath = `/projects/${project.id}`;
+    }
+    
+    if (projectPath) {
+      router.push(projectPath);
     }
   };
 
@@ -124,22 +141,13 @@ const ProjectsTable = ({ data }) => {
   );
 
   const NewProjectCard = () => (
-    <div
+    <button
       onClick={() => router.push("/projects/add")}
-      className="rounded-2xl bg-gradient-to-br from-orange-50/80 to-pink-50/60 backdrop-blur-md border-2 border-dashed border-orange-200/70 p-4 hover:from-orange-100/90 hover:to-pink-100/70 hover:border-orange-300/80 hover:shadow-lg transition-all duration-300 cursor-pointer flex items-center justify-center min-h-[80px] group"
+      className="w-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg rounded-xl px-4 py-3 flex items-center justify-center gap-2 transition-all duration-300 font-medium text-sm group"
     >
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center group-hover:from-orange-600 group-hover:to-pink-600 transition-all duration-300 shadow-md">
-          <Plus className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">
-            Create New Project
-          </span>
-          <p className="text-xs text-gray-500">Start a new project</p>
-        </div>
-      </div>
-    </div>
+      <Plus className="w-4 h-4" />
+      <span>Create New Project</span>
+    </button>
   );
 
   return (

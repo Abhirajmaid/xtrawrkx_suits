@@ -16,7 +16,11 @@
             "type": "enumeration",
             "enum": [
                 "TASK",
-                "SUBTASK"
+                "SUBTASK",
+                "LEAD_COMPANY",
+                "CLIENT_ACCOUNT",
+                "DEAL",
+                "CONTACT"
             ],
             "required": true
         },

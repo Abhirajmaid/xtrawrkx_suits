@@ -13,6 +13,7 @@ export function Table({
   onSelectRow,
   onSelectAll,
   className,
+  rowPadding = "py-2",
   ...props
 }) {
   const handleSort = (field) => {
@@ -98,7 +99,7 @@ export function Table({
                 onClick={() => onRowClick && onRowClick(row)}
               >
                 {selectable && (
-                  <td className="px-6 py-4">
+                  <td className={clsx("px-6", rowPadding)}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-gray-300 text-blue-600"
@@ -113,7 +114,7 @@ export function Table({
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className="px-6 py-4 text-sm text-gray-800 group-hover:text-gray-900 transition-colors duration-300"
+                    className={clsx("px-6", rowPadding, "text-sm text-gray-800 group-hover:text-gray-900 transition-colors duration-300")}
                   >
                     {column.render
                       ? column.render(row[column.key], row)

@@ -730,6 +730,79 @@ export default function DealsPage() {
     setShowDeleteModal(true);
   };
 
+  // Handle status updates
+  const handleStatusUpdate = async (dealId, newStage) => {
+    if (!dealId) {
+      console.error("No deal ID provided");
+      return;
+    }
+
+    // Map UI stage to Strapi stage
+    const stageMap = {
+      discovery: 'DISCOVERY',
+      proposal: 'PROPOSAL',
+      negotiation: 'NEGOTIATION',
+      won: 'CLOSED_WON',
+      lost: 'CLOSED_LOST'
+    };
+
+    const strapiStage = stageMap[newStage.toLowerCase()] || newStage.toUpperCase();
+    const loadingKey = `${dealId}-${newStage.toLowerCase()}`;
+
+    // Set loading state
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      console.log(`Updating deal ${dealId} stage to ${strapiStage}`);
+
+      // Update the stage via API
+      await dealService.update(dealId, { stage: strapiStage });
+
+      // Update local state - map Strapi stage back to UI stage
+      const uiStageMap = {
+        'DISCOVERY': 'discovery',
+        'PROPOSAL': 'proposal',
+        'NEGOTIATION': 'negotiation',
+        'CLOSED_WON': 'won',
+        'CLOSED_LOST': 'lost'
+      };
+
+      const uiStage = uiStageMap[strapiStage] || newStage.toLowerCase();
+
+      setDeals((prevDeals) =>
+        prevDeals.map((deal) =>
+          deal.id === dealId
+            ? { ...deal, stage: uiStage }
+            : deal
+        )
+      );
+
+      setFilteredDeals((prevDeals) =>
+        prevDeals.map((deal) =>
+          deal.id === dealId
+            ? { ...deal, stage: uiStage }
+            : deal
+        )
+      );
+
+      // Refresh stats
+      await fetchDeals();
+
+      console.log(`Successfully updated deal ${dealId} to ${strapiStage}`);
+    } catch (error) {
+      console.error("Error updating deal stage:", error);
+      console.error("Error details:", error.message);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error.message || "Failed to update stage. Please try again.";
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      // Clear loading state
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
   // Helper functions for badges
   const getStatusBadgeVariant = (status) => {
     switch (status?.toLowerCase()) {
@@ -809,7 +882,7 @@ export default function DealsPage() {
       key: "stage",
       label: "STAGE",
       render: (_, deal) => {
-        const stage = deal.stage?.toLowerCase() || "discovery";
+        const currentStage = deal.stage?.toLowerCase() || "discovery";
         const stageColors = {
           discovery: {
             bg: "bg-blue-100",
@@ -843,16 +916,48 @@ export default function DealsPage() {
           },
         };
 
-        const colors = stageColors[stage] || stageColors.discovery;
-        const displayStage = deal.stage || "Discovery";
+        const colors = stageColors[currentStage] || stageColors.discovery;
+        // Check if any status update is in progress for this deal
+        const isLoading = Object.keys(loadingActions).some(
+          (key) => key.startsWith(`${deal.id}-`) && loadingActions[key]
+        );
+
+        const statusOptions = [
+          { value: "discovery", label: "Discovery" },
+          { value: "proposal", label: "Proposal" },
+          { value: "negotiation", label: "Negotiation" },
+          { value: "won", label: "Won" },
+          { value: "lost", label: "Lost" },
+        ];
 
         return (
-          <div className="min-w-[120px]">
-            <div
-              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg`}
-            >
-              {displayStage.charAt(0).toUpperCase() + displayStage.slice(1)}
-        </div>
+          <div className="min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <select
+                value={currentStage}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handleStatusUpdate(deal.id, e.target.value);
+                }}
+                className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer appearance-none`}
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 0.5rem center",
+                  paddingRight: "2rem",
+                }}
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         );
       },

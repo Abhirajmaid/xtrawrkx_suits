@@ -23,6 +23,8 @@ export default function ClientAccountsTabs({
   showExportDropdown,
   setShowExportDropdown,
   exportDropdownRef,
+  searchQuery,
+  setSearchQuery,
 }) {
   return (
     <div className="flex items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl p-3">
@@ -61,6 +63,8 @@ export default function ClientAccountsTabs({
             <input
               type="text"
               placeholder="Search..."
+              value={searchQuery || ""}
+              onChange={(e) => setSearchQuery?.(e.target.value)}
               className="w-64 pl-10 pr-4 py-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-white/40 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 focus:bg-white/90 transition-all duration-300 shadow-md placeholder:text-gray-400"
             />
           </div>

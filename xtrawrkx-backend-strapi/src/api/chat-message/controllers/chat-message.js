@@ -53,6 +53,115 @@ module.exports = createCoreController('api::chat-message.chat-message', ({ strap
     },
 
     /**
+     * Get all threads (thread starter messages) for lead companies and client accounts
+     */
+    async findThreads(ctx) {
+        try {
+            const { entityType, entityId } = ctx.query;
+
+            const entityFieldMap = {
+                leadCompany: 'leadCompany',
+                clientAccount: 'clientAccount',
+                contact: 'contact',
+                deal: 'deal'
+            };
+
+            const filters = {
+                isDeleted: { $eq: false },
+                parentMessage: { $null: true } // Only thread starters (no parent)
+            };
+
+            // If entityType and entityId are provided, filter by entity
+            if (entityType && entityId) {
+                const entityField = entityFieldMap[entityType];
+                if (entityField) {
+                    filters[entityField] = {
+                        id: { $eq: parseInt(entityId) }
+                    };
+                }
+            } else {
+                // Get threads from all lead companies and client accounts
+                filters.$or = [
+                    { leadCompany: { $notNull: true } },
+                    { clientAccount: { $notNull: true } }
+                ];
+            }
+
+            const threads = await strapi.entityService.findMany('api::chat-message.chat-message', {
+                filters,
+                populate: {
+                    createdBy: true,
+                    leadCompany: {
+                        fields: ['id', 'companyName']
+                    },
+                    clientAccount: {
+                        fields: ['id', 'companyName']
+                    },
+                    replies: {
+                        populate: {
+                            createdBy: true
+                        },
+                        sort: {
+                            createdAt: 'asc'
+                        }
+                    }
+                },
+                sort: {
+                    createdAt: 'desc'
+                }
+            });
+
+            return { data: threads };
+        } catch (error) {
+            console.error('Error fetching threads:', error);
+            return ctx.badRequest(`Failed to fetch threads: ${error.message}`);
+        }
+    },
+
+    /**
+     * Get a single thread with all replies
+     */
+    async findThread(ctx) {
+        try {
+            const { id } = ctx.params;
+
+            const thread = await strapi.entityService.findOne('api::chat-message.chat-message', id, {
+                populate: {
+                    createdBy: true,
+                    leadCompany: {
+                        fields: ['id', 'companyName']
+                    },
+                    clientAccount: {
+                        fields: ['id', 'companyName']
+                    },
+                    replies: {
+                        populate: {
+                            createdBy: true
+                        },
+                        sort: {
+                            createdAt: 'asc'
+                        }
+                    },
+                    parentMessage: {
+                        populate: {
+                            createdBy: true
+                        }
+                    }
+                }
+            });
+
+            if (!thread) {
+                return ctx.notFound('Thread not found');
+            }
+
+            return { data: thread };
+        } catch (error) {
+            console.error('Error fetching thread:', error);
+            return ctx.badRequest(`Failed to fetch thread: ${error.message}`);
+        }
+    },
+
+    /**
      * Create a new chat message
      */
     async create(ctx) {
@@ -133,13 +242,21 @@ module.exports = createCoreController('api::chat-message.chat-message', ({ strap
             const userRelationIdNum = userRecord.id || parseInt(userRecord.documentId) || parseInt(userId);
             const entityRelationIdNum = entityIdNum;
 
+            const isReply = !!data.parentMessageId;
             const messageData = {
                 message: data.message,
                 createdBy: userRelationIdNum,
                 [entityField]: entityRelationIdNum,
                 isDeleted: false,
-                isEdited: false
+                isEdited: false,
+                isThreadStarter: !isReply && (data.isThreadStarter !== undefined ? data.isThreadStarter : true)
             };
+
+            // If this is a reply to a thread, set parent message
+            if (isReply) {
+                messageData.parentMessage = parseInt(data.parentMessageId);
+                messageData.isThreadStarter = false;
+            }
 
             // Verify schema is loaded correctly
             const contentType = strapi.contentTypes['api::chat-message.chat-message'];

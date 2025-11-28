@@ -1,17 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Table } from "../ui";
 import { Check, Calendar, Eye, GitBranch } from "lucide-react";
 import ProjectSelector from "../my-task/ProjectSelector";
 import taskService from "../../lib/taskService";
 import projectService from "../../lib/projectService";
+import subtaskService from "../../lib/subtaskService";
 import {
   transformStatusToStrapi,
   transformPriorityToStrapi,
+  transformSubtask,
 } from "../../lib/dataTransformers";
-import { useAuth } from "../../contexts/AuthContext";
 
 const AssignedTasksTable = ({
   data,
@@ -19,8 +20,6 @@ const AssignedTasksTable = ({
   projects = [],
 }) => {
   const router = useRouter();
-  const { user } = useAuth();
-  const [expandedSubtasks, setExpandedSubtasks] = useState({});
   const [loadedSubtasks, setLoadedSubtasks] = useState({});
   const [allProjects, setAllProjects] = useState(projects);
 
@@ -38,6 +37,73 @@ const AssignedTasksTable = ({
       });
     }
   }, [projects]);
+
+  // Load subtasks for tasks
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+
+    const loadSubtaskCounts = async () => {
+      // Get tasks that don't have subtasks loaded yet
+      const tasksNeedingCounts = data.filter(
+        (task) => !loadedSubtasks[task.id] && task.id
+      );
+
+      if (tasksNeedingCounts.length === 0) return;
+
+      // Load subtask counts in parallel (limit to avoid too many requests)
+      const tasksToLoad = tasksNeedingCounts.slice(0, 10);
+
+      try {
+        const subtaskCountPromises = tasksToLoad.map(async (task) => {
+          try {
+            const response = await subtaskService.getRootSubtasksByTask(
+              task.id,
+              {
+                populate: ["assignee"],
+              }
+            );
+
+            // Handle different response structures
+            let subtasksData = [];
+            if (Array.isArray(response.data)) {
+              subtasksData = response.data;
+            } else if (
+              response.data?.data &&
+              Array.isArray(response.data.data)
+            ) {
+              subtasksData = response.data.data;
+            } else if (Array.isArray(response)) {
+              subtasksData = response;
+            }
+
+            const transformedSubtasks = subtasksData
+              .map(transformSubtask)
+              .filter(Boolean);
+            return { taskId: task.id, subtasks: transformedSubtasks };
+          } catch (error) {
+            console.error(`Error loading subtasks for task ${task.id}:`, error);
+            return { taskId: task.id, subtasks: [] };
+          }
+        });
+
+        const results = await Promise.all(subtaskCountPromises);
+
+        // Update loaded subtasks state
+        setLoadedSubtasks((prev) => {
+          const updated = { ...prev };
+          results.forEach(({ taskId, subtasks }) => {
+            updated[taskId] = subtasks;
+          });
+          return updated;
+        });
+      } catch (error) {
+        console.error("Error loading subtask counts:", error);
+      }
+    };
+
+    loadSubtaskCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.length]);
 
   // Handle status updates
   const handleStatusUpdate = async (taskId, newStatus) => {
@@ -94,6 +160,7 @@ const AssignedTasksTable = ({
         const allSubtasks =
           loadedTaskSubtasks.length > 0 ? loadedTaskSubtasks : taskSubtasks;
         const rootSubtasks = allSubtasks.filter((st) => {
+          if (!st) return false;
           return (
             !st.parentSubtask ||
             st.parentSubtask === null ||
@@ -103,7 +170,7 @@ const AssignedTasksTable = ({
         const hasSubtasks = rootSubtasks.length > 0;
 
         return (
-          <div className="flex items-center gap-3 min-w-[200px]">
+          <div className="flex items-center gap-2 min-w-[200px]">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -113,7 +180,7 @@ const AssignedTasksTable = ({
                   handleStatusUpdate(task.id, "Done");
                 }
               }}
-              className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+              className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
                 isDone
                   ? "bg-green-500 border-green-500 text-white hover:bg-green-600"
                   : "border-gray-300 hover:border-green-500 hover:bg-green-50 cursor-pointer"
@@ -122,15 +189,15 @@ const AssignedTasksTable = ({
                 isDone ? "Click to mark as incomplete" : "Mark as complete"
               }
             >
-              {isDone && <Check className="w-4 h-4 stroke-[3]" />}
+              {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
             </button>
-            <div className="min-w-0 flex-1 flex items-center gap-2">
+            <div className="min-w-0 flex-1 flex items-center gap-1.5">
               <div
                 onClick={(e) => {
                   e.stopPropagation();
                   handleTaskClick(task);
                 }}
-                className={`font-medium truncate cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors flex-1 min-w-0 ${
+                className={`text-sm font-medium truncate cursor-pointer hover:bg-gray-50 px-1.5 py-0.5 rounded transition-colors flex-1 min-w-0 ${
                   isDone ? "line-through text-gray-500" : "text-gray-900"
                 }`}
                 title="Click to view task"
@@ -175,7 +242,7 @@ const AssignedTasksTable = ({
         const hasCollaborators = collaborators.length > 0;
 
         return (
-          <div className="flex items-center gap-2 min-w-[140px]">
+          <div className="flex items-center gap-1.5 min-w-[140px]">
             {hasCollaborators ? (
               <div className="flex items-center gap-1">
                 {collaborators.slice(0, 3).map((person, index) => {
@@ -201,14 +268,14 @@ const AssignedTasksTable = ({
                 })}
                 {collaborators.length > 3 && (
                   <div
-                    className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium text-gray-700 flex-shrink-0 border border-white"
+                    className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium text-gray-700 flex-shrink-0 border border-white"
                     title={`${collaborators.length - 3} more`}
                     style={{ marginLeft: "-4px", zIndex: 7 }}
                   >
                     +{collaborators.length - 3}
                   </div>
                 )}
-                <span className="text-sm text-gray-600 truncate ml-1">
+                <span className="text-xs text-gray-600 truncate ml-0.5">
                   {collaborators.length === 1
                     ? collaborators[0]?.name ||
                       (collaborators[0]?.firstName && collaborators[0]?.lastName
@@ -221,10 +288,10 @@ const AssignedTasksTable = ({
               </div>
             ) : (
               <>
-                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+                <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
                   U
                 </div>
-                <span className="text-sm text-gray-600 truncate">
+                <span className="text-xs text-gray-600 truncate">
                   Unassigned
                 </span>
               </>
@@ -250,18 +317,18 @@ const AssignedTasksTable = ({
 
         return (
           <div
-            className="flex items-center gap-2 min-w-[150px]"
+            className="flex items-center gap-1.5 min-w-[140px]"
             onClick={(e) => e.stopPropagation()}
           >
-            <Calendar className="w-4 h-4 flex-shrink-0 text-gray-500" />
+            <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-gray-500" />
             <input
               type="date"
               value={currentValue}
               onChange={(e) => {
                 handleDueDateUpdate(task.id, e.target.value);
               }}
-              className="flex-1 text-sm text-gray-700 px-2 py-1 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              placeholder="No due date"
+              className="flex-1 text-xs text-gray-700 px-1.5 py-0.5 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              placeholder="dd-mm-yyyy"
             />
           </div>
         );
@@ -322,19 +389,19 @@ const AssignedTasksTable = ({
         };
 
         return (
-          <div className="min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+          <div className="min-w-[120px]" onClick={(e) => e.stopPropagation()}>
             <select
               value={currentStatus}
               onChange={(e) => {
                 e.stopPropagation();
                 handleStatusUpdate(task.id, e.target.value);
               }}
-              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
+              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-2 py-1.5 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 0.5rem center",
-                paddingRight: "2rem",
+                backgroundPosition: "right 0.4rem center",
+                paddingRight: "1.75rem",
               }}
             >
               {statusOptions.map((option) => (
@@ -385,19 +452,19 @@ const AssignedTasksTable = ({
         };
 
         return (
-          <div className="min-w-[120px]" onClick={(e) => e.stopPropagation()}>
+          <div className="min-w-[100px]" onClick={(e) => e.stopPropagation()}>
             <select
               value={currentPriority}
               onChange={(e) => {
                 e.stopPropagation();
                 handlePriorityUpdate(task.id, e.target.value);
               }}
-              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
+              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-2 py-1.5 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 0.5rem center",
-                paddingRight: "2rem",
+                backgroundPosition: "right 0.4rem center",
+                paddingRight: "1.75rem",
               }}
             >
               {priorityOptions.map((option) => (
@@ -414,15 +481,15 @@ const AssignedTasksTable = ({
       key: "progress",
       label: "PROGRESS",
       render: (_, task) => (
-        <div className="min-w-[120px]">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gray-200 rounded-full h-2">
+        <div className="min-w-[100px]">
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all"
+                className="bg-blue-600 h-1.5 rounded-full transition-all"
                 style={{ width: `${task.progress || 0}%` }}
               />
             </div>
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-xs font-medium text-gray-900">
               {task.progress || 0}%
             </span>
           </div>
@@ -433,16 +500,16 @@ const AssignedTasksTable = ({
       key: "actions",
       label: "ACTIONS",
       render: (_, task) => (
-        <div className="flex items-center gap-1 min-w-[120px]">
+        <div className="flex items-center gap-1 min-w-[80px]">
           <button
             onClick={(e) => {
               e.stopPropagation();
               handleTaskClick(task);
             }}
-            className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+            className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
             title="View Task"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
           </button>
         </div>
       ),
@@ -451,18 +518,18 @@ const AssignedTasksTable = ({
 
   return (
     <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-white/30">
+      <div className="px-4 py-3 border-b border-white/30">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">My Tasks</h3>
-            <p className="text-sm text-gray-500 mt-1">
+            <h3 className="text-lg font-bold text-gray-900">My Tasks</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
               Tasks where you are a collaborator
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-x-auto">
+      <div className="flex-1 p-3 overflow-x-auto">
         {data.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center mb-6">
@@ -493,7 +560,7 @@ const AssignedTasksTable = ({
               columns={columns}
               data={data}
               onRowClick={handleTaskClick}
-              className="min-w-[1800px]"
+              className="min-w-[1600px] text-sm"
             />
           </div>
         )}

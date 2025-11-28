@@ -60,24 +60,27 @@ export default function DashboardPage() {
           user?.id || user?._id || user?.xtrawrkxUserId || 1;
 
         // Load projects, tasks, and users in parallel
-        const [projectsResponse, allTasksResponse, usersResponse] = await Promise.all([
-          projectService.getAllProjects({ pageSize: 10 }),
-          taskService.getAllTasks({
-            pageSize: 100,
-            populate: [
-              "projects",
-              "assignee",
-              "createdBy",
-              "subtasks",
-              "collaborators",
-            ],
-          }),
-          apiClient.get("/api/xtrawrkx-users", {
-            "pagination[pageSize]": 100,
-            populate: "primaryRole,userRoles,department",
-            "filters[isActive][$eq]": "true",
-          }).catch(() => ({ data: [] })), // Don't fail if users can't be loaded
-        ]);
+        const [projectsResponse, allTasksResponse, usersResponse] =
+          await Promise.all([
+            projectService.getAllProjects({ pageSize: 10 }),
+            taskService.getAllTasks({
+              pageSize: 100,
+              populate: [
+                "projects",
+                "assignee",
+                "createdBy",
+                "subtasks",
+                "collaborators",
+              ],
+            }),
+            apiClient
+              .get("/api/xtrawrkx-users", {
+                "pagination[pageSize]": 100,
+                populate: "primaryRole,userRoles,department",
+                "filters[isActive][$eq]": "true",
+              })
+              .catch(() => ({ data: [] })), // Don't fail if users can't be loaded
+          ]);
 
         // Transform data
         const transformedProjects =
@@ -136,13 +139,15 @@ export default function DashboardPage() {
             const userData = user.attributes || user;
             const firstName = userData.firstName || "";
             const lastName = userData.lastName || "";
-            const name = firstName && lastName
-              ? `${firstName} ${lastName}`
-              : userData.name || userData.email || "Unknown User";
+            const name =
+              firstName && lastName
+                ? `${firstName} ${lastName}`
+                : userData.name || userData.email || "Unknown User";
             const email = userData.email || "";
-            const initials = firstName && lastName
-              ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-              : name.substring(0, 2).toUpperCase();
+            const initials =
+              firstName && lastName
+                ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+                : name.substring(0, 2).toUpperCase();
 
             return {
               id: user.id || user._id || user.documentId,
@@ -351,6 +356,7 @@ export default function DashboardPage() {
       return {
         id: project.id,
         name: project.name,
+        slug: project.slug,
         status,
         initials: project.icon,
         color: getProjectColor(project.name),
@@ -464,7 +470,9 @@ export default function DashboardPage() {
               <People data={people} />
             </div>
             <div className="xl:col-span-2">
-              <PrivateNotepad userId={user?.id || user?._id || user?.xtrawrkxUserId} />
+              <PrivateNotepad
+                userId={user?.id || user?._id || user?.xtrawrkxUserId}
+              />
             </div>
           </div>
         </div>

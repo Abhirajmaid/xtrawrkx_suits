@@ -56,6 +56,22 @@
         "isDeleted": {
             "type": "boolean",
             "default": false
+        },
+        "parentMessage": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::chat-message.chat-message",
+            "inversedBy": "replies"
+        },
+        "replies": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::chat-message.chat-message",
+            "mappedBy": "parentMessage"
+        },
+        "isThreadStarter": {
+            "type": "boolean",
+            "default": false
         }
     }
 }

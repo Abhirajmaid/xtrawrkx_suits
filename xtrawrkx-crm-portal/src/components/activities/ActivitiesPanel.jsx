@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, CheckSquare } from "lucide-react";
-import ChatTab from "./ChatTab";
+import { CheckSquare, MessageCircle } from "lucide-react";
 import TaskTab from "./TaskTab";
+import CommentsTab from "./CommentsTab";
 
 const ActivitiesPanel = ({
   entityType,
@@ -11,11 +11,11 @@ const ActivitiesPanel = ({
   entityName,
   onActivityCreated,
 }) => {
-  const [activeTab, setActiveTab] = useState("tasks");
+  const [activeTab, setActiveTab] = useState("comments");
 
   const tabItems = [
+    { key: "comments", label: "Comments", icon: MessageCircle },
     { key: "tasks", label: "Tasks", icon: CheckSquare },
-    { key: "chat", label: "Chat", icon: MessageSquare },
   ];
 
   return (
@@ -23,7 +23,7 @@ const ActivitiesPanel = ({
       <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">
-            {activeTab === "chat" ? "Team Chat" : "Task Management"}
+            {activeTab === "comments" ? "Comments" : "Task Management"}
           </h3>
         </div>
 
@@ -45,9 +45,9 @@ const ActivitiesPanel = ({
           ))}
         </div>
 
-        {/* Chat View */}
-        {activeTab === "chat" && (
-          <ChatTab entityType={entityType} entityId={entityId} />
+        {/* Comments View */}
+        {activeTab === "comments" && (
+          <CommentsTab entityType={entityType} entityId={entityId} />
         )}
 
         {/* Tasks View */}

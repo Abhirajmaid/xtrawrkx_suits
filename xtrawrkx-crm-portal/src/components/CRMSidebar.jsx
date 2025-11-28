@@ -41,6 +41,8 @@ import {
   Plus,
 } from "lucide-react";
 import SubSidebar from "./SubSidebar";
+import commentService from "../lib/api/commentService";
+import strapiClient from "../lib/strapiClient";
 
 export default function CRMSidebar({ collapsed = false, onToggle }) {
   const [collapsedSections, setCollapsedSections] = useState({
@@ -53,7 +55,10 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
   const [subSidebarOpen, setSubSidebarOpen] = useState(false);
   const [currentSection, setCurrentSection] = useState(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-  const [toolsCollapsed, setToolsCollapsed] = useState(false);
+  const [toolsCollapsed, setToolsCollapsed] = useState(true);
+  const [threads, setThreads] = useState([]);
+  const [loadingThreads, setLoadingThreads] = useState(true);
+  const [showAllThreads, setShowAllThreads] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -167,6 +172,169 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
       };
     }
   }, [quickActionsOpen]);
+
+  // Fetch latest conversations for sidebar
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        setLoadingThreads(true);
+
+        // Fetch comments for lead companies and client accounts
+        const [leadCompanyCommentsResponse, clientAccountCommentsResponse] =
+          await Promise.all([
+            commentService
+              .getAllComments({
+                filters: { commentableType: "LEAD_COMPANY" },
+                populate: ["user", "replies", "replies.user", "parentComment"],
+                sort: "createdAt:desc",
+                pageSize: 500,
+              })
+              .catch(() => ({ data: [] })),
+            commentService
+              .getAllComments({
+                filters: { commentableType: "CLIENT_ACCOUNT" },
+                populate: ["user", "replies", "replies.user", "parentComment"],
+                sort: "createdAt:desc",
+                pageSize: 500,
+              })
+              .catch(() => ({ data: [] })),
+          ]);
+
+        const leadComments = leadCompanyCommentsResponse?.data || [];
+        const clientComments = clientAccountCommentsResponse?.data || [];
+
+        // Group comments by entity and get latest activity
+        const entityChats = new Map();
+
+        // Process lead company comments
+        leadComments.forEach((comment) => {
+          const commentData = comment.attributes || comment;
+          const entityId = commentData.commentableId;
+          const key = `leadCompany-${entityId}`;
+
+          if (!entityChats.has(key)) {
+            entityChats.set(key, {
+              entityId,
+              entityType: "leadCompany",
+              latestComment: null,
+              latestActivity: null,
+              commentsCount: 0,
+            });
+          }
+
+          const chat = entityChats.get(key);
+          chat.commentsCount++;
+
+          const commentTime = new Date(commentData.createdAt);
+          if (!chat.latestActivity || commentTime > chat.latestActivity) {
+            chat.latestActivity = commentTime;
+            chat.latestComment = commentData.content;
+          }
+        });
+
+        // Process client account comments
+        clientComments.forEach((comment) => {
+          const commentData = comment.attributes || comment;
+          const entityId = commentData.commentableId;
+          const key = `clientAccount-${entityId}`;
+
+          if (!entityChats.has(key)) {
+            entityChats.set(key, {
+              entityId,
+              entityType: "clientAccount",
+              latestComment: null,
+              latestActivity: null,
+              commentsCount: 0,
+            });
+          }
+
+          const chat = entityChats.get(key);
+          chat.commentsCount++;
+
+          const commentTime = new Date(commentData.createdAt);
+          if (!chat.latestActivity || commentTime > chat.latestActivity) {
+            chat.latestActivity = commentTime;
+            chat.latestComment = commentData.content;
+          }
+        });
+
+        // Fetch entity names
+        const entityPromises = Array.from(entityChats.keys()).map(
+          async (key) => {
+            const chat = entityChats.get(key);
+            try {
+              if (chat.entityType === "leadCompany") {
+                const leadCompany = await strapiClient
+                  .getLeadCompany(chat.entityId)
+                  .catch(() => null);
+                if (leadCompany) {
+                  chat.entity = leadCompany.data?.attributes || leadCompany;
+                }
+              } else if (chat.entityType === "clientAccount") {
+                const clientAccount = await strapiClient
+                  .getClientAccount(chat.entityId)
+                  .catch(() => null);
+                if (clientAccount) {
+                  chat.entity = clientAccount.data?.attributes || clientAccount;
+                }
+              }
+            } catch (error) {
+              console.error(`Error fetching entity ${chat.entityId}:`, error);
+            }
+          }
+        );
+        await Promise.all(entityPromises);
+
+        // Transform to thread format
+        const transformed = Array.from(entityChats.values())
+          .filter((chat) => chat.commentsCount > 0 && chat.entity)
+          .map((chat) => ({
+            id: `${chat.entityType}-${chat.entityId}`,
+            type: "entityChat",
+            entityType: chat.entityType,
+            entityId: chat.entityId,
+            message: chat.latestComment,
+            createdAt: chat.latestActivity,
+            leadCompany: chat.entityType === "leadCompany" ? chat.entity : null,
+            clientAccount:
+              chat.entityType === "clientAccount" ? chat.entity : null,
+            commentsCount: chat.commentsCount,
+          }))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sort by most recent
+
+        setThreads(transformed);
+      } catch (error) {
+        console.error("Error fetching conversations for sidebar:", error);
+        setThreads([]);
+      } finally {
+        setLoadingThreads(false);
+      }
+    };
+
+    fetchConversations();
+
+    // Refresh conversations every 30 seconds
+    const interval = setInterval(fetchConversations, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Get threads to display (limited initially - show 4 recent threads)
+  const displayedThreads = showAllThreads ? threads : threads.slice(0, 4);
+
+  const getThreadContext = (thread) => {
+    if (thread.leadCompany) {
+      return thread.leadCompany.companyName || "Lead Company";
+    }
+    if (thread.clientAccount) {
+      return thread.clientAccount.companyName || "Client Account";
+    }
+    return "Unknown";
+  };
+
+  const handleThreadNavigation = (thread) => {
+    // Navigate to threads page with entity chat
+    router.push(`/threads?thread=${thread.id}`);
+  };
 
   const mainNavigationItems = [
     {
@@ -788,6 +956,114 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
           </div>
         </div>
 
+        {/* Latest Threads Section */}
+        {!collapsed && (
+          <div className="flex-1">
+            <div className="px-3 mb-2">
+              <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-2.5 shadow-lg">
+                <div className="flex items-center justify-between text-sm font-medium text-brand-foreground mb-2">
+                  <span className="flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Latest Conversations
+                  </span>
+                  <Link
+                    href="/threads"
+                    className="w-5 h-5 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center hover:bg-white/30 transition-all duration-200 group shadow-sm border border-white/20"
+                    title="View All Threads"
+                  >
+                    <ChevronRight className="w-2.5 h-2.5 text-gray-600 group-hover:text-gray-900 transition-colors" />
+                  </Link>
+                </div>
+
+                <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                  {loadingThreads ? (
+                    <div className="flex items-center justify-center py-2">
+                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-orange-500"></div>
+                    </div>
+                  ) : displayedThreads.length === 0 ? (
+                    <div className="text-center py-2 text-xs text-brand-text-light">
+                      No conversations yet
+                    </div>
+                  ) : (
+                    displayedThreads.map((thread) => {
+                      const isThreadActive = pathname.startsWith("/threads");
+                      const threadContext = getThreadContext(thread);
+                      const messageText = thread.message || "";
+                      const previewText =
+                        messageText.length > 40
+                          ? messageText.substring(0, 40) + "..."
+                          : messageText;
+                      const isLeadCompany = thread.entityType === "leadCompany";
+                      const IconComponent = isLeadCompany
+                        ? Building2
+                        : UserCheck;
+                      const iconColor = isLeadCompany
+                        ? "from-orange-400 to-orange-600"
+                        : "from-blue-400 to-blue-600";
+
+                      return (
+                        <button
+                          key={thread.id}
+                          onClick={() => handleThreadNavigation(thread)}
+                          className={`w-full flex items-start gap-2 p-2 rounded-lg text-xs text-brand-text-light hover:bg-white/20 transition-all duration-200 ${
+                            isThreadActive
+                              ? "bg-orange-50 text-orange-700 border border-orange-200"
+                              : ""
+                          }`}
+                        >
+                          <div
+                            className={`w-5 h-5 bg-gradient-to-br ${iconColor} rounded flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5`}
+                          >
+                            <IconComponent className="w-3 h-3 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0 text-left">
+                            <div className="font-medium text-gray-800 truncate mb-0.5">
+                              {threadContext}
+                            </div>
+                            {previewText && (
+                              <div className="text-gray-600 line-clamp-2 text-[11px] leading-tight">
+                                {previewText}
+                              </div>
+                            )}
+                            {thread.commentsCount > 0 && (
+                              <div className="text-gray-500 text-[10px] mt-1">
+                                {thread.commentsCount}{" "}
+                                {thread.commentsCount === 1
+                                  ? "message"
+                                  : "messages"}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+
+                  {/* Load More / Show Less Buttons */}
+                  {!showAllThreads && threads.length > 4 && (
+                    <button
+                      onClick={() => setShowAllThreads(true)}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200 group mt-1.5 rounded-lg"
+                    >
+                      <span className="font-medium">Load More</span>
+                      <ChevronDown className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                  {showAllThreads && threads.length > 4 && (
+                    <button
+                      onClick={() => setShowAllThreads(false)}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200 group mt-1.5 rounded-lg"
+                    >
+                      <span className="font-medium">Show Less</span>
+                      <ChevronDown className="w-2.5 h-2.5 rotate-180" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* CRM Tools Section */}
         {!collapsed && (
           <div className="flex-1">
@@ -882,20 +1158,24 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
                 <span className="text-brand-primary text-sm font-medium">
                   {(() => {
                     if (!user) {
-                      console.log('CRMSidebar: No user data available');
+                      console.log("CRMSidebar: No user data available");
                       return "U";
                     }
-                    
+
                     // Handle different user data structures
                     const userData = user.attributes || user;
-                    const firstName = userData.firstName || userData.name?.split(" ")[0] || "";
-                    const lastName = userData.lastName || userData.name?.split(" ")[1] || "";
-                    
-                    const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+                    const firstName =
+                      userData.firstName || userData.name?.split(" ")[0] || "";
+                    const lastName =
+                      userData.lastName || userData.name?.split(" ")[1] || "";
+
+                    const initials = (
+                      firstName.charAt(0) + lastName.charAt(0)
+                    ).toUpperCase();
                     if (initials && initials !== " ") {
                       return initials;
                     }
-                    
+
                     return userData.email?.charAt(0).toUpperCase() || "U";
                   })()}
                 </span>
@@ -906,62 +1186,73 @@ export default function CRMSidebar({ collapsed = false, onToggle }) {
                     <p className="text-sm font-medium text-brand-foreground truncate">
                       {(() => {
                         if (!user) {
-                          console.log('CRMSidebar: No user data for display name');
+                          console.log(
+                            "CRMSidebar: No user data for display name"
+                          );
                           return "User";
                         }
-                        
+
                         // Handle different user data structures
                         const userData = user.attributes || user;
-                        
+
                         if (userData.firstName && userData.lastName) {
                           return `${userData.firstName} ${userData.lastName}`;
                         }
-                        
+
                         if (userData.name) {
                           return userData.name;
                         }
-                        
+
                         if (userData.email) {
                           return userData.email.split("@")[0];
                         }
-                        
+
                         return "User";
                       })()}
                     </p>
                     <p className="text-xs text-brand-text-light truncate">
                       {(() => {
                         if (!user) {
-                          console.log('CRMSidebar: No user data for role');
+                          console.log("CRMSidebar: No user data for role");
                           return "User";
                         }
-                        
+
                         // Handle different user data structures
                         const userData = user.attributes || user;
-                        
+
                         // Try primaryRole first
                         if (userData.primaryRole) {
-                          const roleName = typeof userData.primaryRole === 'object' 
-                            ? userData.primaryRole.name || userData.primaryRole.attributes?.name
-                            : userData.primaryRole;
+                          const roleName =
+                            typeof userData.primaryRole === "object"
+                              ? userData.primaryRole.name ||
+                                userData.primaryRole.attributes?.name
+                              : userData.primaryRole;
                           if (roleName) return roleName;
                         }
-                        
+
                         // Try userRoles array
-                        if (userData.userRoles && Array.isArray(userData.userRoles) && userData.userRoles.length > 0) {
+                        if (
+                          userData.userRoles &&
+                          Array.isArray(userData.userRoles) &&
+                          userData.userRoles.length > 0
+                        ) {
                           const firstRole = userData.userRoles[0];
-                          const roleName = typeof firstRole === 'object'
-                            ? firstRole.name || firstRole.attributes?.name
-                            : firstRole;
+                          const roleName =
+                            typeof firstRole === "object"
+                              ? firstRole.name || firstRole.attributes?.name
+                              : firstRole;
                           if (roleName) return roleName;
                         }
-                        
+
                         // Fallback to role field
                         if (userData.role) {
-                          return typeof userData.role === 'object' 
-                            ? userData.role.name || userData.role.attributes?.name || userData.role
+                          return typeof userData.role === "object"
+                            ? userData.role.name ||
+                                userData.role.attributes?.name ||
+                                userData.role
                             : userData.role;
                         }
-                        
+
                         return "User";
                       })()}
                     </p>

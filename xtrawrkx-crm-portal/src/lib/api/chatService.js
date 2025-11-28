@@ -63,6 +63,85 @@ class ChatService {
             throw error;
         }
     }
+
+    /**
+     * Get all threads (for lead companies and client accounts)
+     */
+    async getThreads(entityType = null, entityId = null) {
+        try {
+            const params = {};
+            if (entityType && entityId) {
+                params.entityType = entityType;
+                params.entityId = entityId;
+            }
+            const response = await strapiClient.get('/chat-messages/threads', { params });
+            return response;
+        } catch (error) {
+            console.error('Error fetching threads:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get a single thread with all replies
+     */
+    async getThread(threadId) {
+        try {
+            const response = await strapiClient.get(`/chat-messages/threads/${threadId}`);
+            return response;
+        } catch (error) {
+            console.error('Error fetching thread:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Create a thread starter message
+     */
+    async createThread(entityType, entityId, message, userId) {
+        try {
+            const response = await strapiClient.post('/chat-messages', {
+                data: {
+                    message,
+                    entityType,
+                    entityId,
+                    createdBy: userId,
+                    isThreadStarter: true
+                }
+            });
+            return response;
+        } catch (error) {
+            console.error('Error creating thread:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Reply to a thread
+     */
+    async replyToThread(parentMessageId, message, userId, entityType = null, entityId = null) {
+        try {
+            const data = {
+                message,
+                createdBy: userId,
+                parentMessageId: parentMessageId
+            };
+            
+            // If entity info is provided, include it
+            if (entityType && entityId) {
+                data.entityType = entityType;
+                data.entityId = entityId;
+            }
+            
+            const response = await strapiClient.post('/chat-messages', {
+                data
+            });
+            return response;
+        } catch (error) {
+            console.error('Error replying to thread:', error);
+            throw error;
+        }
+    }
 }
 
 export default new ChatService();

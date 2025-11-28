@@ -287,7 +287,7 @@ export default function Home() {
               return (
                 <div
                   key={index}
-                  className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                  className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">

@@ -52,9 +52,11 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                     : query.pagination;
             } else {
                 if (query['pagination[page]']) {
+                    // @ts-ignore
                     pagination.page = parseInt(query['pagination[page]']) || 1;
                 }
                 if (query['pagination[pageSize]']) {
+                    // @ts-ignore
                     pagination.pageSize = parseInt(query['pagination[pageSize]']) || 100;
                 }
             }
@@ -80,6 +82,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             });
 
             // Also try using db.query directly as a fallback
+            // @ts-ignore
             if ((!tasks?.data || tasks.data.length === 0) && allTasksCount > 0) {
                 const dbTasks = await strapi.db.query('api::task.task').findMany({
                     orderBy: sort,
@@ -122,6 +125,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             }
 
             // Ensure we return a proper format even if empty
+            // @ts-ignore
             if (!tasks || !tasks.data) {
                 return ctx.send({
                     data: [],
@@ -365,7 +369,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                         .map(p => typeof p === 'object' ? p.id : p)
                         .map(id => parseInt(id))
                         .filter(id => !isNaN(id));
-                    
+
                     // Verify all projects exist
                     for (const projectId of projectIdNums) {
                         const projectRecord = await strapi.db.query('api::project.project').findOne({
@@ -493,7 +497,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
 
             // Handle status change to COMPLETED
             const updateData = { ...data };
-            
+
             // Remove any 'project' key (old schema) - we handle 'projects' separately below
             if (updateData.project !== undefined) {
                 delete updateData.project;
@@ -598,7 +602,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                             .map(p => typeof p === 'object' ? p.id : p)
                             .map(id => parseInt(id))
                             .filter(id => !isNaN(id));
-                        
+
                         // Verify all projects exist
                         const validProjectIds = [];
                         for (const projectId of projectIdNums) {

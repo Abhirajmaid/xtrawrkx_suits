@@ -365,7 +365,7 @@ const Sidebar = memo(function Sidebar({ collapsed = false, onToggle }) {
                   href={item.path}
                   className={`${
                     active
-                      ? "bg-gradient-to-br from-yellow-400/30 to-yellow-500/20 border-yellow-300/50 text-yellow-800"
+                      ? "bg-[#FFAA44] text-white border-orange-500/50"
                       : "bg-white/20 backdrop-blur-md border border-white/30 text-brand-foreground hover:bg-white/30 hover:border-white/40"
                   } 
                       rounded-xl p-4 flex flex-col items-center gap-3 transition-[background-color,border-color,color] duration-300 shadow-lg group`}
@@ -554,7 +554,7 @@ const Sidebar = memo(function Sidebar({ collapsed = false, onToggle }) {
                     href={item.path}
                     className={`w-full bg-white/15 backdrop-blur-md border ${
                       active
-                        ? "border-yellow-300/50 bg-yellow-50/30 text-yellow-800"
+                        ? "bg-[#FFAA44] text-white border-orange-500/50"
                         : "border-white/25 text-brand-text-light"
                     } rounded-xl p-3 flex flex-col items-center gap-2 shadow-md hover:bg-white/20 hover:border-white/30 transition-all duration-200 group`}
                     title={collapsed ? item.label : undefined}

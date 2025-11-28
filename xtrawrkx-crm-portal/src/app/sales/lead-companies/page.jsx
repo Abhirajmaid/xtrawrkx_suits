@@ -921,6 +921,8 @@ export default function LeadCompaniesPage() {
             onFilterClick={() => setIsFilterModalOpen(true)}
             onAddClick={() => router.push("/sales/lead-companies/new")}
             onExportClick={handleExport}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
           />
 
           {/* Single Horizontal Scroll Container */}

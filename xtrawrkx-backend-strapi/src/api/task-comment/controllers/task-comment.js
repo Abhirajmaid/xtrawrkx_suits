@@ -237,8 +237,8 @@ module.exports = createCoreController('api::task-comment.task-comment', ({ strap
                 return ctx.badRequest('commentableType, commentableId, and content are required');
             }
 
-            if (!['TASK', 'SUBTASK'].includes(data.commentableType)) {
-                return ctx.badRequest('commentableType must be either TASK or SUBTASK');
+            if (!['TASK', 'SUBTASK', 'LEAD_COMPANY', 'CLIENT_ACCOUNT', 'DEAL', 'CONTACT'].includes(data.commentableType)) {
+                return ctx.badRequest('commentableType must be one of: TASK, SUBTASK, LEAD_COMPANY, CLIENT_ACCOUNT, DEAL, CONTACT');
             }
 
             // Handle user - user is required

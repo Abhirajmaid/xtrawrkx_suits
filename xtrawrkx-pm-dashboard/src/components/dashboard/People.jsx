@@ -1,7 +1,13 @@
-import React from "react";
-import { ChevronDown, Plus } from "lucide-react";
+"use client";
+
+import React, { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const People = ({ data }) => {
+  const [showAll, setShowAll] = useState(false);
+  
+  const displayedPeople = showAll ? data : data.slice(0, 6);
+  const hasMore = data.length > 6;
   const EmptyState = () => (
     <div className="flex flex-col items-center justify-center py-16">
       <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center mb-6">
@@ -43,24 +49,13 @@ const People = ({ data }) => {
   return (
     <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl flex flex-col h-full">
       <div className="px-6 py-5 border-b border-white/30">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">
-              People ({data.length})
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Team members and collaborators
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1 text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
-              <span>Frequent Collaborators</span>
-              <ChevronDown className="h-4 w-4" />
-            </div>
-            <button className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-              <Plus className="h-4 w-4 text-white" />
-            </button>
-          </div>
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">
+            People ({data.length})
+          </h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Team members and collaborators
+          </p>
         </div>
       </div>
 
@@ -68,30 +63,52 @@ const People = ({ data }) => {
         {data.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-3 gap-3">
-            {data.map((person, index) => (
-              <div
-                key={person.id}
-                className="bg-white rounded-xl p-4 flex flex-col items-center text-center space-y-3 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all duration-200 border border-gray-100"
-              >
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              {displayedPeople.map((person, index) => (
                 <div
-                  className={`w-12 h-12 ${getAvatarColor(index)} rounded-full flex items-center justify-center group-hover:scale-105 transition-transform duration-200`}
+                  key={person.id}
+                  className="bg-white rounded-xl p-4 flex flex-col items-center text-center space-y-3 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all duration-200 border border-gray-100"
                 >
-                  <span className="text-white text-sm font-bold">
-                    {person.avatar}
-                  </span>
+                  <div
+                    className={`w-12 h-12 ${getAvatarColor(index)} rounded-full flex items-center justify-center group-hover:scale-105 transition-transform duration-200`}
+                  >
+                    <span className="text-white text-sm font-bold">
+                      {person.avatar}
+                    </span>
+                  </div>
+                  <div className="w-full">
+                    <h4 className="font-semibold text-gray-900 text-base truncate">
+                      {person.name}
+                    </h4>
+                    <p className="text-sm text-gray-500 truncate mt-1">
+                      {person.email}
+                    </p>
+                  </div>
                 </div>
-                <div className="w-full">
-                  <h4 className="font-semibold text-gray-900 text-base truncate">
-                    {person.name}
-                  </h4>
-                  <p className="text-sm text-gray-500 truncate mt-1">
-                    {person.email}
-                  </p>
-                </div>
+              ))}
+            </div>
+            {hasMore && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200 rounded-lg"
+                >
+                  {showAll ? (
+                    <>
+                      <span>Show Less</span>
+                      <ChevronUp className="w-4 h-4" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Show More</span>
+                      <ChevronDown className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>

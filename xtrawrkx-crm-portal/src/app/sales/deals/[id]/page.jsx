@@ -84,6 +84,8 @@ export default function DealDetailPage() {
   const [tabLoading, setTabLoading] = useState({
     contacts: false,
   });
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [loadingStatusUpdate, setLoadingStatusUpdate] = useState(false);
 
   const isAdmin = () => {
     if (!user) return false;
@@ -573,6 +575,73 @@ export default function DealDetailPage() {
     }
   };
 
+  // Handle status updates
+  const handleStatusUpdate = async (newStage) => {
+    if (!deal || !deal.id) {
+      console.error("No deal ID provided");
+      return;
+    }
+
+    // Map UI stage to Strapi stage
+    const stageMap = {
+      discovery: 'DISCOVERY',
+      proposal: 'PROPOSAL',
+      negotiation: 'NEGOTIATION',
+      won: 'CLOSED_WON',
+      lost: 'CLOSED_LOST'
+    };
+
+    const strapiStage = stageMap[newStage.toLowerCase()] || newStage.toUpperCase();
+    const isWon = newStage.toLowerCase() === 'won';
+    const wasWon = deal.stage?.toLowerCase() === 'won';
+
+    setLoadingStatusUpdate(true);
+
+    try {
+      console.log(`Updating deal ${deal.id} stage to ${strapiStage}`);
+
+      // Update the stage via API
+      await dealService.update(deal.id, { stage: strapiStage });
+
+      // Update local state - map Strapi stage back to UI stage
+      const uiStageMap = {
+        'DISCOVERY': 'discovery',
+        'PROPOSAL': 'proposal',
+        'NEGOTIATION': 'negotiation',
+        'CLOSED_WON': 'won',
+        'CLOSED_LOST': 'lost'
+      };
+
+      const uiStage = uiStageMap[strapiStage] || newStage.toLowerCase();
+
+      setDeal((prevDeal) => ({
+        ...prevDeal,
+        stage: uiStage
+      }));
+
+      // Trigger celebratory animation if converting to Won (and wasn't already won)
+      if (isWon && !wasWon) {
+        setShowConfetti(true);
+        // Auto-hide confetti after 4 seconds
+        setTimeout(() => {
+          setShowConfetti(false);
+        }, 4000);
+      }
+
+      console.log(`Successfully updated deal ${deal.id} to ${strapiStage}`);
+    } catch (error) {
+      console.error("Error updating deal stage:", error);
+      console.error("Error details:", error.message);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error.message || "Failed to update stage. Please try again.";
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setLoadingStatusUpdate(false);
+    }
+  };
+
   const contactColumns = [
     {
       key: "contact",
@@ -739,7 +808,84 @@ export default function DealDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white relative">
+      {/* Confetti Animation */}
+      {showConfetti && (
+        <>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+              @keyframes confetti-fall {
+                0% {
+                  transform: translateY(0) rotate(0deg);
+                  opacity: 1;
+                }
+                100% {
+                  transform: translateY(100vh) rotate(720deg);
+                  opacity: 0;
+                }
+              }
+            `,
+            }}
+          />
+          <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+            {[...Array(150)].map((_, i) => {
+              const colors = [
+                "#10B981", // green
+                "#3B82F6", // blue
+                "#F59E0B", // amber
+                "#EF4444", // red
+                "#8B5CF6", // purple
+                "#EC4899", // pink
+                "#14B8A6", // teal
+                "#F97316", // orange
+                "#FFD700", // gold
+                "#FF6B6B", // coral
+              ];
+              const color = colors[Math.floor(Math.random() * colors.length)];
+              const left = Math.random() * 100;
+              const delay = Math.random() * 3;
+              const duration = 3 + Math.random() * 2;
+              const size = 10 + Math.random() * 15;
+
+              return (
+                <div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    left: `${left}%`,
+                    top: "-10px",
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    backgroundColor: color,
+                    animation: `confetti-fall ${duration}s ease-out ${delay}s forwards`,
+                    transform: `rotate(${Math.random() * 360}deg)`,
+                  }}
+                />
+              );
+            })}
+
+            {/* Success Message Overlay */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+              <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 border-2 border-green-500 animate-bounce">
+                <div className="text-center">
+                  <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    🎉 Deal Won!
+                  </h2>
+                  <p className="text-lg text-gray-600">
+                    Congratulations! {deal?.name} has been marked as Won
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {deal?.value ? `Value: ${formatCurrency(deal.value)}` : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="p-4 space-y-4">
         {/* Page Header */}
         <PageHeader
@@ -967,7 +1113,7 @@ export default function DealDetailPage() {
                           </label>
                           <div className="mt-1">
                             {(() => {
-                              const stage =
+                              const currentStage =
                                 deal.stage?.toLowerCase() || "discovery";
                               const stageColors = {
                                 discovery: {
@@ -1003,15 +1149,43 @@ export default function DealDetailPage() {
                               };
 
                               const colors =
-                                stageColors[stage] || stageColors.discovery;
-                              const displayStage = deal.stage || "Discovery";
+                                stageColors[currentStage] || stageColors.discovery;
+
+                              const statusOptions = [
+                                { value: "discovery", label: "Discovery" },
+                                { value: "proposal", label: "Proposal" },
+                                { value: "negotiation", label: "Negotiation" },
+                                { value: "won", label: "Won" },
+                                { value: "lost", label: "Lost" },
+                              ];
 
                               return (
-                                <div
-                                  className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-4 py-2 font-bold text-sm text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
-                                >
-                                  {displayStage.charAt(0).toUpperCase() +
-                                    displayStage.slice(1)}
+                                <div className="min-w-[140px]">
+                                  {loadingStatusUpdate ? (
+                                    <div className="flex items-center justify-center">
+                                      <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+                                    </div>
+                                  ) : (
+                                    <select
+                                      value={currentStage}
+                                      onChange={(e) => {
+                                        handleStatusUpdate(e.target.value);
+                                      }}
+                                      className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-4 py-2 font-bold text-sm text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer appearance-none`}
+                                      style={{
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                                        backgroundRepeat: "no-repeat",
+                                        backgroundPosition: "right 0.5rem center",
+                                        paddingRight: "2rem",
+                                      }}
+                                    >
+                                      {statusOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
                                 </div>
                               );
                             })()}
@@ -1394,51 +1568,22 @@ export default function DealDetailPage() {
 
                   {/* Next Steps */}
                   <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Next Steps
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 bg-white/50 rounded-lg border border-white/40">
-                        <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            Schedule demo for enterprise features
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Due: Feb 5, 2024
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 bg-white/50 rounded-lg border border-white/40">
-                        <Clock className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            Follow up on pricing discussion
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Due: Feb 1, 2024
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 bg-white/50 rounded-lg border border-white/40">
-                        <Clock className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            Prepare contract draft
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Due: Feb 10, 2024
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-2"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Next Step
-                      </Button>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Next Steps
+                      </h3>
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-300">
+                        Coming Soon
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Clock className="w-12 h-12 text-gray-400 mb-4" />
+                      <p className="text-gray-600 font-medium mb-2">
+                        Next Steps feature coming soon
+                      </p>
+                      <p className="text-sm text-gray-500 text-center max-w-sm">
+                        This feature will allow you to track and manage action items for your deals
+                      </p>
                     </div>
                   </div>
                 </div>

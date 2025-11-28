@@ -19,6 +19,7 @@ export default function ProjectsListView({
           data={filteredProjects}
           onRowClick={onRowClick}
           className="min-w-[1600px]"
+          rowPadding="py-4"
         />
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">

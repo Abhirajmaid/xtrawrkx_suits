@@ -10,19 +10,22 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
   // Support multiple projects - use projects array if available, fallback to single project
   const [selectedProjectIds, setSelectedProjectIds] = useState(() => {
     if (task.projects && task.projects.length > 0) {
-      return task.projects.map(p => p.id).filter(Boolean);
+      return task.projects.map((p) => p.id).filter(Boolean);
     }
     return task.project?.id ? [task.project.id] : [];
   });
   const [isUpdating, setIsUpdating] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    right: 0,
+  });
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
 
   // Update selectedProjectIds when task changes
   useEffect(() => {
     if (task.projects && task.projects.length > 0) {
-      setSelectedProjectIds(task.projects.map(p => p.id).filter(Boolean));
+      setSelectedProjectIds(task.projects.map((p) => p.id).filter(Boolean));
     } else if (task.project?.id) {
       setSelectedProjectIds([task.project.id]);
     } else {
@@ -75,7 +78,7 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
     if (!projectIdNum) return;
 
     const newSelectedIds = selectedProjectIds.includes(projectIdNum)
-      ? selectedProjectIds.filter(id => id !== projectIdNum)
+      ? selectedProjectIds.filter((id) => id !== projectIdNum)
       : [...selectedProjectIds, projectIdNum];
 
     setIsUpdating(true);
@@ -87,7 +90,7 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
 
       // Find the project objects
       const newProjects = newSelectedIds
-        .map(id => projects.find(p => p.id === id))
+        .map((id) => projects.find((p) => p.id === id))
         .filter(Boolean);
 
       // Update local state immediately
@@ -107,7 +110,7 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
       console.error("Error updating projects:", error);
       // Revert on error
       if (task.projects && task.projects.length > 0) {
-        setSelectedProjectIds(task.projects.map(p => p.id).filter(Boolean));
+        setSelectedProjectIds(task.projects.map((p) => p.id).filter(Boolean));
       } else if (task.project?.id) {
         setSelectedProjectIds([task.project.id]);
       } else {
@@ -118,7 +121,9 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
     }
   };
 
-  const selectedProjects = projects.filter(p => selectedProjectIds.includes(p.id));
+  const selectedProjects = projects.filter((p) =>
+    selectedProjectIds.includes(p.id)
+  );
 
   const dropdownContent = isEditing ? (
     <div
@@ -129,44 +134,44 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
         right: `${dropdownPosition.right}px`,
       }}
     >
-          {projects.map((project, index) => {
-            const isSelected = selectedProjectIds.includes(project.id);
-            return (
-              <div
-                key={project.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleProjectToggle(project.id);
-                }}
-                className={`px-3 py-2.5 text-sm cursor-pointer hover:bg-blue-50 flex items-center gap-2.5 transition-colors ${
-                  index < projects.length - 1 ? "border-b border-gray-100" : ""
-                } ${isSelected ? "bg-blue-50" : ""}`}
-              >
-                <div
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isSelected
-                      ? "border-blue-500 bg-blue-500"
-                      : "border-gray-300 bg-white"
-                  }`}
-                >
-                  {isSelected && <Check className="w-3 h-3 text-white" />}
-                </div>
-                <div
-                  className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gradient-to-br shadow-sm ${
-                    project.color || "from-blue-500 to-blue-600"
-                  }`}
-                >
-                  <span className="text-white font-bold text-xs">
-                    {project.icon || project.name?.charAt(0)?.toUpperCase() || "P"}
-                  </span>
-                </div>
-                <span className="text-gray-900 font-medium truncate flex-1">
-                  {project.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      {projects.map((project, index) => {
+        const isSelected = selectedProjectIds.includes(project.id);
+        return (
+          <div
+            key={project.id}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleProjectToggle(project.id);
+            }}
+            className={`px-3 py-2.5 text-sm cursor-pointer hover:bg-blue-50 flex items-center gap-2.5 transition-colors ${
+              index < projects.length - 1 ? "border-b border-gray-100" : ""
+            } ${isSelected ? "bg-blue-50" : ""}`}
+          >
+            <div
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                isSelected
+                  ? "border-blue-500 bg-blue-500"
+                  : "border-gray-300 bg-white"
+              }`}
+            >
+              {isSelected && <Check className="w-3 h-3 text-white" />}
+            </div>
+            <div
+              className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gradient-to-br shadow-sm ${
+                project.color || "from-blue-500 to-blue-600"
+              }`}
+            >
+              <span className="text-white font-bold text-xs">
+                {project.icon || project.name?.charAt(0)?.toUpperCase() || "P"}
+              </span>
+            </div>
+            <span className="text-gray-900 font-medium truncate flex-1">
+              {project.name}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   ) : null;
 
   return (
@@ -177,7 +182,7 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
             e.stopPropagation();
             setIsEditing(true);
           }}
-          className="text-sm px-2 py-1.5 rounded-md cursor-pointer transition-all duration-200 flex items-center gap-2 group hover:bg-gray-50 border border-transparent hover:border-gray-200 whitespace-nowrap"
+          className="text-xs px-1.5 py-1 rounded-md cursor-pointer transition-all duration-200 flex items-center gap-1.5 group hover:bg-gray-50 border border-transparent hover:border-gray-200 whitespace-nowrap"
           title="Click to change project"
         >
           {isUpdating ? (
@@ -192,7 +197,7 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
                   }`}
                   title={project.name}
                 >
-                  <span className="text-white font-bold text-xs">
+                  <span className="text-white font-bold text-[10px]">
                     {project.icon ||
                       project.name?.charAt(0)?.toUpperCase() ||
                       "P"}
@@ -200,11 +205,11 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
                 </div>
               ))}
               {selectedProjects.length > 2 && (
-                <span className="text-xs text-gray-500 font-medium">
+                <span className="text-[10px] text-gray-500 font-medium">
                   +{selectedProjects.length - 2}
                 </span>
               )}
-              <span className="text-gray-900 font-medium truncate">
+              <span className="text-xs text-gray-900 font-medium truncate">
                 {selectedProjects.length === 1
                   ? selectedProjects[0].name
                   : `${selectedProjects.length} projects`}
@@ -214,10 +219,10 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
           ) : (
             <>
               <div className="w-5 h-5 rounded border-2 border-gray-300 flex items-center justify-center flex-shrink-0">
-                <Folder className="w-3 h-3 text-gray-400" />
+                <Folder className="w-2.5 h-2.5 text-gray-400" />
               </div>
-              <span className="text-gray-500 truncate">No Project</span>
-              <ChevronDown className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+              <span className="text-xs text-gray-500 truncate">No Project</span>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
             </>
           )}
         </div>
@@ -230,4 +235,3 @@ const ProjectSelector = ({ task, projects, onUpdate }) => {
 };
 
 export default ProjectSelector;
-
