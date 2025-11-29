@@ -86,6 +86,94 @@ export default function DealDetailPage() {
   });
   const [showConfetti, setShowConfetti] = useState(false);
   const [loadingStatusUpdate, setLoadingStatusUpdate] = useState(false);
+  const [showCreateProjectPrompt, setShowCreateProjectPrompt] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  // Handle creating project from deal
+  const handleCreateProject = async () => {
+    if (!deal) return;
+
+    setCreatingProject(true);
+    try {
+      // Get client name from deal
+      const clientName = 
+        deal.clientAccount?.companyName || 
+        deal.clientAccount?.attributes?.companyName ||
+        deal.leadCompany?.companyName ||
+        deal.leadCompany?.attributes?.companyName ||
+        deal.company ||
+        deal.name;
+
+      // Generate slug from client name
+      const slug = clientName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+
+      // Generate icon from first letter
+      const icon = clientName.charAt(0).toUpperCase();
+
+      // Get deal ID (handle both id and documentId)
+      const dealId = deal.id || deal.documentId;
+
+      // Try to find account by company name (account entity, not clientAccount)
+      let accountId = null;
+      try {
+        if (clientName) {
+          const accountsResponse = await strapiClient.get("/accounts", {
+            "filters[companyName][$eq]": clientName,
+          });
+          
+          if (accountsResponse?.data && accountsResponse.data.length > 0) {
+            const account = accountsResponse.data[0];
+            accountId = account.id || account.documentId;
+          }
+        }
+      } catch (accountError) {
+        console.log("Could not find account, proceeding without account relation:", accountError);
+        // Continue without account relation
+      }
+
+      // Prepare project payload
+      const projectData = {
+        name: `${clientName} - ${deal.name}`,
+        slug: `${slug}-${dealId}`,
+        description: deal.description || `Project created from deal: ${deal.name}`,
+        status: "PLANNING",
+        icon: icon,
+        color: "from-blue-400 to-blue-600",
+        deal: dealId, // Connect to the deal
+      };
+
+      // Only add account if we found one
+      if (accountId) {
+        projectData.account = accountId;
+      }
+
+      // Create project using Strapi API
+      const response = await strapiClient.post("/projects", {
+        data: projectData,
+      });
+
+      if (response.data) {
+        alert(`Project "${projectData.name}" created successfully!`);
+        setShowCreateProjectPrompt(false);
+        setShowConfetti(false);
+        // Optionally navigate to the project
+        // router.push(`/projects/${response.data.slug || response.data.id}`);
+      }
+    } catch (error) {
+      console.error("Error creating project:", error);
+      alert(`Failed to create project: ${error.message || "Unknown error"}`);
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const handleDismissProjectPrompt = () => {
+    setShowCreateProjectPrompt(false);
+    setShowConfetti(false);
+  };
 
   const isAdmin = () => {
     if (!user) return false;
@@ -622,10 +710,7 @@ export default function DealDetailPage() {
       // Trigger celebratory animation if converting to Won (and wasn't already won)
       if (isWon && !wasWon) {
         setShowConfetti(true);
-        // Auto-hide confetti after 4 seconds
-        setTimeout(() => {
-          setShowConfetti(false);
-        }, 4000);
+        setShowCreateProjectPrompt(true);
       }
 
       console.log(`Successfully updated deal ${deal.id} to ${strapiStage}`);
@@ -866,22 +951,69 @@ export default function DealDetailPage() {
             })}
 
             {/* Success Message Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-              <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 border-2 border-green-500 animate-bounce">
-                <div className="text-center">
-                  <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                    🎉 Deal Won!
-                  </h2>
-                  <p className="text-lg text-gray-600">
-                    Congratulations! {deal?.name} has been marked as Won
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {deal?.value ? `Value: ${formatCurrency(deal.value)}` : ''}
-                  </p>
+            {showCreateProjectPrompt && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 pointer-events-auto">
+                <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                      <CheckCircle2 className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        🎉 Deal Won!
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Congratulations on closing this deal
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <p className="text-gray-700 mb-3">
+                      <strong>{deal?.name}</strong> has been marked as Won
+                    </p>
+                    {deal?.value && (
+                      <p className="text-sm text-gray-600 mb-4">
+                        Deal Value: <strong>{formatCurrency(deal.value)}</strong>
+                      </p>
+                    )}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <p className="text-sm text-green-700 font-medium mb-2">
+                        Would you like to create a project for this client?
+                      </p>
+                      <p className="text-xs text-green-600">
+                        This will create a new project in the Projects section linked to this deal's client.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleDismissProjectPrompt}
+                      disabled={creatingProject}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      No, Thanks
+                    </Button>
+                    <Button
+                      onClick={handleCreateProject}
+                      disabled={creatingProject}
+                      className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
+                    >
+                      {creatingProject ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Creating...
+                        </div>
+                      ) : (
+                        "Yes, Create Project"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </>
       )}

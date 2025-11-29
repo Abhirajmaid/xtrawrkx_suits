@@ -3,7 +3,12 @@
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 
-const TaskDeleteConfirmationModal = ({ isOpen, onClose, onConfirm, taskName }) => {
+const TaskDeleteConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  taskName,
+}) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen) return null;

@@ -31,6 +31,9 @@ import {
   ChevronDown,
   Eye,
   Trash2,
+  Building2,
+  Globe,
+  Pencil,
 } from "lucide-react";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -83,6 +86,7 @@ export default function ProjectDetail({ params }) {
   const [loadedSubtasks, setLoadedSubtasks] = useState({});
   const [subtaskDropdownPositions, setSubtaskDropdownPositions] = useState({});
   const subtaskButtonRefs = useRef({});
+  const [loadingStatusUpdate, setLoadingStatusUpdate] = useState(false);
 
   // Close subtask dropdowns on scroll
   useEffect(() => {
@@ -174,6 +178,9 @@ export default function ProjectDetail({ params }) {
               "tasks.project",
               "tasks.subtasks",
               "account",
+              "deal",
+              "deal.leadCompany",
+              "deal.clientAccount",
             ]);
           } catch (idError) {
             console.log("Failed to fetch by ID, trying by slug:", idError);
@@ -192,6 +199,9 @@ export default function ProjectDetail({ params }) {
               "tasks.project",
               "tasks.subtasks",
               "account",
+              "deal",
+              "deal.leadCompany",
+              "deal.clientAccount",
             ]);
           } catch (slugError) {
             console.error("Failed to fetch by slug:", slugError);
@@ -351,24 +361,49 @@ export default function ProjectDetail({ params }) {
 
         // Add stats and team to project
         // Store original dates for calculations (formatDate returns formatted strings)
+
+        // Handle account data - can come in different Strapi formats
+        let accountData = null;
+        if (strapiProject.account) {
+          // Handle different Strapi response structures
+          const account = strapiProject.account.data || strapiProject.account;
+          const accountAttributes = account?.attributes || account;
+
+          accountData = {
+            id: account?.id || account?.documentId,
+            name:
+              accountAttributes?.name ||
+              accountAttributes?.companyName ||
+              account?.name ||
+              account?.companyName ||
+              "N/A",
+            industry: accountAttributes?.industry || account?.industry || "",
+            website: accountAttributes?.website || account?.website || "",
+            employees: accountAttributes?.employees || account?.employees || "",
+            city: accountAttributes?.city || account?.city || "",
+            state: accountAttributes?.state || account?.state || "",
+            country: accountAttributes?.country || account?.country || "",
+          };
+        }
+
         const enrichedProject = {
           ...transformedProject,
           tasks: tasksWithProject,
           stats,
           team: transformedProject.teamMembers || [],
-          client: strapiProject.account
-            ? {
-                id: strapiProject.account.id,
-                name:
-                  strapiProject.account.name ||
-                  strapiProject.account.companyName ||
-                  "N/A",
-              }
-            : null,
+          client: accountData,
+          deal: strapiProject.deal || null,
           // Store original ISO dates for calculations
           originalStartDate: strapiProject.startDate,
           originalEndDate: strapiProject.endDate,
         };
+
+        // Debug logging
+        console.log("Project account data:", {
+          rawAccount: strapiProject.account,
+          processedAccount: accountData,
+          hasClient: !!accountData,
+        });
 
         setProject(enrichedProject);
 
@@ -772,7 +807,48 @@ export default function ProjectDetail({ params }) {
     }
   };
 
-  // Handle status updates
+  // Handle project status updates
+  const handleProjectStatusUpdate = async (newStatus) => {
+    if (!project || loadingStatusUpdate) return;
+
+    setLoadingStatusUpdate(true);
+    try {
+      // Transform frontend status to Strapi enum format
+      const strapiStatus = transformStatusToStrapi(newStatus);
+
+      // Optimistic update
+      setProject((prevProject) => ({
+        ...prevProject,
+        status: newStatus,
+      }));
+
+      // Update via API
+      await projectService.updateProject(project.id, { status: strapiStatus });
+    } catch (error) {
+      console.error("Error updating project status:", error);
+      // Revert on error
+      const updatedProject = await projectService.getProjectById(project.id, [
+        "projectManager",
+        "teamMembers",
+        "tasks",
+        "tasks.assignee",
+        "tasks.collaborators",
+        "tasks.project",
+        "tasks.subtasks",
+        "account",
+        "deal",
+        "deal.leadCompany",
+        "deal.clientAccount",
+      ]);
+      const transformedProject = transformProject(updatedProject);
+      setProject(transformedProject);
+      alert("Failed to update project status. Please try again.");
+    } finally {
+      setLoadingStatusUpdate(false);
+    }
+  };
+
+  // Handle task status updates
   const handleStatusUpdate = async (taskId, newStatus) => {
     if (!taskId) return;
 
@@ -811,6 +887,9 @@ export default function ProjectDetail({ params }) {
         "tasks.project",
         "tasks.subtasks",
         "account",
+        "deal",
+        "deal.leadCompany",
+        "deal.clientAccount",
       ]);
       const transformedProject = transformProject(updatedProject);
       setProject({ ...project, tasks: transformedProject.tasks });
@@ -856,6 +935,9 @@ export default function ProjectDetail({ params }) {
         "tasks.project",
         "tasks.subtasks",
         "account",
+        "deal",
+        "deal.leadCompany",
+        "deal.clientAccount",
       ]);
       const transformedProject = transformProject(updatedProject);
       setProject({ ...project, tasks: transformedProject.tasks });
@@ -1609,6 +1691,13 @@ export default function ProjectDetail({ params }) {
           onAddClick={() => router.push(`/tasks/add?projectId=${project.id}`)}
           actions={[
             {
+              label: "Edit",
+              icon: Pencil,
+              onClick: () =>
+                router.push(`/projects/${project.slug || project.id}/edit`),
+              variant: "primary",
+            },
+            {
               icon: Star,
               onClick: () => console.log("Star project"),
               title: "Star Project",
@@ -1752,19 +1841,56 @@ export default function ProjectDetail({ params }) {
                         <Target className="w-4 h-4 text-gray-500" />
                         <span className="text-sm text-gray-600">Status</span>
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                          project.status === "In Progress"
-                            ? "bg-blue-100 text-blue-700"
-                            : project.status === "Completed"
-                            ? "bg-green-100 text-green-700"
-                            : project.status === "On Hold"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
+                      <div
+                        className="min-w-[120px]"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {project.status}
-                      </span>
+                        <select
+                          value={project.status || "Planning"}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleProjectStatusUpdate(e.target.value);
+                          }}
+                          disabled={loadingStatusUpdate}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium border-2 transition-all duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none ${
+                            project.status === "In Progress" ||
+                            project.status === "Active" ||
+                            project.status === "IN_PROGRESS"
+                              ? "bg-blue-100 text-blue-700 border-blue-200"
+                              : project.status === "Completed" ||
+                                project.status === "COMPLETED"
+                              ? "bg-green-100 text-green-700 border-green-200"
+                              : project.status === "On Hold" ||
+                                project.status === "ON_HOLD"
+                              ? "bg-red-100 text-red-700 border-red-200"
+                              : project.status === "Planning" ||
+                                project.status === "PLANNING"
+                              ? "bg-gray-100 text-gray-700 border-gray-200"
+                              : project.status === "Cancelled" ||
+                                project.status === "CANCELLED"
+                              ? "bg-gray-100 text-gray-700 border-gray-200"
+                              : "bg-gray-100 text-gray-700 border-gray-200"
+                          } ${
+                            loadingStatusUpdate
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "right 0.5rem center",
+                            backgroundSize: "0.75rem 0.75rem",
+                            paddingRight: "2rem",
+                          }}
+                        >
+                          <option value="Planning">Planning</option>
+                          <option value="Active">Active</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                          <option value="On Hold">On Hold</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
                     </div>
                     {project.client && (
                       <div className="flex items-center justify-between py-2">
@@ -1894,7 +2020,259 @@ export default function ProjectDetail({ params }) {
 
               {/* Right Column - Key Metrics */}
               <div className="space-y-6">
-                {/* Key Metrics */}
+                {/* Project Lead/Owner */}
+                <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Project Lead
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg font-semibold text-gray-700">
+                        {(() => {
+                          const manager = project.projectManager;
+                          if (!manager) return "?";
+                          const firstName =
+                            manager?.firstName ||
+                            manager?.name?.split(" ")[0] ||
+                            "";
+                          const lastName =
+                            manager?.lastName ||
+                            manager?.name?.split(" ")[1] ||
+                            "";
+                          return (
+                            (firstName?.[0] || "").toUpperCase() +
+                              (lastName?.[0] || "").toUpperCase() || "?"
+                          );
+                        })()}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">
+                        {(() => {
+                          const manager = project.projectManager;
+                          if (!manager) return "Unassigned";
+                          if (manager?.firstName || manager?.lastName) {
+                            return `${manager.firstName || ""} ${
+                              manager.lastName || ""
+                            }`.trim();
+                          }
+                          return (
+                            manager?.name || manager?.username || "Unassigned"
+                          );
+                        })()}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {(() => {
+                          const manager = project.projectManager;
+                          if (!manager) return "Project Manager";
+
+                          const roleName =
+                            manager.primaryRole?.name ||
+                            manager.primaryRole?.data?.attributes?.name ||
+                            manager.primaryRole?.attributes?.name ||
+                            manager.role ||
+                            null;
+
+                          return roleName || "Project Manager";
+                        })()}
+                      </p>
+                      {project.projectManager && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                          <span className="text-sm text-gray-600">
+                            4.9 rating
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      onClick={() => {
+                        // TODO: Implement change assignee functionality
+                        console.log("Change assignee clicked");
+                      }}
+                    >
+                      <User className="w-4 h-4" />
+                      Change Assignee
+                    </button>
+                  </div>
+                </div>
+
+                {/* Company Information */}
+                {(() => {
+                  // Check if we have any company data
+                  const hasClient =
+                    project.client &&
+                    (project.client.id || project.client.name);
+                  const hasDealCompany =
+                    project.deal &&
+                    (project.deal.leadCompany || project.deal.clientAccount);
+
+                  if (!hasClient && !hasDealCompany) return null;
+
+                  return (() => {
+                    // Get company data from account, deal's leadCompany, or deal's clientAccount
+                    let companyData = null;
+                    let companyType = "Client";
+
+                    if (project.client) {
+                      companyData = project.client;
+                      companyType = "Client";
+                    } else if (project.deal?.leadCompany) {
+                      const leadCompany =
+                        project.deal.leadCompany.data ||
+                        project.deal.leadCompany;
+                      const leadCompanyAttrs =
+                        leadCompany?.attributes || leadCompany;
+                      companyData = {
+                        ...leadCompanyAttrs,
+                        id: leadCompany?.id || leadCompany?.documentId,
+                      };
+                      companyType = "Lead";
+                    } else if (project.deal?.clientAccount) {
+                      const clientAccount =
+                        project.deal.clientAccount.data ||
+                        project.deal.clientAccount;
+                      const clientAccountAttrs =
+                        clientAccount?.attributes || clientAccount;
+                      companyData = {
+                        ...clientAccountAttrs,
+                        id: clientAccount?.id || clientAccount?.documentId,
+                      };
+                      companyType = "Client";
+                    }
+
+                    if (!companyData) return null;
+
+                    const companyId = companyData.id;
+
+                    const companyName =
+                      companyData.name ||
+                      companyData.companyName ||
+                      "Unknown Company";
+
+                    const industry = companyData.industry || "";
+                    const website = companyData.website || "";
+                    const employees = companyData.employees || "";
+                    const city = companyData.city || "";
+                    const state = companyData.state || "";
+                    const country = companyData.country || "";
+
+                    return (
+                      <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                          Company Information
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Building2 className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className="text-lg font-semibold text-gray-900">
+                                  {companyName}
+                                </h4>
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                  {companyType}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                {industry && (
+                                  <div>
+                                    <span className="text-gray-500">
+                                      Industry
+                                    </span>
+                                    <p className="font-medium text-gray-900">
+                                      {industry}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {website && (
+                                  <div>
+                                    <span className="text-gray-500">
+                                      Website
+                                    </span>
+                                    <a
+                                      href={
+                                        website.startsWith("http")
+                                          ? website
+                                          : `https://${website}`
+                                      }
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1"
+                                    >
+                                      <Globe className="w-3 h-3" />
+                                      {website.replace(/^https?:\/\//, "")}
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                )}
+
+                                {employees && (
+                                  <div>
+                                    <span className="text-gray-500">
+                                      Employees
+                                    </span>
+                                    <p className="font-medium text-gray-900">
+                                      {employees}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {(city || state) && (
+                                  <div>
+                                    <span className="text-gray-500">
+                                      Location
+                                    </span>
+                                    <p className="font-medium text-gray-900">
+                                      {city && state
+                                        ? `${city}, ${state}`
+                                        : city || state || ""}
+                                      {country && `, ${country}`}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {companyId && (
+                                <div className="mt-4 flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      if (companyType === "Lead") {
+                                        router.push(
+                                          `/sales/lead-companies/${companyId}`
+                                        );
+                                      } else {
+                                        router.push(
+                                          `/sales/accounts/${companyId}`
+                                        );
+                                      }
+                                    }}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    View{" "}
+                                    {companyType === "Lead"
+                                      ? "Lead Company"
+                                      : "Client Account"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })();
+                })()}
+
+                {/* Quick Stats */}
                 <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Quick Stats

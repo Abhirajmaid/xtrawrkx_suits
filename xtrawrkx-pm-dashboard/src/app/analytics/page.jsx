@@ -130,10 +130,10 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
       {metrics.map((metric, index) => {
         const IconComponent = metric.icon;
         return (
-        <div
-          key={index}
+          <div
+            key={index}
             className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]"
-        >
+          >
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <p className="text-sm text-gray-600 mb-1 font-medium">
@@ -158,18 +158,18 @@ const KeyMetricsCards = ({ stats, previousStats }) => {
                         }`}
                   </span>
                   {metric.trend.value !== "+0" && (
-              <div
+                    <div
                       className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-xs ${
                         metric.trend.isPositive
-                    ? "bg-green-50 text-green-600"
-                    : "bg-red-50 text-red-600"
-                }`}
-              >
+                          ? "bg-green-50 text-green-600"
+                          : "bg-red-50 text-red-600"
+                      }`}
+                    >
                       {metric.trend.isPositive ? (
                         <ArrowUp className="h-2.5 w-2.5" />
-                ) : (
+                      ) : (
                         <ArrowDown className="h-2.5 w-2.5" />
-                )}
+                      )}
                       <span className="font-semibold">
                         {metric.trend.value}
                       </span>
@@ -331,7 +331,7 @@ const TasksByProject = ({ tasks, projects }) => {
           <p className="text-gray-500">No project data available</p>
         </div>
       </Card>
-  );
+    );
   }
 
   return (
@@ -611,7 +611,7 @@ const TaskCompletionOverTime = ({ tasks }) => {
             {/* Calculate path for incomplete tasks */}
             {timeData.length > 0 && (
               <>
-            <path
+                <path
                   d={`M 0,${
                     300 - (timeData[0].incomplete / maxValue) * 250
                   } ${timeData
@@ -627,10 +627,10 @@ const TaskCompletionOverTime = ({ tasks }) => {
                   } L 400,300 L 0,300 Z`}
                   fill="#EAB308"
                   opacity="0.4"
-            />
+                />
 
                 {/* Area chart for completed tasks */}
-            <path
+                <path
                   d={`M 0,${
                     300 - (timeData[0].completed / maxValue) * 250
                   } ${timeData
@@ -646,7 +646,7 @@ const TaskCompletionOverTime = ({ tasks }) => {
                   } L 400,300 L 0,300 Z`}
                   fill="#22C55E"
                   opacity="0.6"
-            />
+                />
               </>
             )}
           </svg>
