@@ -11,7 +11,7 @@ export function Table({
   ...props
 }) {
   return (
-    <div className="overflow-x-auto rounded-3xl bg-white/70 backdrop-blur-xl border border-white/40 shadow-2xl hover:shadow-3xl transition-shadow duration-300">
+    <div className="overflow-x-auto rounded-3xl bg-white/70 backdrop-blur-xl border border-white/40 transition-shadow duration-300">
       <table
         className={clsx("min-w-full rounded-3xl overflow-hidden", className)}
         {...props}

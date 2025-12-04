@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { X, Filter, Calendar, User, Building2, DollarSign } from 'lucide-react';
+import { X, Filter, Calendar, User, Building2, DollarSign, Target } from 'lucide-react';
 import { Card, Button, Input, Select } from "../../../../components/ui";
 
 export default function LeadsFilterModal({ 
   isOpen, 
   onClose, 
-  onApplyFilters 
+  onApplyFilters,
+  users = []
 }) {
   const [filters, setFilters] = useState({
     status: '',
@@ -29,14 +30,17 @@ export default function LeadsFilterModal({
   };
 
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       status: '',
       source: '',
       assignedTo: '',
       dateRange: '',
       valueRange: '',
       company: ''
-    });
+    };
+    setFilters(clearedFilters);
+    onApplyFilters(clearedFilters);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -51,147 +55,177 @@ export default function LeadsFilterModal({
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-yellow-400/20 to-yellow-500/20 backdrop-blur-md border border-yellow-300/40 rounded-xl flex items-center justify-center shadow-lg">
-                <Filter className="w-5 h-5 text-yellow-600" />
+              <div className="w-10 h-10 bg-orange-500/10 backdrop-blur-md rounded-xl flex items-center justify-center">
+                <Filter className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900">Filter Leads</h2>
-                <p className="text-sm text-gray-600">Refine your leads with advanced filters</p>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Filter Lead Companies
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Refine your lead company search
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-4 h-4 text-gray-500" />
             </button>
           </div>
 
-          {/* Filter Form */}
-          <div className="space-y-6">
-            {/* Status and Source Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <Select
-                  value={filters.status}
-                  onChange={(value) => handleFilterChange('status', value)}
-                  options={[
-                    { value: '', label: 'All Statuses' },
-                    { value: 'new', label: 'New' },
-                    { value: 'contacted', label: 'Contacted' },
-                    { value: 'qualified', label: 'Qualified' },
-                    { value: 'lost', label: 'Lost' }
-                  ]}
-                  placeholder="Select status"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Source
-                </label>
-                <Select
-                  value={filters.source}
-                  onChange={(value) => handleFilterChange('source', value)}
-                  options={[
-                    { value: '', label: 'All Sources' },
-                    { value: 'Website', label: 'Website' },
-                    { value: 'LinkedIn', label: 'LinkedIn' },
-                    { value: 'Referral', label: 'Referral' },
-                    { value: 'Email Campaign', label: 'Email Campaign' },
-                    { value: 'Trade Show', label: 'Trade Show' }
-                  ]}
-                  placeholder="Select source"
-                />
-              </div>
+          {/* Filter Options */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Status Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Target className="w-4 h-4 inline mr-2" />
+                Status
+              </label>
+              <Select
+                value={filters.status}
+                onChange={(value) => handleFilterChange('status', value)}
+                options={[
+                  { value: '', label: 'All Statuses' },
+                  { value: 'new', label: 'New' },
+                  { value: 'contacted', label: 'Contacted' },
+                  { value: 'qualified', label: 'Qualified' },
+                  { value: 'lost', label: 'Lost' }
+                ]}
+                placeholder="Select status"
+                className="w-full"
+              />
             </div>
 
-            {/* Assigned To and Company Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assigned To
-                </label>
-                <Select
-                  value={filters.assignedTo}
-                  onChange={(value) => handleFilterChange('assignedTo', value)}
-                  options={[
-                    { value: '', label: 'All Assignees' },
-                    { value: 'John Smith', label: 'John Smith' },
-                    { value: 'Sarah Wilson', label: 'Sarah Wilson' },
-                    { value: 'Emily Davis', label: 'Emily Davis' }
-                  ]}
-                  placeholder="Select assignee"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Company
-                </label>
-                <Input
-                  value={filters.company}
-                  onChange={(e) => handleFilterChange('company', e.target.value)}
-                  placeholder="Enter company name"
-                />
-              </div>
+            {/* Source Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Building2 className="w-4 h-4 inline mr-2" />
+                Source
+              </label>
+              <Select
+                value={filters.source}
+                onChange={(value) => handleFilterChange('source', value)}
+                options={[
+                  { value: '', label: 'All Sources' },
+                  { value: 'WEBSITE', label: 'Website' },
+                  { value: 'REFERRAL', label: 'Referral' },
+                  { value: 'COLD_OUTREACH', label: 'Cold Outreach' },
+                  { value: 'SOCIAL_MEDIA', label: 'Social Media' },
+                  { value: 'EVENT', label: 'Event' },
+                  { value: 'PARTNER', label: 'Partner' },
+                  { value: 'ADVERTISING', label: 'Advertising' },
+                  { value: 'MANUAL', label: 'Manual' }
+                ]}
+                placeholder="Select source"
+                className="w-full"
+              />
             </div>
 
-            {/* Date Range and Value Range Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date Range
-                </label>
-                <Select
-                  value={filters.dateRange}
-                  onChange={(value) => handleFilterChange('dateRange', value)}
-                  options={[
-                    { value: '', label: 'All Time' },
-                    { value: 'today', label: 'Today' },
-                    { value: 'week', label: 'This Week' },
-                    { value: 'month', label: 'This Month' },
-                    { value: 'quarter', label: 'This Quarter' }
-                  ]}
-                  placeholder="Select date range"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Value Range
-                </label>
-                <Select
-                  value={filters.valueRange}
-                  onChange={(value) => handleFilterChange('valueRange', value)}
-                  options={[
-                    { value: '', label: 'All Values' },
-                    { value: '0-25k', label: '$0 - $25K' },
-                    { value: '25k-50k', label: '$25K - $50K' },
-                    { value: '50k-100k', label: '$50K - $100K' },
-                    { value: '100k+', label: '$100K+' }
-                  ]}
-                  placeholder="Select value range"
-                />
-              </div>
+            {/* Assigned To Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Assigned To
+              </label>
+              <Select
+                value={filters.assignedTo}
+                onChange={(value) => handleFilterChange('assignedTo', value)}
+                options={[
+                  { value: '', label: 'All Assignees' },
+                  ...users.map((user) => ({
+                    value: (user.id || user.documentId).toString(),
+                    label:
+                      `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+                      user.username ||
+                      user.email ||
+                      "Unknown User",
+                  }))
+                ]}
+                placeholder="Select assignee"
+                className="w-full"
+              />
+            </div>
+
+            {/* Company Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Building2 className="w-4 h-4 inline mr-2" />
+                Company
+              </label>
+              <Input
+                type="text"
+                placeholder="Filter by company..."
+                value={filters.company}
+                onChange={(e) => handleFilterChange('company', e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            {/* Date Range Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Calendar className="w-4 h-4 inline mr-2" />
+                Date Range
+              </label>
+              <Select
+                value={filters.dateRange}
+                onChange={(value) => handleFilterChange('dateRange', value)}
+                options={[
+                  { value: '', label: 'All Time' },
+                  { value: 'today', label: 'Today' },
+                  { value: 'week', label: 'This Week' },
+                  { value: 'month', label: 'This Month' },
+                  { value: 'quarter', label: 'This Quarter' }
+                ]}
+                placeholder="Select date range"
+                className="w-full"
+              />
+            </div>
+
+            {/* Value Range Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <DollarSign className="w-4 h-4 inline mr-2" />
+                Value Range
+              </label>
+              <Select
+                value={filters.valueRange}
+                onChange={(value) => handleFilterChange('valueRange', value)}
+                options={[
+                  { value: '', label: 'All Values' },
+                  { value: '0-25k', label: '₹0 - ₹25K' },
+                  { value: '25k-50k', label: '₹25K - ₹50K' },
+                  { value: '50k-100k', label: '₹50K - ₹100K' },
+                  { value: '100k+', label: '₹100K+' }
+                ]}
+                placeholder="Select value range"
+                className="w-full"
+              />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
             <Button
               variant="outline"
               onClick={handleClearFilters}
-              className="px-6 py-2.5"
+              className="text-gray-600 hover:text-gray-800"
             >
               Clear All
             </Button>
-            <Button
-              onClick={handleApplyFilters}
-              className="px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white border-0 shadow-lg"
-            >
-              Apply Filters
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApplyFilters}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                Apply Filters
+              </Button>
+            </div>
           </div>
         </div>
       </Card>

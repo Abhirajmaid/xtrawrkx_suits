@@ -27,6 +27,7 @@ import { Badge, Avatar, Button, Table, Select } from "../../../components/ui";
 import PageHeader from "../../../components/PageHeader";
 import proposalService from "../../../lib/api/proposalService";
 import clientAccountService from "../../../lib/api/clientAccountService";
+import dealService from "../../../lib/api/dealService";
 import { useAuth } from "../../../contexts/AuthContext";
 import ProposalsKPIs from "./components/ProposalsKPIs";
 import ProposalsTabs from "./components/ProposalsTabs";
@@ -77,19 +78,16 @@ export default function ProposalsPage() {
     status: "DRAFT",
     clientAccount: "",
     deal: "",
-    contact: "",
     sentToContact: "",
   });
   const [clientAccounts, setClientAccounts] = useState([]);
   const [deals, setDeals] = useState([]);
-  const [contacts, setContacts] = useState([]);
 
   // Fetch proposals
   useEffect(() => {
     fetchProposals();
     fetchClientAccounts();
     fetchDeals();
-    fetchContacts();
   }, []);
 
   const fetchProposals = async () => {
@@ -142,41 +140,20 @@ export default function ProposalsPage() {
 
   const fetchDeals = async () => {
     try {
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:1337"
-        }/api/deals?pagination[pageSize]=1000&populate=clientAccount`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("strapi_token")}`,
-          },
-        }
-      );
-      const data = await response.json();
-      setDeals(data.data || []);
+      const response = await dealService.getAll({
+        populate: ["clientAccount", "leadCompany", "contact", "assignedTo"],
+        pagination: { pageSize: 1000 },
+        sort: ["createdAt:desc"],
+      });
+      const dealsData = response.data || [];
+      setDeals(dealsData);
+      console.log(`Loaded ${dealsData.length} deals for proposals`);
     } catch (err) {
       console.error("Error fetching deals:", err);
+      setDeals([]);
     }
   };
 
-  const fetchContacts = async () => {
-    try {
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:1337"
-        }/api/contacts?pagination[pageSize]=1000&populate=clientAccount`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("strapi_token")}`,
-          },
-        }
-      );
-      const data = await response.json();
-      setContacts(data.data || []);
-    } catch (err) {
-      console.error("Error fetching contacts:", err);
-    }
-  };
 
   const calculateStats = (proposalsData) => {
     const stats = {
@@ -246,7 +223,6 @@ export default function ProposalsPage() {
         status: proposalFormData.status,
         clientAccount: proposalFormData.clientAccount,
         deal: proposalFormData.deal || null,
-        contact: proposalFormData.contact || null,
         sentToContact: proposalFormData.sentToContact || null,
       };
 
@@ -261,7 +237,6 @@ export default function ProposalsPage() {
         status: "DRAFT",
         clientAccount: "",
         deal: "",
-        contact: "",
         sentToContact: "",
       });
       alert("Proposal created successfully!");
@@ -300,7 +275,6 @@ export default function ProposalsPage() {
         status: proposalFormData.status,
         clientAccount: proposalFormData.clientAccount,
         deal: proposalFormData.deal || null,
-        contact: proposalFormData.contact || null,
         sentToContact: proposalFormData.sentToContact || null,
       };
 
@@ -319,7 +293,6 @@ export default function ProposalsPage() {
         status: "DRAFT",
         clientAccount: "",
         deal: "",
-        contact: "",
         sentToContact: "",
       });
       alert("Proposal updated successfully!");
@@ -513,7 +486,6 @@ export default function ProposalsPage() {
                 status: row.status || "DRAFT",
                 clientAccount: row.clientAccount?.id || "",
                 deal: row.deal?.id || "",
-                contact: row.contact?.id || "",
                 sentToContact: row.sentToContact?.id || "",
               });
               setShowEditModal(true);
@@ -629,7 +601,6 @@ export default function ProposalsPage() {
             status: "DRAFT",
             clientAccount: "",
             deal: "",
-            contact: "",
             sentToContact: "",
           });
         }}
@@ -638,7 +609,6 @@ export default function ProposalsPage() {
         setProposalFormData={setProposalFormData}
         clientAccounts={clientAccounts}
         deals={deals}
-        contacts={contacts}
         isSubmitting={false}
       />
 
@@ -665,7 +635,6 @@ export default function ProposalsPage() {
             status: "DRAFT",
             clientAccount: "",
             deal: "",
-            contact: "",
             sentToContact: "",
           });
         }}
@@ -674,7 +643,6 @@ export default function ProposalsPage() {
         setProposalFormData={setProposalFormData}
         clientAccounts={clientAccounts}
         deals={deals}
-        contacts={contacts}
         isSubmitting={isUpdating}
       />
 

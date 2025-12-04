@@ -13,6 +13,7 @@ export default function ContactsFilterModal({
     title: "",
     dateRange: "",
     source: "",
+    role: "",
   });
 
   const handleFilterChange = (key, value) => {
@@ -28,13 +29,17 @@ export default function ContactsFilterModal({
   };
 
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       status: "",
       company: "",
       title: "",
       dateRange: "",
       source: "",
-    });
+      role: "",
+    };
+    setFilters(clearedFilters);
+    onApplyFilters(clearedFilters);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -79,15 +84,17 @@ export default function ContactsFilterModal({
               </label>
               <Select
                 value={filters.status}
-                onChange={(e) => handleFilterChange("status", e.target.value)}
+                onChange={(value) => handleFilterChange("status", value)}
+                options={[
+                  { value: "", label: "All Statuses" },
+                  { value: "ACTIVE", label: "Active" },
+                  { value: "NEW", label: "New" },
+                  { value: "QUALIFIED", label: "Qualified" },
+                  { value: "INACTIVE", label: "Inactive" },
+                ]}
+                placeholder="Select an option"
                 className="w-full"
-              >
-                <option value="">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="NEW">New</option>
-                <option value="QUALIFIED">Qualified</option>
-                <option value="INACTIVE">Inactive</option>
-              </Select>
+              />
             </div>
 
             {/* Company Filter */}
@@ -128,16 +135,18 @@ export default function ContactsFilterModal({
               </label>
               <Select
                 value={filters.role}
-                onChange={(e) => handleFilterChange("role", e.target.value)}
+                onChange={(value) => handleFilterChange("role", value)}
+                options={[
+                  { value: "", label: "All Roles" },
+                  { value: "PRIMARY_CONTACT", label: "Primary Contact" },
+                  { value: "DECISION_MAKER", label: "Decision Maker" },
+                  { value: "INFLUENCER", label: "Influencer" },
+                  { value: "TECHNICAL_CONTACT", label: "Technical Contact" },
+                  { value: "GATEKEEPER", label: "Gatekeeper" },
+                ]}
+                placeholder="Select an option"
                 className="w-full"
-              >
-                <option value="">All Roles</option>
-                <option value="PRIMARY_CONTACT">Primary Contact</option>
-                <option value="DECISION_MAKER">Decision Maker</option>
-                <option value="INFLUENCER">Influencer</option>
-                <option value="TECHNICAL_CONTACT">Technical Contact</option>
-                <option value="GATEKEEPER">Gatekeeper</option>
-              </Select>
+              />
             </div>
 
             {/* Date Range Filter */}
@@ -148,17 +157,17 @@ export default function ContactsFilterModal({
               </label>
               <Select
                 value={filters.dateRange}
-                onChange={(e) =>
-                  handleFilterChange("dateRange", e.target.value)
-                }
+                onChange={(value) => handleFilterChange("dateRange", value)}
+                options={[
+                  { value: "", label: "All Time" },
+                  { value: "today", label: "Today" },
+                  { value: "week", label: "This Week" },
+                  { value: "month", label: "This Month" },
+                  { value: "quarter", label: "This Quarter" },
+                ]}
+                placeholder="Select an option"
                 className="w-full"
-              >
-                <option value="">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="quarter">This Quarter</option>
-              </Select>
+              />
             </div>
           </div>
 

@@ -14,12 +14,14 @@ import {
   Modal,
   Tabs,
   EmptyState,
+  Pagination,
 } from "../../../components/ui";
 import { formatNumber } from "../../../lib/utils";
 import contactService from "../../../lib/api/contactService";
 import strapiClient from "../../../lib/strapiClient";
 import { useAuth } from "../../../contexts/AuthContext";
 import authService from "../../../lib/authService";
+import { toast } from "react-toastify";
 
 import PageHeader from "../../../components/PageHeader";
 import ContactsKPIs from "./components/ContactsKPIs";
@@ -79,6 +81,8 @@ export default function ContactsPage() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showAddSuccessMessage, setShowAddSuccessMessage] = useState(false);
@@ -126,8 +130,15 @@ export default function ContactsPage() {
 
   // Refetch when filters change
   useEffect(() => {
-    if (Object.keys(appliedFilters).length > 0) {
+    const hasActiveFilters = Object.values(appliedFilters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters) {
       fetchFilteredContacts();
+    } else if (Object.keys(appliedFilters).length === 0) {
+      // Only fetch all if filters were explicitly cleared
+      // Don't refetch on initial mount
     }
   }, [appliedFilters]);
 
@@ -384,18 +395,19 @@ export default function ContactsPage() {
   // Handle filter application
   const handleApplyFilters = (filters) => {
     console.log("Applying filters:", filters);
-    setAppliedFilters(filters);
-
-    // Show loading state
-    setLoading(true);
-
-    // If no filters are applied, fetch all contacts
+    
+    // Check if any filters are active
     const hasActiveFilters = Object.values(filters).some(
-      (value) => value && value.trim() !== ""
+      (value) => value && value.toString().trim() !== ""
     );
-    if (!hasActiveFilters) {
+    
+    if (hasActiveFilters) {
+      setAppliedFilters(filters);
+      // fetchFilteredContacts will be called by useEffect when appliedFilters changes
+    } else {
       setAppliedFilters({});
       fetchContacts();
+      toast.info("Filters cleared");
     }
   };
 
@@ -581,6 +593,30 @@ export default function ContactsPage() {
     return matchesSearch && matchesTab;
   });
 
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredContacts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedFilters, searchQuery, activeTab]);
+
+  // Show filtered count after data is loaded
+  const prevFilteredCountRef = useRef(null);
+  useEffect(() => {
+    const hasActiveFilters = Object.values(appliedFilters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters && !loading && filteredContacts.length !== prevFilteredCountRef.current) {
+      prevFilteredCountRef.current = filteredContacts.length;
+      toast.success(`Filters applied. Showing ${filteredContacts.length} result${filteredContacts.length !== 1 ? 's' : ''}`);
+    }
+  }, [filteredContacts.length, appliedFilters, loading]);
+
   // Get contact statistics
   const contactStats = {
     active: contacts.filter((c) => c.status === "ACTIVE").length,
@@ -666,7 +702,8 @@ export default function ContactsPage() {
             fallback={`${contact.firstName?.[0] || ""}${
               contact.lastName?.[0] || ""
             }`}
-            className="w-10 h-10"
+            size="sm"
+            className="flex-shrink-0"
           />
           <div>
             <div className="font-medium text-gray-900">
@@ -760,6 +797,7 @@ export default function ContactsPage() {
               alt={ownerName}
               fallback={(ownerName || "?").charAt(0).toUpperCase()}
               size="sm"
+              className="flex-shrink-0"
               className="flex-shrink-0"
             />
             <span className="text-sm font-medium text-gray-900 flex-1 truncate">
@@ -1011,6 +1049,9 @@ export default function ContactsPage() {
           onSearchChange={handleSearchChange}
           onAddClick={() => router.push("/sales/contacts/new")}
           onFilterClick={() => setIsFilterModalOpen(true)}
+          hasActiveFilters={Object.values(appliedFilters).some(
+            (value) => value && value.toString().trim() !== ""
+          )}
           onImportClick={() => setIsImportModalOpen(true)}
           onExportClick={handleExport}
         />
@@ -1029,10 +1070,15 @@ export default function ContactsPage() {
             onExportClick={() => handleExport("csv")}
           />
 
+          {/* Results Count */}
+          <div className="text-sm text-gray-600 px-1">
+            Showing <span className="font-semibold text-gray-900">{filteredContacts.length}</span> result{filteredContacts.length !== 1 ? 's' : ''}
+          </div>
+
           {/* Contacts Table */}
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <ContactsListView
-              filteredContacts={filteredContacts}
+              filteredContacts={paginatedContacts}
               contactColumnsTable={contactColumnsTable}
               selectedContacts={selectedContacts}
               setSelectedContacts={setSelectedContacts}
@@ -1042,6 +1088,17 @@ export default function ContactsPage() {
               onRowClick={(row) => {
                 router.push(`/sales/contacts/${row.id}`);
               }}
+              pagination={
+                totalPages > 1 ? (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filteredContacts.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                ) : null
+              }
             />
           </div>
         </div>

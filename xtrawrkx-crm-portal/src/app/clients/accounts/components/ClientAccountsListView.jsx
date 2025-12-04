@@ -10,32 +10,36 @@ export default function ClientAccountsListView({
   setSearchQuery,
   onAddClick,
   onRowClick,
+  pagination,
 }) {
   return (
     <div className="rounded-3xl overflow-hidden">
       {filteredAccounts.length > 0 ? (
-        <Table
-          columns={accountColumnsTable}
-          data={filteredAccounts}
-          selectable
-          selectedRows={selectedAccounts}
-          onSelectRow={(id, selected) => {
-            if (selected) {
-              setSelectedAccounts([...selectedAccounts, id]);
-            } else {
-              setSelectedAccounts(selectedAccounts.filter((item) => item !== id));
-            }
-          }}
-          onSelectAll={(selected) => {
-            if (selected) {
-              setSelectedAccounts(filteredAccounts.map((account) => account.id));
-            } else {
-              setSelectedAccounts([]);
-            }
-          }}
-          onRowClick={onRowClick}
-          className="min-w-[1800px]"
-        />
+        <>
+          <Table
+            columns={accountColumnsTable}
+            data={filteredAccounts}
+            selectable
+            selectedRows={selectedAccounts}
+            onSelectRow={(id, selected) => {
+              if (selected) {
+                setSelectedAccounts([...selectedAccounts, id]);
+              } else {
+                setSelectedAccounts(selectedAccounts.filter((item) => item !== id));
+              }
+            }}
+            onSelectAll={(selected) => {
+              if (selected) {
+                setSelectedAccounts(filteredAccounts.map((account) => account.id));
+              } else {
+                setSelectedAccounts([]);
+              }
+            }}
+            onRowClick={onRowClick}
+            className="min-w-[1800px]"
+          />
+          {pagination}
+        </>
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">
           <EmptyState

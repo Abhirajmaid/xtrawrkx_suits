@@ -24,3 +24,4 @@ export { default as AreaChart } from './AreaChart';
 
 // Navigation  
 export { default as Tabs } from './Tabs';
+export { default as Pagination } from './Pagination';

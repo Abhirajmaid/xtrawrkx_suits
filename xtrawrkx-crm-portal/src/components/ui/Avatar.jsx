@@ -9,10 +9,11 @@ export function Avatar({
   ...props
 }) {
   const sizes = {
-    sm: "w-8 h-8 text-xs",
-    md: "w-10 h-10 text-sm",
-    lg: "w-12 h-12 text-base",
-    xl: "w-16 h-16 text-lg",
+    xs: "w-6 h-6 text-xs",
+    sm: "w-7 h-7 text-xs",
+    md: "w-8 h-8 text-xs",
+    lg: "w-10 h-10 text-sm",
+    xl: "w-12 h-12 text-base",
   };
 
   const initials = fallback || (alt ? alt.charAt(0).toUpperCase() : "?");
@@ -20,7 +21,7 @@ export function Avatar({
   return (
     <div
       className={clsx(
-        "inline-flex items-center justify-center rounded-full bg-gray-500 font-medium text-white",
+        "inline-flex items-center justify-center rounded-full bg-gray-500 font-medium text-white flex-shrink-0",
         sizes[size],
         className
       )}
@@ -33,7 +34,7 @@ export function Avatar({
           className="w-full h-full rounded-full object-cover"
         />
       ) : (
-        <span>{initials}</span>
+        <span className="select-none">{initials}</span>
       )}
     </div>
   );

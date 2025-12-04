@@ -12,7 +12,6 @@ export default function AddProposalModal({
   setProposalFormData,
   clientAccounts,
   deals,
-  contacts,
   isSubmitting,
 }) {
   if (typeof window === "undefined" || !isOpen) return null;
@@ -79,65 +78,39 @@ export default function AddProposalModal({
               </select>
             </div>
 
-            {/* Deal and Contact - Two Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Related Deal
-                </label>
-                <select
-                  value={proposalFormData.deal}
-                  onChange={(e) =>
-                    setProposalFormData({
-                      ...proposalFormData,
-                      deal: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="">Select deal (optional)...</option>
-                  {deals
-                    .filter(
-                      (deal) =>
-                        deal.clientAccount?.id == proposalFormData.clientAccount ||
-                        !proposalFormData.clientAccount
-                    )
-                    .map((deal) => (
-                      <option key={deal.id} value={deal.id}>
-                        {deal.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Contact
-                </label>
-                <select
-                  value={proposalFormData.contact}
-                  onChange={(e) =>
-                    setProposalFormData({
-                      ...proposalFormData,
-                      contact: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="">Select contact (optional)...</option>
-                  {contacts
-                    .filter(
-                      (contact) =>
-                        contact.clientAccount?.id == proposalFormData.clientAccount ||
-                        !proposalFormData.clientAccount
-                    )
-                    .map((contact) => (
-                      <option key={contact.id} value={contact.id}>
-                        {contact.firstName} {contact.lastName}
-                      </option>
-                    ))}
-                </select>
-              </div>
+            {/* Related Deal - Full Width */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Related Deal
+              </label>
+              <select
+                value={proposalFormData.deal}
+                onChange={(e) =>
+                  setProposalFormData({
+                    ...proposalFormData,
+                    deal: e.target.value,
+                  })
+                }
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white transition-colors appearance-none cursor-pointer"
+              >
+                <option value="">Select deal (optional)...</option>
+                {deals
+                  .filter((deal) => {
+                    // Filter deals by clientAccount if one is selected
+                    if (!proposalFormData.clientAccount) {
+                      return true; // Show all deals if no client account selected
+                    }
+                    // Check if deal's clientAccount matches selected clientAccount
+                    const dealAccountId = deal.clientAccount?.id || deal.clientAccount?.documentId;
+                    const selectedAccountId = proposalFormData.clientAccount;
+                    return dealAccountId?.toString() === selectedAccountId?.toString();
+                  })
+                  .map((deal) => (
+                    <option key={deal.id || deal.documentId} value={deal.id || deal.documentId}>
+                      {deal.name}
+                    </option>
+                  ))}
+              </select>
             </div>
 
             {/* Valid Until and Status - Two Columns */}

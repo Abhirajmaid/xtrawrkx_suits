@@ -212,14 +212,15 @@ export default function MyTasks() {
         const transformedMyTasks =
           myTasksResponse.data?.map(transformTask) || [];
 
-        // Additional client-side filter to ensure only tasks assigned to current user are shown
         // Normalize IDs for comparison (handle both string and number IDs)
         const normalizedCurrentUserId =
           typeof currentUserId === "string"
             ? parseInt(currentUserId)
             : currentUserId;
 
-        const userAssignedTasks = transformedMyTasks.filter((task) => {
+        // Filter tasks where user is assignee OR collaborator
+        // Use allPMTasks to include tasks where user might be collaborator but not assignee
+        const userAssignedTasks = allPMTasks.filter((task) => {
           // Check if task is assigned to current user
           const taskAssigneeId =
             task.assignee?.id || task.assignee?._id || task.assignee;
@@ -227,7 +228,18 @@ export default function MyTasks() {
             typeof taskAssigneeId === "string"
               ? parseInt(taskAssigneeId)
               : taskAssigneeId;
-          return normalizedTaskAssigneeId === normalizedCurrentUserId;
+          const isAssignee = normalizedTaskAssigneeId === normalizedCurrentUserId;
+
+          // Check if user is a collaborator
+          const collaborators = task.collaborators || [];
+          const isCollaborator = collaborators.some((collab) => {
+            const collabId = collab?.id || collab?._id || collab;
+            const normalizedCollabId =
+              typeof collabId === "string" ? parseInt(collabId) : collabId;
+            return normalizedCollabId === normalizedCurrentUserId;
+          });
+
+          return isAssignee || isCollaborator;
         });
 
         const transformedProjects =
@@ -1567,20 +1579,34 @@ export default function MyTasks() {
       // Transform user's tasks
       const transformedMyTasks = myTasksResponse.data?.map(transformTask) || [];
 
-      // Additional client-side filter to ensure only tasks assigned to current user are shown
+      // Normalize IDs for comparison (handle both string and number IDs)
       const normalizedCurrentUserId =
         typeof currentUserId === "string"
           ? parseInt(currentUserId)
           : currentUserId;
 
-      const userAssignedTasks = transformedMyTasks.filter((task) => {
+      // Filter tasks where user is assignee OR collaborator
+      // Use allPMTasks to include tasks where user might be collaborator but not assignee
+      const userAssignedTasks = allPMTasks.filter((task) => {
+        // Check if task is assigned to current user
         const taskAssigneeId =
           task.assignee?.id || task.assignee?._id || task.assignee;
         const normalizedTaskAssigneeId =
           typeof taskAssigneeId === "string"
             ? parseInt(taskAssigneeId)
             : taskAssigneeId;
-        return normalizedTaskAssigneeId === normalizedCurrentUserId;
+        const isAssignee = normalizedTaskAssigneeId === normalizedCurrentUserId;
+
+        // Check if user is a collaborator
+        const collaborators = task.collaborators || [];
+        const isCollaborator = collaborators.some((collab) => {
+          const collabId = collab?.id || collab?._id || collab;
+          const normalizedCollabId =
+            typeof collabId === "string" ? parseInt(collabId) : collabId;
+          return normalizedCollabId === normalizedCurrentUserId;
+        });
+
+        return isAssignee || isCollaborator;
       });
 
       setTasks(userAssignedTasks);

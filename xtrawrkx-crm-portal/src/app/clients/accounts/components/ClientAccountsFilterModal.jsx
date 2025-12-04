@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Modal, Button, Input, Select } from "../../../../components/ui";
-import { Filter, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Card, Button, Input, Select } from "../../../../components/ui";
+import { Filter, X, Building2, TrendingUp, DollarSign, Heart } from "lucide-react";
 
 export default function ClientAccountsFilterModal({
   isOpen,
@@ -8,18 +8,56 @@ export default function ClientAccountsFilterModal({
   appliedFilters,
   onApplyFilters,
 }) {
-  const [filters, setFilters] = useState(appliedFilters);
+  const [filters, setFilters] = useState({
+    status: "",
+    industry: "",
+    minRevenue: "",
+    maxRevenue: "",
+    minHealthScore: "",
+    maxHealthScore: "",
+  });
+
+  // Initialize filters from appliedFilters
+  useEffect(() => {
+    if (appliedFilters) {
+      setFilters({
+        status: appliedFilters.status || "",
+        industry: appliedFilters.industry || "",
+        minRevenue: appliedFilters.minRevenue || "",
+        maxRevenue: appliedFilters.maxRevenue || "",
+        minHealthScore: appliedFilters.minHealthScore || "",
+        maxHealthScore: appliedFilters.maxHealthScore || "",
+      });
+    }
+  }, [appliedFilters, isOpen]);
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
   const handleApply = () => {
     onApplyFilters(filters);
     onClose();
   };
 
-  const handleReset = () => {
-    setFilters({});
-    onApplyFilters({});
+  const handleClearFilters = () => {
+    const clearedFilters = {
+      status: "",
+      industry: "",
+      minRevenue: "",
+      maxRevenue: "",
+      minHealthScore: "",
+      maxHealthScore: "",
+    };
+    setFilters(clearedFilters);
+    onApplyFilters(clearedFilters);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   const statusOptions = [
     { value: "", label: "All Statuses" },
@@ -42,111 +80,143 @@ export default function ClientAccountsFilterModal({
   ];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Filter Client Accounts">
-      <div className="space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-            <Filter className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Filter Options
-            </h3>
-            <p className="text-sm text-gray-600">
-              Refine your client account search
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Select
-              label="Status"
-              value={filters.status || ""}
-              onChange={(value) => setFilters({ ...filters, status: value })}
-              options={statusOptions}
-            />
-          </div>
-
-          <div>
-            <Select
-              label="Industry"
-              value={filters.industry || ""}
-              onChange={(value) => setFilters({ ...filters, industry: value })}
-              options={industryOptions}
-            />
-          </div>
-
-          <div>
-            <Input
-              label="Min Revenue"
-              type="number"
-              value={filters.minRevenue || ""}
-              onChange={(e) =>
-                setFilters({ ...filters, minRevenue: e.target.value })
-              }
-              placeholder="0"
-            />
-          </div>
-
-          <div>
-            <Input
-              label="Max Revenue"
-              type="number"
-              value={filters.maxRevenue || ""}
-              onChange={(e) =>
-                setFilters({ ...filters, maxRevenue: e.target.value })
-              }
-              placeholder="1000000"
-            />
-          </div>
-
-          <div>
-            <Input
-              label="Min Health Score"
-              type="number"
-              min="0"
-              max="100"
-              value={filters.minHealthScore || ""}
-              onChange={(e) =>
-                setFilters({ ...filters, minHealthScore: e.target.value })
-              }
-              placeholder="0"
-            />
-          </div>
-
-          <div>
-            <Input
-              label="Max Health Score"
-              type="number"
-              min="0"
-              max="100"
-              value={filters.maxHealthScore || ""}
-              onChange={(e) =>
-                setFilters({ ...filters, maxHealthScore: e.target.value })
-              }
-              placeholder="100"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between pt-6 border-t">
-          <Button variant="outline" onClick={handleReset}>
-            Reset Filters
-          </Button>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleApply}
-              className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white"
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card
+        glass={true}
+        className="w-full max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl"
+      >
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-500/10 backdrop-blur-md rounded-xl flex items-center justify-center">
+                <Filter className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Filter Client Accounts
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Refine your client account search
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
             >
-              Apply Filters
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Filter Options */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Status Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Building2 className="w-4 h-4 inline mr-2" />
+                Status
+              </label>
+              <Select
+                value={filters.status}
+                onChange={(value) => handleFilterChange("status", value)}
+                options={statusOptions}
+                placeholder="Select an option"
+                className="w-full"
+              />
+            </div>
+
+            {/* Industry Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <TrendingUp className="w-4 h-4 inline mr-2" />
+                Industry
+              </label>
+              <Select
+                value={filters.industry}
+                onChange={(value) => handleFilterChange("industry", value)}
+                options={industryOptions}
+                placeholder="Select an option"
+                className="w-full"
+              />
+            </div>
+
+            {/* Revenue Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <DollarSign className="w-4 h-4 inline mr-2" />
+                Revenue Range (₹)
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min (₹)"
+                  value={filters.minRevenue}
+                  onChange={(e) => handleFilterChange("minRevenue", e.target.value)}
+                  className="w-full"
+                />
+                <Input
+                  type="number"
+                  placeholder="Max (₹)"
+                  value={filters.maxRevenue}
+                  onChange={(e) => handleFilterChange("maxRevenue", e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Health Score Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Heart className="w-4 h-4 inline mr-2" />
+                Health Score Range
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="Min (0-100)"
+                  value={filters.minHealthScore}
+                  onChange={(e) => handleFilterChange("minHealthScore", e.target.value)}
+                  className="w-full"
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="Max (0-100)"
+                  value={filters.maxHealthScore}
+                  onChange={(e) => handleFilterChange("maxHealthScore", e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              Clear All
             </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApply}
+                className="bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                Apply Filters
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </Modal>
+      </Card>
+    </div>
   );
 }

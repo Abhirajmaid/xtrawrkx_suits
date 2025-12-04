@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Avatar, Button, Select } from "../../../components/ui";
+import { Badge, Avatar, Button, Select, Pagination } from "../../../components/ui";
 import { formatNumber, formatCurrency } from "../../../lib/utils";
+import { toast } from "react-toastify";
 
 // Local utility function to replace @xtrawrkx/utils formatDate
 const formatDate = (dateString) => {
@@ -67,6 +68,8 @@ export default function ClientAccountsPage() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showAddSuccessMessage, setShowAddSuccessMessage] = useState(false);
@@ -217,8 +220,9 @@ export default function ClientAccountsPage() {
     }
   };
 
-  // Filter accounts based on search and active tab
+  // Filter accounts based on search, active tab, and applied filters
   const filteredAccounts = clientAccounts.filter((account) => {
+    // Search filter
     const matchesSearch =
       !searchQuery ||
       account.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -230,6 +234,7 @@ export default function ClientAccountsPage() {
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase());
 
+    // Tab filter
     const matchesTab =
       activeTab === "all" ||
       (activeTab === "active" && account.status?.toLowerCase() === "active") ||
@@ -239,8 +244,77 @@ export default function ClientAccountsPage() {
         account.status?.toLowerCase() === "churned") ||
       (activeTab === "on-hold" && account.status?.toLowerCase() === "on_hold");
 
-    return matchesSearch && matchesTab;
+    // Applied filters
+    let matchesFilters = true;
+    
+    if (Object.keys(appliedFilters).length > 0) {
+      // Status filter
+      if (appliedFilters.status) {
+        const filterStatus = appliedFilters.status.toLowerCase();
+        const accountStatus = account.status?.toLowerCase() || "";
+        if (filterStatus !== accountStatus) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Industry filter
+      if (appliedFilters.industry) {
+        const filterIndustry = appliedFilters.industry.toLowerCase();
+        const accountIndustry = account.industry?.toLowerCase() || "";
+        if (filterIndustry !== accountIndustry) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Revenue range filters
+      if (appliedFilters.minRevenue || appliedFilters.maxRevenue) {
+        const accountRevenue = account.revenue || 0;
+        if (appliedFilters.minRevenue && accountRevenue < parseFloat(appliedFilters.minRevenue)) {
+          matchesFilters = false;
+        }
+        if (appliedFilters.maxRevenue && accountRevenue > parseFloat(appliedFilters.maxRevenue)) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Health score range filters
+      if (appliedFilters.minHealthScore || appliedFilters.maxHealthScore) {
+        const accountHealthScore = account.healthScore || 0;
+        if (appliedFilters.minHealthScore && accountHealthScore < parseFloat(appliedFilters.minHealthScore)) {
+          matchesFilters = false;
+        }
+        if (appliedFilters.maxHealthScore && accountHealthScore > parseFloat(appliedFilters.maxHealthScore)) {
+          matchesFilters = false;
+        }
+      }
+    }
+
+    return matchesSearch && matchesTab && matchesFilters;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedAccounts = filteredAccounts.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedFilters, searchQuery, activeTab]);
+
+  // Show filtered count after data is loaded
+  const prevFilteredCountRef = useRef(null);
+  useEffect(() => {
+    const hasActiveFilters = Object.values(appliedFilters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters && !loading && filteredAccounts.length !== prevFilteredCountRef.current) {
+      prevFilteredCountRef.current = filteredAccounts.length;
+      toast.success(`Filters applied. Showing ${filteredAccounts.length} result${filteredAccounts.length !== 1 ? 's' : ''}`);
+    }
+  }, [filteredAccounts.length, appliedFilters, loading]);
 
   // Calculate KPI data
   const statusStats = [
@@ -796,6 +870,9 @@ export default function ClientAccountsPage() {
           onAddClick={handleAddAccount}
           addButtonText="Add Client Account"
           onFilterClick={handleFilter}
+          hasActiveFilters={Object.values(appliedFilters).some(
+            (value) => value && value.toString().trim() !== ""
+          )}
           onImportClick={handleImport}
         />
 
@@ -820,12 +897,17 @@ export default function ClientAccountsPage() {
             setSearchQuery={setSearchQuery}
           />
 
+          {/* Results Count */}
+          <div className="text-sm text-gray-600 px-1">
+            Showing <span className="font-semibold text-gray-900">{filteredAccounts.length}</span> result{filteredAccounts.length !== 1 ? 's' : ''}
+          </div>
+
           {/* Single Horizontal Scroll Container */}
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             {/* Client Accounts Table */}
             {activeView === "list" && (
               <ClientAccountsListView
-                filteredAccounts={filteredAccounts}
+                filteredAccounts={paginatedAccounts}
                 accountColumnsTable={accountColumnsTable}
                 selectedAccounts={selectedAccounts}
                 setSelectedAccounts={setSelectedAccounts}
@@ -835,6 +917,17 @@ export default function ClientAccountsPage() {
                 onRowClick={(row) => {
                   router.push(`/clients/accounts/${row.id}`);
                 }}
+                pagination={
+                  totalPages > 1 ? (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={filteredAccounts.length}
+                      itemsPerPage={itemsPerPage}
+                      onPageChange={setCurrentPage}
+                    />
+                  ) : null
+                }
               />
             )}
           </div>
@@ -846,7 +939,21 @@ export default function ClientAccountsPage() {
             isOpen={isFilterModalOpen}
             onClose={() => setIsFilterModalOpen(false)}
             appliedFilters={appliedFilters}
-            onApplyFilters={setAppliedFilters}
+            onApplyFilters={(filters) => {
+              console.log("Applying filters:", filters);
+              
+              // Check if any filters are active
+              const hasActiveFilters = Object.values(filters).some(
+                (value) => value && value.toString().trim() !== ""
+              );
+              
+              if (hasActiveFilters) {
+                setAppliedFilters(filters);
+              } else {
+                setAppliedFilters({});
+                toast.info("Filters cleared");
+              }
+            }}
           />
         )}
 

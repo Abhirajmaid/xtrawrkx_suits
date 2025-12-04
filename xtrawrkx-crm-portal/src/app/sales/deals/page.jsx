@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import dealService from "../../../lib/api/dealService";
 import strapiClient from "../../../lib/strapiClient";
 import { useAuth } from "../../../contexts/AuthContext";
 import authService from "../../../lib/authService";
-import { Select } from "../../../components/ui";
+import { Select, Pagination } from "../../../components/ui";
+import { toast } from "react-toastify";
 import DealsKPIs from "./components/DealsKPIs";
 import DealsTabs from "./components/DealsTabs";
 import DealsListView from "./components/DealsListView";
@@ -40,6 +41,7 @@ import {
   Calendar,
   List,
   Columns,
+  CheckCircle2,
 } from "lucide-react";
 
 export default function DealsPage() {
@@ -64,6 +66,8 @@ export default function DealsPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedDeals, setSelectedDeals] = useState([]);
   const [appliedFilters, setAppliedFilters] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const [viewMode, setViewMode] = useState(() => {
     // Check URL parameter for initial view mode
     const viewParam = searchParams?.get('view');
@@ -89,6 +93,10 @@ export default function DealsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [dealToDelete, setDealToDelete] = useState(null);
   const [loadingActions, setLoadingActions] = useState({});
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showCreateProjectPrompt, setShowCreateProjectPrompt] = useState(false);
+  const [dealForProject, setDealForProject] = useState(null);
+  const [creatingProject, setCreatingProject] = useState(false);
 
   const isAdmin = () => {
     if (!user) return false;
@@ -111,6 +119,30 @@ export default function DealsPage() {
   useEffect(() => {
     filterDeals();
   }, [deals, searchQuery]);
+
+  // Show filtered count after data is loaded
+  const prevFilteredCountRef = useRef(null);
+  useEffect(() => {
+    const hasActiveFilters = Object.values(appliedFilters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters && !loading && filteredDeals.length !== prevFilteredCountRef.current) {
+      prevFilteredCountRef.current = filteredDeals.length;
+      toast.success(`Filters applied. Showing ${filteredDeals.length} result${filteredDeals.length !== 1 ? 's' : ''}`);
+    }
+  }, [filteredDeals.length, appliedFilters, loading]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredDeals.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedDeals = filteredDeals.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedFilters, searchQuery, activeTab]);
 
   // fetch users if admin
   useEffect(() => {
@@ -193,12 +225,77 @@ export default function DealsPage() {
         };
       }
 
-      // Add applied filters
+      // Add applied filters - transform filter values to match API format
       if (Object.keys(appliedFilters).length > 0) {
-        params.filters = {
-          ...params.filters,
-          ...appliedFilters,
-        };
+        const filterConditions = {};
+        
+        // Stage filter - map UI values to API values
+        if (appliedFilters.stage) {
+          const stageMap = {
+            new: "DISCOVERY",
+            qualified: "PROPOSAL",
+            proposal: "PROPOSAL",
+            negotiation: "NEGOTIATION",
+            won: "CLOSED_WON",
+            lost: "CLOSED_LOST",
+          };
+          const mappedStage = stageMap[appliedFilters.stage.toLowerCase()] || appliedFilters.stage.toUpperCase();
+          filterConditions.stage = { $eq: mappedStage };
+        }
+        
+        // Company filter - search in related companies
+        if (appliedFilters.company) {
+          filterConditions.$or = [
+            { "leadCompany.companyName": { $containsi: appliedFilters.company } },
+            { "clientAccount.companyName": { $containsi: appliedFilters.company } },
+          ];
+        }
+        
+        // Priority filter - map to uppercase
+        if (appliedFilters.priority) {
+          filterConditions.priority = { $eq: appliedFilters.priority.toUpperCase() };
+        }
+        
+        // Value range filters
+        if (appliedFilters.valueMin || appliedFilters.valueMax) {
+          filterConditions.value = {};
+          if (appliedFilters.valueMin) {
+            filterConditions.value.$gte = parseFloat(appliedFilters.valueMin);
+          }
+          if (appliedFilters.valueMax) {
+            filterConditions.value.$lte = parseFloat(appliedFilters.valueMax);
+          }
+        }
+        
+        // Probability range filters
+        if (appliedFilters.probabilityMin || appliedFilters.probabilityMax) {
+          filterConditions.probability = {};
+          if (appliedFilters.probabilityMin) {
+            filterConditions.probability.$gte = parseInt(appliedFilters.probabilityMin);
+          }
+          if (appliedFilters.probabilityMax) {
+            filterConditions.probability.$lte = parseInt(appliedFilters.probabilityMax);
+          }
+        }
+        
+        // Close date range filters
+        if (appliedFilters.closeDateFrom || appliedFilters.closeDateTo) {
+          filterConditions.closeDate = {};
+          if (appliedFilters.closeDateFrom) {
+            filterConditions.closeDate.$gte = appliedFilters.closeDateFrom;
+          }
+          if (appliedFilters.closeDateTo) {
+            filterConditions.closeDate.$lte = appliedFilters.closeDateTo;
+          }
+        }
+        
+        // Merge filter conditions with existing filters
+        if (Object.keys(filterConditions).length > 0) {
+          params.filters = {
+            ...params.filters,
+            ...filterConditions,
+          };
+        }
       }
 
       console.log("Fetching deals with params:", params);
@@ -338,9 +435,15 @@ export default function DealsPage() {
       );
     }
     if (appliedFilters.owner) {
-      filtered = filtered.filter((deal) =>
-        deal.owner?.toLowerCase().includes(appliedFilters.owner.toLowerCase())
-      );
+      // Match by user ID
+      const filterUserId = appliedFilters.owner.toString();
+      filtered = filtered.filter((deal) => {
+        const assignedUser = deal.assignedTo;
+        const assignedUserId = assignedUser
+          ? (assignedUser.id || assignedUser.documentId)?.toString()
+          : "";
+        return assignedUserId === filterUserId;
+      });
     }
     if (appliedFilters.company) {
       filtered = filtered.filter((deal) =>
@@ -620,7 +723,21 @@ export default function DealsPage() {
   };
 
   const handleApplyFilters = (filters) => {
-    setAppliedFilters(filters);
+    console.log("Applying filters:", filters);
+    
+    // Check if any filters are active
+    const hasActiveFilters = Object.values(filters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters) {
+      setAppliedFilters(filters);
+      // fetchDeals will be called by useEffect when appliedFilters changes
+    } else {
+      setAppliedFilters({});
+      toast.info("Filters cleared");
+      // fetchDeals will be called by useEffect when appliedFilters changes
+    }
   };
 
   const handleImport = async (file) => {
@@ -737,6 +854,11 @@ export default function DealsPage() {
       return;
     }
 
+    // Find the deal to check if it was already won
+    const deal = deals.find((d) => d.id === dealId);
+    const isWon = newStage.toLowerCase() === 'won';
+    const wasWon = deal?.stage?.toLowerCase() === 'won';
+
     // Map UI stage to Strapi stage
     const stageMap = {
       discovery: 'DISCOVERY',
@@ -769,24 +891,36 @@ export default function DealsPage() {
 
       const uiStage = uiStageMap[strapiStage] || newStage.toLowerCase();
 
+      const updatedDeal = {
+        ...deal,
+        stage: uiStage
+      };
+
       setDeals((prevDeals) =>
-        prevDeals.map((deal) =>
-          deal.id === dealId
-            ? { ...deal, stage: uiStage }
-            : deal
+        prevDeals.map((d) =>
+          d.id === dealId
+            ? updatedDeal
+            : d
         )
       );
 
       setFilteredDeals((prevDeals) =>
-        prevDeals.map((deal) =>
-          deal.id === dealId
-            ? { ...deal, stage: uiStage }
-            : deal
+        prevDeals.map((d) =>
+          d.id === dealId
+            ? updatedDeal
+            : d
         )
       );
 
       // Refresh stats
       await fetchDeals();
+
+      // Trigger celebratory animation if converting to Won (and wasn't already won)
+      if (isWon && !wasWon) {
+        setDealForProject(updatedDeal);
+        setShowConfetti(true);
+        setShowCreateProjectPrompt(true);
+      }
 
       console.log(`Successfully updated deal ${dealId} to ${strapiStage}`);
     } catch (error) {
@@ -801,6 +935,94 @@ export default function DealsPage() {
       // Clear loading state
       setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
     }
+  };
+
+  // Handle creating project from deal
+  const handleCreateProject = async () => {
+    if (!dealForProject) return;
+
+    setCreatingProject(true);
+    try {
+      // Get client name from deal
+      const clientName = 
+        dealForProject.clientAccount?.companyName || 
+        dealForProject.clientAccount?.attributes?.companyName ||
+        dealForProject.leadCompany?.companyName ||
+        dealForProject.leadCompany?.attributes?.companyName ||
+        dealForProject.company ||
+        dealForProject.name;
+
+      // Generate slug from client name
+      const slug = clientName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+
+      // Generate icon from first letter
+      const icon = clientName.charAt(0).toUpperCase();
+
+      // Get deal ID (handle both id and documentId)
+      const dealId = dealForProject.id || dealForProject.documentId;
+
+      // Try to find account by company name (account entity, not clientAccount)
+      let accountId = null;
+      try {
+        if (clientName) {
+          const accountsResponse = await strapiClient.get("/accounts", {
+            "filters[companyName][$eq]": clientName,
+          });
+          
+          if (accountsResponse?.data && accountsResponse.data.length > 0) {
+            const account = accountsResponse.data[0];
+            accountId = account.id || account.documentId;
+          }
+        }
+      } catch (accountError) {
+        console.log("Could not find account, proceeding without account relation:", accountError);
+        // Continue without account relation
+      }
+
+      // Prepare project payload
+      const projectData = {
+        name: `${clientName} - ${dealForProject.name}`,
+        slug: `${slug}-${dealId}`,
+        description: dealForProject.description || `Project created from deal: ${dealForProject.name}`,
+        status: "PLANNING",
+        icon: icon,
+        color: "from-blue-400 to-blue-600",
+        deal: dealId, // Connect to the deal
+      };
+
+      // Only add account if we found one
+      if (accountId) {
+        projectData.account = accountId;
+      }
+
+      // Create project using Strapi API
+      const response = await strapiClient.post("/projects", {
+        data: projectData,
+      });
+
+      if (response.data) {
+        alert(`Project "${projectData.name}" created successfully!`);
+        setShowCreateProjectPrompt(false);
+        setShowConfetti(false);
+        setDealForProject(null);
+        // Optionally navigate to the project
+        // router.push(`/projects/${response.data.slug || response.data.id}`);
+      }
+    } catch (error) {
+      console.error("Error creating project:", error);
+      alert(`Failed to create project: ${error.message || "Unknown error"}`);
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const handleCloseProjectPrompt = () => {
+    setShowCreateProjectPrompt(false);
+    setShowConfetti(false);
+    setDealForProject(null);
   };
 
   // Helper functions for badges
@@ -845,6 +1067,8 @@ export default function DealsPage() {
             src={deal.avatar}
             alt={deal.name}
             fallback={deal.name?.charAt(0)}
+            size="sm"
+            className="flex-shrink-0"
             className="w-10 h-10"
           />
           <div>
@@ -1022,6 +1246,7 @@ export default function DealsPage() {
               alt={ownerName}
               fallback={(ownerName || "?").charAt(0).toUpperCase()}
               size="sm"
+              className="flex-shrink-0"
               className="flex-shrink-0"
             />
             <span className="text-sm font-medium text-gray-900 flex-1 truncate">
@@ -1249,6 +1474,129 @@ export default function DealsPage() {
 
   return (
     <>
+      {/* Confetti Animation */}
+      {showConfetti && (
+        <>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+              @keyframes confetti-fall {
+                0% {
+                  transform: translateY(0) rotate(0deg);
+                  opacity: 1;
+                }
+                100% {
+                  transform: translateY(100vh) rotate(720deg);
+                  opacity: 0;
+                }
+              }
+            `,
+            }}
+          />
+          <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+            {[...Array(150)].map((_, i) => {
+              const colors = [
+                "#10B981", // green
+                "#3B82F6", // blue
+                "#F59E0B", // amber
+                "#EF4444", // red
+                "#8B5CF6", // purple
+                "#EC4899", // pink
+                "#14B8A6", // teal
+                "#F97316", // orange
+                "#FFD700", // gold
+                "#FF6B6B", // coral
+              ];
+              const color = colors[Math.floor(Math.random() * colors.length)];
+              const left = Math.random() * 100;
+              const delay = Math.random() * 3;
+              const duration = 3 + Math.random() * 2;
+              const size = 10 + Math.random() * 15;
+
+              return (
+                <div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    left: `${left}%`,
+                    top: "-10px",
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    backgroundColor: color,
+                    animation: `confetti-fall ${duration}s ease-out ${delay}s forwards`,
+                    transform: `rotate(${Math.random() * 360}deg)`,
+                  }}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Project Creation Modal */}
+      {showCreateProjectPrompt && dealForProject && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 pointer-events-auto">
+          <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  🎉 Deal Won!
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Congratulations on closing this deal
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-3">
+                <strong>{dealForProject.name}</strong> has been marked as Won
+              </p>
+              {dealForProject.value && (
+                <p className="text-sm text-gray-600 mb-4">
+                  Deal Value: <strong>{formatCurrency(dealForProject.value)}</strong>
+                </p>
+              )}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-700 font-medium mb-2">
+                  Would you like to create a project for this client?
+                </p>
+                <p className="text-xs text-green-600">
+                  This will create a new project in the Projects section linked to this deal's client.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={handleCloseProjectPrompt}
+                variant="outline"
+                className="flex-1"
+              >
+                Maybe Later
+              </Button>
+              <Button
+                onClick={handleCreateProject}
+                disabled={creatingProject}
+                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
+              >
+                {creatingProject ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creating...
+                  </div>
+                ) : (
+                  "Yes, Create Project"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="p-4 space-y-4 bg-white min-h-screen">
         {/* Page Header */}
         <PageHeader
@@ -1265,6 +1613,9 @@ export default function DealsPage() {
           onSearchChange={setSearchQuery}
           onAddClick={handleAddDeal}
           onFilterClick={() => setIsFilterModalOpen(true)}
+          hasActiveFilters={Object.values(appliedFilters).some(
+            (value) => value && value.toString().trim() !== ""
+          )}
           onImportClick={() => setIsImportModalOpen(true)}
           onExportClick={() => handleExport()}
           customActions={
@@ -1315,11 +1666,16 @@ export default function DealsPage() {
             onExportClick={() => handleExport()}
           />
 
+          {/* Results Count */}
+          <div className="text-sm text-gray-600 px-1">
+            Showing <span className="font-semibold text-gray-900">{filteredDeals.length}</span> result{filteredDeals.length !== 1 ? 's' : ''}
+          </div>
+
           {/* Deals Content - List or Kanban View */}
           {viewMode === "list" ? (
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <DealsListView
-              filteredDeals={filteredDeals}
+              filteredDeals={paginatedDeals}
               dealColumnsTable={dealColumnsTable}
               selectedDeals={selectedDeals}
               setSelectedDeals={setSelectedDeals}
@@ -1327,6 +1683,17 @@ export default function DealsPage() {
               setSearchQuery={setSearchQuery}
               onAddClick={handleAddDeal}
               onRowClick={(deal) => handleViewDeal(deal)}
+              pagination={
+                totalPages > 1 ? (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filteredDeals.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                  />
+                ) : null
+              }
             />
           </div>
           ) : (
@@ -1359,6 +1726,7 @@ export default function DealsPage() {
           isOpen={isFilterModalOpen}
           onClose={() => setIsFilterModalOpen(false)}
           onApplyFilters={handleApplyFilters}
+          users={users}
         />
 
         <DealsImportModal

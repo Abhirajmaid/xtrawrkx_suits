@@ -39,6 +39,7 @@ export default function PageHeader({
   onShareImageClick,
   actions,
   children,
+  hasActiveFilters = false,
 }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -315,9 +316,12 @@ export default function PageHeader({
                   {onFilterClick && (
                     <button
                       onClick={onFilterClick}
-                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
+                      className="relative p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
                     >
                       <Filter className="w-5 h-5 text-brand-text-light" />
+                      {hasActiveFilters && (
+                        <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white/95 shadow-sm"></span>
+                      )}
                     </button>
                   )}
 

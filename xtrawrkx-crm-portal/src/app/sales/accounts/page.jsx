@@ -204,7 +204,8 @@ export default function ClientAccountsPage() {
       render: (_, account) => (
         <div className="flex items-center gap-3 min-w-[200px]">
           <Avatar
-            name={account.companyName}
+            alt={account.companyName}
+            fallback={account.companyName?.charAt(0)?.toUpperCase() || "?"}
             size="sm"
             className="flex-shrink-0"
           />
@@ -307,12 +308,17 @@ export default function ClientAccountsPage() {
         <div className="min-w-[150px]">
           <div className="flex items-center gap-2">
             <Avatar
-              name={
+              alt={
                 account.accountManager
                   ? `${account.accountManager.firstName} ${account.accountManager.lastName}`
                   : "Unassigned"
               }
-              size="xs"
+              fallback={
+                account.accountManager
+                  ? `${account.accountManager.firstName?.[0] || ""}${account.accountManager.lastName?.[0] || ""}`.toUpperCase() || "?"
+                  : "?"
+              }
+              size="sm"
               className="flex-shrink-0"
             />
             <span className="text-sm font-medium text-gray-900">

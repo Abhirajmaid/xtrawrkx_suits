@@ -14,8 +14,10 @@ import {
   Modal,
   Tabs,
   EmptyState,
+  Pagination,
 } from "../../../components/ui";
 import { formatNumber, formatCurrency } from "../../../lib/utils";
+import { toast } from "react-toastify";
 
 // Local utility function to replace @xtrawrkx/utils formatDate
 const formatDate = (dateString) => {
@@ -87,6 +89,8 @@ export default function LeadCompaniesPage() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showAddSuccessMessage, setShowAddSuccessMessage] = useState(false);
@@ -119,12 +123,10 @@ export default function LeadCompaniesPage() {
     fetchStats();
   }, []);
 
-  // Fetch users if admin
+  // Fetch users for filter dropdown (all users, not just for admin)
   useEffect(() => {
-    if (isAdmin()) {
-      fetchUsers();
-    }
-  }, [user]);
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -259,10 +261,11 @@ export default function LeadCompaniesPage() {
 
   const updatedColumns = boardColumns;
 
-  // Filter companies based on search and active tab
+  // Filter companies based on search, active tab, and applied filters
   const filteredCompanies = leadCompanies.filter((company) => {
     if (!company) return false;
 
+    // Search filter
     const matchesSearch =
       searchQuery === "" ||
       (company.companyName &&
@@ -282,12 +285,143 @@ export default function LeadCompaniesPage() {
           ?.toLowerCase()
           .includes(searchQuery.toLowerCase()));
 
+    // Tab filter
     const matchesTab =
       activeTab === "all" ||
       company.status?.toLowerCase() === activeTab.toLowerCase();
 
-    return matchesSearch && matchesTab;
+    // Applied filters
+    let matchesFilters = true;
+    
+    if (Object.keys(appliedFilters).length > 0) {
+      // Status filter
+      if (appliedFilters.status) {
+        const filterStatus = appliedFilters.status.toLowerCase();
+        const companyStatus = company.status?.toLowerCase() || "";
+        if (filterStatus !== companyStatus) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Source filter - match exact enum value
+      if (appliedFilters.source) {
+        const companySource = company.source || "";
+        if (companySource !== appliedFilters.source) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Company name filter
+      if (appliedFilters.company) {
+        const filterCompany = appliedFilters.company.toLowerCase();
+        const companyName = company.companyName?.toLowerCase() || "";
+        if (!companyName.includes(filterCompany)) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Assigned to filter - match by user ID
+      if (appliedFilters.assignedTo) {
+        const assignedUser = company.assignedTo;
+        const assignedUserId = assignedUser
+          ? (assignedUser.id || assignedUser.documentId)?.toString()
+          : "";
+        const filterUserId = appliedFilters.assignedTo.toString();
+        if (assignedUserId !== filterUserId) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Date range filter
+      if (appliedFilters.dateRange && company.createdAt) {
+        const now = new Date();
+        let startDate;
+        
+        switch (appliedFilters.dateRange) {
+          case "today":
+            startDate = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate()
+            );
+            break;
+          case "week":
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case "month":
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case "quarter":
+            const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+            startDate = new Date(now.getFullYear(), quarterStart, 1);
+            break;
+        }
+        
+        if (startDate) {
+          const companyDate = new Date(company.createdAt);
+          if (companyDate < startDate) {
+            matchesFilters = false;
+          }
+        }
+      }
+      
+      // Value range filter
+      if (appliedFilters.valueRange) {
+        const totalDealValue = company.deals
+          ? company.deals.reduce(
+              (total, deal) => total + (parseFloat(deal.value) || 0),
+              0
+            )
+          : company.dealValue || 0;
+        
+        let matchesValueRange = false;
+        switch (appliedFilters.valueRange) {
+          case "0-25k":
+            matchesValueRange = totalDealValue >= 0 && totalDealValue <= 25000;
+            break;
+          case "25k-50k":
+            matchesValueRange = totalDealValue > 25000 && totalDealValue <= 50000;
+            break;
+          case "50k-100k":
+            matchesValueRange = totalDealValue > 50000 && totalDealValue <= 100000;
+            break;
+          case "100k+":
+            matchesValueRange = totalDealValue > 100000;
+            break;
+        }
+        
+        if (!matchesValueRange) {
+          matchesFilters = false;
+        }
+      }
+    }
+
+    return matchesSearch && matchesTab && matchesFilters;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCompanies = filteredCompanies.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedFilters, searchQuery, activeTab]);
+
+  // Show filtered count after data is loaded
+  const prevFilteredCountRef = useRef(null);
+  useEffect(() => {
+    const hasActiveFilters = Object.values(appliedFilters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters && !loading && filteredCompanies.length !== prevFilteredCountRef.current) {
+      prevFilteredCountRef.current = filteredCompanies.length;
+      toast.success(`Filters applied. Showing ${filteredCompanies.length} result${filteredCompanies.length !== 1 ? 's' : ''}`);
+    }
+  }, [filteredCompanies.length, appliedFilters, loading]);
 
   // Get company statistics from API stats or calculate from data
   const leadStats = {
@@ -795,8 +929,19 @@ export default function LeadCompaniesPage() {
 
   // Handle filter application
   const handleApplyFilters = (filters) => {
-    setAppliedFilters(filters);
-    console.log("Applied filters:", filters);
+    console.log("Applying filters:", filters);
+    
+    // Check if any filters are active
+    const hasActiveFilters = Object.values(filters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters) {
+      setAppliedFilters(filters);
+    } else {
+      setAppliedFilters({});
+      toast.info("Filters cleared");
+    }
   };
 
   // Handle import
@@ -904,6 +1049,9 @@ export default function LeadCompaniesPage() {
           onSearchChange={setSearchQuery}
           onAddClick={() => router.push("/sales/lead-companies/new")}
           onFilterClick={() => setIsFilterModalOpen(true)}
+          hasActiveFilters={Object.values(appliedFilters).some(
+            (value) => value && value.toString().trim() !== ""
+          )}
           onImportClick={() => setIsImportModalOpen(true)}
           onExportClick={handleExport}
         />
@@ -925,12 +1073,17 @@ export default function LeadCompaniesPage() {
             setSearchQuery={setSearchQuery}
           />
 
+          {/* Results Count */}
+          <div className="text-sm text-gray-600 px-1">
+            Showing <span className="font-semibold text-gray-900">{filteredCompanies.length}</span> result{filteredCompanies.length !== 1 ? 's' : ''}
+          </div>
+
           {/* Single Horizontal Scroll Container */}
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             {/* Lead Companies Table/Board */}
             {activeView === "list" && (
               <LeadsListView
-                filteredLeads={filteredCompanies}
+                filteredLeads={paginatedCompanies}
                 leadColumnsTable={leadCompanyColumnsTable}
                 selectedLeads={selectedCompanies}
                 setSelectedLeads={setSelectedCompanies}
@@ -940,6 +1093,17 @@ export default function LeadCompaniesPage() {
                 onRowClick={(row) => {
                   router.push(`/sales/lead-companies/${row.id}`);
                 }}
+                pagination={
+                  totalPages > 1 ? (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={filteredCompanies.length}
+                      itemsPerPage={itemsPerPage}
+                      onPageChange={setCurrentPage}
+                    />
+                  ) : null
+                }
               />
             )}
             {activeView === "board" && (
@@ -959,6 +1123,7 @@ export default function LeadCompaniesPage() {
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
         onApplyFilters={handleApplyFilters}
+        users={users}
       />
 
       {/* Import Modal */}

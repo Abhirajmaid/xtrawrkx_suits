@@ -10,36 +10,40 @@ export default function ContactsListView({
   setSearchQuery,
   onAddClick,
   onRowClick,
+  pagination,
 }) {
   return (
     <div className="rounded-3xl overflow-hidden">
       {filteredContacts.length > 0 ? (
-        <Table
-          columns={contactColumnsTable}
-          data={filteredContacts}
-          selectable
-          selectedRows={selectedContacts}
-          onSelectRow={(id, selected) => {
-            if (selected) {
-              setSelectedContacts([...selectedContacts, id]);
-            } else {
-              setSelectedContacts(
-                selectedContacts.filter((item) => item !== id)
-              );
-            }
-          }}
-          onSelectAll={(selected) => {
-            if (selected) {
-              setSelectedContacts(
-                filteredContacts.map((contact) => contact.id)
-              );
-            } else {
-              setSelectedContacts([]);
-            }
-          }}
-          onRowClick={onRowClick}
-          className="min-w-[1400px]"
-        />
+        <>
+          <Table
+            columns={contactColumnsTable}
+            data={filteredContacts}
+            selectable
+            selectedRows={selectedContacts}
+            onSelectRow={(id, selected) => {
+              if (selected) {
+                setSelectedContacts([...selectedContacts, id]);
+              } else {
+                setSelectedContacts(
+                  selectedContacts.filter((item) => item !== id)
+                );
+              }
+            }}
+            onSelectAll={(selected) => {
+              if (selected) {
+                setSelectedContacts(
+                  filteredContacts.map((contact) => contact.id)
+                );
+              } else {
+                setSelectedContacts([]);
+              }
+            }}
+            onRowClick={onRowClick}
+            className="min-w-[1400px]"
+          />
+          {pagination}
+        </>
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">
           <EmptyState

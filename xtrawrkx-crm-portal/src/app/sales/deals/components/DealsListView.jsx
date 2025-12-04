@@ -10,32 +10,36 @@ export default function DealsListView({
   setSearchQuery,
   onAddClick,
   onRowClick,
+  pagination,
 }) {
   return (
     <div className="rounded-3xl overflow-hidden">
       {filteredDeals.length > 0 ? (
-        <Table
-          columns={dealColumnsTable}
-          data={filteredDeals}
-          selectable
-          selectedRows={selectedDeals}
-          onSelectRow={(id, selected) => {
-            if (selected) {
-              setSelectedDeals([...selectedDeals, id]);
-            } else {
-              setSelectedDeals(selectedDeals.filter((item) => item !== id));
-            }
-          }}
-          onSelectAll={(selected) => {
-            if (selected) {
-              setSelectedDeals(filteredDeals.map((deal) => deal.id));
-            } else {
-              setSelectedDeals([]);
-            }
-          }}
-          onRowClick={onRowClick}
-          className="min-w-[1800px]"
-        />
+        <>
+          <Table
+            columns={dealColumnsTable}
+            data={filteredDeals}
+            selectable
+            selectedRows={selectedDeals}
+            onSelectRow={(id, selected) => {
+              if (selected) {
+                setSelectedDeals([...selectedDeals, id]);
+              } else {
+                setSelectedDeals(selectedDeals.filter((item) => item !== id));
+              }
+            }}
+            onSelectAll={(selected) => {
+              if (selected) {
+                setSelectedDeals(filteredDeals.map((deal) => deal.id));
+              } else {
+                setSelectedDeals([]);
+              }
+            }}
+            onRowClick={onRowClick}
+            className="min-w-[1800px]"
+          />
+          {pagination}
+        </>
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">
           <EmptyState

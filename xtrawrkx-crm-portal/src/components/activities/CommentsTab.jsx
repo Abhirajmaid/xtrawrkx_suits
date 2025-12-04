@@ -11,11 +11,15 @@ import {
   Smile,
   Paperclip,
   Reply,
+  Trash2,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import commentService from "../../lib/api/commentService";
 import { transformComment } from "../../lib/utils/transformComment";
 import { useAuth } from "../../contexts/AuthContext";
 import strapiClient from "../../lib/strapiClient";
+import { createPortal } from "react-dom";
 
 const CommentsTab = ({ entityType, entityId }) => {
   const { user } = useAuth();
@@ -28,6 +32,9 @@ const CommentsTab = ({ entityType, entityId }) => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState({});
   const [showFormatting, setShowFormatting] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState({ type: null, id: null, parentId: null });
 
   // Mention functionality
   const [users, setUsers] = useState([]);
@@ -138,6 +145,14 @@ const CommentsTab = ({ entityType, entityId }) => {
           });
         } else if (entityType === "clientAccount") {
           response = await commentService.getClientAccountComments(entityId, {
+            populate: ["user", "replies", "replies.user"],
+          });
+        } else if (entityType === "deal") {
+          response = await commentService.getDealComments(entityId, {
+            populate: ["user", "replies", "replies.user"],
+          });
+        } else if (entityType === "deal") {
+          response = await commentService.getDealComments(entityId, {
             populate: ["user", "replies", "replies.user"],
           });
         } else {
@@ -413,6 +428,13 @@ const CommentsTab = ({ entityType, entityId }) => {
             userId,
             mentions
           );
+        } else if (entityType === "deal") {
+          createdComment = await commentService.createDealComment(
+            entityId,
+            newComment.trim(),
+            userId,
+            mentions
+          );
         } else {
           throw new Error(`Unsupported entity type: ${entityType}`);
         }
@@ -442,6 +464,10 @@ const CommentsTab = ({ entityType, entityId }) => {
           });
         } else if (entityType === "clientAccount") {
           response = await commentService.getClientAccountComments(entityId, {
+            populate: ["user", "replies", "replies.user"],
+          });
+        } else if (entityType === "deal") {
+          response = await commentService.getDealComments(entityId, {
             populate: ["user", "replies", "replies.user"],
           });
         }
@@ -510,6 +536,10 @@ const CommentsTab = ({ entityType, entityId }) => {
         response = await commentService.getClientAccountComments(entityId, {
           populate: ["user", "replies", "replies.user"],
         });
+      } else if (entityType === "deal") {
+        response = await commentService.getDealComments(entityId, {
+          populate: ["user", "replies", "replies.user"],
+        });
       }
 
       // Handle different response structures
@@ -545,6 +575,88 @@ const CommentsTab = ({ entityType, entityId }) => {
       alert("Failed to add reply. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Reload comments helper function
+  const reloadComments = async () => {
+    if (!entityId) return;
+
+    try {
+      let response;
+      if (entityType === "leadCompany") {
+        response = await commentService.getLeadCompanyComments(entityId, {
+          populate: ["user", "replies", "replies.user"],
+        });
+      } else if (entityType === "clientAccount") {
+        response = await commentService.getClientAccountComments(entityId, {
+          populate: ["user", "replies", "replies.user"],
+        });
+      } else if (entityType === "deal") {
+        response = await commentService.getDealComments(entityId, {
+          populate: ["user", "replies", "replies.user"],
+        });
+      }
+
+      // Handle different response structures
+      let commentsData = [];
+      if (Array.isArray(response?.data)) {
+        commentsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        commentsData = response.data.data;
+      } else if (Array.isArray(response)) {
+        commentsData = response;
+      }
+
+      const rootComments = commentsData.filter(
+        (comment) => !comment.parentComment && !comment.attributes?.parentComment
+      );
+      const transformedComments = rootComments
+        .map(transformComment)
+        .filter(Boolean);
+
+      setComments(transformedComments);
+    } catch (error) {
+      console.error("Error reloading comments:", error);
+    }
+  };
+
+  // Open delete confirmation modal
+  const openDeleteModal = (type, id, parentId = null) => {
+    setDeleteTarget({ type, id, parentId });
+    setShowDeleteModal(true);
+  };
+
+  // Close delete confirmation modal
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteTarget({ type: null, id: null, parentId: null });
+  };
+
+  // Handle delete comment
+  const handleDeleteComment = async (commentId) => {
+    openDeleteModal("comment", commentId);
+  };
+
+  // Handle delete reply
+  const handleDeleteReply = async (replyId, parentCommentId) => {
+    openDeleteModal("reply", replyId, parentCommentId);
+  };
+
+  // Confirm and execute delete
+  const confirmDelete = async () => {
+    if (!deleteTarget.id) return;
+
+    try {
+      setDeletingCommentId(deleteTarget.id);
+      await commentService.deleteComment(deleteTarget.id);
+      await reloadComments();
+      closeDeleteModal();
+    } catch (error) {
+      console.error("Error deleting:", error);
+      alert("Failed to delete. Please try again.");
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -625,11 +737,30 @@ const CommentsTab = ({ entityType, entityId }) => {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        {comment.user?.name || comment.author || "Unknown User"}
-                      </span>
-                      <span className="text-xs text-gray-500">{timestamp}</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {comment.user?.name || comment.author || "Unknown User"}
+                        </span>
+                        <span className="text-xs text-gray-500">{timestamp}</span>
+                      </div>
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteComment(comment.id);
+                        }}
+                        disabled={deletingCommentId === comment.id}
+                        className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete comment"
+                      >
+                        {deletingCommentId === comment.id ? (
+                          <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3 h-3" />
+                        )}
+                        <span className="hidden sm:inline">Delete</span>
+                      </button>
                     </div>
 
                     {/* Comment Content */}
@@ -734,15 +865,34 @@ const CommentsTab = ({ entityType, entityId }) => {
                                 {replyUserDisplay.initials}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-xs font-medium text-gray-900">
-                                    {reply.user?.name ||
-                                      reply.author ||
-                                      "Unknown"}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {replyTimestamp}
-                                  </span>
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-gray-900">
+                                      {reply.user?.name ||
+                                        reply.author ||
+                                        "Unknown"}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {replyTimestamp}
+                                    </span>
+                                  </div>
+                                  {/* Delete Reply Button */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteReply(reply.id, comment.id);
+                                    }}
+                                    disabled={deletingCommentId === reply.id}
+                                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Delete reply"
+                                  >
+                                    {deletingCommentId === reply.id ? (
+                                      <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-3 h-3" />
+                                    )}
+                                    <span className="hidden sm:inline">Delete</span>
+                                  </button>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-2">
                                   <p className="text-xs text-gray-700 whitespace-pre-wrap">
@@ -942,6 +1092,76 @@ const CommentsTab = ({ entityType, entityId }) => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {typeof window !== "undefined" &&
+        showDeleteModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Delete {deleteTarget.type === "comment" ? "Comment" : "Reply"}?
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      This action cannot be undone.
+                    </p>
+                  </div>
+                  <button
+                    onClick={closeDeleteModal}
+                    className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+
+                {/* Message */}
+                <div className="mb-6">
+                  <p className="text-sm text-gray-700">
+                    Are you sure you want to delete this{" "}
+                    {deleteTarget.type === "comment" ? "comment" : "reply"}? This
+                    action cannot be undone and will permanently remove it.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={closeDeleteModal}
+                    disabled={deletingCommentId === deleteTarget.id}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    disabled={deletingCommentId === deleteTarget.id}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {deletingCommentId === deleteTarget.id ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
