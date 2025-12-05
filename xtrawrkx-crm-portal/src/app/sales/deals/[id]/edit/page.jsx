@@ -180,21 +180,34 @@ export default function EditDealPage() {
         pagination: { pageSize: 1000 },
         sort: ["companyName:asc"],
       });
-      setLeadCompanies(leadCompaniesResponse.data || []);
+      // Handle different response structures
+      const leadCompaniesData = Array.isArray(leadCompaniesResponse)
+        ? leadCompaniesResponse
+        : leadCompaniesResponse?.data || [];
+      setLeadCompanies(leadCompaniesData);
 
       // Fetch client accounts
       const clientAccountsResponse = await clientAccountService.getAll({
         pagination: { pageSize: 1000 },
         sort: ["companyName:asc"],
       });
-      setClientAccounts(clientAccountsResponse.data || []);
+      // Handle different response structures
+      // The API returns data directly as an array, not wrapped in a data property
+      const clientAccountsData = Array.isArray(clientAccountsResponse)
+        ? clientAccountsResponse
+        : clientAccountsResponse?.data || [];
+      setClientAccounts(clientAccountsData);
 
       // Fetch contacts
       const contactsResponse = await contactService.getAll({
         pagination: { pageSize: 1000 },
         sort: ["firstName:asc", "lastName:asc"],
       });
-      setContacts(contactsResponse.data || []);
+      // Handle different response structures
+      const contactsData = Array.isArray(contactsResponse)
+        ? contactsResponse
+        : contactsResponse?.data || [];
+      setContacts(contactsData);
     } catch (error) {
       console.error("Error fetching dropdown options:", error);
     }

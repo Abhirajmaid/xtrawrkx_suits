@@ -80,17 +80,17 @@ export const AuthProvider = ({ children }) => {
       console.error("Error object:", error);
       setUser(null);
       setIsAuthenticated(false);
-      
+
       // Extract error message properly
       let errorMessage = "Login failed. Please try again.";
       if (error.message) {
         errorMessage = error.message;
-      } else if (typeof error === 'string') {
+      } else if (typeof error === "string") {
         errorMessage = error;
       } else if (error.error?.message) {
         errorMessage = error.error.message;
       }
-      
+
       return { success: false, error: errorMessage };
     }
   };

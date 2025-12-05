@@ -1124,6 +1124,7 @@ export default function LeadCompaniesPage() {
         onClose={() => setIsFilterModalOpen(false)}
         onApplyFilters={handleApplyFilters}
         users={users}
+        appliedFilters={appliedFilters}
       />
 
       {/* Import Modal */}

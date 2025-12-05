@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Filter, Calendar, User, Building2, Target, DollarSign, TrendingUp } from "lucide-react";
 import { Card, Button, Input, Select } from "../../../../components/ui";
 
-export default function DealsFilterModal({ isOpen, onClose, onApplyFilters, users = [] }) {
+export default function DealsFilterModal({ isOpen, onClose, onApplyFilters, users = [], appliedFilters = {} }) {
   const [filters, setFilters] = useState({
     stage: "",
     priority: "",
@@ -17,6 +17,30 @@ export default function DealsFilterModal({ isOpen, onClose, onApplyFilters, user
     closeDateFrom: "",
     closeDateTo: "",
   });
+
+  // Initialize filters with applied filters when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Map "qualified" to "proposal" since they both map to PROPOSAL in API
+      let stageValue = appliedFilters.stage || "";
+      if (stageValue === "qualified") {
+        stageValue = "proposal";
+      }
+      
+      setFilters({
+        stage: stageValue,
+        priority: appliedFilters.priority || "",
+        owner: appliedFilters.owner || "",
+        company: appliedFilters.company || "",
+        valueMin: appliedFilters.valueMin || "",
+        valueMax: appliedFilters.valueMax || "",
+        probabilityMin: appliedFilters.probabilityMin || "",
+        probabilityMax: appliedFilters.probabilityMax || "",
+        closeDateFrom: appliedFilters.closeDateFrom || "",
+        closeDateTo: appliedFilters.closeDateTo || "",
+      });
+    }
+  }, [isOpen, appliedFilters]);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({
@@ -93,8 +117,7 @@ export default function DealsFilterModal({ isOpen, onClose, onApplyFilters, user
                 onChange={(value) => handleFilterChange("stage", value)}
                 options={[
                   { value: "", label: "All Stages" },
-                  { value: "new", label: "New" },
-                  { value: "qualified", label: "Qualified" },
+                  { value: "new", label: "Discovery" },
                   { value: "proposal", label: "Proposal" },
                   { value: "negotiation", label: "Negotiation" },
                   { value: "won", label: "Won" },

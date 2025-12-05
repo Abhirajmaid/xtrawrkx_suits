@@ -110,6 +110,123 @@ export default function DealsPage() {
     );
   };
 
+  // Fetch all deals for stats calculation (unfiltered)
+  const fetchAllDealsForStats = async () => {
+    try {
+      const params = {
+        populate: ["leadCompany", "clientAccount", "contact", "assignedTo"],
+        sort: ["createdAt:desc"],
+      };
+
+      const response = await dealService.getAll(params);
+      const dealsData = response?.data || [];
+
+      // Transform Strapi data to match component format
+      const transformedDeals = dealsData.map((deal) => {
+        const stageMap = {
+          DISCOVERY: "discovery",
+          PROPOSAL: "proposal",
+          NEGOTIATION: "negotiation",
+          CLOSED_WON: "won",
+          CLOSED_LOST: "lost",
+        };
+
+        const priorityMap = {
+          LOW: "low",
+          MEDIUM: "medium",
+          HIGH: "high",
+        };
+
+        const dealData = deal.attributes || deal;
+
+        return {
+          id: deal.id || deal.documentId,
+          name: dealData.name || dealData.title || "",
+          company:
+            dealData.leadCompany?.companyName ||
+            dealData.leadCompany?.attributes?.companyName ||
+            dealData.clientAccount?.companyName ||
+            dealData.clientAccount?.attributes?.companyName ||
+            "",
+          value: parseFloat(dealData.value) || 0,
+          stage:
+            stageMap[dealData.stage] ||
+            dealData.stage?.toLowerCase() ||
+            "discovery",
+          priority:
+            priorityMap[dealData.priority] ||
+            dealData.priority?.toLowerCase() ||
+            "medium",
+          probability: dealData.probability || 0,
+          closeDate: dealData.closeDate || null,
+          owner: dealData.assignedTo
+            ? `${dealData.assignedTo.firstName || ""} ${
+                dealData.assignedTo.lastName || ""
+              }`.trim()
+            : "Unassigned",
+          description: dealData.description || "",
+          avatar: null,
+          leadCompany: dealData.leadCompany || deal.leadCompany,
+          clientAccount: dealData.clientAccount || deal.clientAccount,
+          contact: dealData.contact || deal.contact,
+          assignedTo: dealData.assignedTo || deal.assignedTo,
+          createdAt: dealData.createdAt || deal.createdAt,
+          updatedAt: dealData.updatedAt || deal.updatedAt,
+        };
+      });
+
+      // Calculate stats from ALL deals (unfiltered)
+      const totalValue = transformedDeals.reduce(
+        (sum, deal) => sum + deal.value,
+        0
+      );
+      const wonDeals = transformedDeals.filter(
+        (deal) => deal.stage === "closed_won" || deal.stage === "won"
+      );
+      const wonValue = wonDeals.reduce((sum, deal) => sum + deal.value, 0);
+
+      setStats({
+        total: transformedDeals.length,
+        totalValue: totalValue,
+        won: wonDeals.length,
+        averageValue:
+          transformedDeals.length > 0
+            ? totalValue / transformedDeals.length
+            : 0,
+      });
+
+      // Calculate deal stats by stage
+      const newDeals = transformedDeals.filter(
+        (deal) => deal.stage === "discovery" || deal.stage === "new"
+      );
+      const qualifiedDeals = transformedDeals.filter(
+        (deal) => deal.stage === "proposal" || deal.stage === "qualified"
+      );
+      const negotiationDeals = transformedDeals.filter(
+        (deal) => deal.stage === "negotiation"
+      );
+      const lostDeals = transformedDeals.filter(
+        (deal) => deal.stage === "closed_lost" || deal.stage === "lost"
+      );
+
+      setDealStats({
+        all: transformedDeals.length,
+        new: newDeals.length,
+        qualified: qualifiedDeals.length,
+        negotiation: negotiationDeals.length,
+        won: wonDeals.length,
+        lost: lostDeals.length,
+      });
+    } catch (err) {
+      console.error("Error fetching all deals for stats:", err);
+    }
+  };
+
+  // Fetch all deals for stats on initial mount
+  useEffect(() => {
+    fetchAllDealsForStats();
+  }, []); // Only run once on mount
+
   // Fetch deals data when component mounts or when filters/tab changes
   useEffect(() => {
     fetchDeals();
@@ -362,48 +479,7 @@ export default function DealsPage() {
 
       setDeals(transformedDeals);
 
-      // Calculate stats
-      const totalValue = transformedDeals.reduce(
-        (sum, deal) => sum + deal.value,
-        0
-      );
-      const wonDeals = transformedDeals.filter(
-        (deal) => deal.stage === "closed_won" || deal.stage === "won"
-      );
-      const wonValue = wonDeals.reduce((sum, deal) => sum + deal.value, 0);
-
-      setStats({
-        total: transformedDeals.length,
-        totalValue: totalValue,
-        won: wonDeals.length,
-        averageValue:
-          transformedDeals.length > 0
-            ? totalValue / transformedDeals.length
-            : 0,
-      });
-
-      // Calculate deal stats by stage
-      const newDeals = transformedDeals.filter(
-        (deal) => deal.stage === "discovery" || deal.stage === "new"
-      );
-      const qualifiedDeals = transformedDeals.filter(
-        (deal) => deal.stage === "proposal" || deal.stage === "qualified"
-      );
-      const negotiationDeals = transformedDeals.filter(
-        (deal) => deal.stage === "negotiation"
-      );
-      const lostDeals = transformedDeals.filter(
-        (deal) => deal.stage === "closed_lost" || deal.stage === "lost"
-      );
-
-      setDealStats({
-        all: transformedDeals.length,
-        new: newDeals.length,
-        qualified: qualifiedDeals.length,
-        negotiation: negotiationDeals.length,
-        won: wonDeals.length,
-        lost: lostDeals.length,
-      });
+      // Don't update stats here - stats are calculated from all deals in fetchAllDealsForStats
     } catch (err) {
       console.error("Error fetching deals:", err);
       setError("Failed to load deals");
@@ -1727,6 +1803,7 @@ export default function DealsPage() {
           onClose={() => setIsFilterModalOpen(false)}
           onApplyFilters={handleApplyFilters}
           users={users}
+          appliedFilters={appliedFilters}
         />
 
         <DealsImportModal

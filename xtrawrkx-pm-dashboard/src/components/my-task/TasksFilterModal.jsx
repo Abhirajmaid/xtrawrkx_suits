@@ -1,21 +1,25 @@
-import { useState, useEffect } from 'react';
-import { X, Filter, Calendar, User, Building2, DollarSign, Target } from 'lucide-react';
-import { Card, Button, Input, Select } from "../../../../components/ui";
+"use client";
 
-export default function LeadsFilterModal({ 
+import { useState, useEffect } from "react";
+import { X, Filter, Calendar, User, Target, CheckSquare, FolderOpen } from "lucide-react";
+import { Card, Button, Input, Select } from "../ui";
+
+export default function TasksFilterModal({ 
   isOpen, 
   onClose, 
   onApplyFilters,
   users = [],
+  projects = [],
   appliedFilters = {}
 }) {
   const [filters, setFilters] = useState({
     status: '',
-    source: '',
+    priority: '',
     assignedTo: '',
+    project: '',
     dateRange: '',
-    valueRange: '',
-    company: ''
+    dueDateFrom: '',
+    dueDateTo: '',
   });
 
   // Initialize filters with applied filters when modal opens
@@ -23,11 +27,12 @@ export default function LeadsFilterModal({
     if (isOpen) {
       setFilters({
         status: appliedFilters.status || '',
-        source: appliedFilters.source || '',
+        priority: appliedFilters.priority || '',
         assignedTo: appliedFilters.assignedTo || '',
+        project: appliedFilters.project || '',
         dateRange: appliedFilters.dateRange || '',
-        valueRange: appliedFilters.valueRange || '',
-        company: appliedFilters.company || ''
+        dueDateFrom: appliedFilters.dueDateFrom || '',
+        dueDateTo: appliedFilters.dueDateTo || '',
       });
     }
   }, [isOpen, appliedFilters]);
@@ -47,11 +52,12 @@ export default function LeadsFilterModal({
   const handleClearFilters = () => {
     const clearedFilters = {
       status: '',
-      source: '',
+      priority: '',
       assignedTo: '',
+      project: '',
       dateRange: '',
-      valueRange: '',
-      company: ''
+      dueDateFrom: '',
+      dueDateTo: '',
     };
     setFilters(clearedFilters);
     onApplyFilters(clearedFilters);
@@ -75,10 +81,10 @@ export default function LeadsFilterModal({
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Filter Lead Companies
+                  Filter Tasks
                 </h2>
                 <p className="text-sm text-gray-500">
-                  Refine your lead company search
+                  Refine your task search
                 </p>
               </div>
             </div>
@@ -103,37 +109,33 @@ export default function LeadsFilterModal({
                 onChange={(value) => handleFilterChange('status', value)}
                 options={[
                   { value: '', label: 'All Statuses' },
-                  { value: 'new', label: 'New' },
-                  { value: 'contacted', label: 'Contacted' },
-                  { value: 'qualified', label: 'Qualified' },
-                  { value: 'lost', label: 'Lost' }
+                  { value: 'To Do', label: 'To Do' },
+                  { value: 'In Progress', label: 'In Progress' },
+                  { value: 'In Review', label: 'In Review' },
+                  { value: 'Done', label: 'Done' },
+                  { value: 'Cancelled', label: 'Cancelled' }
                 ]}
                 placeholder="Select status"
                 className="w-full"
               />
             </div>
 
-            {/* Source Filter */}
+            {/* Priority Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Building2 className="w-4 h-4 inline mr-2" />
-                Source
+                <CheckSquare className="w-4 h-4 inline mr-2" />
+                Priority
               </label>
               <Select
-                value={filters.source}
-                onChange={(value) => handleFilterChange('source', value)}
+                value={filters.priority}
+                onChange={(value) => handleFilterChange('priority', value)}
                 options={[
-                  { value: '', label: 'All Sources' },
-                  { value: 'WEBSITE', label: 'Website' },
-                  { value: 'REFERRAL', label: 'Referral' },
-                  { value: 'COLD_OUTREACH', label: 'Cold Outreach' },
-                  { value: 'SOCIAL_MEDIA', label: 'Social Media' },
-                  { value: 'EVENT', label: 'Event' },
-                  { value: 'PARTNER', label: 'Partner' },
-                  { value: 'ADVERTISING', label: 'Advertising' },
-                  { value: 'MANUAL', label: 'Manual' }
+                  { value: '', label: 'All Priorities' },
+                  { value: 'High', label: 'High' },
+                  { value: 'Medium', label: 'Medium' },
+                  { value: 'Low', label: 'Low' }
                 ]}
-                placeholder="Select source"
+                placeholder="Select priority"
                 className="w-full"
               />
             </div>
@@ -150,11 +152,12 @@ export default function LeadsFilterModal({
                 options={[
                   { value: '', label: 'All Assignees' },
                   ...users.map((user) => ({
-                    value: (user.id || user.documentId).toString(),
+                    value: (user.id || user._id || user.documentId)?.toString(),
                     label:
                       `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
                       user.username ||
                       user.email ||
+                      user.name ||
                       "Unknown User",
                   }))
                 ]}
@@ -163,17 +166,23 @@ export default function LeadsFilterModal({
               />
             </div>
 
-            {/* Company Filter */}
+            {/* Project Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Building2 className="w-4 h-4 inline mr-2" />
-                Company
+                <FolderOpen className="w-4 h-4 inline mr-2" />
+                Project
               </label>
-              <Input
-                type="text"
-                placeholder="Filter by company..."
-                value={filters.company}
-                onChange={(e) => handleFilterChange('company', e.target.value)}
+              <Select
+                value={filters.project}
+                onChange={(value) => handleFilterChange('project', value)}
+                options={[
+                  { value: '', label: 'All Projects' },
+                  ...projects.map((project) => ({
+                    value: (project.id || project._id)?.toString(),
+                    label: project.name || "Unnamed Project",
+                  }))
+                ]}
+                placeholder="Select project"
                 className="w-full"
               />
             </div>
@@ -182,7 +191,7 @@ export default function LeadsFilterModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar className="w-4 h-4 inline mr-2" />
-                Date Range
+                Created Date Range
               </label>
               <Select
                 value={filters.dateRange}
@@ -199,25 +208,28 @@ export default function LeadsFilterModal({
               />
             </div>
 
-            {/* Value Range Filter */}
+            {/* Due Date Range */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <DollarSign className="w-4 h-4 inline mr-2" />
-                Value Range
+                <Calendar className="w-4 h-4 inline mr-2" />
+                Due Date Range
               </label>
-              <Select
-                value={filters.valueRange}
-                onChange={(value) => handleFilterChange('valueRange', value)}
-                options={[
-                  { value: '', label: 'All Values' },
-                  { value: '0-25k', label: '₹0 - ₹25K' },
-                  { value: '25k-50k', label: '₹25K - ₹50K' },
-                  { value: '50k-100k', label: '₹50K - ₹100K' },
-                  { value: '100k+', label: '₹100K+' }
-                ]}
-                placeholder="Select value range"
-                className="w-full"
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  type="date"
+                  placeholder="From"
+                  value={filters.dueDateFrom}
+                  onChange={(e) => handleFilterChange('dueDateFrom', e.target.value)}
+                  className="w-full"
+                />
+                <Input
+                  type="date"
+                  placeholder="To"
+                  value={filters.dueDateTo}
+                  onChange={(e) => handleFilterChange('dueDateTo', e.target.value)}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
 
@@ -247,3 +259,4 @@ export default function LeadsFilterModal({
     </div>
   );
 }
+

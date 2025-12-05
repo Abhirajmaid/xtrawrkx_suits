@@ -45,10 +45,10 @@ class AuthService {
             if (!response.ok) {
                 // Extract error message from various possible structures
                 let errorMessage = 'Login failed. Please try again.';
-                
+
                 console.log('Login failed - Response status:', response.status);
                 console.log('Login failed - Response data:', JSON.stringify(data, null, 2));
-                
+
                 // Strapi v4 error structure is typically: { error: { status: 400, message: "..." } }
                 // But can also be: { error: "..." } or { message: "..." }
                 if (data) {
@@ -81,7 +81,7 @@ class AuthService {
                         errorMessage = data.data.message;
                     }
                 }
-                
+
                 // If still default, try to get any string from the response
                 if (errorMessage === 'Login failed. Please try again.' && data) {
                     const dataString = JSON.stringify(data);
@@ -89,7 +89,7 @@ class AuthService {
                         errorMessage = `Login failed: ${dataString}`;
                     }
                 }
-                
+
                 console.log('Extracted error message:', errorMessage);
                 throw new Error(errorMessage);
             }

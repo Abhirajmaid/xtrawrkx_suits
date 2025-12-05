@@ -27,9 +27,10 @@ import {
   TaskDeleteConfirmationModal,
   AddTaskModal,
   CollaboratorModal,
+  TasksFilterModal,
 } from "../../components/my-task";
 import ProjectSelector from "../../components/my-task/ProjectSelector";
-import { Card } from "../../components/ui";
+import { Card, Pagination } from "../../components/ui";
 import taskService from "../../lib/taskService";
 import subtaskService from "../../lib/subtaskService";
 import projectService from "../../lib/projectService";
@@ -39,8 +40,10 @@ import {
   transformSubtask,
   transformStatusToStrapi,
   transformPriorityToStrapi,
+  transformComment,
 } from "../../lib/dataTransformers";
 import { useAuth } from "../../contexts/AuthContext";
+import apiClient from "../../lib/apiClient";
 
 // Local utility function to format dates
 const formatDate = (dateString) => {
@@ -70,6 +73,7 @@ export default function MyTasks() {
   const [appliedFilters, setAppliedFilters] = useState({});
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const [collaboratorModal, setCollaboratorModal] = useState({
     isOpen: false,
     task: null,
@@ -104,6 +108,13 @@ export default function MyTasks() {
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
   const [isBulkEditMode, setIsBulkEditMode] = useState(false);
 
+  // Users for filter modal
+  const [users, setUsers] = useState([]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
   // Close subtask dropdowns on scroll
   useEffect(() => {
     const handleScroll = () => {
@@ -114,6 +125,53 @@ export default function MyTasks() {
   }, []);
 
   const exportDropdownRef = useRef(null);
+
+  // Load users for filter modal
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const usersResponse = await apiClient.get("/api/xtrawrkx-users", {
+          "pagination[pageSize]": 100,
+          populate: "primaryRole,userRoles,department",
+          "filters[isActive][$eq]": "true",
+        });
+
+        let usersData = [];
+        if (usersResponse?.data && Array.isArray(usersResponse.data)) {
+          usersData = usersResponse.data;
+        } else if (Array.isArray(usersResponse)) {
+          usersData = usersResponse;
+        }
+
+        const transformedUsers = usersData
+          .filter((user) => user && user.id)
+          .map((user) => {
+            const userData = user.attributes || user;
+            const firstName = userData.firstName || "";
+            const lastName = userData.lastName || "";
+            const email = userData.email || "";
+            const name = `${firstName} ${lastName}`.trim() || email || "Unknown User";
+
+            return {
+              id: user.id,
+              documentId: user.id,
+              firstName,
+              lastName,
+              email,
+              name,
+              ...userData,
+            };
+          });
+
+        setUsers(transformedUsers);
+      } catch (error) {
+        console.error("Error loading users:", error);
+        setUsers([]);
+      }
+    };
+
+    loadUsers();
+  }, []);
 
   // Load tasks and projects from API
   useEffect(() => {
@@ -432,10 +490,11 @@ export default function MyTasks() {
     { key: "overdue", label: "Overdue", badge: taskStats.overdue.toString() },
   ];
 
-  // Filter tasks based on search and active tab
+  // Filter tasks based on search, active tab, and applied filters
   const filteredTasks = tasksToUse.filter((task) => {
     if (!task) return false;
 
+    // Search filter
     const matchesSearch =
       searchQuery === "" ||
       (task.name &&
@@ -458,8 +517,139 @@ export default function MyTasks() {
         taskStatus !== "done" &&
         taskStatus !== "completed");
 
-    return matchesSearch && matchesTab;
+    // Applied filters
+    let matchesFilters = true;
+    
+    if (Object.keys(appliedFilters).length > 0) {
+      // Status filter
+      if (appliedFilters.status) {
+        const filterStatus = appliedFilters.status.toLowerCase();
+        const taskStatusLower = task.status?.toLowerCase() || "";
+        if (filterStatus !== taskStatusLower) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Priority filter
+      if (appliedFilters.priority) {
+        const filterPriority = appliedFilters.priority.toLowerCase();
+        const taskPriority = task.priority?.toLowerCase() || "";
+        if (filterPriority !== taskPriority) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Assigned to filter - match by user ID
+      if (appliedFilters.assignedTo) {
+        const assignedUser = task.assignee;
+        const assignedUserId = assignedUser
+          ? (assignedUser.id || assignedUser._id || assignedUser.documentId)?.toString()
+          : "";
+        const filterUserId = appliedFilters.assignedTo.toString();
+        if (assignedUserId !== filterUserId) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Project filter
+      if (appliedFilters.project) {
+        const taskProjectId = task.project
+          ? (task.project.id || task.project._id)?.toString()
+          : "";
+        const filterProjectId = appliedFilters.project.toString();
+        if (taskProjectId !== filterProjectId) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Date range filter (created date)
+      if (appliedFilters.dateRange && task.createdAt) {
+        const now = new Date();
+        let startDate;
+        
+        switch (appliedFilters.dateRange) {
+          case "today":
+            startDate = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate()
+            );
+            break;
+          case "week":
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case "month":
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case "quarter":
+            const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+            startDate = new Date(now.getFullYear(), quarterStart, 1);
+            break;
+        }
+        
+        if (startDate) {
+          const taskCreatedDate = new Date(task.createdAt);
+          if (taskCreatedDate < startDate) {
+            matchesFilters = false;
+          }
+        }
+      }
+      
+      // Due date range filter
+      if (appliedFilters.dueDateFrom || appliedFilters.dueDateTo) {
+        if (!task.scheduledDate) {
+          matchesFilters = false;
+        } else {
+          const taskDueDate = new Date(task.scheduledDate);
+          if (appliedFilters.dueDateFrom) {
+            const fromDate = new Date(appliedFilters.dueDateFrom);
+            fromDate.setHours(0, 0, 0, 0);
+            if (taskDueDate < fromDate) {
+              matchesFilters = false;
+            }
+          }
+          if (appliedFilters.dueDateTo) {
+            const toDate = new Date(appliedFilters.dueDateTo);
+            toDate.setHours(23, 59, 59, 999);
+            if (taskDueDate > toDate) {
+              matchesFilters = false;
+            }
+          }
+        }
+      }
+    }
+
+    return matchesSearch && matchesTab && matchesFilters;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedFilters, searchQuery, activeTab]);
+
+  // Show filtered count after data is loaded (toast notification)
+  const prevFilteredCountRef = useRef(null);
+  useEffect(() => {
+    const hasActiveFilters = Object.values(appliedFilters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters && !loading && filteredTasks.length !== prevFilteredCountRef.current) {
+      prevFilteredCountRef.current = filteredTasks.length;
+      setToastMessage(`Filters applied. Showing ${filteredTasks.length} result${filteredTasks.length !== 1 ? 's' : ''}`);
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
+    }
+  }, [filteredTasks.length, appliedFilters, loading]);
 
   // Table columns configuration
   const taskColumnsTable = [
@@ -1302,8 +1492,12 @@ export default function MyTasks() {
         }, 250);
       }
 
+      setToastMessage("Task status updated successfully!");
       setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
     } catch (error) {
       console.error("Error updating task status:", error);
     }
@@ -1509,8 +1703,12 @@ export default function MyTasks() {
       setSelectedTaskIds([]);
 
       // Show success message
+      setToastMessage(`Updated ${selectedTaskIds.length} task${selectedTaskIds.length !== 1 ? 's' : ''} successfully!`);
       setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
     } catch (error) {
       console.error("Error updating task statuses:", error);
       setError("Failed to update task statuses");
@@ -1614,8 +1812,12 @@ export default function MyTasks() {
       setLoading(false);
 
       // Show success message
+      setToastMessage("Task created successfully!");
       setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
     } catch (error) {
       console.error("Error refreshing tasks after creation:", error);
       setLoading(false);
@@ -1739,10 +1941,10 @@ export default function MyTasks() {
 
   return (
     <>
-      {/* Success Messages - Outside main flow to prevent layout shifts */}
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-[9999] pointer-events-none">
-          Task created successfully!
+      {/* Toast Messages - Outside main flow to prevent layout shifts */}
+      {showSuccessMessage && toastMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-[9999] pointer-events-none animate-in fade-in slide-in-from-top-2">
+          {toastMessage}
         </div>
       )}
 
@@ -1780,12 +1982,17 @@ export default function MyTasks() {
               onToggleBulkEdit={handleToggleBulkEdit}
             />
 
+            {/* Results Count */}
+            <div className="text-sm text-gray-600 px-1">
+              Showing <span className="font-semibold text-gray-900">{filteredTasks.length}</span> result{filteredTasks.length !== 1 ? 's' : ''}
+            </div>
+
             {/* Single Horizontal Scroll Container */}
             <div className="-mx-4 px-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               {/* Tasks Table/Board */}
               {activeView === "list" && (
                 <TasksListView
-                  filteredTasks={filteredTasks}
+                  filteredTasks={paginatedTasks}
                   taskColumnsTable={taskColumnsTable}
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
@@ -1795,6 +2002,17 @@ export default function MyTasks() {
                   selectedTaskIds={selectedTaskIds}
                   onSelectTask={handleSelectTask}
                   onSelectAll={handleSelectAll}
+                  pagination={
+                    totalPages > 1 ? (
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={filteredTasks.length}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={setCurrentPage}
+                      />
+                    ) : null
+                  }
                   bulkActions={
                     isBulkEditMode && selectedTaskIds.length > 0 ? (
                       <div className="flex items-center gap-2">
@@ -2032,6 +2250,16 @@ export default function MyTasks() {
           isOpen={isAddTaskModalOpen}
           onClose={() => setIsAddTaskModalOpen(false)}
           onTaskCreated={handleTaskCreated}
+        />
+
+        {/* Filter Modal */}
+        <TasksFilterModal
+          isOpen={isFilterModalOpen}
+          onClose={() => setIsFilterModalOpen(false)}
+          onApplyFilters={(filters) => setAppliedFilters(filters)}
+          users={users}
+          projects={projects}
+          appliedFilters={appliedFilters}
         />
       </div>
     </>

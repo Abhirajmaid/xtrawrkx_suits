@@ -10,17 +10,21 @@ export default function ProjectsListView({
   setSearchQuery,
   setIsModalOpen,
   onRowClick,
+  pagination = null,
 }) {
   return (
     <div className="rounded-3xl overflow-hidden">
       {filteredProjects.length > 0 ? (
-        <Table
-          columns={projectColumnsTable}
-          data={filteredProjects}
-          onRowClick={onRowClick}
-          className="min-w-[1600px]"
-          rowPadding="py-4"
-        />
+        <>
+          <Table
+            columns={projectColumnsTable}
+            data={filteredProjects}
+            onRowClick={onRowClick}
+            className="min-w-[1600px]"
+            rowPadding="py-4"
+          />
+          {pagination}
+        </>
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">
           <EmptyState

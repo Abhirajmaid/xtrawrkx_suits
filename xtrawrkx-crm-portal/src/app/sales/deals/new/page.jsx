@@ -161,7 +161,10 @@ export default function NewDealPage() {
       });
       console.log("Lead companies response:", leadCompaniesResponse);
 
-      const leadCompaniesData = leadCompaniesResponse?.data || [];
+      // Handle different response structures
+      const leadCompaniesData = Array.isArray(leadCompaniesResponse)
+        ? leadCompaniesResponse
+        : leadCompaniesResponse?.data || [];
       setLeadCompanies(leadCompaniesData);
       console.log("Set lead companies:", leadCompaniesData);
 
@@ -172,7 +175,11 @@ export default function NewDealPage() {
       });
       console.log("Client accounts response:", clientAccountsResponse);
 
-      const clientAccountsData = clientAccountsResponse?.data || [];
+      // Handle different response structures
+      // The API returns data directly as an array, not wrapped in a data property
+      const clientAccountsData = Array.isArray(clientAccountsResponse)
+        ? clientAccountsResponse
+        : clientAccountsResponse?.data || [];
       setClientAccounts(clientAccountsData);
       console.log("Set client accounts:", clientAccountsData);
     } catch (error) {

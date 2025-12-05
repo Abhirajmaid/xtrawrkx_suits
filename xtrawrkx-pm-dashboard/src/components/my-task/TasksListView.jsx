@@ -15,6 +15,7 @@ export default function TasksListView({
   onSelectTask,
   onSelectAll,
   bulkActions = null,
+  pagination = null,
 }) {
   return (
     <div className="rounded-3xl overflow-hidden">
@@ -42,6 +43,7 @@ export default function TasksListView({
             onSelectRow={onSelectTask}
             onSelectAll={onSelectAll}
           />
+          {pagination}
         </>
       ) : (
         <div className="rounded-3xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-12 text-center">

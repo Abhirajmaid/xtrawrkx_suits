@@ -26,9 +26,10 @@ import {
   ProjectsKPIs,
   ProjectsTabs,
   ProjectsListView,
+  ProjectsFilterModal,
 } from "../../components/projects";
 import PageHeader from "../../components/shared/PageHeader";
-import { Card } from "../../components/ui";
+import { Card, Pagination } from "../../components/ui";
 import projectService from "../../lib/projectService";
 import { transformProject, transformStatusToStrapi } from "../../lib/dataTransformers";
 import { useAuth } from "../../contexts/AuthContext";
@@ -62,7 +63,14 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [teamModal, setTeamModal] = useState({ isOpen: false, project: null });
+  const [projectLeadModal, setProjectLeadModal] = useState({ isOpen: false, project: null });
   const [allUsers, setAllUsers] = useState([]);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   const exportDropdownRef = useRef(null);
 
@@ -246,10 +254,11 @@ export default function ProjectsPage() {
     { key: "overdue", label: "Overdue", badge: projectStats.overdue.toString() },
   ];
 
-  // Filter projects based on search and active tab
+  // Filter projects based on search, active tab, and applied filters
   const filteredProjects = projects.filter((project) => {
     if (!project) return false;
 
+    // Search filter
     const matchesSearch =
       searchQuery === "" ||
       (project.name &&
@@ -269,8 +278,142 @@ export default function ProjectsPage() {
         new Date(project.endDate) < new Date() &&
         projectStatus !== "completed");
 
-    return matchesSearch && matchesTab;
+    // Applied filters
+    let matchesFilters = true;
+    
+    if (Object.keys(appliedFilters).length > 0) {
+      // Status filter
+      if (appliedFilters.status) {
+        const filterStatus = appliedFilters.status.toLowerCase();
+        const projectStatusLower = projectStatus || "";
+        if (filterStatus !== projectStatusLower) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Project Manager filter
+      if (appliedFilters.projectManager) {
+        const projectManager = project.projectManager;
+        const managerId = projectManager
+          ? (projectManager.id || projectManager._id || projectManager.documentId)?.toString()
+          : "";
+        const filterManagerId = appliedFilters.projectManager.toString();
+        if (managerId !== filterManagerId) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Date range filter (created date)
+      if (appliedFilters.dateRange && project.createdAt) {
+        const now = new Date();
+        let startDate;
+        
+        switch (appliedFilters.dateRange) {
+          case "today":
+            startDate = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate()
+            );
+            break;
+          case "week":
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case "month":
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case "quarter":
+            const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+            startDate = new Date(now.getFullYear(), quarterStart, 1);
+            break;
+        }
+        
+        if (startDate) {
+          const projectCreatedDate = new Date(project.createdAt);
+          if (projectCreatedDate < startDate) {
+            matchesFilters = false;
+          }
+        }
+      }
+      
+      // Start date range filter
+      if (appliedFilters.startDateFrom || appliedFilters.startDateTo) {
+        if (!project.startDate) {
+          matchesFilters = false;
+        } else {
+          const projectStartDate = new Date(project.startDate);
+          if (appliedFilters.startDateFrom) {
+            const fromDate = new Date(appliedFilters.startDateFrom);
+            fromDate.setHours(0, 0, 0, 0);
+            if (projectStartDate < fromDate) {
+              matchesFilters = false;
+            }
+          }
+          if (appliedFilters.startDateTo) {
+            const toDate = new Date(appliedFilters.startDateTo);
+            toDate.setHours(23, 59, 59, 999);
+            if (projectStartDate > toDate) {
+              matchesFilters = false;
+            }
+          }
+        }
+      }
+      
+      // End date range filter
+      if (appliedFilters.endDateFrom || appliedFilters.endDateTo) {
+        if (!project.endDate) {
+          matchesFilters = false;
+        } else {
+          const projectEndDate = new Date(project.endDate);
+          if (appliedFilters.endDateFrom) {
+            const fromDate = new Date(appliedFilters.endDateFrom);
+            fromDate.setHours(0, 0, 0, 0);
+            if (projectEndDate < fromDate) {
+              matchesFilters = false;
+            }
+          }
+          if (appliedFilters.endDateTo) {
+            const toDate = new Date(appliedFilters.endDateTo);
+            toDate.setHours(23, 59, 59, 999);
+            if (projectEndDate > toDate) {
+              matchesFilters = false;
+            }
+          }
+        }
+      }
+    }
+
+    return matchesSearch && matchesTab && matchesFilters;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProjects = filteredProjects.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedFilters, searchQuery, activeTab]);
+
+  // Show filtered count after data is loaded (toast notification)
+  const prevFilteredCountRef = useRef(null);
+  useEffect(() => {
+    const hasActiveFilters = Object.values(appliedFilters).some(
+      (value) => value && value.toString().trim() !== ""
+    );
+    
+    if (hasActiveFilters && !loading && filteredProjects.length !== prevFilteredCountRef.current) {
+      prevFilteredCountRef.current = filteredProjects.length;
+      setToastMessage(`Filters applied. Showing ${filteredProjects.length} result${filteredProjects.length !== 1 ? 's' : ''}`);
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
+    }
+  }, [filteredProjects.length, appliedFilters, loading]);
 
   // Table columns configuration
   const projectColumnsTable = [
@@ -385,7 +528,6 @@ export default function ProjectsPage() {
       label: "PROJECT LEAD",
       render: (_, project) => {
         const projectManager = project.projectManager;
-        const currentUserId = projectManager?.id?.toString() || "";
         const name =
           projectManager?.name ||
           (projectManager?.firstName && projectManager?.lastName
@@ -396,30 +538,33 @@ export default function ProjectsPage() {
         const initial = name?.charAt(0)?.toUpperCase() || "U";
 
         return (
-          <div className="min-w-[180px]" onClick={(e) => e.stopPropagation()}>
-            <select
-              value={currentUserId}
-              onChange={(e) => {
-                e.stopPropagation();
-                handleProjectLeadUpdate(project.id, e.target.value);
-              }}
-              className="w-full bg-white border-2 border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none transition-all duration-200"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 0.75rem center",
-                backgroundSize: "0.75rem 0.75rem",
-                paddingRight: "2.5rem",
-              }}
-            >
-              <option value="">Unassigned</option>
-              {allUsers.map((user) => (
-                <option key={user.id} value={user.id.toString()}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setProjectLeadModal({ isOpen: true, project });
+            }}
+            className="flex items-center gap-2 min-w-[180px] hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors text-left"
+          >
+            {projectManager ? (
+              <>
+                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+                  {initial}
+                </div>
+                <span className="text-sm text-gray-600 truncate">
+                  {name}
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+                  <User className="w-3 h-3" />
+                </div>
+                <span className="text-sm text-gray-600 truncate">
+                  Click to assign
+                </span>
+              </>
+            )}
+          </button>
         );
       },
     },
@@ -1154,17 +1299,33 @@ export default function ProjectsPage() {
               onExportClick={handleExport}
             />
 
+            {/* Results Count */}
+            <div className="text-sm text-gray-600 px-1">
+              Showing <span className="font-semibold text-gray-900">{filteredProjects.length}</span> result{filteredProjects.length !== 1 ? 's' : ''}
+            </div>
+
             {/* Single Horizontal Scroll Container */}
             <div className="-mx-4 px-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               {/* Projects Table/Grid */}
               {activeView === "list" && (
                 <ProjectsListView
-                  filteredProjects={filteredProjects}
+                  filteredProjects={paginatedProjects}
                   projectColumnsTable={projectColumnsTable}
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   setIsModalOpen={() => router.push("/projects/add")}
                   onRowClick={handleProjectClick}
+                  pagination={
+                    totalPages > 1 ? (
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={filteredProjects.length}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={setCurrentPage}
+                      />
+                    ) : null
+                  }
                 />
               )}
               {activeView === "grid" && (
@@ -1176,6 +1337,22 @@ export default function ProjectsPage() {
           </div>
         </div>
       </div>
+
+      {/* Filter Modal */}
+      <ProjectsFilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        onApplyFilters={(filters) => setAppliedFilters(filters)}
+        users={allUsers}
+        appliedFilters={appliedFilters}
+      />
+
+      {/* Toast Messages */}
+      {showSuccessMessage && toastMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-[9999] pointer-events-none animate-in fade-in slide-in-from-top-2">
+          {toastMessage}
+        </div>
+      )}
 
       {/* Team Management Modal */}
       {teamModal.isOpen && (
@@ -1190,6 +1367,26 @@ export default function ProjectsPage() {
             );
             // Update the project in the modal state so UI reflects changes
             setTeamModal((prev) => ({
+              ...prev,
+              project: updatedProject,
+            }));
+          }}
+        />
+      )}
+
+      {/* Project Lead Selection Modal */}
+      {projectLeadModal.isOpen && (
+        <ProjectLeadModal
+          isOpen={projectLeadModal.isOpen}
+          onClose={() => setProjectLeadModal({ isOpen: false, project: null })}
+          project={projectLeadModal.project}
+          onUpdate={(updatedProject) => {
+            // Update projects list
+            setProjects((prevProjects) =>
+              prevProjects.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+            );
+            // Update the project in the modal state so UI reflects changes
+            setProjectLeadModal((prev) => ({
               ...prev,
               project: updatedProject,
             }));
@@ -1434,6 +1631,261 @@ function TeamManagementModal({ isOpen, onClose, project, onUpdate }) {
                       <UserMinus className="w-5 h-5 text-blue-600" />
                     ) : (
                       <UserPlus className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Project Lead Selection Modal Component
+function ProjectLeadModal({ isOpen, onClose, project, onUpdate }) {
+  const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [currentProject, setCurrentProject] = useState(project);
+
+  // Update local project state when prop changes
+  useEffect(() => {
+    if (project) {
+      setCurrentProject(project);
+    }
+  }, [project]);
+
+  // Get current project lead from local state
+  const currentProjectLead = currentProject?.projectManager;
+
+  useEffect(() => {
+    if (isOpen) {
+      loadUsers();
+      // Reset to current project when modal opens
+      if (project) {
+        setCurrentProject(project);
+      }
+    }
+  }, [isOpen]);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      const usersResponse = await apiClient.get("/api/xtrawrkx-users", {
+        "pagination[pageSize]": 100,
+        populate: "primaryRole,userRoles,department",
+        "filters[isActive][$eq]": "true",
+      });
+
+      let usersData = [];
+      if (usersResponse?.data && Array.isArray(usersResponse.data)) {
+        usersData = usersResponse.data;
+      } else if (Array.isArray(usersResponse)) {
+        usersData = usersResponse;
+      }
+
+      const transformedUsers = usersData
+        .filter((user) => user && user.id)
+        .map((user) => {
+          const userData = user.attributes || user;
+          const firstName = userData.firstName || "";
+          const lastName = userData.lastName || "";
+          const email = userData.email || "";
+          const name = `${firstName} ${lastName}`.trim() || email || "Unknown User";
+
+          return {
+            id: user.id,
+            firstName,
+            lastName,
+            email,
+            name,
+          };
+        });
+
+      setUsers(transformedUsers);
+    } catch (error) {
+      console.error("Error loading users:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      user.name.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower) ||
+      user.firstName.toLowerCase().includes(searchLower) ||
+      user.lastName.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const isProjectLead = (userId) => {
+    if (!currentProjectLead) return false;
+    const leadId = typeof currentProjectLead === 'object' ? currentProjectLead.id : currentProjectLead;
+    return leadId === userId;
+  };
+
+  const handleSelectProjectLead = async (user) => {
+    if (!currentProject) return;
+
+    setSaving(true);
+    try {
+      if (!user) {
+        // Remove project lead (set to null)
+        await projectService.updateProject(currentProject.id, {
+          projectManager: null,
+        });
+      } else {
+        const isCurrentlyLead = isProjectLead(user.id);
+
+        if (isCurrentlyLead) {
+          // Already selected, do nothing or close modal
+          onClose();
+          return;
+        } else {
+          // Set new project lead
+          await projectService.updateProject(currentProject.id, {
+            projectManager: user.id,
+          });
+        }
+      }
+
+      // Reload project to get updated project manager
+      const updatedProject = await projectService.getProjectById(currentProject.id, [
+        "projectManager",
+        "teamMembers",
+        "tasks",
+      ]);
+
+      const transformedProject = transformProject(updatedProject);
+
+      // Update local project state immediately for UI update
+      setCurrentProject(transformedProject);
+
+      // Update parent state
+      if (onUpdate) {
+        onUpdate(transformedProject);
+      }
+
+      // Close the modal after selection
+      onClose();
+    } catch (error) {
+      console.error("Error updating project lead:", error);
+      alert(`Failed to update project lead: ${error.message || "Unknown error"}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen || !currentProject) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[90] p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Select Project Lead
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">{currentProject.name}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search people..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Users List */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {/* Unassign option */}
+          <button
+            onClick={() => handleSelectProjectLead(null)}
+            disabled={saving || !currentProjectLead}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors mb-2 ${
+              !currentProjectLead
+                ? "bg-gray-100 border border-gray-300 cursor-not-allowed"
+                : "hover:bg-gray-50 border border-transparent"
+            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0 bg-gray-200 text-gray-600">
+              <User className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-medium text-gray-900">Unassigned</div>
+              <div className="text-sm text-gray-500">Remove project lead</div>
+            </div>
+            {!currentProjectLead && (
+              <CheckCircle className="w-5 h-5 text-blue-600" />
+            )}
+          </button>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No users found
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredUsers.map((user) => {
+                const isLead = isProjectLead(user.id);
+                const initial = user.name?.charAt(0)?.toUpperCase() || "U";
+
+                return (
+                  <button
+                    key={user.id}
+                    onClick={() => handleSelectProjectLead(user)}
+                    disabled={saving}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                      isLead
+                        ? "bg-blue-50 border border-blue-200"
+                        : "hover:bg-gray-50 border border-transparent"
+                    } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0 ${
+                        isLead
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {initial}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="font-medium text-gray-900">{user.name}</div>
+                      <div className="text-sm text-gray-500">{user.email}</div>
+                    </div>
+                    {isLead && (
+                      <CheckCircle className="w-5 h-5 text-blue-600" />
                     )}
                   </button>
                 );

@@ -8,3 +8,4 @@ export { default as TaskDetailModal } from "./TaskDetailModal";
 export { default as TaskDeleteConfirmationModal } from "./TaskDeleteConfirmationModal";
 export { default as AddTaskModal } from "./AddTaskModal";
 export { default as CollaboratorModal } from "./CollaboratorModal";
+export { default as TasksFilterModal } from "./TasksFilterModal";

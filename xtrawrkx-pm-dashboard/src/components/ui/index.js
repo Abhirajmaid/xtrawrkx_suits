@@ -7,3 +7,4 @@ export { Select } from './Select';
 export { Textarea } from './Textarea';
 export { EmptyState } from './EmptyState';
 export { Button } from './Button';
+export { default as Pagination } from './Pagination';

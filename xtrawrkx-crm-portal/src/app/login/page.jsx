@@ -73,7 +73,7 @@ export default function LoginPage() {
 
     try {
       const result = await login(formData.email, formData.password);
-      
+
       console.log("Login result:", result);
 
       if (result.success) {
@@ -81,9 +81,9 @@ export default function LoginPage() {
       } else {
         // Extract error message properly
         let errorMessage = "Login failed. Please try again.";
-        
+
         if (result.error) {
-          if (typeof result.error === 'string') {
+          if (typeof result.error === "string") {
             errorMessage = result.error;
           } else if (result.error.message) {
             errorMessage = result.error.message;
@@ -91,22 +91,22 @@ export default function LoginPage() {
             errorMessage = result.error.error.message;
           }
         }
-        
+
         console.log("Setting login error:", errorMessage);
         setLoginError(errorMessage);
       }
     } catch (error) {
       console.error("Login error in page:", error);
       let errorMessage = "An unexpected error occurred. Please try again.";
-      
+
       if (error.message) {
         errorMessage = error.message;
-      } else if (typeof error === 'string') {
+      } else if (typeof error === "string") {
         errorMessage = error;
       } else if (error.error?.message) {
         errorMessage = error.error.message;
       }
-      
+
       console.log("Setting login error from catch:", errorMessage);
       setLoginError(errorMessage);
     } finally {
