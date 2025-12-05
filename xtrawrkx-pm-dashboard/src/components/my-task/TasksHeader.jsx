@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Search,
   Filter,
-  Upload,
   Download,
   ChevronDown,
   Plus,
@@ -20,7 +19,6 @@ export default function TasksHeader({
   searchQuery,
   setSearchQuery,
   setIsFilterModalOpen,
-  setIsImportModalOpen,
   showExportDropdown,
   setShowExportDropdown,
   exportDropdownRef,
@@ -104,14 +102,6 @@ export default function TasksHeader({
               className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
             >
               <Filter className="w-5 h-5 text-brand-text-light" />
-            </button>
-
-            {/* Import */}
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
-            >
-              <Upload className="w-5 h-5 text-brand-text-light" />
             </button>
 
             {/* Export Dropdown */}

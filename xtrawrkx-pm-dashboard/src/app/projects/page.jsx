@@ -57,7 +57,6 @@ export default function ProjectsPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [activeView, setActiveView] = useState("list");
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -979,8 +978,111 @@ export default function ProjectsPage() {
   };
 
   const handleExport = (format) => {
-    console.log(`Exporting projects as ${format}`);
-    setShowExportDropdown(false);
+    try {
+      let exportFormat = format;
+      if (format && typeof format === 'object' && format.target) {
+        exportFormat = "csv";
+      } else if (!format || typeof format !== 'string') {
+        exportFormat = "csv";
+      } else {
+        // Normalize to lowercase
+        exportFormat = format.toLowerCase();
+        // Handle "export" as CSV (default export format)
+        if (exportFormat === 'export') {
+          exportFormat = "csv";
+        }
+        // If it's not a recognized format, default to CSV
+        if (!['csv', 'pdf', 'excel'].includes(exportFormat)) {
+          exportFormat = "csv";
+        }
+      }
+
+      console.log(`Exporting ${filteredProjects.length} projects as ${exportFormat}`);
+
+      const exportData = filteredProjects.map((project) => {
+        const projectManager = project.projectManager;
+        const managerName = projectManager
+          ? `${projectManager.firstName || ""} ${projectManager.lastName || ""}`.trim() ||
+            projectManager.name ||
+            projectManager.email ||
+            "Unassigned"
+          : "Unassigned";
+
+        const teamMembers = project.teamMembers || [];
+        const teamSize = teamMembers.length;
+
+        return {
+          "Project Name": project.name || "",
+          "Status": project.status || "",
+          "Project Lead": managerName,
+          "Progress": project.progress ? `${project.progress}%` : "0%",
+          "Team Size": teamSize.toString(),
+          "Start Date": project.startDate
+            ? new Date(project.startDate).toLocaleDateString()
+            : "",
+          "End Date": project.endDate
+            ? new Date(project.endDate).toLocaleDateString()
+            : "",
+          "Created Date": project.createdAt
+            ? new Date(project.createdAt).toLocaleDateString()
+            : "",
+          "Description": project.description || "",
+          "Budget": project.budget ? `₹${project.budget.toLocaleString()}` : "",
+          "Health": project.health || "",
+          "Priority": project.priority || "",
+          "Notes": project.notes || "",
+        };
+      });
+
+      if (exportData.length === 0) {
+        alert("No data to export.");
+        return;
+      }
+
+      if (exportFormat === "csv") {
+        const headers = Object.keys(exportData[0] || {});
+        const csvContent = [
+          headers.join(","),
+          ...exportData.map((row) =>
+            headers
+              .map(
+                (header) =>
+                  `"${(row[header] || "").toString().replace(/"/g, '""')}"`
+              )
+              .join(",")
+          ),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `projects_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setToastMessage(`Exported ${exportData.length} project${exportData.length !== 1 ? 's' : ''} successfully!`);
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          setToastMessage("");
+        }, 3000);
+      } else {
+        alert(`${exportFormat.toUpperCase()} export coming soon!`);
+      }
+    } catch (error) {
+      console.error("Error exporting projects:", error);
+      alert("Failed to export projects");
+    } finally {
+      setShowExportDropdown(false);
+    }
   };
 
   // Close dropdown when clicking outside
@@ -1016,7 +1118,6 @@ export default function ProjectsPage() {
             onSearchChange={setSearchQuery}
             onAddClick={() => router.push("/projects/add")}
             onFilterClick={() => setIsFilterModalOpen(true)}
-            onImportClick={() => setIsImportModalOpen(true)}
             onExportClick={() => setShowExportDropdown(!showExportDropdown)}
           />
           <div className="flex justify-center items-center h-64">
@@ -1050,7 +1151,6 @@ export default function ProjectsPage() {
             onSearchChange={setSearchQuery}
             onAddClick={() => router.push("/projects/add")}
             onFilterClick={() => setIsFilterModalOpen(true)}
-            onImportClick={() => setIsImportModalOpen(true)}
             onExportClick={() => setShowExportDropdown(!showExportDropdown)}
           />
           <div className="space-y-4">
@@ -1248,7 +1348,6 @@ export default function ProjectsPage() {
               onSearchChange={setSearchQuery}
               onAddClick={() => router.push("/projects/add")}
               onFilterClick={() => setIsFilterModalOpen(true)}
-              onImportClick={() => setIsImportModalOpen(true)}
               onExportClick={() => setShowExportDropdown(!showExportDropdown)}
             />
             

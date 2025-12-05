@@ -1041,7 +1041,7 @@ export default function LeadCompaniesPage() {
     setIsImportModalOpen(false);
     setShowAddSuccessMessage(true);
     setTimeout(() => setShowAddSuccessMessage(false), 3000);
-  };
+    };
 
 
   if (loading) {

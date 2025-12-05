@@ -743,6 +743,7 @@ export default function TasksPage() {
           ]}
           showActions={true}
           onAddClick={() => setShowNewTask(true)}
+          // Note: Import functionality is not available for PM/Tasks
         />
 
         <div className="space-y-4">

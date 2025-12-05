@@ -98,7 +98,7 @@ function TasksTabs({
         )}
         {onExportClick && (
           <button
-            onClick={() => onExportClick("export")}
+            onClick={() => onExportClick("csv")}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-white/40 text-gray-700 font-medium text-sm hover:bg-white/90 transition-all duration-300 shadow-md whitespace-nowrap"
             title="Export"
           >

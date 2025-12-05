@@ -69,7 +69,6 @@ export default function MyTasks() {
   const [activeView, setActiveView] = useState("list");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -150,7 +149,8 @@ export default function MyTasks() {
             const firstName = userData.firstName || "";
             const lastName = userData.lastName || "";
             const email = userData.email || "";
-            const name = `${firstName} ${lastName}`.trim() || email || "Unknown User";
+            const name =
+              `${firstName} ${lastName}`.trim() || email || "Unknown User";
 
             return {
               id: user.id,
@@ -286,7 +286,8 @@ export default function MyTasks() {
             typeof taskAssigneeId === "string"
               ? parseInt(taskAssigneeId)
               : taskAssigneeId;
-          const isAssignee = normalizedTaskAssigneeId === normalizedCurrentUserId;
+          const isAssignee =
+            normalizedTaskAssigneeId === normalizedCurrentUserId;
 
           // Check if user is a collaborator
           const collaborators = task.collaborators || [];
@@ -519,7 +520,7 @@ export default function MyTasks() {
 
     // Applied filters
     let matchesFilters = true;
-    
+
     if (Object.keys(appliedFilters).length > 0) {
       // Status filter
       if (appliedFilters.status) {
@@ -529,7 +530,7 @@ export default function MyTasks() {
           matchesFilters = false;
         }
       }
-      
+
       // Priority filter
       if (appliedFilters.priority) {
         const filterPriority = appliedFilters.priority.toLowerCase();
@@ -538,19 +539,23 @@ export default function MyTasks() {
           matchesFilters = false;
         }
       }
-      
+
       // Assigned to filter - match by user ID
       if (appliedFilters.assignedTo) {
         const assignedUser = task.assignee;
         const assignedUserId = assignedUser
-          ? (assignedUser.id || assignedUser._id || assignedUser.documentId)?.toString()
+          ? (
+              assignedUser.id ||
+              assignedUser._id ||
+              assignedUser.documentId
+            )?.toString()
           : "";
         const filterUserId = appliedFilters.assignedTo.toString();
         if (assignedUserId !== filterUserId) {
           matchesFilters = false;
         }
       }
-      
+
       // Project filter
       if (appliedFilters.project) {
         const taskProjectId = task.project
@@ -561,12 +566,12 @@ export default function MyTasks() {
           matchesFilters = false;
         }
       }
-      
+
       // Date range filter (created date)
       if (appliedFilters.dateRange && task.createdAt) {
         const now = new Date();
         let startDate;
-        
+
         switch (appliedFilters.dateRange) {
           case "today":
             startDate = new Date(
@@ -586,7 +591,7 @@ export default function MyTasks() {
             startDate = new Date(now.getFullYear(), quarterStart, 1);
             break;
         }
-        
+
         if (startDate) {
           const taskCreatedDate = new Date(task.createdAt);
           if (taskCreatedDate < startDate) {
@@ -594,7 +599,7 @@ export default function MyTasks() {
           }
         }
       }
-      
+
       // Due date range filter
       if (appliedFilters.dueDateFrom || appliedFilters.dueDateTo) {
         if (!task.scheduledDate) {
@@ -639,10 +644,18 @@ export default function MyTasks() {
     const hasActiveFilters = Object.values(appliedFilters).some(
       (value) => value && value.toString().trim() !== ""
     );
-    
-    if (hasActiveFilters && !loading && filteredTasks.length !== prevFilteredCountRef.current) {
+
+    if (
+      hasActiveFilters &&
+      !loading &&
+      filteredTasks.length !== prevFilteredCountRef.current
+    ) {
       prevFilteredCountRef.current = filteredTasks.length;
-      setToastMessage(`Filters applied. Showing ${filteredTasks.length} result${filteredTasks.length !== 1 ? 's' : ''}`);
+      setToastMessage(
+        `Filters applied. Showing ${filteredTasks.length} result${
+          filteredTasks.length !== 1 ? "s" : ""
+        }`
+      );
       setShowSuccessMessage(true);
       setTimeout(() => {
         setShowSuccessMessage(false);
@@ -1703,7 +1716,11 @@ export default function MyTasks() {
       setSelectedTaskIds([]);
 
       // Show success message
-      setToastMessage(`Updated ${selectedTaskIds.length} task${selectedTaskIds.length !== 1 ? 's' : ''} successfully!`);
+      setToastMessage(
+        `Updated ${selectedTaskIds.length} task${
+          selectedTaskIds.length !== 1 ? "s" : ""
+        } successfully!`
+      );
       setShowSuccessMessage(true);
       setTimeout(() => {
         setShowSuccessMessage(false);
@@ -1827,8 +1844,118 @@ export default function MyTasks() {
 
   // Handle export
   const handleExport = (format) => {
-    console.log(`Exporting tasks as ${format}`);
-    setShowExportDropdown(false);
+    try {
+      let exportFormat = format;
+      if (format && typeof format === 'object' && format.target) {
+        exportFormat = "csv";
+      } else if (!format || typeof format !== 'string') {
+        exportFormat = "csv";
+      } else {
+        // Normalize to lowercase
+        exportFormat = format.toLowerCase();
+        // Handle "export" as CSV (default export format)
+        if (exportFormat === 'export') {
+          exportFormat = "csv";
+        }
+        // If it's not a recognized format, default to CSV
+        if (!['csv', 'pdf', 'excel'].includes(exportFormat)) {
+          exportFormat = "csv";
+        }
+      }
+
+      console.log(`Exporting ${filteredTasks.length} tasks as ${exportFormat}`);
+
+      const exportData = filteredTasks.map((task) => {
+        const assignee = task.assignee;
+        const assigneeName = assignee
+          ? `${assignee.firstName || ""} ${assignee.lastName || ""}`.trim() ||
+            assignee.name ||
+            assignee.email ||
+            "Unassigned"
+          : "Unassigned";
+
+        const project = task.projects && task.projects.length > 0 ? task.projects[0] : null;
+        const projectName = project?.name || "No Project";
+
+        const collaborators = task.collaborators || [];
+        const collaboratorNames = collaborators
+          .map((collab) =>
+            `${collab.firstName || ""} ${collab.lastName || ""}`.trim() ||
+            collab.name ||
+            collab.email ||
+            ""
+          )
+          .filter((name) => name)
+          .join("; ");
+
+        return {
+          "Task Name": task.name || "",
+          "Status": task.status || "",
+          "Priority": task.priority || "",
+          "Assignee": assigneeName,
+          "Project": projectName,
+          "Collaborators": collaboratorNames || "None",
+          "Due Date": task.scheduledDate
+            ? new Date(task.scheduledDate).toLocaleDateString()
+            : "",
+          "Created Date": task.createdAt
+            ? new Date(task.createdAt).toLocaleDateString()
+            : "",
+          "Progress": task.progress ? `${task.progress}%` : "0%",
+          "Description": task.description || "",
+          "Notes": task.notes || "",
+        };
+      });
+
+      if (exportData.length === 0) {
+        alert("No data to export.");
+        return;
+      }
+
+      if (exportFormat === "csv") {
+        const headers = Object.keys(exportData[0] || {});
+        const csvContent = [
+          headers.join(","),
+          ...exportData.map((row) =>
+            headers
+              .map(
+                (header) =>
+                  `"${(row[header] || "").toString().replace(/"/g, '""')}"`
+              )
+              .join(",")
+          ),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `tasks_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setToastMessage(`Exported ${exportData.length} task${exportData.length !== 1 ? 's' : ''} successfully!`);
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          setToastMessage("");
+        }, 3000);
+      } else {
+        alert(`${exportFormat.toUpperCase()} export coming soon!`);
+      }
+    } catch (error) {
+      console.error("Error exporting tasks:", error);
+      alert("Failed to export tasks");
+    } finally {
+      setShowExportDropdown(false);
+    }
   };
 
   // Close dropdown when clicking outside
@@ -1857,7 +1984,6 @@ export default function MyTasks() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             setIsFilterModalOpen={setIsFilterModalOpen}
-            setIsImportModalOpen={setIsImportModalOpen}
             showExportDropdown={showExportDropdown}
             setShowExportDropdown={setShowExportDropdown}
             exportDropdownRef={exportDropdownRef}
@@ -1888,7 +2014,6 @@ export default function MyTasks() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             setIsFilterModalOpen={setIsFilterModalOpen}
-            setIsImportModalOpen={setIsImportModalOpen}
             showExportDropdown={showExportDropdown}
             setShowExportDropdown={setShowExportDropdown}
             exportDropdownRef={exportDropdownRef}
@@ -1955,7 +2080,6 @@ export default function MyTasks() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             setIsFilterModalOpen={setIsFilterModalOpen}
-            setIsImportModalOpen={setIsImportModalOpen}
             showExportDropdown={showExportDropdown}
             setShowExportDropdown={setShowExportDropdown}
             exportDropdownRef={exportDropdownRef}
@@ -1984,7 +2108,11 @@ export default function MyTasks() {
 
             {/* Results Count */}
             <div className="text-sm text-gray-600 px-1">
-              Showing <span className="font-semibold text-gray-900">{filteredTasks.length}</span> result{filteredTasks.length !== 1 ? 's' : ''}
+              Showing{" "}
+              <span className="font-semibold text-gray-900">
+                {filteredTasks.length}
+              </span>{" "}
+              result{filteredTasks.length !== 1 ? "s" : ""}
             </div>
 
             {/* Single Horizontal Scroll Container */}
