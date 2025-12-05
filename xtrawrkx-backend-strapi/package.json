@@ -27,6 +27,7 @@
     "bcryptjs": "^3.0.2",
     "firebase-admin": "^12.7.0",
     "pg": "8.8.0",
+    "picomatch": "^4.0.3",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.0.0",
