@@ -291,10 +291,10 @@ export default function DealsPage() {
         
         // Merge filter conditions with existing filters
         if (Object.keys(filterConditions).length > 0) {
-          params.filters = {
-            ...params.filters,
+        params.filters = {
+          ...params.filters,
             ...filterConditions,
-          };
+        };
         }
       }
 
@@ -731,7 +731,7 @@ export default function DealsPage() {
     );
     
     if (hasActiveFilters) {
-      setAppliedFilters(filters);
+    setAppliedFilters(filters);
       // fetchDeals will be called by useEffect when appliedFilters changes
     } else {
       setAppliedFilters({});

@@ -9,7 +9,7 @@ import projectService from "../../lib/projectService";
 import apiClient from "../../lib/apiClient";
 import { useAuth } from "../../contexts/AuthContext";
 
-const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
+const AddTaskModal = ({ isOpen, onClose, onTaskCreated, initialProjectId = null }) => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -40,6 +40,13 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
   useEffect(() => {
     if (isOpen) {
       loadFormData();
+      // Set initial project if provided
+      if (initialProjectId) {
+        setFormData((prev) => ({
+          ...prev,
+          project: String(initialProjectId),
+        }));
+      }
     } else {
       // Reset form when modal closes
       setFormData({
@@ -56,7 +63,7 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
       setNewTag("");
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, initialProjectId]);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -168,6 +175,19 @@ const AddTaskModal = ({ isOpen, onClose, onTaskCreated }) => {
 
     setUsers(transformedUsers);
     setLoadingData(false);
+
+    // Set initial project after projects are loaded
+    if (initialProjectId) {
+      const projectExists = projectsData.some(
+        (p) => String(p.id) === String(initialProjectId)
+      );
+      if (projectExists) {
+        setFormData((prev) => ({
+          ...prev,
+          project: String(initialProjectId),
+        }));
+      }
+    }
   };
 
   const handleInputChange = (field, value) => {

@@ -154,17 +154,32 @@ module.exports = createCoreController('api::xtrawrkx-user.xtrawrkx-user', ({ str
             const { id } = ctx.params;
             const { data } = ctx.request.body;
 
+            console.log('Updating user:', id);
+            console.log('Update data received:', { ...data, password: data.password ? '***HIDDEN***' : undefined });
+
+            // Prepare update data
+            const updateData = {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                phone: data.phone,
+                department: data.department,
+                isActive: data.isActive,
+                primaryRole: data.primaryRole
+            };
+
+            // Handle password update if provided (hash it)
+            if (data.password && data.password.trim() !== '') {
+                console.log('Password update requested for user:', id);
+                const bcrypt = require('bcryptjs');
+                const hashedPassword = await bcrypt.hash(data.password, 12);
+                updateData.password = hashedPassword;
+                console.log('Password hashed successfully');
+            }
+
             const updatedUser = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').update({
                 where: { id },
-                data: {
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    email: data.email,
-                    phone: data.phone,
-                    department: data.department,
-                    isActive: data.isActive,
-                    primaryRole: data.primaryRole
-                },
+                data: updateData,
                 populate: {
                     primaryRole: true,
                     userRoles: true,

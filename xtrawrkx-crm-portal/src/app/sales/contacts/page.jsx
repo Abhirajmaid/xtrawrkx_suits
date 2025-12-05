@@ -395,7 +395,7 @@ export default function ContactsPage() {
   // Handle filter application
   const handleApplyFilters = (filters) => {
     console.log("Applying filters:", filters);
-    
+
     // Check if any filters are active
     const hasActiveFilters = Object.values(filters).some(
       (value) => value && value.toString().trim() !== ""

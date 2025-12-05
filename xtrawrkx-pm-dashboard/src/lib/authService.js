@@ -33,10 +33,65 @@ class AuthService {
             }
 
             // Parse response
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                // If response is not JSON, use status text
+                const statusText = response.statusText || 'Unknown error';
+                throw new Error(`Server error (${response.status}): ${statusText}`);
+            }
 
             if (!response.ok) {
-                throw new Error(data.message || 'Login failed');
+                // Extract error message from various possible structures
+                let errorMessage = 'Login failed. Please try again.';
+                
+                console.log('Login failed - Response status:', response.status);
+                console.log('Login failed - Response data:', JSON.stringify(data, null, 2));
+                
+                // Strapi v4 error structure is typically: { error: { status: 400, message: "..." } }
+                // But can also be: { error: "..." } or { message: "..." }
+                if (data) {
+                    // Try data.error.message first (most common Strapi format)
+                    if (data.error?.message) {
+                        errorMessage = data.error.message;
+                    }
+                    // Try data.error if it's a string
+                    else if (typeof data.error === 'string') {
+                        errorMessage = data.error;
+                    }
+                    // Try data.message
+                    else if (data.message) {
+                        errorMessage = data.message;
+                    }
+                    // Try data.error.name
+                    else if (data.error?.name) {
+                        errorMessage = data.error.name;
+                    }
+                    // Try nested data.error.data.message
+                    else if (data.error?.data?.message) {
+                        errorMessage = data.error.data.message;
+                    }
+                    // Try data.data.error.message
+                    else if (data.data?.error?.message) {
+                        errorMessage = data.data.error.message;
+                    }
+                    // Try data.data.message
+                    else if (data.data?.message) {
+                        errorMessage = data.data.message;
+                    }
+                }
+                
+                // If still default, try to get any string from the response
+                if (errorMessage === 'Login failed. Please try again.' && data) {
+                    const dataString = JSON.stringify(data);
+                    if (dataString && dataString.length < 200) {
+                        errorMessage = `Login failed: ${dataString}`;
+                    }
+                }
+                
+                console.log('Extracted error message:', errorMessage);
+                throw new Error(errorMessage);
             }
 
             // Store token in localStorage and cookies

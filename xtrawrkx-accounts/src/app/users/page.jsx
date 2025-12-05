@@ -31,6 +31,9 @@ import {
   AlertTriangle,
   Trash2,
   X,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import strapiClient from "@/lib/strapiClient";
@@ -51,6 +54,7 @@ function UserManagementPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingUser, setDeletingUser] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [userRoles, setUserRoles] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
@@ -453,6 +457,15 @@ function UserManagementPage() {
     return PermissionsService.canEditUser(currentUserRole, targetUserRole);
   };
 
+  /**
+   * Check if current user is admin or super admin
+   */
+  const isAdminOrSuperAdmin = () => {
+    if (!currentUser) return false;
+    const role = currentUser.role;
+    return role === "Super Admin" || role === "Admin" || role === "ADMIN";
+  };
+
   const handleEditUser = (user) => {
     // Check if current user can edit this user
     if (!canEditUser(user)) {
@@ -477,9 +490,11 @@ function UserManagementPage() {
     const formattedUser = {
       ...user,
       department: departmentForEdit,
+      newPassword: "", // Initialize password field
     };
 
     setEditingUser(formattedUser);
+    setShowPassword(false); // Reset password visibility
     setShowEditModal(true);
   };
 
@@ -695,6 +710,23 @@ function UserManagementPage() {
         },
       };
 
+      // Add password if provided (only for admins/super admins)
+      if (editingUser.newPassword && editingUser.newPassword.trim() !== "") {
+        // Validate password length
+        if (editingUser.newPassword.length < 8) {
+          setError("Password must be at least 8 characters long");
+          setCreating(false);
+          return;
+        }
+        updateData.data.password = editingUser.newPassword;
+        console.log("Password update included for user:", editingUser.id);
+      }
+
+      console.log("Updating user with data:", {
+        ...updateData.data,
+        password: updateData.data.password ? "***HIDDEN***" : undefined,
+      });
+
       // Update user with populated department in response
       const response = await AuthService.apiRequest(
         `/xtrawrkx-users/${editingUser.id}?populate[department]=*`,
@@ -707,6 +739,7 @@ function UserManagementPage() {
       setSuccess("User updated successfully!");
       setShowEditModal(false);
       setEditingUser(null);
+      setShowPassword(false);
 
       // Refresh the users list to show updated data
       setTimeout(async () => {
@@ -1292,6 +1325,7 @@ function UserManagementPage() {
         onClose={() => {
           setShowEditModal(false);
           setEditingUser(null);
+          setShowPassword(false);
         }}
         title="Edit User"
         size="md"
@@ -1382,6 +1416,48 @@ function UserManagementPage() {
                 }
               />
             </div>
+
+            {/* Password Field - Only visible for Admin/Super Admin */}
+            {isAdminOrSuperAdmin() && (
+              <div className="space-y-2">
+                <label
+                  htmlFor="editPassword"
+                  className="flex text-sm font-medium text-gray-700 mb-1 items-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  New Password (Optional)
+                </label>
+                <div className="relative">
+                  <Input
+                    id="editPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={editingUser.newPassword || ""}
+                    onChange={(e) =>
+                      setEditingUser((prev) => ({
+                        ...prev,
+                        newPassword: e.target.value,
+                      }))
+                    }
+                    placeholder="Leave empty to keep current password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Minimum 8 characters. Leave empty to keep current password.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

@@ -16,28 +16,28 @@ export default function LeadsListView({
     <div className="rounded-3xl overflow-hidden ">
       {filteredLeads.length > 0 ? (
         <>
-          <Table
-            columns={leadColumnsTable}
-            data={filteredLeads}
-            selectable
-            selectedRows={selectedLeads}
-            onSelectRow={(id, selected) => {
-              if (selected) {
-                setSelectedLeads([...selectedLeads, id]);
-              } else {
-                setSelectedLeads(selectedLeads.filter((item) => item !== id));
-              }
-            }}
-            onSelectAll={(selected) => {
-              if (selected) {
-                setSelectedLeads(filteredLeads.map((lead) => lead.id));
-              } else {
-                setSelectedLeads([]);
-              }
-            }}
-            onRowClick={onRowClick}
-            className="min-w-[1600px]"
-          />
+        <Table
+          columns={leadColumnsTable}
+          data={filteredLeads}
+          selectable
+          selectedRows={selectedLeads}
+          onSelectRow={(id, selected) => {
+            if (selected) {
+              setSelectedLeads([...selectedLeads, id]);
+            } else {
+              setSelectedLeads(selectedLeads.filter((item) => item !== id));
+            }
+          }}
+          onSelectAll={(selected) => {
+            if (selected) {
+              setSelectedLeads(filteredLeads.map((lead) => lead.id));
+            } else {
+              setSelectedLeads([]);
+            }
+          }}
+          onRowClick={onRowClick}
+          className="min-w-[1600px]"
+        />
           {pagination}
         </>
       ) : (

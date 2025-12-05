@@ -62,8 +62,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    // Don't set loading state here - let the page handle its own loading state
+    // This prevents the full-screen loader from covering error messages
     try {
-      setLoading(true);
       const response = await authService.login(email, password);
 
       if (response.user && response.token) {
@@ -74,12 +75,23 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Invalid response from server");
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login error in AuthContext:", error);
+      console.error("Error message:", error.message);
+      console.error("Error object:", error);
       setUser(null);
       setIsAuthenticated(false);
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
+      
+      // Extract error message properly
+      let errorMessage = "Login failed. Please try again.";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error.error?.message) {
+        errorMessage = error.error.message;
+      }
+      
+      return { success: false, error: errorMessage };
     }
   };
 

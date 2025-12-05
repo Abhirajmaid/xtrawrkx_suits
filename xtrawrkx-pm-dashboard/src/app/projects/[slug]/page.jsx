@@ -48,6 +48,7 @@ import {
   TasksListView,
   TaskDeleteConfirmationModal,
 } from "../../../components/my-task";
+import AddTaskModal from "../../../components/my-task/AddTaskModal";
 import ProjectSelector from "../../../components/my-task/ProjectSelector";
 import PageHeader from "../../../components/shared/PageHeader";
 import { useRouter } from "next/navigation";
@@ -119,6 +120,12 @@ export default function ProjectDetail({ params }) {
   const [taskDetailModal, setTaskDetailModal] = useState({
     isOpen: false,
     task: null,
+  });
+
+  // Add task modal state
+  const [addTaskModal, setAddTaskModal] = useState({
+    isOpen: false,
+    projectId: null,
   });
 
   // Drag over state for kanban (unused but kept for future functionality)
@@ -354,6 +361,8 @@ export default function ProjectDetail({ params }) {
                 color: transformedProject.color,
                 icon: transformedProject.icon,
               },
+              // Ensure assignee is preserved
+              assignee: task.assignee,
               // Ensure collaborators array is set
               collaborators: finalCollaborators,
             };
@@ -731,35 +740,35 @@ export default function ProjectDetail({ params }) {
   const stats = [
     {
       title: "Total Tasks",
-      value: project.stats.totalTasks.toString(),
+      value: (project?.stats?.totalTasks || 0).toString(),
       change: "+4",
       changeType: "increase",
       icon: CheckSquare,
     },
     {
       title: "Assigned Tasks",
-      value: project.stats.assignedTasks.toString(),
+      value: (project?.stats?.assignedTasks || 0).toString(),
       change: "+3",
       changeType: "increase",
       icon: User,
     },
     {
       title: "Incomplete Tasks",
-      value: project.stats.incompleteTasks.toString(),
+      value: (project?.stats?.incompleteTasks || 0).toString(),
       change: "+2",
       changeType: "increase",
       icon: Clock,
     },
     {
       title: "Completed Tasks",
-      value: project.stats.completedTasks.toString(),
+      value: (project?.stats?.completedTasks || 0).toString(),
       change: "+1",
       changeType: "increase",
       icon: CheckSquare,
     },
     {
       title: "Overdue Tasks",
-      value: project.stats.overdueTasks.toString(),
+      value: (project?.stats?.overdueTasks || 0).toString(),
       change: "0",
       changeType: "neutral",
       icon: Clock,
@@ -841,7 +850,17 @@ export default function ProjectDetail({ params }) {
         "deal.clientAccount",
       ]);
       const transformedProject = transformProject(updatedProject);
-      setProject(transformedProject);
+      // Preserve stats when reverting
+      setProject((prevProject) => ({
+        ...transformedProject,
+        stats: prevProject?.stats || {
+          totalTasks: 0,
+          completedTasks: 0,
+          incompleteTasks: 0,
+          assignedTasks: 0,
+          overdueTasks: 0,
+        },
+      }));
       alert("Failed to update project status. Please try again.");
     } finally {
       setLoadingStatusUpdate(false);
@@ -1083,14 +1102,41 @@ export default function ProjectDetail({ params }) {
       render: (_, task) => {
         // Get collaborators - prefer collaborators array, fallback to assignee
         let collaborators = [];
+        
+        // Check if task has valid collaborators
         if (
           task.collaborators &&
           Array.isArray(task.collaborators) &&
           task.collaborators.length > 0
         ) {
-          collaborators = task.collaborators;
-        } else if (task.assignee) {
-          collaborators = [task.assignee];
+          // Filter out null/undefined collaborators and ensure they have valid data
+          collaborators = task.collaborators.filter(
+            (c) =>
+              c &&
+              (c.id ||
+                c._id ||
+                c.firstName ||
+                c.lastName ||
+                c.name ||
+                c.email)
+          );
+        }
+        
+        // If no valid collaborators, check for assignee
+        if (collaborators.length === 0 && task.assignee) {
+          // Check if assignee is a valid user object
+          const hasAssignee =
+            task.assignee &&
+            (task.assignee.id ||
+              task.assignee._id ||
+              task.assignee.firstName ||
+              task.assignee.lastName ||
+              task.assignee.name ||
+              task.assignee.email);
+          
+          if (hasAssignee) {
+            collaborators = [task.assignee];
+          }
         }
 
         const hasCollaborators = collaborators.length > 0;
@@ -1688,7 +1734,9 @@ export default function ProjectDetail({ params }) {
           showProfile={true}
           showSearch={true}
           showActions={true}
-          onAddClick={() => router.push(`/tasks/add?projectId=${project.id}`)}
+          onAddClick={() => {
+            setAddTaskModal({ isOpen: true, projectId: project.id });
+          }}
           actions={[
             {
               label: "Edit",
@@ -2408,9 +2456,9 @@ export default function ProjectDetail({ params }) {
 
                   {/* New Task Button */}
                   <button
-                    onClick={() =>
-                      router.push(`/tasks/add?projectId=${project.id}`)
-                    }
+                    onClick={() => {
+                      setAddTaskModal({ isOpen: true, projectId: project.id });
+                    }}
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white rounded-xl font-medium transition-all duration-300 shadow-lg hover:shadow-xl"
                   >
                     <Plus className="w-4 h-4" />
@@ -2425,9 +2473,9 @@ export default function ProjectDetail({ params }) {
                 taskColumnsTable={taskColumnsTable}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                setIsModalOpen={() =>
-                  router.push(`/tasks/add?projectId=${project.id}`)
-                }
+                setIsModalOpen={() => {
+                  setAddTaskModal({ isOpen: true, projectId: project.id });
+                }}
                 onRowClick={handleTaskClick}
               />
             </div>
@@ -2961,6 +3009,182 @@ export default function ProjectDetail({ params }) {
             setDeleteModal({ isOpen: false, task: null });
           } catch (error) {
             console.error("Error deleting task:", error);
+          }
+        }}
+      />
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={addTaskModal.isOpen}
+        onClose={() => setAddTaskModal({ isOpen: false, projectId: null })}
+        initialProjectId={addTaskModal.projectId}
+        onTaskCreated={async (newTask) => {
+          // Reload project to get updated tasks list
+          if (params?.slug) {
+            try {
+              let slugParam;
+              if (params.slug instanceof Promise) {
+                const resolvedParams = await params;
+                slugParam = resolvedParams.slug;
+              } else {
+                slugParam = params.slug;
+              }
+
+              let strapiProject = null;
+              const parsedId = parseInt(slugParam, 10);
+              if (!isNaN(parsedId)) {
+                try {
+                  strapiProject = await projectService.getProjectById(parsedId, [
+                    "projectManager",
+                    "teamMembers",
+                    "tasks",
+                    "tasks.assignee",
+                    "tasks.collaborators",
+                    "tasks.project",
+                    "tasks.subtasks",
+                    "account",
+                    "deal",
+                    "deal.leadCompany",
+                    "deal.clientAccount",
+                  ]);
+                } catch (idError) {
+                  console.log("Failed to fetch by ID, trying by slug:", idError);
+                }
+              }
+
+              if (!strapiProject) {
+                try {
+                  strapiProject = await projectService.getProjectBySlug(slugParam, [
+                    "projectManager",
+                    "teamMembers",
+                    "tasks",
+                    "tasks.assignee",
+                    "tasks.collaborators",
+                    "tasks.project",
+                    "tasks.subtasks",
+                    "account",
+                    "deal",
+                    "deal.leadCompany",
+                    "deal.clientAccount",
+                  ]);
+                } catch (slugError) {
+                  console.error("Failed to fetch by slug:", slugError);
+                }
+              }
+
+              if (strapiProject) {
+                const transformedProject = transformProject(strapiProject);
+                
+                // Recalculate stats
+                let recalculatedStats = {
+                  totalTasks: transformedProject.tasks?.length || 0,
+                  completedTasks: 0,
+                  incompleteTasks: 0,
+                  assignedTasks: 0,
+                  overdueTasks: 0,
+                };
+
+                if (transformedProject.tasks && transformedProject.tasks.length > 0) {
+                  transformedProject.tasks.forEach((task) => {
+                    if (task.status === "Done" || task.status === "COMPLETED") {
+                      recalculatedStats.completedTasks++;
+                    } else {
+                      recalculatedStats.incompleteTasks++;
+                    }
+                    if (
+                      task.assignee ||
+                      (task.assigneeIds && task.assigneeIds.length > 0)
+                    ) {
+                      recalculatedStats.assignedTasks++;
+                    }
+                    // Check if overdue
+                    if (task.dueDate) {
+                      const dueDate = new Date(task.dueDate);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      if (
+                        dueDate < today &&
+                        task.status !== "Done" &&
+                        task.status !== "COMPLETED"
+                      ) {
+                        recalculatedStats.overdueTasks++;
+                      }
+                    }
+                  });
+                }
+
+                // Ensure all tasks have the project relation set
+                const tasksWithProject =
+                  transformedProject.tasks?.map((task) => {
+                    let collaborators = task.collaborators || [];
+                    if (task.assignee) {
+                      const assigneeInCollaborators = collaborators.find(
+                        (c) => c?.id === task.assignee?.id
+                      );
+                      if (!assigneeInCollaborators) {
+                        collaborators = [task.assignee, ...collaborators];
+                      }
+                    }
+                    const finalCollaborators =
+                      collaborators.length > 0
+                        ? collaborators
+                        : task.assignee
+                        ? [task.assignee]
+                        : [];
+
+                    return {
+                      ...task,
+                      project: task.project || {
+                        id: transformedProject.id,
+                        name: transformedProject.name,
+                        slug: transformedProject.slug,
+                        color: transformedProject.color,
+                        icon: transformedProject.icon,
+                      },
+                      // Ensure assignee is preserved
+                      assignee: task.assignee,
+                      collaborators: finalCollaborators,
+                    };
+                  }) || [];
+
+                // Handle account data
+                let accountData = null;
+                if (strapiProject.account) {
+                  const account = strapiProject.account.data || strapiProject.account;
+                  const accountAttributes = account?.attributes || account;
+                  accountData = {
+                    id: account?.id || account?.documentId,
+                    name:
+                      accountAttributes?.name ||
+                      accountAttributes?.companyName ||
+                      account?.name ||
+                      account?.companyName ||
+                      "N/A",
+                    industry: accountAttributes?.industry || account?.industry || "",
+                    website: accountAttributes?.website || account?.website || "",
+                    employees: accountAttributes?.employees || account?.employees || "",
+                    city: accountAttributes?.city || account?.city || "",
+                    state: accountAttributes?.state || account?.state || "",
+                    country: accountAttributes?.country || account?.country || "",
+                  };
+                }
+
+                const enrichedProject = {
+                  ...transformedProject,
+                  tasks: tasksWithProject,
+                  stats: recalculatedStats,
+                  team: transformedProject.teamMembers || [],
+                  client: accountData,
+                  deal: strapiProject.deal || null,
+                  originalStartDate: strapiProject.startDate,
+                  originalEndDate: strapiProject.endDate,
+                };
+
+                setProject(enrichedProject);
+              }
+            } catch (error) {
+              console.error("Error reloading project after task creation:", error);
+            }
           }
         }}
       />

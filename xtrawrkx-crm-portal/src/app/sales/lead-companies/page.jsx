@@ -125,7 +125,7 @@ export default function LeadCompaniesPage() {
 
   // Fetch users for filter dropdown (all users, not just for admin)
   useEffect(() => {
-    fetchUsers();
+      fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
@@ -937,7 +937,7 @@ export default function LeadCompaniesPage() {
     );
     
     if (hasActiveFilters) {
-      setAppliedFilters(filters);
+    setAppliedFilters(filters);
     } else {
       setAppliedFilters({});
       toast.info("Filters cleared");

@@ -16,32 +16,32 @@ export default function ContactsListView({
     <div className="rounded-3xl overflow-hidden">
       {filteredContacts.length > 0 ? (
         <>
-          <Table
-            columns={contactColumnsTable}
-            data={filteredContacts}
-            selectable
-            selectedRows={selectedContacts}
-            onSelectRow={(id, selected) => {
-              if (selected) {
-                setSelectedContacts([...selectedContacts, id]);
-              } else {
-                setSelectedContacts(
-                  selectedContacts.filter((item) => item !== id)
-                );
-              }
-            }}
-            onSelectAll={(selected) => {
-              if (selected) {
-                setSelectedContacts(
-                  filteredContacts.map((contact) => contact.id)
-                );
-              } else {
-                setSelectedContacts([]);
-              }
-            }}
-            onRowClick={onRowClick}
-            className="min-w-[1400px]"
-          />
+        <Table
+          columns={contactColumnsTable}
+          data={filteredContacts}
+          selectable
+          selectedRows={selectedContacts}
+          onSelectRow={(id, selected) => {
+            if (selected) {
+              setSelectedContacts([...selectedContacts, id]);
+            } else {
+              setSelectedContacts(
+                selectedContacts.filter((item) => item !== id)
+              );
+            }
+          }}
+          onSelectAll={(selected) => {
+            if (selected) {
+              setSelectedContacts(
+                filteredContacts.map((contact) => contact.id)
+              );
+            } else {
+              setSelectedContacts([]);
+            }
+          }}
+          onRowClick={onRowClick}
+          className="min-w-[1400px]"
+        />
           {pagination}
         </>
       ) : (
