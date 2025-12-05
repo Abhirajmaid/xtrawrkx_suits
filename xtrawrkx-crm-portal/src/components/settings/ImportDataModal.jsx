@@ -15,7 +15,6 @@ export default function ImportDataModal({ isOpen, onClose, onImport }) {
   const importTypes = [
     { value: "contacts", label: "Contacts", description: "Import contact information" },
     { value: "leads", label: "Leads", description: "Import lead data" },
-    { value: "deals", label: "Deals", description: "Import deal information" },
     { value: "activities", label: "Activities", description: "Import activity logs" }
   ];
 
@@ -37,37 +36,66 @@ export default function ImportDataModal({ isOpen, onClose, onImport }) {
     setUploadProgress(0);
 
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Determine API endpoint based on import type
+      const endpointMap = {
+        contacts: '/api/import/contacts',
+        leads: '/api/import/leads',
+        activities: '/api/import/activities', // Will need to be created if needed
+      };
+
+      const endpoint = endpointMap[importType] || '/api/import/contacts';
+
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 100) {
+          if (prev >= 90) {
             clearInterval(progressInterval);
-            return 100;
+            return 90;
           }
           return prev + 10;
         });
-      }, 100);
+      }, 200);
 
-      // Simulate import processing
-      setTimeout(() => {
-        const mockResults = {
-          total: 150,
-          successful: 145,
-          failed: 5,
-          errors: [
-            "Row 12: Invalid email format",
-            "Row 23: Missing required field",
-            "Row 45: Duplicate contact",
-            "Row 67: Invalid phone number",
-            "Row 89: Missing company name"
-          ]
-        };
-        setImportResults(mockResults);
-        setIsUploading(false);
-      }, 2000);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+      });
 
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      const result = await response.json();
+
+      if (result.success) {
+        setImportResults({
+          total: result.total || 0,
+          successful: result.successful || result.imported || 0,
+          failed: result.failed || result.errors || 0,
+          errors: result.errors || result.errorsList || []
+        });
+        if (onImport) {
+          onImport(result);
+        }
+      } else {
+        setImportResults({
+          total: 0,
+          successful: 0,
+          failed: 1,
+          errors: [result.error || 'Failed to import data']
+        });
+      }
     } catch (error) {
       console.error('Error importing data:', error);
+      setImportResults({
+        total: 0,
+        successful: 0,
+        failed: 1,
+        errors: [error.message || 'Failed to import data']
+      });
+    } finally {
       setIsUploading(false);
     }
   };

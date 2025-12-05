@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Avatar, Button, Select, Pagination } from "../../../components/ui";
+import {
+  Badge,
+  Avatar,
+  Button,
+  Select,
+  Pagination,
+} from "../../../components/ui";
 import { formatNumber, formatCurrency } from "../../../lib/utils";
 import { toast } from "react-toastify";
 
@@ -26,7 +32,6 @@ import ClientAccountsKPIs from "./components/ClientAccountsKPIs";
 import ClientAccountsTabs from "./components/ClientAccountsTabs";
 import ClientAccountsListView from "./components/ClientAccountsListView";
 import ClientAccountsFilterModal from "./components/ClientAccountsFilterModal";
-import ClientAccountsImportModal from "./components/ClientAccountsImportModal";
 
 import {
   Plus,
@@ -66,17 +71,14 @@ export default function ClientAccountsPage() {
   const [activeView, setActiveView] = useState("list");
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showAddSuccessMessage, setShowAddSuccessMessage] = useState(false);
   const [loadingActions, setLoadingActions] = useState({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
-  const exportDropdownRef = useRef(null);
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -246,7 +248,7 @@ export default function ClientAccountsPage() {
 
     // Applied filters
     let matchesFilters = true;
-    
+
     if (Object.keys(appliedFilters).length > 0) {
       // Status filter
       if (appliedFilters.status) {
@@ -256,7 +258,7 @@ export default function ClientAccountsPage() {
           matchesFilters = false;
         }
       }
-      
+
       // Industry filter
       if (appliedFilters.industry) {
         const filterIndustry = appliedFilters.industry.toLowerCase();
@@ -265,25 +267,37 @@ export default function ClientAccountsPage() {
           matchesFilters = false;
         }
       }
-      
+
       // Revenue range filters
       if (appliedFilters.minRevenue || appliedFilters.maxRevenue) {
         const accountRevenue = account.revenue || 0;
-        if (appliedFilters.minRevenue && accountRevenue < parseFloat(appliedFilters.minRevenue)) {
+        if (
+          appliedFilters.minRevenue &&
+          accountRevenue < parseFloat(appliedFilters.minRevenue)
+        ) {
           matchesFilters = false;
         }
-        if (appliedFilters.maxRevenue && accountRevenue > parseFloat(appliedFilters.maxRevenue)) {
+        if (
+          appliedFilters.maxRevenue &&
+          accountRevenue > parseFloat(appliedFilters.maxRevenue)
+        ) {
           matchesFilters = false;
         }
       }
-      
+
       // Health score range filters
       if (appliedFilters.minHealthScore || appliedFilters.maxHealthScore) {
         const accountHealthScore = account.healthScore || 0;
-        if (appliedFilters.minHealthScore && accountHealthScore < parseFloat(appliedFilters.minHealthScore)) {
+        if (
+          appliedFilters.minHealthScore &&
+          accountHealthScore < parseFloat(appliedFilters.minHealthScore)
+        ) {
           matchesFilters = false;
         }
-        if (appliedFilters.maxHealthScore && accountHealthScore > parseFloat(appliedFilters.maxHealthScore)) {
+        if (
+          appliedFilters.maxHealthScore &&
+          accountHealthScore > parseFloat(appliedFilters.maxHealthScore)
+        ) {
           matchesFilters = false;
         }
       }
@@ -309,10 +323,18 @@ export default function ClientAccountsPage() {
     const hasActiveFilters = Object.values(appliedFilters).some(
       (value) => value && value.toString().trim() !== ""
     );
-    
-    if (hasActiveFilters && !loading && filteredAccounts.length !== prevFilteredCountRef.current) {
+
+    if (
+      hasActiveFilters &&
+      !loading &&
+      filteredAccounts.length !== prevFilteredCountRef.current
+    ) {
       prevFilteredCountRef.current = filteredAccounts.length;
-      toast.success(`Filters applied. Showing ${filteredAccounts.length} result${filteredAccounts.length !== 1 ? 's' : ''}`);
+      toast.success(
+        `Filters applied. Showing ${filteredAccounts.length} result${
+          filteredAccounts.length !== 1 ? "s" : ""
+        }`
+      );
     }
   }, [filteredAccounts.length, appliedFilters, loading]);
 
@@ -366,6 +388,7 @@ export default function ClientAccountsPage() {
     {
       key: "company",
       label: "COMPANY",
+      width: "300px",
       render: (_, account) => {
         const firstChar = account.companyName?.charAt(0)?.toUpperCase() || "?";
         const primaryContact =
@@ -396,6 +419,7 @@ export default function ClientAccountsPage() {
     {
       key: "contact",
       label: "PRIMARY CONTACT",
+      width: "250px",
       render: (_, account) => {
         const primaryContact =
           account.contacts?.find((c) => c.role === "PRIMARY_CONTACT") ||
@@ -430,6 +454,7 @@ export default function ClientAccountsPage() {
     {
       key: "healthScore",
       label: "HEALTH SCORE",
+      width: "140px",
       render: (_, account) => {
         const score = account.healthScore || 0;
         const getHealthColor = () => {
@@ -457,6 +482,7 @@ export default function ClientAccountsPage() {
     {
       key: "dealValue",
       label: "DEAL VALUE",
+      width: "140px",
       render: (_, account) => (
         <div className="min-w-[120px]">
           <div className="flex items-center gap-1.5">
@@ -471,6 +497,7 @@ export default function ClientAccountsPage() {
     {
       key: "contacts",
       label: "CONTACTS",
+      width: "120px",
       render: (_, account) => (
         <div className="min-w-[100px]">
           <div className="flex items-center gap-1.5">
@@ -485,6 +512,7 @@ export default function ClientAccountsPage() {
     {
       key: "accountManager",
       label: "ACCOUNT MANAGER",
+      width: "220px",
       render: (_, account) => {
         const manager = account.accountManager;
         const managerName = manager
@@ -533,32 +561,46 @@ export default function ClientAccountsPage() {
     {
       key: "status",
       label: "STATUS",
+      width: "140px",
       render: (_, account) => {
         const status = account.status?.toLowerCase() || "active";
-        const getStatusColor = () => {
-          switch (status) {
-            case "active":
-              return "bg-green-100 text-green-800 border-green-300";
-            case "inactive":
-              return "bg-gray-100 text-gray-800 border-gray-300";
-            case "churned":
-              return "bg-red-100 text-red-800 border-red-300";
-            case "on_hold":
-              return "bg-yellow-100 text-yellow-800 border-yellow-300";
-            default:
-              return "bg-green-100 text-green-800 border-green-300";
-          }
+        const statusColors = {
+          active: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          inactive: {
+            bg: "bg-gray-100",
+            text: "text-gray-800",
+            border: "border-gray-400",
+            shadow: "shadow-gray-200",
+          },
+          churned: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+          on_hold: {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+            shadow: "shadow-yellow-200",
+          },
         };
 
+        const colors = statusColors[status] || statusColors.active;
         const displayStatus = account.status || "ACTIVE";
 
         return (
           <div className="min-w-[120px]">
-            <Badge
-              className={`${getStatusColor()} border font-medium text-xs px-3 py-1`}
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
             >
-              {displayStatus}
-            </Badge>
+              {displayStatus.toUpperCase()}
+            </div>
           </div>
         );
       },
@@ -566,6 +608,7 @@ export default function ClientAccountsPage() {
     {
       key: "created",
       label: "CREATED",
+      width: "140px",
       render: (_, account) => (
         <div className="min-w-[120px]">
           <div className="flex items-center gap-1.5">
@@ -580,6 +623,7 @@ export default function ClientAccountsPage() {
     {
       key: "actions",
       label: "ACTIONS",
+      width: "200px",
       render: (_, account) => (
         <div
           className="flex items-center gap-1 min-w-[120px]"
@@ -743,15 +787,115 @@ export default function ClientAccountsPage() {
     }
   };
 
-  // Handle export
-  const handleExport = (format) => {
-    console.log(`Exporting client accounts as ${format}`);
-    setShowExportDropdown(false);
-  };
+  // Handle export functionality
+  const handleExport = async (format) => {
+    try {
+      // Handle case where format might be an event object (from PageHeader or direct button click)
+      let exportFormat = format;
+      if (format && typeof format === "object" && format.target) {
+        // It's an event object, default to CSV
+        exportFormat = "csv";
+      } else if (!format || typeof format !== "string") {
+        // Invalid format, default to CSV
+        exportFormat = "csv";
+      }
 
-  // Handle import
-  const handleImport = () => {
-    setIsImportModalOpen(true);
+      console.log(
+        `Exporting ${filteredAccounts.length} client accounts as ${exportFormat}`
+      );
+
+      // Check if there's data to export
+      if (filteredAccounts.length === 0) {
+        alert("No client accounts to export");
+        return;
+      }
+
+      // Prepare export data
+      const exportData = filteredAccounts.map((account) => {
+        const primaryContact =
+          account.contacts?.find((c) => c.role === "PRIMARY_CONTACT") ||
+          account.contacts?.[0];
+        const manager = account.accountManager;
+        const managerName = manager
+          ? `${manager.firstName || ""} ${manager.lastName || ""}`.trim() ||
+            manager.username ||
+            "Unknown"
+          : "Unassigned";
+
+        return {
+          "Company Name": account.companyName || "",
+          Industry: account.industry || "",
+          Status: account.status || "",
+          Revenue: account.revenue ? `₹${formatNumber(account.revenue)}` : "₹0",
+          "Health Score": account.healthScore
+            ? `${account.healthScore}%`
+            : "0%",
+          "Account Manager": managerName,
+          "Primary Contact First Name": primaryContact?.firstName || "",
+          "Primary Contact Last Name": primaryContact?.lastName || "",
+          "Primary Contact Email": primaryContact?.email || "",
+          "Primary Contact Phone": primaryContact?.phone || "",
+          "Total Contacts": account.contacts?.length || 0,
+          Address: account.address || "",
+          City: account.city || "",
+          State: account.state || "",
+          Country: account.country || "",
+          Website: account.website || "",
+          Type: account.type || "",
+          Created: account.createdAt
+            ? new Date(account.createdAt).toLocaleDateString()
+            : "",
+          Notes: account.notes || "",
+        };
+      });
+
+      if (exportFormat === "csv") {
+        // Convert to CSV
+        if (exportData.length === 0) {
+          alert("No data to export");
+          return;
+        }
+
+        const headers = Object.keys(exportData[0] || {});
+        const csvContent = [
+          headers.join(","),
+          ...exportData.map((row) =>
+            headers
+              .map(
+                (header) =>
+                  `"${(row[header] || "").toString().replace(/"/g, '""')}"`
+              )
+              .join(",")
+          ),
+        ].join("\n");
+
+        // Download CSV
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `client_accounts_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Show success message
+        setShowAddSuccessMessage(true);
+        setTimeout(() => setShowAddSuccessMessage(false), 3000);
+      } else {
+        // For other formats, show coming soon message
+        alert(`${exportFormat.toUpperCase()} export coming soon!`);
+      }
+    } catch (error) {
+      console.error("Error exporting client accounts:", error);
+      alert("Failed to export client accounts");
+    }
   };
 
   // Handle filter
@@ -763,23 +907,6 @@ export default function ClientAccountsPage() {
   const handleAddAccount = () => {
     router.push("/clients/accounts/new");
   };
-
-  // Close export dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        exportDropdownRef.current &&
-        !exportDropdownRef.current.contains(event.target)
-      ) {
-        setShowExportDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   if (loading) {
     return (
@@ -873,7 +1000,7 @@ export default function ClientAccountsPage() {
           hasActiveFilters={Object.values(appliedFilters).some(
             (value) => value && value.toString().trim() !== ""
           )}
-          onImportClick={handleImport}
+          onExportClick={() => handleExport("csv")}
         />
 
         <div className="space-y-4">
@@ -890,16 +1017,17 @@ export default function ClientAccountsPage() {
             onFilterClick={handleFilter}
             onAddClick={handleAddAccount}
             onExportClick={handleExport}
-            showExportDropdown={showExportDropdown}
-            setShowExportDropdown={setShowExportDropdown}
-            exportDropdownRef={exportDropdownRef}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
           />
 
           {/* Results Count */}
           <div className="text-sm text-gray-600 px-1">
-            Showing <span className="font-semibold text-gray-900">{filteredAccounts.length}</span> result{filteredAccounts.length !== 1 ? 's' : ''}
+            Showing{" "}
+            <span className="font-semibold text-gray-900">
+              {filteredAccounts.length}
+            </span>{" "}
+            result{filteredAccounts.length !== 1 ? "s" : ""}
           </div>
 
           {/* Single Horizontal Scroll Container */}
@@ -941,12 +1069,12 @@ export default function ClientAccountsPage() {
             appliedFilters={appliedFilters}
             onApplyFilters={(filters) => {
               console.log("Applying filters:", filters);
-              
+
               // Check if any filters are active
               const hasActiveFilters = Object.values(filters).some(
                 (value) => value && value.toString().trim() !== ""
               );
-              
+
               if (hasActiveFilters) {
                 setAppliedFilters(filters);
               } else {
@@ -954,14 +1082,6 @@ export default function ClientAccountsPage() {
                 toast.info("Filters cleared");
               }
             }}
-          />
-        )}
-
-        {isImportModalOpen && (
-          <ClientAccountsImportModal
-            isOpen={isImportModalOpen}
-            onClose={() => setIsImportModalOpen(false)}
-            onImportComplete={fetchClientAccounts}
           />
         )}
 

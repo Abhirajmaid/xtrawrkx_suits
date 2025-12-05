@@ -43,24 +43,52 @@ export default function LeadsImportModal({
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
+    if (!selectedFile) return;
+
     setImportStep('preview');
-    // Simulate import process
-    setTimeout(() => {
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const response = await fetch('/api/import/leads', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setImportResults({
+          total: result.total || 0,
+          imported: result.imported || 0,
+          errors: result.errors || 0,
+          errorsList: result.errorsList || []
+        });
+        setImportStep('complete');
+        if (onImport) {
+          onImport(selectedFile);
+        }
+      } else {
+        setImportResults({
+          total: 0,
+          imported: 0,
+          errors: 1,
+          errorsList: [result.error || 'Failed to import leads']
+        });
+        setImportStep('complete');
+      }
+    } catch (error) {
+      console.error('Import error:', error);
       setImportResults({
-        total: 150,
-        imported: 145,
-        errors: 5,
-        errorsList: [
-          'Row 3: Invalid email format',
-          'Row 7: Missing required field',
-          'Row 12: Duplicate email',
-          'Row 18: Invalid phone number',
-          'Row 23: Missing company name'
-        ]
+        total: 0,
+        imported: 0,
+        errors: 1,
+        errorsList: [error.message || 'Failed to import leads']
       });
       setImportStep('complete');
-    }, 2000);
+    }
   };
 
   const handleClose = () => {

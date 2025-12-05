@@ -1,7 +1,6 @@
 import {
   List,
   Grid3X3,
-  ChevronDown,
   Search,
   Filter,
   Plus,
@@ -97,11 +96,12 @@ export default function LeadsTabs({
         >
           <Grid3X3 className="w-5 h-5" />
         </button>
+        {/* Export Button */}
         {onExportClick && (
           <button
-            onClick={onExportClick}
+            onClick={() => onExportClick("csv")}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-white/40 text-gray-700 font-medium text-sm hover:bg-white/90 transition-all duration-300 shadow-md whitespace-nowrap"
-            title="Export"
+            title="Export to CSV"
           >
             <Download className="w-4 h-4" />
             <span className="hidden lg:inline">Export</span>

@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Modal, Button } from "../../../../components/ui";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 
 export default function ClientAccountsImportModal({
   isOpen,
@@ -43,22 +48,50 @@ export default function ClientAccountsImportModal({
 
     setImporting(true);
     try {
-      // Simulate import process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      
-      setImportResult({
-        success: true,
-        imported: 15,
-        errors: 2,
-        message: "Import completed successfully!",
+      // Note: Client accounts import can use the leads import endpoint
+      // since they have similar structure, or we can create a dedicated endpoint
+      // For now, we'll use a generic approach that can be extended
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Use leads endpoint as client accounts have similar structure
+      // TODO: Create dedicated /api/import/client-accounts endpoint if needed
+      const response = await fetch("/api/import/leads", {
+        method: "POST",
+        body: formData,
       });
-      
-      // Call the completion callback
-      onImportComplete();
+
+      const result = await response.json();
+
+      if (result.success) {
+        setImportResult({
+          success: true,
+          imported: result.imported || 0,
+          errors: result.errors || 0,
+          message: `Import completed successfully! ${
+            result.imported || 0
+          } accounts imported.`,
+        });
+
+        // Call the completion callback
+        if (onImportComplete) {
+          onImportComplete();
+        }
+      } else {
+        setImportResult({
+          success: false,
+          message:
+            result.error ||
+            "Import failed. Please check your file and try again.",
+        });
+      }
     } catch (error) {
+      console.error("Import error:", error);
       setImportResult({
         success: false,
-        message: "Import failed. Please check your file and try again.",
+        message:
+          error.message ||
+          "Import failed. Please check your file and try again.",
       });
     } finally {
       setImporting(false);
@@ -134,7 +167,9 @@ export default function ClientAccountsImportModal({
                   <ul className="text-sm text-blue-700 space-y-1">
                     <li>• Supported formats: CSV, Excel (.xlsx, .xls)</li>
                     <li>• Required columns: Company Name, Industry, Status</li>
-                    <li>• Optional columns: Revenue, Health Score, Account Manager</li>
+                    <li>
+                      • Optional columns: Revenue, Health Score, Account Manager
+                    </li>
                     <li>• Maximum file size: 10MB</li>
                   </ul>
                 </div>
@@ -176,7 +211,9 @@ export default function ClientAccountsImportModal({
               <div className="text-sm text-green-700">
                 <p>• {importResult.imported} accounts imported successfully</p>
                 {importResult.errors > 0 && (
-                  <p>• {importResult.errors} rows had errors and were skipped</p>
+                  <p>
+                    • {importResult.errors} rows had errors and were skipped
+                  </p>
                 )}
               </div>
             )}

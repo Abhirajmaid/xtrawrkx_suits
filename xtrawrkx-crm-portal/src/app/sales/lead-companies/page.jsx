@@ -91,7 +91,6 @@ export default function LeadCompaniesPage() {
   const [appliedFilters, setAppliedFilters] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showAddSuccessMessage, setShowAddSuccessMessage] = useState(false);
   const [loadingActions, setLoadingActions] = useState({});
@@ -102,7 +101,6 @@ export default function LeadCompaniesPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [companyToAssign, setCompanyToAssign] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const exportDropdownRef = useRef(null);
 
   // Check if user is admin or super admin
   const isAdmin = () => {
@@ -921,10 +919,100 @@ export default function LeadCompaniesPage() {
     }
   };
 
-  // Handle export
-  const handleExport = (format) => {
-    console.log(`Exporting lead companies as ${format}`);
-    setShowExportDropdown(false);
+  // Handle export functionality
+  const handleExport = async (format) => {
+    try {
+      // Handle case where format might be an event object (from PageHeader or direct button click)
+      let exportFormat = format;
+      if (format && typeof format === 'object' && format.target) {
+        // It's an event object, default to CSV
+        exportFormat = "csv";
+      } else if (!format || typeof format !== 'string') {
+        // Invalid format, default to CSV
+        exportFormat = "csv";
+      }
+      
+      console.log(`Exporting ${filteredCompanies.length} lead companies as ${exportFormat}`);
+
+      // Check if there's data to export
+      if (filteredCompanies.length === 0) {
+        alert("No lead companies to export");
+        return;
+      }
+
+      // Prepare export data
+      const exportData = filteredCompanies.map((company) => {
+        const primaryContact = company.contacts && company.contacts.length > 0 ? company.contacts[0] : null;
+        return {
+          "Company Name": company.companyName || "",
+          "Email": company.email || primaryContact?.email || "",
+          "Phone": company.phone || primaryContact?.phone || "",
+          "Status": company.status || "",
+          "Source": company.source || "",
+          "Website": company.website || "",
+          "Industry": company.industry || "",
+          "Address": company.address || "",
+          "City": company.city || "",
+          "State": company.state || "",
+          "Country": company.country || "",
+          "Primary Contact First Name": primaryContact?.firstName || "",
+          "Primary Contact Last Name": primaryContact?.lastName || "",
+          "Primary Contact Email": primaryContact?.email || "",
+          "Primary Contact Phone": primaryContact?.phone || "",
+          "Created": company.createdAt
+            ? new Date(company.createdAt).toLocaleDateString()
+            : "",
+          "Notes": company.notes || "",
+        };
+      });
+
+      if (exportFormat === "csv") {
+        // Convert to CSV
+        if (exportData.length === 0) {
+          alert("No data to export");
+          return;
+        }
+        
+        const headers = Object.keys(exportData[0] || {});
+        const csvContent = [
+          headers.join(","),
+          ...exportData.map((row) =>
+            headers
+              .map(
+                (header) =>
+                  `"${(row[header] || "").toString().replace(/"/g, '""')}"`
+              )
+              .join(",")
+          ),
+        ].join("\n");
+
+        // Download CSV
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `lead_companies_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Show success message
+        setShowAddSuccessMessage(true);
+        setTimeout(() => setShowAddSuccessMessage(false), 3000);
+      } else {
+        // For other formats, show coming soon message
+        alert(`${exportFormat.toUpperCase()} export coming soon!`);
+      }
+    } catch (error) {
+      console.error("Error exporting lead companies:", error);
+      alert("Failed to export lead companies");
+    }
   };
 
   // Handle filter application
@@ -945,26 +1033,16 @@ export default function LeadCompaniesPage() {
   };
 
   // Handle import
-  const handleImport = (file) => {
-    console.log("Importing file:", file);
+  const handleImport = async (file) => {
+    console.log("Import completed, refreshing lead companies...");
+    // Refresh the data after import
+    await fetchLeadCompanies();
+    await fetchStats();
+    setIsImportModalOpen(false);
+    setShowAddSuccessMessage(true);
+    setTimeout(() => setShowAddSuccessMessage(false), 3000);
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        exportDropdownRef.current &&
-        !exportDropdownRef.current.contains(event.target)
-      ) {
-        setShowExportDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   if (loading) {
     return (
@@ -1053,7 +1131,7 @@ export default function LeadCompaniesPage() {
             (value) => value && value.toString().trim() !== ""
           )}
           onImportClick={() => setIsImportModalOpen(true)}
-          onExportClick={handleExport}
+          onExportClick={() => handleExport("csv")}
         />
         <div className="space-y-4">
           {/* Stats Overview */}

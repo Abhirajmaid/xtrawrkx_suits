@@ -28,14 +28,31 @@ export default function DealsImportModal({ isOpen, onClose, onImport }) {
 
     setIsUploading(true);
     try {
-      await onImport(file);
-      setUploadStatus("success");
-      setTimeout(() => {
-        onClose();
-        setFile(null);
-        setUploadStatus(null);
-      }, 2000);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/import/deals", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUploadStatus("success");
+        if (onImport) {
+          onImport(result);
+        }
+        setTimeout(() => {
+          onClose();
+          setFile(null);
+          setUploadStatus(null);
+        }, 2000);
+      } else {
+        setUploadStatus("error");
+      }
     } catch (error) {
+      console.error("Import error:", error);
       setUploadStatus("error");
     } finally {
       setIsUploading(false);

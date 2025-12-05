@@ -22,7 +22,6 @@ import ClientAccountsKPIs from "./components/ClientAccountsKPIs";
 import ClientAccountsTabs from "./components/ClientAccountsTabs";
 import ClientAccountsListView from "./components/ClientAccountsListView";
 import ClientAccountsFilterModal from "./components/ClientAccountsFilterModal";
-import ClientAccountsImportModal from "./components/ClientAccountsImportModal";
 
 import {
   Plus,
@@ -61,7 +60,6 @@ export default function ClientAccountsPage() {
   const [activeView, setActiveView] = useState("list");
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -201,6 +199,7 @@ export default function ClientAccountsPage() {
     {
       key: "company",
       label: "COMPANY",
+      width: "350px",
       render: (_, account) => (
         <div className="flex items-center gap-3 min-w-[200px]">
           <Avatar
@@ -225,6 +224,7 @@ export default function ClientAccountsPage() {
     {
       key: "contact",
       label: "PRIMARY CONTACT",
+      width: "220px",
       render: (_, account) => (
         <div className="space-y-1 min-w-[200px]">
           <div className="flex items-center gap-2 text-sm text-gray-900">
@@ -249,6 +249,7 @@ export default function ClientAccountsPage() {
     {
       key: "healthScore",
       label: "HEALTH SCORE",
+      width: "140px",
       render: (_, account) => {
         const score = account.healthScore || 0;
         const getHealthColor = () => {
@@ -276,6 +277,7 @@ export default function ClientAccountsPage() {
     {
       key: "dealValue",
       label: "DEAL VALUE",
+      width: "140px",
       render: (_, account) => (
         <div className="min-w-[120px]">
           <div className="flex items-center gap-1.5">
@@ -290,6 +292,7 @@ export default function ClientAccountsPage() {
     {
       key: "contacts",
       label: "CONTACTS",
+      width: "120px",
       render: (_, account) => (
         <div className="min-w-[100px]">
           <div className="flex items-center gap-1.5">
@@ -304,6 +307,7 @@ export default function ClientAccountsPage() {
     {
       key: "accountManager",
       label: "ACCOUNT MANAGER",
+      width: "200px",
       render: (_, account) => (
         <div className="min-w-[150px]">
           <div className="flex items-center gap-2">
@@ -333,32 +337,46 @@ export default function ClientAccountsPage() {
     {
       key: "status",
       label: "STATUS",
+      width: "140px",
       render: (_, account) => {
         const status = account.status?.toLowerCase() || "active";
-        const getStatusColor = () => {
-          switch (status) {
-            case "active":
-              return "bg-green-100 text-green-800 border-green-300";
-            case "inactive":
-              return "bg-gray-100 text-gray-800 border-gray-300";
-            case "churned":
-              return "bg-red-100 text-red-800 border-red-300";
-            case "on_hold":
-              return "bg-yellow-100 text-yellow-800 border-yellow-300";
-            default:
-              return "bg-green-100 text-green-800 border-green-300";
-          }
+        const statusColors = {
+          active: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          inactive: {
+            bg: "bg-gray-100",
+            text: "text-gray-800",
+            border: "border-gray-400",
+            shadow: "shadow-gray-200",
+          },
+          churned: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+          on_hold: {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+            shadow: "shadow-yellow-200",
+          },
         };
 
+        const colors = statusColors[status] || statusColors.active;
         const displayStatus = account.status || "ACTIVE";
 
         return (
           <div className="min-w-[120px]">
-            <Badge
-              className={`${getStatusColor()} border font-medium text-xs px-3 py-1`}
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
             >
-              {displayStatus}
-            </Badge>
+              {displayStatus.toUpperCase()}
+            </div>
           </div>
         );
       },
@@ -366,6 +384,7 @@ export default function ClientAccountsPage() {
     {
       key: "created",
       label: "CREATED",
+      width: "140px",
       render: (_, account) => (
         <div className="min-w-[120px]">
           <div className="flex items-center gap-1.5">
@@ -380,6 +399,7 @@ export default function ClientAccountsPage() {
     {
       key: "actions",
       label: "ACTIONS",
+      width: "200px",
       render: (_, account) => (
         <div
           className="flex items-center gap-1 min-w-[120px]"
@@ -549,11 +569,6 @@ export default function ClientAccountsPage() {
     setShowExportDropdown(false);
   };
 
-  // Handle import
-  const handleImport = () => {
-    setIsImportModalOpen(true);
-  };
-
   // Handle filter
   const handleFilter = () => {
     setIsFilterModalOpen(true);
@@ -670,7 +685,6 @@ export default function ClientAccountsPage() {
           onAddClick={handleAddAccount}
           addButtonText="Add Client Account"
           onFilterClick={handleFilter}
-          onImportClick={handleImport}
         />
 
         <div className="space-y-4">
@@ -721,14 +735,6 @@ export default function ClientAccountsPage() {
             onClose={() => setIsFilterModalOpen(false)}
             appliedFilters={appliedFilters}
             onApplyFilters={setAppliedFilters}
-          />
-        )}
-
-        {isImportModalOpen && (
-          <ClientAccountsImportModal
-            isOpen={isImportModalOpen}
-            onClose={() => setIsImportModalOpen(false)}
-            onImportComplete={fetchClientAccounts}
           />
         )}
 

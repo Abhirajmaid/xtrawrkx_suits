@@ -1,14 +1,11 @@
 import {
   List,
   Grid3X3,
-  ChevronDown,
   Search,
   Filter,
   Plus,
   MoreHorizontal,
   Download,
-  FileSpreadsheet,
-  FileText,
 } from "lucide-react";
 
 export default function ClientAccountsTabs({
@@ -20,9 +17,6 @@ export default function ClientAccountsTabs({
   onFilterClick,
   onAddClick,
   onExportClick,
-  showExportDropdown,
-  setShowExportDropdown,
-  exportDropdownRef,
   searchQuery,
   setSearchQuery,
 }) {
@@ -103,44 +97,17 @@ export default function ClientAccountsTabs({
           <Grid3X3 className="w-5 h-5" />
         </button>
         
-        {/* Export Dropdown */}
-        <div className="relative" ref={exportDropdownRef}>
+        {/* Export Button */}
+        {onExportClick && (
           <button
-            onClick={() => setShowExportDropdown(!showExportDropdown)}
+            onClick={() => onExportClick("csv")}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-white/40 text-gray-700 font-medium text-sm hover:bg-white/90 transition-all duration-300 shadow-md whitespace-nowrap"
-            title="Export"
+            title="Export to CSV"
           >
             <Download className="w-4 h-4" />
             <span className="hidden lg:inline">Export</span>
-            <ChevronDown className="w-4 h-4" />
           </button>
-
-          {showExportDropdown && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50">
-              <button
-                onClick={() => onExportClick("csv")}
-                className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                Export as CSV
-              </button>
-              <button
-                onClick={() => onExportClick("excel")}
-                className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                Export as Excel
-              </button>
-              <button
-                onClick={() => onExportClick("pdf")}
-                className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                Export as PDF
-              </button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

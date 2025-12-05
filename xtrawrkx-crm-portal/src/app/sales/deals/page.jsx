@@ -13,7 +13,6 @@ import DealsKPIs from "./components/DealsKPIs";
 import DealsTabs from "./components/DealsTabs";
 import DealsListView from "./components/DealsListView";
 import DealsFilterModal from "./components/DealsFilterModal";
-import DealsImportModal from "./components/DealsImportModal";
 import { Avatar, Badge, Button } from "../../../components/ui";
 import { formatCurrency } from "../../../lib/utils/format";
 import KanbanBoard from "../../../components/kanban/KanbanBoard";
@@ -84,7 +83,6 @@ export default function DealsPage() {
 
   // Modal states
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -816,14 +814,6 @@ export default function DealsPage() {
     }
   };
 
-  const handleImport = async (file) => {
-    // Implement import functionality
-    console.log("Importing file:", file);
-    // Simulate import process
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    // Refresh deals after import
-    await fetchDeals();
-  };
 
   const handleExport = () => {
     // Generate CSV content
@@ -1692,7 +1682,6 @@ export default function DealsPage() {
           hasActiveFilters={Object.values(appliedFilters).some(
             (value) => value && value.toString().trim() !== ""
           )}
-          onImportClick={() => setIsImportModalOpen(true)}
           onExportClick={() => handleExport()}
           customActions={
             <div className="flex items-center gap-2 ml-4">
@@ -1804,12 +1793,6 @@ export default function DealsPage() {
           onApplyFilters={handleApplyFilters}
           users={users}
           appliedFilters={appliedFilters}
-        />
-
-        <DealsImportModal
-          isOpen={isImportModalOpen}
-          onClose={() => setIsImportModalOpen(false)}
-          onImport={handleImport}
         />
 
         {/* Assign Owner Modal */}

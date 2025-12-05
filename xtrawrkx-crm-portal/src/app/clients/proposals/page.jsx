@@ -415,26 +415,54 @@ export default function ProposalsPage() {
     },
     {
       key: "status",
-      label: "Status",
-      render: (value) => {
-        const variants = {
-          DRAFT: "default",
-          SENT: "warning",
-          ACCEPTED: "success",
-          REJECTED: "destructive",
-          EXPIRED: "destructive",
+      label: "STATUS",
+      width: "140px",
+      render: (_, row) => {
+        const status = (row.status || "DRAFT")?.toLowerCase();
+        const statusColors = {
+          draft: {
+            bg: "bg-gray-100",
+            text: "text-gray-800",
+            border: "border-gray-400",
+            shadow: "shadow-gray-200",
+          },
+          sent: {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+            shadow: "shadow-yellow-200",
+          },
+          accepted: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          rejected: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+          expired: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
         };
-        const labels = {
-          DRAFT: "Draft",
-          SENT: "Sent",
-          ACCEPTED: "Accepted",
-          REJECTED: "Rejected",
-          EXPIRED: "Expired",
-        };
+
+        const colors = statusColors[status] || statusColors.draft;
+        const displayStatus = row.status || "DRAFT";
+
         return (
-          <Badge variant={variants[value] || "default"}>
-            {labels[value] || value}
-          </Badge>
+          <div className="min-w-[120px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
+            >
+              {displayStatus.toUpperCase()}
+            </div>
+          </div>
         );
       },
     },
@@ -460,20 +488,26 @@ export default function ProposalsPage() {
       key: "actions",
       label: "ACTIONS",
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button
-            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+        <div
+          className="flex items-center gap-1 min-w-[120px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               setProposalToView(row);
               setShowViewModal(true);
             }}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-all duration-200"
             title="View Proposal"
           >
-            <Eye className="w-4 h-4 text-gray-400 hover:text-blue-600" />
-          </button>
-          <button
-            className="p-1.5 hover:bg-orange-50 rounded-lg transition-colors"
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               setProposalToEdit(row);
@@ -490,21 +524,24 @@ export default function ProposalsPage() {
               });
               setShowEditModal(true);
             }}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2 rounded-lg transition-all duration-200"
             title="Edit Proposal"
           >
-            <Edit className="w-4 h-4 text-gray-400 hover:text-orange-600" />
-          </button>
-          <button
-            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               setProposalToDelete(row);
               setShowDeleteModal(true);
             }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-all duration-200"
             title="Delete Proposal"
           >
-            <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-600" />
-          </button>
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
       ),
     },

@@ -471,26 +471,54 @@ export default function InvoicesPage() {
     },
     {
       key: "status",
-      label: "Status",
-      render: (value) => {
-        const variants = {
-          DRAFT: "default",
-          SENT: "warning",
-          PAID: "success",
-          OVERDUE: "destructive",
-          CANCELLED: "destructive",
+      label: "STATUS",
+      width: "140px",
+      render: (_, row) => {
+        const status = (row.status || "DRAFT")?.toLowerCase();
+        const statusColors = {
+          draft: {
+            bg: "bg-gray-100",
+            text: "text-gray-800",
+            border: "border-gray-400",
+            shadow: "shadow-gray-200",
+          },
+          sent: {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            border: "border-yellow-400",
+            shadow: "shadow-yellow-200",
+          },
+          paid: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          overdue: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
+          cancelled: {
+            bg: "bg-red-100",
+            text: "text-red-800",
+            border: "border-red-400",
+            shadow: "shadow-red-200",
+          },
         };
-        const labels = {
-          DRAFT: "Draft",
-          SENT: "Sent",
-          PAID: "Paid",
-          OVERDUE: "Overdue",
-          CANCELLED: "Cancelled",
-        };
+
+        const colors = statusColors[status] || statusColors.draft;
+        const displayStatus = row.status || "DRAFT";
+
         return (
-          <Badge variant={variants[value] || "default"}>
-            {labels[value] || value}
-          </Badge>
+          <div className="min-w-[120px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
+            >
+              {displayStatus.toUpperCase()}
+            </div>
+          </div>
         );
       },
     },
@@ -526,34 +554,42 @@ export default function InvoicesPage() {
       key: "actions",
       label: "ACTIONS",
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button
-            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+        <div
+          className="flex items-center gap-1 min-w-[120px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               setInvoiceToView(row);
               setShowViewModal(true);
             }}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-all duration-200"
             title="View Invoice"
           >
-            <Eye className="w-4 h-4 text-gray-400 hover:text-blue-600" />
-          </button>
+            <Eye className="w-4 h-4" />
+          </Button>
           {row.files && row.files.length > 0 && (
-            <button
-              className="p-1.5 hover:bg-green-50 rounded-lg transition-colors"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 if (row.files[0]?.url) {
                   window.open(row.files[0].url, "_blank");
                 }
               }}
+              className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 p-2 rounded-lg transition-all duration-200"
               title="Download Document"
             >
-              <Download className="w-4 h-4 text-gray-400 hover:text-green-600" />
-            </button>
+              <Download className="w-4 h-4" />
+            </Button>
           )}
-          <button
-            className="p-1.5 hover:bg-orange-50 rounded-lg transition-colors"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               setInvoiceToEdit(row);
@@ -575,21 +611,24 @@ export default function InvoicesPage() {
               });
               setShowEditModal(true);
             }}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2 rounded-lg transition-all duration-200"
             title="Edit Invoice"
           >
-            <Edit className="w-4 h-4 text-gray-400 hover:text-orange-600" />
-          </button>
-          <button
-            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               setInvoiceToDelete(row);
               setShowDeleteModal(true);
             }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-all duration-200"
             title="Delete Invoice"
           >
-            <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-600" />
-          </button>
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
       ),
     },

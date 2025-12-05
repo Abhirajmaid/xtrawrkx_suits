@@ -1,25 +1,21 @@
-import { useState } from 'react';
-import { X, Filter, Calendar, User, Building2, DollarSign } from 'lucide-react';
+import { useState } from "react";
+import { X, Filter, Calendar, User, Building2, DollarSign } from "lucide-react";
 import { Card, Button, Input, Select } from "../../../../components/ui";
 
-export default function LeadsFilterModal({ 
-  isOpen, 
-  onClose, 
-  onApplyFilters 
-}) {
+export default function LeadsFilterModal({ isOpen, onClose, onApplyFilters }) {
   const [filters, setFilters] = useState({
-    status: '',
-    source: '',
-    assignedTo: '',
-    dateRange: '',
-    valueRange: '',
-    company: ''
+    status: "",
+    source: "",
+    assignedTo: "",
+    dateRange: "",
+    valueRange: "",
+    company: "",
   });
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
 
@@ -30,12 +26,12 @@ export default function LeadsFilterModal({
 
   const handleClearFilters = () => {
     setFilters({
-      status: '',
-      source: '',
-      assignedTo: '',
-      dateRange: '',
-      valueRange: '',
-      company: ''
+      status: "",
+      source: "",
+      assignedTo: "",
+      dateRange: "",
+      valueRange: "",
+      company: "",
     });
   };
 
@@ -43,9 +39,9 @@ export default function LeadsFilterModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card 
+      <Card
         glass={true}
-        className="w-full max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl"
+        className="w-full max-w-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl max-h-[85vh] overflow-y-auto"
       >
         <div className="p-6">
           {/* Header */}
@@ -55,8 +51,12 @@ export default function LeadsFilterModal({
                 <Filter className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900">Filter Leads</h2>
-                <p className="text-sm text-gray-600">Refine your leads with advanced filters</p>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Filter Leads
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Refine your leads with advanced filters
+                </p>
               </div>
             </div>
             <button
@@ -77,13 +77,13 @@ export default function LeadsFilterModal({
                 </label>
                 <Select
                   value={filters.status}
-                  onChange={(value) => handleFilterChange('status', value)}
+                  onChange={(value) => handleFilterChange("status", value)}
                   options={[
-                    { value: '', label: 'All Statuses' },
-                    { value: 'new', label: 'New' },
-                    { value: 'contacted', label: 'Contacted' },
-                    { value: 'qualified', label: 'Qualified' },
-                    { value: 'lost', label: 'Lost' }
+                    { value: "", label: "All Statuses" },
+                    { value: "new", label: "New" },
+                    { value: "contacted", label: "Contacted" },
+                    { value: "qualified", label: "Qualified" },
+                    { value: "lost", label: "Lost" },
                   ]}
                   placeholder="Select status"
                 />
@@ -94,14 +94,14 @@ export default function LeadsFilterModal({
                 </label>
                 <Select
                   value={filters.source}
-                  onChange={(value) => handleFilterChange('source', value)}
+                  onChange={(value) => handleFilterChange("source", value)}
                   options={[
-                    { value: '', label: 'All Sources' },
-                    { value: 'Website', label: 'Website' },
-                    { value: 'LinkedIn', label: 'LinkedIn' },
-                    { value: 'Referral', label: 'Referral' },
-                    { value: 'Email Campaign', label: 'Email Campaign' },
-                    { value: 'Trade Show', label: 'Trade Show' }
+                    { value: "", label: "All Sources" },
+                    { value: "Website", label: "Website" },
+                    { value: "LinkedIn", label: "LinkedIn" },
+                    { value: "Referral", label: "Referral" },
+                    { value: "Email Campaign", label: "Email Campaign" },
+                    { value: "Trade Show", label: "Trade Show" },
                   ]}
                   placeholder="Select source"
                 />
@@ -116,12 +116,12 @@ export default function LeadsFilterModal({
                 </label>
                 <Select
                   value={filters.assignedTo}
-                  onChange={(value) => handleFilterChange('assignedTo', value)}
+                  onChange={(value) => handleFilterChange("assignedTo", value)}
                   options={[
-                    { value: '', label: 'All Assignees' },
-                    { value: 'John Smith', label: 'John Smith' },
-                    { value: 'Sarah Wilson', label: 'Sarah Wilson' },
-                    { value: 'Emily Davis', label: 'Emily Davis' }
+                    { value: "", label: "All Assignees" },
+                    { value: "John Smith", label: "John Smith" },
+                    { value: "Sarah Wilson", label: "Sarah Wilson" },
+                    { value: "Emily Davis", label: "Emily Davis" },
                   ]}
                   placeholder="Select assignee"
                 />
@@ -132,7 +132,9 @@ export default function LeadsFilterModal({
                 </label>
                 <Input
                   value={filters.company}
-                  onChange={(e) => handleFilterChange('company', e.target.value)}
+                  onChange={(e) =>
+                    handleFilterChange("company", e.target.value)
+                  }
                   placeholder="Enter company name"
                 />
               </div>
@@ -146,13 +148,13 @@ export default function LeadsFilterModal({
                 </label>
                 <Select
                   value={filters.dateRange}
-                  onChange={(value) => handleFilterChange('dateRange', value)}
+                  onChange={(value) => handleFilterChange("dateRange", value)}
                   options={[
-                    { value: '', label: 'All Time' },
-                    { value: 'today', label: 'Today' },
-                    { value: 'week', label: 'This Week' },
-                    { value: 'month', label: 'This Month' },
-                    { value: 'quarter', label: 'This Quarter' }
+                    { value: "", label: "All Time" },
+                    { value: "today", label: "Today" },
+                    { value: "week", label: "This Week" },
+                    { value: "month", label: "This Month" },
+                    { value: "quarter", label: "This Quarter" },
                   ]}
                   placeholder="Select date range"
                 />
@@ -163,13 +165,13 @@ export default function LeadsFilterModal({
                 </label>
                 <Select
                   value={filters.valueRange}
-                  onChange={(value) => handleFilterChange('valueRange', value)}
+                  onChange={(value) => handleFilterChange("valueRange", value)}
                   options={[
-                    { value: '', label: 'All Values' },
-                    { value: '0-25k', label: '$0 - $25K' },
-                    { value: '25k-50k', label: '$25K - $50K' },
-                    { value: '50k-100k', label: '$50K - $100K' },
-                    { value: '100k+', label: '$100K+' }
+                    { value: "", label: "All Values" },
+                    { value: "0-25k", label: "$0 - $25K" },
+                    { value: "25k-50k", label: "$25K - $50K" },
+                    { value: "50k-100k", label: "$50K - $100K" },
+                    { value: "100k+", label: "$100K+" },
                   ]}
                   placeholder="Select value range"
                 />

@@ -1,41 +1,49 @@
-import { useState, useEffect } from 'react';
-import { X, Filter, Calendar, User, Building2, DollarSign, Target } from 'lucide-react';
+import { useState, useEffect } from "react";
+import {
+  X,
+  Filter,
+  Calendar,
+  User,
+  Building2,
+  DollarSign,
+  Target,
+} from "lucide-react";
 import { Card, Button, Input, Select } from "../../../../components/ui";
 
-export default function LeadsFilterModal({ 
-  isOpen, 
-  onClose, 
+export default function LeadsFilterModal({
+  isOpen,
+  onClose,
   onApplyFilters,
   users = [],
-  appliedFilters = {}
+  appliedFilters = {},
 }) {
   const [filters, setFilters] = useState({
-    status: '',
-    source: '',
-    assignedTo: '',
-    dateRange: '',
-    valueRange: '',
-    company: ''
+    status: "",
+    source: "",
+    assignedTo: "",
+    dateRange: "",
+    valueRange: "",
+    company: "",
   });
 
   // Initialize filters with applied filters when modal opens
   useEffect(() => {
     if (isOpen) {
       setFilters({
-        status: appliedFilters.status || '',
-        source: appliedFilters.source || '',
-        assignedTo: appliedFilters.assignedTo || '',
-        dateRange: appliedFilters.dateRange || '',
-        valueRange: appliedFilters.valueRange || '',
-        company: appliedFilters.company || ''
+        status: appliedFilters.status || "",
+        source: appliedFilters.source || "",
+        assignedTo: appliedFilters.assignedTo || "",
+        dateRange: appliedFilters.dateRange || "",
+        valueRange: appliedFilters.valueRange || "",
+        company: appliedFilters.company || "",
       });
     }
   }, [isOpen, appliedFilters]);
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
 
@@ -46,12 +54,12 @@ export default function LeadsFilterModal({
 
   const handleClearFilters = () => {
     const clearedFilters = {
-      status: '',
-      source: '',
-      assignedTo: '',
-      dateRange: '',
-      valueRange: '',
-      company: ''
+      status: "",
+      source: "",
+      assignedTo: "",
+      dateRange: "",
+      valueRange: "",
+      company: "",
     };
     setFilters(clearedFilters);
     onApplyFilters(clearedFilters);
@@ -62,7 +70,7 @@ export default function LeadsFilterModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card 
+      <Card
         glass={true}
         className="w-full max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl"
       >
@@ -100,13 +108,13 @@ export default function LeadsFilterModal({
               </label>
               <Select
                 value={filters.status}
-                onChange={(value) => handleFilterChange('status', value)}
+                onChange={(value) => handleFilterChange("status", value)}
                 options={[
-                  { value: '', label: 'All Statuses' },
-                  { value: 'new', label: 'New' },
-                  { value: 'contacted', label: 'Contacted' },
-                  { value: 'qualified', label: 'Qualified' },
-                  { value: 'lost', label: 'Lost' }
+                  { value: "", label: "All Statuses" },
+                  { value: "new", label: "New" },
+                  { value: "contacted", label: "Contacted" },
+                  { value: "qualified", label: "Qualified" },
+                  { value: "lost", label: "Lost" },
                 ]}
                 placeholder="Select status"
                 className="w-full"
@@ -121,17 +129,17 @@ export default function LeadsFilterModal({
               </label>
               <Select
                 value={filters.source}
-                onChange={(value) => handleFilterChange('source', value)}
+                onChange={(value) => handleFilterChange("source", value)}
                 options={[
-                  { value: '', label: 'All Sources' },
-                  { value: 'WEBSITE', label: 'Website' },
-                  { value: 'REFERRAL', label: 'Referral' },
-                  { value: 'COLD_OUTREACH', label: 'Cold Outreach' },
-                  { value: 'SOCIAL_MEDIA', label: 'Social Media' },
-                  { value: 'EVENT', label: 'Event' },
-                  { value: 'PARTNER', label: 'Partner' },
-                  { value: 'ADVERTISING', label: 'Advertising' },
-                  { value: 'MANUAL', label: 'Manual' }
+                  { value: "", label: "All Sources" },
+                  { value: "WEBSITE", label: "Website" },
+                  { value: "REFERRAL", label: "Referral" },
+                  { value: "COLD_OUTREACH", label: "Cold Outreach" },
+                  { value: "SOCIAL_MEDIA", label: "Social Media" },
+                  { value: "EVENT", label: "Event" },
+                  { value: "PARTNER", label: "Partner" },
+                  { value: "ADVERTISING", label: "Advertising" },
+                  { value: "MANUAL", label: "Manual" },
                 ]}
                 placeholder="Select source"
                 className="w-full"
@@ -146,9 +154,9 @@ export default function LeadsFilterModal({
               </label>
               <Select
                 value={filters.assignedTo}
-                onChange={(value) => handleFilterChange('assignedTo', value)}
+                onChange={(value) => handleFilterChange("assignedTo", value)}
                 options={[
-                  { value: '', label: 'All Assignees' },
+                  { value: "", label: "All Assignees" },
                   ...users.map((user) => ({
                     value: (user.id || user.documentId).toString(),
                     label:
@@ -156,7 +164,7 @@ export default function LeadsFilterModal({
                       user.username ||
                       user.email ||
                       "Unknown User",
-                  }))
+                  })),
                 ]}
                 placeholder="Select assignee"
                 className="w-full"
@@ -173,7 +181,7 @@ export default function LeadsFilterModal({
                 type="text"
                 placeholder="Filter by company..."
                 value={filters.company}
-                onChange={(e) => handleFilterChange('company', e.target.value)}
+                onChange={(e) => handleFilterChange("company", e.target.value)}
                 className="w-full"
               />
             </div>
@@ -186,13 +194,13 @@ export default function LeadsFilterModal({
               </label>
               <Select
                 value={filters.dateRange}
-                onChange={(value) => handleFilterChange('dateRange', value)}
+                onChange={(value) => handleFilterChange("dateRange", value)}
                 options={[
-                  { value: '', label: 'All Time' },
-                  { value: 'today', label: 'Today' },
-                  { value: 'week', label: 'This Week' },
-                  { value: 'month', label: 'This Month' },
-                  { value: 'quarter', label: 'This Quarter' }
+                  { value: "", label: "All Time" },
+                  { value: "today", label: "Today" },
+                  { value: "week", label: "This Week" },
+                  { value: "month", label: "This Month" },
+                  { value: "quarter", label: "This Quarter" },
                 ]}
                 placeholder="Select date range"
                 className="w-full"
@@ -207,13 +215,13 @@ export default function LeadsFilterModal({
               </label>
               <Select
                 value={filters.valueRange}
-                onChange={(value) => handleFilterChange('valueRange', value)}
+                onChange={(value) => handleFilterChange("valueRange", value)}
                 options={[
-                  { value: '', label: 'All Values' },
-                  { value: '0-25k', label: '₹0 - ₹25K' },
-                  { value: '25k-50k', label: '₹25K - ₹50K' },
-                  { value: '50k-100k', label: '₹50K - ₹100K' },
-                  { value: '100k+', label: '₹100K+' }
+                  { value: "", label: "All Values" },
+                  { value: "0-25k", label: "₹0 - ₹25K" },
+                  { value: "25k-50k", label: "₹25K - ₹50K" },
+                  { value: "50k-100k", label: "₹50K - ₹100K" },
+                  { value: "100k+", label: "₹100K+" },
                 ]}
                 placeholder="Select value range"
                 className="w-full"

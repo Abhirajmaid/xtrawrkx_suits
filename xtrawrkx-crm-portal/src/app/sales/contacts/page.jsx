@@ -856,21 +856,49 @@ export default function ContactsPage() {
     {
       key: "status",
       label: "STATUS",
-      render: (_, contact) => (
-        <Badge
-          variant={
-            contact.status === "ACTIVE"
-              ? "success"
-              : contact.status === "NEW"
-              ? "info"
-              : contact.status === "QUALIFIED"
-              ? "warning"
-              : "secondary"
-          }
-        >
-          {contact.status || "ACTIVE"}
-        </Badge>
-      ),
+      width: "140px",
+      render: (_, contact) => {
+        const status = (contact.status || "ACTIVE")?.toLowerCase();
+        const statusColors = {
+          active: {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            border: "border-green-400",
+            shadow: "shadow-green-200",
+          },
+          new: {
+            bg: "bg-blue-100",
+            text: "text-blue-800",
+            border: "border-blue-400",
+            shadow: "shadow-blue-200",
+          },
+          qualified: {
+            bg: "bg-purple-100",
+            text: "text-purple-800",
+            border: "border-purple-400",
+            shadow: "shadow-purple-200",
+          },
+          inactive: {
+            bg: "bg-gray-100",
+            text: "text-gray-800",
+            border: "border-gray-400",
+            shadow: "shadow-gray-200",
+          },
+        };
+
+        const colors = statusColors[status] || statusColors.active;
+        const displayStatus = contact.status || "ACTIVE";
+
+        return (
+          <div className="min-w-[120px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg inline-block`}
+            >
+              {displayStatus.toUpperCase()}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "actions",

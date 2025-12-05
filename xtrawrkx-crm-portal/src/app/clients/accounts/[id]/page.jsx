@@ -354,27 +354,34 @@ const ClientAccountDetailPage = ({ params }) => {
       key: "actions",
       label: "ACTIONS",
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button
-            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+        <div
+          className="flex items-center gap-1 min-w-[120px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               router.push(`/sales/deals/${row.id}`);
             }}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-all duration-200"
             title="View Deal"
           >
-            <Eye className="w-4 h-4 text-gray-400 hover:text-blue-600" />
-          </button>
-          <button
-            className="p-1.5 hover:bg-orange-50 rounded-lg transition-colors"
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               router.push(`/sales/deals/${row.id}/edit`);
             }}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2 rounded-lg transition-all duration-200"
             title="Edit Deal"
           >
-            <Edit className="w-4 h-4 text-gray-400 hover:text-orange-600" />
-          </button>
+            <Edit className="w-4 h-4" />
+          </Button>
         </div>
       ),
     },
@@ -582,20 +589,26 @@ const ClientAccountDetailPage = ({ params }) => {
       key: "actions",
       label: "ACTIONS",
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button
-            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+        <div
+          className="flex items-center gap-1 min-w-[120px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               router.push(`/clients/invoices/${row.id}`);
             }}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-all duration-200"
             title="View Invoice"
           >
-            <Eye className="w-4 h-4 text-gray-400 hover:text-blue-600" />
-          </button>
+            <Eye className="w-4 h-4" />
+          </Button>
           {row.files && row.files.length > 0 && (
-            <button
-              className="p-1.5 hover:bg-green-50 rounded-lg transition-colors"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 // Download first file
@@ -603,21 +616,24 @@ const ClientAccountDetailPage = ({ params }) => {
                   window.open(row.files[0].url, "_blank");
                 }
               }}
+              className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 p-2 rounded-lg transition-all duration-200"
               title="Download Document"
             >
-              <Download className="w-4 h-4 text-gray-400 hover:text-green-600" />
-            </button>
+              <Download className="w-4 h-4" />
+            </Button>
           )}
-          <button
-            className="p-1.5 hover:bg-orange-50 rounded-lg transition-colors"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               router.push(`/clients/invoices/${row.id}/edit`);
             }}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2 rounded-lg transition-all duration-200"
             title="Edit Invoice"
           >
-            <Edit className="w-4 h-4 text-gray-400 hover:text-orange-600" />
-          </button>
+            <Edit className="w-4 h-4" />
+          </Button>
         </div>
       ),
     },
