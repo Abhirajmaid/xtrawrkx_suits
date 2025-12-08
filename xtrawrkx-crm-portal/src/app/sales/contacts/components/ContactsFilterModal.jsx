@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { X, Filter, Calendar, User, Mail, Phone } from "lucide-react";
+import { X, Filter, Calendar, User, Mail, Phone, UserCheck } from "lucide-react";
 import { Card, Button, Input, Select } from "../../../../components/ui";
 
 export default function ContactsFilterModal({
   isOpen,
   onClose,
   onApplyFilters,
+  users = [],
 }) {
   const [filters, setFilters] = useState({
     status: "",
@@ -14,6 +15,7 @@ export default function ContactsFilterModal({
     dateRange: "",
     source: "",
     role: "",
+    assignedTo: "",
   });
 
   const handleFilterChange = (key, value) => {
@@ -36,6 +38,7 @@ export default function ContactsFilterModal({
       dateRange: "",
       source: "",
       role: "",
+      assignedTo: "",
     };
     setFilters(clearedFilters);
     onApplyFilters(clearedFilters);
@@ -164,6 +167,31 @@ export default function ContactsFilterModal({
                   { value: "week", label: "This Week" },
                   { value: "month", label: "This Month" },
                   { value: "quarter", label: "This Quarter" },
+                ]}
+                placeholder="Select an option"
+                className="w-full"
+              />
+            </div>
+
+            {/* Assigned To Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <UserCheck className="w-4 h-4 inline mr-2" />
+                Assigned To
+              </label>
+              <Select
+                value={filters.assignedTo}
+                onChange={(value) => handleFilterChange("assignedTo", value)}
+                options={[
+                  { value: "", label: "All Users" },
+                  ...users.map((u) => ({
+                    value: (u.id || u.documentId).toString(),
+                    label:
+                      `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                      u.email ||
+                      u.username ||
+                      "Unknown User",
+                  })),
                 ]}
                 placeholder="Select an option"
                 className="w-full"

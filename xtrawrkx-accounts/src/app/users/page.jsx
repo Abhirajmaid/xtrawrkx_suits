@@ -74,7 +74,28 @@ function UserManagementPage() {
     fetchUsers();
     fetchAvailableRoles();
     fetchDepartments();
+    fetchDashboardStats();
   }, []);
+
+  // Fetch dashboard stats to get accurate total user count (all users, not just editable)
+  const fetchDashboardStats = async () => {
+    try {
+      const AuthService = (await import("@/lib/authService")).default;
+      const response = await AuthService.apiRequest("/dashboard/stats");
+      if (response.success && response.data) {
+        // Update stats with dashboard data (includes all users, active and inactive)
+        setStats(prevStats => ({
+          total: response.data.totalUsers || 0, // All users (active + inactive)
+          active: response.data.activeUsers || 0, // Only active users
+          inactive: (response.data.totalUsers || 0) - (response.data.activeUsers || 0), // Calculate inactive
+          recent: prevStats.recent, // Keep recent count from local calculation
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      // Fall back to local calculation if dashboard stats fail
+    }
+  };
 
   // Auto-dismiss success message after 5 seconds
   useEffect(() => {
@@ -254,7 +275,14 @@ function UserManagementPage() {
           });
 
           setUsers(transformedUsers);
-          calculateStats(transformedUsers);
+          // Only calculate recent users, total/active/inactive come from dashboard stats
+          const now = new Date();
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const recent = transformedUsers.filter((u) => {
+            const createdAt = u.createdAt ? new Date(u.createdAt) : null;
+            return createdAt && createdAt >= sevenDaysAgo;
+          }).length;
+          setStats(prevStats => ({ ...prevStats, recent }));
           return;
         }
       } catch (hierarchicalError) {
@@ -334,8 +362,14 @@ function UserManagementPage() {
 
       setUsers(transformedUsers);
 
-      // Calculate stats
-      calculateStats(transformedUsers);
+      // Only calculate recent users, total/active/inactive come from dashboard stats
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const recent = transformedUsers.filter((u) => {
+        const createdAt = u.createdAt ? new Date(u.createdAt) : null;
+        return createdAt && createdAt >= sevenDaysAgo;
+      }).length;
+      setStats(prevStats => ({ ...prevStats, recent }));
       setError(""); // Clear any previous errors
     } catch (error) {
       console.error("Fetch users error:", error);
@@ -343,7 +377,7 @@ function UserManagementPage() {
 
       // Don't show demo data anymore - just show empty state
       setUsers([]);
-      calculateStats([]);
+      setStats(prevStats => ({ ...prevStats, recent: 0 }));
     } finally {
       setLoading(false);
     }

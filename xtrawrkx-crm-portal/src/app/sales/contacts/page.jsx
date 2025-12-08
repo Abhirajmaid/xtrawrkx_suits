@@ -71,6 +71,7 @@ export default function ContactsPage() {
 
   // State management
   const [contacts, setContacts] = useState([]);
+  const [allContacts, setAllContacts] = useState([]); // Unfiltered contacts for stats
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({});
@@ -197,7 +198,9 @@ export default function ContactsPage() {
       });
 
       console.log("Fetched contacts:", response);
-      setContacts(response.data || []);
+      const fetchedContacts = response.data || [];
+      setContacts(fetchedContacts);
+      setAllContacts(fetchedContacts); // Store unfiltered contacts for stats
       setStats(response.meta || {});
     } catch (err) {
       console.error("Error fetching contacts:", err);
@@ -290,6 +293,13 @@ export default function ContactsPage() {
             createdAt: { $gte: startDate.toISOString() },
           };
         }
+      }
+
+      if (appliedFilters.assignedTo) {
+        queryParams.filters = {
+          ...queryParams.filters,
+          assignedTo: { id: { $eq: parseInt(appliedFilters.assignedTo) } },
+        };
       }
 
       const response = await contactService.getAll(queryParams);
@@ -406,7 +416,8 @@ export default function ContactsPage() {
       // fetchFilteredContacts will be called by useEffect when appliedFilters changes
     } else {
       setAppliedFilters({});
-      fetchContacts();
+      // Restore all contacts but keep allContacts unchanged for stats
+      setContacts(allContacts);
       toast.info("Filters cleared");
     }
   };
@@ -617,12 +628,12 @@ export default function ContactsPage() {
     }
   }, [filteredContacts.length, appliedFilters, loading]);
 
-  // Get contact statistics
+  // Get contact statistics from unfiltered contacts
   const contactStats = {
-    active: contacts.filter((c) => c.status === "ACTIVE").length,
-    inactive: contacts.filter((c) => c.status === "INACTIVE").length,
-    new: contacts.filter((c) => c.status === "NEW").length,
-    qualified: contacts.filter((c) => c.status === "QUALIFIED").length,
+    active: allContacts.filter((c) => c.status === "ACTIVE").length,
+    inactive: allContacts.filter((c) => c.status === "INACTIVE").length,
+    new: allContacts.filter((c) => c.status === "NEW").length,
+    qualified: allContacts.filter((c) => c.status === "QUALIFIED").length,
   };
 
   const statusStats = [
@@ -666,7 +677,7 @@ export default function ContactsPage() {
       id: "all",
       key: "all",
       label: "All Contacts",
-      badge: contacts.length.toString(),
+      badge: allContacts.length.toString(),
     },
     {
       id: "active",
@@ -1137,6 +1148,7 @@ export default function ContactsPage() {
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
         onApplyFilters={handleApplyFilters}
+        users={users}
       />
 
       {/* Import Modal */}

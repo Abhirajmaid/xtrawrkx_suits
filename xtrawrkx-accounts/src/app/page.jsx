@@ -26,6 +26,8 @@ import {
   Loader2,
   RefreshCw,
   X,
+  Plus,
+  Zap,
 } from "lucide-react";
 import { useUser } from "./components/UserContext";
 import { usePermissions } from "../hooks/usePermissions";
@@ -157,9 +159,6 @@ export default function DashboardPage() {
       adminUsers: 0,
       mfaEnabledUsers: 0,
       mfaAdoptionRate: 0,
-      systemUptime: 99.9,
-      securityAlerts: 0,
-      failedLogins: 0,
       roleDistribution: { "Super Admin": 1, Admin: 2 },
       roleStats: {
         type: "admin",
@@ -168,6 +167,7 @@ export default function DashboardPage() {
           activeUsers: 3,
           adminUsers: 0,
           mfaEnabled: 0,
+          myTasks: 0,
         },
       },
     });
@@ -532,77 +532,7 @@ export default function DashboardPage() {
 
     // Admin sections using real data
     if (hasPermission("users")) {
-      sections.push({
-        id: "user-management",
-        title: "User Management",
-        description: "Manage users, roles, and permissions",
-        icon: Users,
-        color: "from-blue-500 to-blue-600",
-        items: [
-          {
-            label: "Total Users",
-            value: dashboardStats
-              ? (dashboardStats.totalUsers || 0).toString()
-              : "---",
-            href: "/users",
-          },
-          {
-            label: "Active Sessions",
-            value: dashboardStats
-              ? (dashboardStats.activeUsers || 0).toString()
-              : "---",
-            href: "/activity",
-          },
-          {
-            label: "Pending Invites",
-            value: "5", // TODO: Get from API
-            href: "/users/new",
-          },
-          {
-            label: "Role Changes",
-            value: "3", // TODO: Get from API
-            href: "/users/roles",
-          },
-        ],
-      });
-
-      sections.push({
-        id: "system-health",
-        title: "System Health",
-        description: "Monitor system performance and security",
-        icon: Shield,
-        color: "from-green-500 to-green-600",
-        items: [
-          {
-            label: "System Uptime",
-            value: dashboardStats
-              ? `${dashboardStats.systemUptime || 99.9}%`
-              : "---",
-            href: "/settings",
-          },
-          {
-            label: "Security Alerts",
-            value: dashboardStats
-              ? (dashboardStats.securityAlerts || 0).toString()
-              : "---",
-            href: "/activity",
-          },
-          {
-            label: "Failed Logins",
-            value: dashboardStats
-              ? (dashboardStats.failedLogins || 0).toString()
-              : "---",
-            href: "/activity",
-          },
-          {
-            label: "MFA Adoption",
-            value: dashboardStats
-              ? `${dashboardStats.mfaAdoptionRate || 0}%`
-              : "---",
-            href: "/auth",
-          },
-        ],
-      });
+      // No admin-specific sections currently
     }
 
     // Sales sections
@@ -717,21 +647,6 @@ export default function DashboardPage() {
         ],
       });
     }
-
-    // Personal section for all users
-    sections.push({
-      id: "personal",
-      title: "Personal",
-      description: "Your profile, tasks, and activity",
-      icon: UserCheck,
-      color: "from-blue-500 to-blue-600",
-      items: [
-        { label: "Profile Complete", value: "85%", href: "/profile" },
-        { label: "My Tasks", value: "12", href: "/coming-soon" },
-        { label: "Recent Activity", value: "8", href: "/activity" },
-        { label: "Notifications", value: "3", href: "/coming-soon" },
-      ],
-    });
 
     return sections;
   };
@@ -924,6 +839,255 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Quick Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="glass-card rounded-2xl p-6"
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Zap className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
+            <p className="text-sm text-gray-500">
+              Frequently used actions and shortcuts
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Admin Quick Actions */}
+          {hasPermission("users") && (
+            <>
+              <Link
+                href="/users/new"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-green-200"
+              >
+                <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <UserPlus className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  Add User
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  Create new account
+                </p>
+              </Link>
+
+              <Link
+                href="/users"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-blue-200"
+              >
+                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  Manage Users
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  View all users
+                </p>
+              </Link>
+
+              {hasPermission("permissions") && (
+                <Link
+                  href="/users/roles"
+                  className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-purple-200"
+                >
+                  <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <p className="font-semibold text-gray-900 text-center">
+                    Manage Roles
+                  </p>
+                  <p className="text-xs text-gray-600 text-center mt-1">
+                    Roles & permissions
+                  </p>
+                </Link>
+              )}
+
+              {hasPermission("teams") && (
+                <>
+                  <Link
+                    href="/organization/departments"
+                    className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-indigo-200"
+                  >
+                    <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Building className="w-6 h-6 text-white" />
+                    </div>
+                    <p className="font-semibold text-gray-900 text-center">
+                      Departments
+                    </p>
+                    <p className="text-xs text-gray-600 text-center mt-1">
+                      Manage departments
+                    </p>
+                  </Link>
+
+                  <Link
+                    href="/coming-soon"
+                    className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-orange-200"
+                  >
+                    <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <p className="font-semibold text-gray-900 text-center">
+                      Teams
+                    </p>
+                    <p className="text-xs text-gray-600 text-center mt-1">
+                      Manage teams
+                    </p>
+                  </Link>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Sales Quick Actions */}
+          {getRoleDisplayName().includes("Sales") && (
+            <>
+              <Link
+                href="/coming-soon"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-green-200"
+              >
+                <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  New Lead
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  Add sales lead
+                </p>
+              </Link>
+
+              <Link
+                href="/coming-soon"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-blue-200"
+              >
+                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  Create Proposal
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  New proposal
+                </p>
+              </Link>
+            </>
+          )}
+
+          {/* Project Manager Quick Actions */}
+          {getRoleDisplayName().includes("Project") && (
+            <>
+              <Link
+                href="/coming-soon"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-blue-200"
+              >
+                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <Briefcase className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  New Project
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  Create project
+                </p>
+              </Link>
+
+              <Link
+                href="/coming-soon"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-indigo-200"
+              >
+                <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  Schedule Meeting
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  Plan meeting
+                </p>
+              </Link>
+            </>
+          )}
+
+          {/* Account Manager Quick Actions */}
+          {getRoleDisplayName().includes("Account Manager") && (
+            <Link
+              href="/coming-soon"
+              className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-indigo-200"
+            >
+              <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Building className="w-6 h-6 text-white" />
+              </div>
+              <p className="font-semibold text-gray-900 text-center">
+                New Account
+              </p>
+              <p className="text-xs text-gray-600 text-center mt-1">
+                Create account
+              </p>
+            </Link>
+          )}
+
+          {/* Finance Quick Actions */}
+          {getRoleDisplayName().includes("Finance") && (
+            <Link
+              href="/coming-soon"
+              className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-green-200"
+            >
+              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <DollarSign className="w-6 h-6 text-white" />
+              </div>
+              <p className="font-semibold text-gray-900 text-center">
+                New Invoice
+              </p>
+              <p className="text-xs text-gray-600 text-center mt-1">
+                Generate invoice
+              </p>
+            </Link>
+          )}
+
+          {/* Personal Quick Actions for all users */}
+          {!hasPermission("users") && (
+            <>
+              <Link
+                href="/profile"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-blue-200"
+              >
+                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <UserCheck className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  My Profile
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  View profile
+                </p>
+              </Link>
+
+              <Link
+                href="/activity"
+                className="group flex flex-col items-center justify-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-purple-200"
+              >
+                <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+                <p className="font-semibold text-gray-900 text-center">
+                  My Activity
+                </p>
+                <p className="text-xs text-gray-600 text-center mt-1">
+                  View activity
+                </p>
+              </Link>
+            </>
+          )}
+        </div>
+      </motion.div>
+
       {/* Role-Specific Sections */}
       {roleSections.length > 0 && (
         <div className="space-y-6">
@@ -966,14 +1130,22 @@ export default function DashboardPage() {
                     <Link
                       key={itemIndex}
                       href={item.href}
-                      className="group p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all duration-200 hover:shadow-md"
+                      className="group relative p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all duration-200 hover:shadow-md hover:scale-[1.02]"
+                      title={item.tooltip || item.label}
                     >
                       <div className="text-2xl font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
                         {item.value}
                       </div>
-                      <div className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors">
+                      <div className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors mt-1">
                         {item.label}
                       </div>
+                      {item.tooltip && (
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-4 h-4 rounded-full bg-primary-100 flex items-center justify-center">
+                            <span className="text-xs text-primary-600">i</span>
+                          </div>
+                        </div>
+                      )}
                     </Link>
                   ))}
                 </div>
@@ -1290,23 +1462,6 @@ export default function DashboardPage() {
                   <p className="font-medium text-gray-900">Audit Logs</p>
                   <p className="text-sm text-gray-500">
                     Review system activity
-                  </p>
-                </div>
-              </Link>
-            )}
-
-            {hasPermission("settings") && (
-              <Link
-                href="/settings"
-                className="w-full flex items-center gap-3 p-4 text-left glass-button rounded-xl transition-all duration-300 hover:shadow-lg"
-              >
-                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-indigo-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Settings</p>
-                  <p className="text-sm text-gray-500">
-                    Configure system settings
                   </p>
                 </div>
               </Link>

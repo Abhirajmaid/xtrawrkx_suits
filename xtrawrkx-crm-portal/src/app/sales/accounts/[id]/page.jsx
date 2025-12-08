@@ -589,6 +589,7 @@ const ClientAccountDetailPage = ({ params }) => {
     { key: "deals", label: "Deals" },
     { key: "projects", label: "Projects" },
     { key: "invoices", label: "Invoices" },
+    { key: "meetings", label: "Meetings" },
     { key: "health", label: "Account Health" },
   ];
 
@@ -1525,6 +1526,22 @@ const ClientAccountDetailPage = ({ params }) => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "meetings" && (
+            <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-pink-100 rounded-2xl flex items-center justify-center mb-6">
+                  <Calendar className="w-10 h-10 text-orange-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  Coming Soon
+                </h3>
+                <p className="text-gray-600 text-center max-w-md">
+                  The Meetings feature is currently under development. You'll be able to schedule, manage, and track meetings with this account soon.
+                </p>
               </div>
             </div>
           )}

@@ -19,9 +19,8 @@ module.exports = {
             // Get all users for stats (since we're bypassing auth for now)
             // TODO: Add proper user context when authentication is fixed
 
-            // Get all users for admin stats
+            // Get all users for admin stats (including inactive for pending invites)
             const allUsers = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findMany({
-                where: { isActive: true },
                 populate: {
                     primaryRole: true,
                     userRoles: {
@@ -52,17 +51,7 @@ module.exports = {
             // Count users with MFA enabled (assuming this field exists)
             const mfaEnabledUsers = allUsers.filter(u => u.mfaEnabled === true).length;
 
-            // Get recent activities (last 24 hours)
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const recentActivities = await strapi.db.query('api::activity.activity').findMany({
-                where: {
-                    createdAt: {
-                        $gte: oneDayAgo
-                    }
-                },
-                orderBy: { createdAt: 'desc' },
-                limit: 10
-            });
+
 
             // Calculate role distribution
             const roleDistribution = {};
@@ -70,11 +59,6 @@ module.exports = {
                 const roleName = u.primaryRole?.name || u.role || 'Unknown';
                 roleDistribution[roleName] = (roleDistribution[roleName] || 0) + 1;
             });
-
-            // Get system health metrics (mock for now, could be real metrics)
-            const systemUptime = 99.9; // Could be calculated from actual uptime
-            const securityAlerts = 0; // Could be from actual security monitoring
-            const failedLogins = 0; // Could be from auth logs
 
             // Role-specific stats (using default admin stats for now)
             const roleStats = {
@@ -100,19 +84,11 @@ module.exports = {
                     mfaEnabledUsers,
                     mfaAdoptionRate: totalUsers > 0 ? Math.round((mfaEnabledUsers / totalUsers) * 100) : 0,
 
-                    // System health
-                    systemUptime,
-                    securityAlerts,
-                    failedLogins,
-
                     // Role distribution
                     roleDistribution,
 
                     // Role-specific stats
-                    roleStats,
-
-                    // Recent activity count
-                    recentActivityCount: recentActivities.length
+                    roleStats
                 }
             };
 

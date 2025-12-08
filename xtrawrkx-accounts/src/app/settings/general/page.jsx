@@ -11,7 +11,7 @@ export default function GeneralSettingsPage() {
     timezone: "UTC-8",
     dateFormat: "MM/DD/YYYY",
     language: "en",
-    currency: "USD",
+    currency: "INR",
     workingHours: {
       start: "09:00",
       end: "17:00",
@@ -177,6 +177,7 @@ export default function GeneralSettingsPage() {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
+                  <option value="INR">INR (₹)</option>
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="GBP">GBP (£)</option>

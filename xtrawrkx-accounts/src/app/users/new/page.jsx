@@ -185,8 +185,10 @@ function NewUserPage() {
       newErrors.department = "Department is required";
     }
 
-    // Validate password if provided
-    if (formData.password && formData.password.length < 8) {
+    // Validate password (required)
+    if (!formData.password || !formData.password.trim()) {
+      newErrors.password = "Password is required";
+    } else if (formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters long";
     }
 
@@ -212,10 +214,8 @@ function NewUserPage() {
         sendInvitation: formData.sendInvitation,
       };
 
-      // Add password if provided
-      if (formData.password && formData.password.trim()) {
-        userData.password = formData.password;
-      }
+      // Add password (required)
+      userData.password = formData.password;
 
       // Add primary role if selected
       if (formData.primaryRole) {
@@ -304,40 +304,18 @@ function NewUserPage() {
             {formData.firstName} {formData.lastName} has been added to the
             system.
           </p>
-          {successData && (
+          {successData && successData.sendInvitation && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2 mb-2">
-                <Lock className="w-4 h-4 text-blue-600" />
+                <Mail className="w-4 h-4 text-blue-600" />
                 <span className="text-sm font-medium text-blue-800">
-                  Password Information
+                  Invitation Sent
                 </span>
               </div>
               <p className="text-sm text-blue-700">
-                Password Type:{" "}
-                <span className="font-medium">
-                  {successData.passwordType === "custom"
-                    ? "Custom Password"
-                    : "Auto-Generated"}
-                </span>
+                An invitation email has been sent to {formData.email} with login
+                credentials.
               </p>
-              {successData.tempPassword && (
-                <p className="text-sm text-blue-700 mt-1">
-                  Temporary Password:{" "}
-                  <span className="font-mono font-medium bg-blue-100 px-2 py-1 rounded">
-                    {successData.tempPassword}
-                  </span>
-                </p>
-              )}
-              {successData.passwordType === "custom" && (
-                <p className="text-xs text-blue-600 mt-1">
-                  The custom password you provided has been set for this user.
-                </p>
-              )}
-              {successData.passwordType === "generated" && (
-                <p className="text-xs text-blue-600 mt-1">
-                  A secure password has been auto-generated and sent via email.
-                </p>
-              )}
             </div>
           )}
           <p className="text-sm text-gray-500">Redirecting to users list...</p>
@@ -464,7 +442,7 @@ function NewUserPage() {
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Custom Password (Optional)
+                Password *
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -477,7 +455,7 @@ function NewUserPage() {
                   className={`w-full pl-10 pr-12 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors ${
                     errors.password ? "border-red-500" : "border-gray-300"
                   }`}
-                  placeholder="Enter custom password (min 8 characters)"
+                  placeholder="Enter password (min 8 characters)"
                 />
                 <button
                   type="button"
@@ -494,9 +472,6 @@ function NewUserPage() {
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500">
-                Leave empty to auto-generate a secure password
-              </p>
             </div>
           </div>
         </motion.div>
@@ -758,45 +733,6 @@ function NewUserPage() {
                   ? "User will receive an email with their temporary password"
                   : "You will need to provide the user with their login credentials manually"}
               </p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Security */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="glass-card rounded-2xl p-6"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-              <Lock className="w-4 h-4 text-white" />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900">Security</h2>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Lock className="w-3 h-3 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-medium text-blue-900 mb-1">
-                  Automatic Password Generation
-                </h4>
-                <p className="text-sm text-blue-700">
-                  A secure temporary password will be automatically generated
-                  for this user.
-                  {formData.sendInvitation
-                    ? " The password will be sent via email invitation."
-                    : " You will receive the password after user creation."}
-                </p>
-                <p className="text-xs text-blue-600 mt-2">
-                  The user will be required to change their password on first
-                  login.
-                </p>
-              </div>
             </div>
           </div>
         </motion.div>
