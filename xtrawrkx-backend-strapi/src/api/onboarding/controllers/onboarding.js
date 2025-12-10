@@ -2,6 +2,10 @@
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+// JWT secret - use environment variable or fallback to default
+const JWT_SECRET = process.env.JWT_SECRET || 'myJwtSecret123456789012345678901234567890';
 
 /**
  * Onboarding Controller
@@ -53,84 +57,111 @@ module.exports = {
                 return ctx.badRequest('Password must be at least 8 characters long');
             }
 
-            // Check if account already exists
+            // Find existing account created during signup (by email)
             const existingAccount = await strapi.db.query('api::client-account.client-account').findOne({
                 where: {
-                    $or: [
-                        { email: email.toLowerCase() },
-                        { companyName: companyName }
-                    ]
+                    email: email.toLowerCase()
                 },
             });
 
-            if (existingAccount) {
-                return ctx.badRequest('Account with this email or company name already exists');
+            if (!existingAccount) {
+                return ctx.badRequest('Account not found. Please complete signup first.');
             }
 
-            // Check if contact email already exists
-            const existingContact = await strapi.db.query('api::contact.contact').findOne({
-                where: { email: contactEmail.toLowerCase() },
-            });
+            // Update password if provided (optional - user might not want to change it)
+            let updateData = {
+                companyName,
+                industry,
+                website,
+                phone,
+                address,
+                city,
+                state,
+                zipCode,
+                country,
+                employees,
+                description,
+                founded,
+                lastActivity: new Date(),
+                onboardingCompleted: true,
+                onboardingCompletedAt: new Date(),
+                onboardingData: onboardingData,
+                selectedCommunities: onboardingData.selectedCommunities || [],
+            };
 
-            if (existingContact) {
-                return ctx.badRequest('Contact with this email already exists');
+            // Only update password if provided
+            if (password) {
+                const hashedPassword = await bcrypt.hash(password, 12);
+                updateData.password = hashedPassword;
             }
 
-            // Hash password
-            const hashedPassword = await bcrypt.hash(password, 12);
-
-            // Create account
-            const account = await strapi.db.query('api::client-account.client-account').create({
-                data: {
-                    companyName,
-                    industry,
-                    type: 'CUSTOMER',
-                    website,
-                    phone,
-                    email: email.toLowerCase(),
-                    address,
-                    city,
-                    state,
-                    zipCode,
-                    country,
-                    employees,
-                    description,
-                    founded,
-                    password: hashedPassword,
-                    emailVerified: false,
-                    isActive: true,
-                    source: 'ONBOARDING',
-                    lastActivity: new Date(),
-                    onboardingCompleted: true,
-                    onboardingCompletedAt: new Date(),
-                    onboardingData: onboardingData,
-                    selectedCommunities: onboardingData.selectedCommunities || [],
-                },
+            // Update the existing client account with onboarding data
+            const account = await strapi.db.query('api::client-account.client-account').update({
+                where: { id: existingAccount.id },
+                data: updateData,
             });
 
-            // Create primary contact
-            const contact = await strapi.db.query('api::contact.contact').create({
-                data: {
-                    clientAccount: account.id,
-                    firstName: contactFirstName,
-                    lastName: contactLastName,
+            // Find existing contact created during signup (by email and clientAccount)
+            let contact = await strapi.db.query('api::contact.contact').findOne({
+                where: {
                     email: contactEmail.toLowerCase(),
-                    phone: contactPhone,
-                    title: contactTitle,
-                    department: contactDepartment,
-                    role: 'PRIMARY_CONTACT',
-                    portalAccessLevel: 'FULL_ACCESS',
-                    status: 'ACTIVE',
-                    source: 'ONBOARDING',
-                    lastContactDate: new Date(),
+                    clientAccount: account.id
                 },
             });
+
+            // If contact not found by email, try to find primary contact for this account
+            if (!contact) {
+                contact = await strapi.db.query('api::contact.contact').findOne({
+                    where: {
+                        clientAccount: account.id,
+                        role: 'PRIMARY_CONTACT'
+                    },
+                });
+            }
+
+            // Update or create primary contact
+            if (contact) {
+                // Update existing contact with onboarding data
+                contact = await strapi.db.query('api::contact.contact').update({
+                    where: { id: contact.id },
+                    data: {
+                        firstName: contactFirstName,
+                        lastName: contactLastName,
+                        email: contactEmail.toLowerCase(),
+                        phone: contactPhone,
+                        title: contactTitle,
+                        department: contactDepartment,
+                        role: 'PRIMARY_CONTACT',
+                        portalAccessLevel: 'FULL_ACCESS',
+                        status: 'ACTIVE',
+                        lastContactDate: new Date(),
+                    },
+                });
+            } else {
+                // Create new contact if somehow it doesn't exist
+                contact = await strapi.db.query('api::contact.contact').create({
+                    data: {
+                        clientAccount: account.id,
+                        firstName: contactFirstName,
+                        lastName: contactLastName,
+                        email: contactEmail.toLowerCase(),
+                        phone: contactPhone,
+                        title: contactTitle,
+                        department: contactDepartment,
+                        role: 'PRIMARY_CONTACT',
+                        portalAccessLevel: 'FULL_ACCESS',
+                        status: 'ACTIVE',
+                        source: 'ONBOARDING',
+                        lastContactDate: new Date(),
+                    },
+                });
+            }
 
             // Process community submissions if any
             if (onboardingData.submissions && Object.keys(onboardingData.submissions).length > 0) {
                 for (const [community, submissionData] of Object.entries(onboardingData.submissions)) {
                     const submissionId = `${account.id}-${community}-${Date.now()}`;
-                    
+
                     await strapi.db.query('api::community-submission.community-submission').create({
                         data: {
                             clientAccount: account.id,
@@ -148,7 +179,7 @@ module.exports = {
                 for (const community of onboardingData.selectedCommunities) {
                     // Determine membership type based on community
                     const membershipType = (community === 'XEVFIN') ? 'PREMIUM' : 'FREE';
-                    
+
                     await strapi.db.query('api::community-membership.community-membership').create({
                         data: {
                             clientAccount: account.id,
@@ -166,11 +197,20 @@ module.exports = {
             }
 
             // Generate JWT token for immediate login
-            const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+            const token = jwt.sign({
                 id: account.id,
                 email: account.email,
                 type: 'client',
                 companyName: account.companyName
+            }, JWT_SECRET, { expiresIn: '7d' });
+
+            // Get all contacts for the account
+            const contacts = await strapi.db.query('api::contact.contact').findMany({
+                where: {
+                    clientAccount: account.id,
+                    status: 'ACTIVE'
+                },
+                select: ['id', 'firstName', 'lastName', 'email', 'role', 'portalAccessLevel']
             });
 
             // Send welcome email
@@ -199,6 +239,7 @@ module.exports = {
             }
 
             ctx.send({
+                success: true,
                 account: {
                     id: account.id,
                     email: account.email,
@@ -207,6 +248,7 @@ module.exports = {
                     type: account.type,
                     isActive: account.isActive,
                     emailVerified: account.emailVerified,
+                    onboardingCompleted: account.onboardingCompleted,
                 },
                 primaryContact: {
                     id: contact.id,
@@ -216,7 +258,8 @@ module.exports = {
                     role: contact.role,
                     portalAccessLevel: contact.portalAccessLevel,
                 },
-                token: jwt,
+                contacts: contacts,
+                token: token,
                 message: 'Onboarding completed successfully'
             });
         } catch (error) {
@@ -372,7 +415,7 @@ module.exports = {
 
             // Find client account
             const account = await strapi.db.query('api::client-account.client-account').findOne({
-                where: { 
+                where: {
                     email: email.toLowerCase(),
                     isActive: true
                 },
@@ -424,30 +467,134 @@ module.exports = {
      */
     async updateBasics(ctx) {
         try {
-            const { accountId, basics } = ctx.request.body;
+            const { accountId, basics, email } = ctx.request.body;
 
-            if (!accountId || !basics) {
-                return ctx.badRequest('Account ID and basics data are required');
+            // Find account by ID or email
+            let account;
+            if (accountId) {
+                account = await strapi.db.query('api::client-account.client-account').findOne({
+                    where: { id: accountId }
+                });
+            } else if (email) {
+                account = await strapi.db.query('api::client-account.client-account').findOne({
+                    where: { email: email.toLowerCase() }
+                });
+            } else {
+                return ctx.badRequest('Account ID or email is required');
             }
 
-            // Update account with basics
-            const account = await strapi.db.query('api::client-account.client-account').update({
-                where: { id: accountId },
-                data: {
-                    onboardingData: {
-                        ...basics,
-                        updatedAt: new Date()
-                    }
+            if (!account) {
+                return ctx.notFound('Account not found');
+            }
+
+            // Extract company and contact data from basics
+            const {
+                companyName,
+                industry,
+                website,
+                phone,
+                address,
+                city,
+                state,
+                zipCode,
+                country,
+                employees,
+                description,
+                founded,
+                // Contact data - can come as name (split) or separate firstName/lastName
+                name,
+                contactFirstName,
+                contactLastName,
+                contactEmail,
+                contactPhone,
+                role, // This is the user's role (Founder, Student, etc.)
+                title,
+                contactTitle,
+                contactDepartment,
+            } = basics;
+
+            // Parse name if provided as single field
+            let firstName = contactFirstName;
+            let lastName = contactLastName;
+            if (name && !contactFirstName) {
+                const nameParts = name.trim().split(' ');
+                firstName = nameParts[0] || '';
+                lastName = nameParts.slice(1).join(' ') || '';
+            }
+
+            // Update account with company basics
+            const updateData = {
+                onboardingData: {
+                    ...basics,
+                    updatedAt: new Date()
                 }
+            };
+
+            // Update company fields if provided
+            if (companyName) updateData.companyName = companyName;
+            if (industry) updateData.industry = industry;
+            if (website !== undefined) updateData.website = website;
+            if (phone) updateData.phone = phone;
+            if (address !== undefined) updateData.address = address;
+            if (city) updateData.city = city;
+            if (state) updateData.state = state;
+            if (zipCode) updateData.zipCode = zipCode;
+            if (country) updateData.country = country;
+            if (employees) updateData.employees = employees;
+            if (description !== undefined) updateData.description = description;
+            if (founded) updateData.founded = founded;
+
+            const updatedAccount = await strapi.db.query('api::client-account.client-account').update({
+                where: { id: account.id },
+                data: updateData
             });
+
+            // Update primary contact if contact data is provided
+            let updatedContact = null;
+            if (firstName || lastName || name || contactEmail || contactPhone || role || title) {
+                // Find primary contact for this account
+                let contact = await strapi.db.query('api::contact.contact').findOne({
+                    where: {
+                        clientAccount: account.id,
+                        role: 'PRIMARY_CONTACT'
+                    }
+                });
+
+                if (contact) {
+                    // Update existing contact
+                    const contactUpdateData = {};
+                    if (firstName) contactUpdateData.firstName = firstName;
+                    if (lastName) contactUpdateData.lastName = lastName;
+                    if (contactEmail) contactUpdateData.email = contactEmail.toLowerCase();
+                    if (contactPhone) contactUpdateData.phone = contactPhone;
+                    // Use role as title if provided, otherwise use title or contactTitle
+                    if (role) contactUpdateData.title = role;
+                    else if (title) contactUpdateData.title = title;
+                    else if (contactTitle) contactUpdateData.title = contactTitle;
+                    if (contactDepartment) contactUpdateData.department = contactDepartment;
+
+                    updatedContact = await strapi.db.query('api::contact.contact').update({
+                        where: { id: contact.id },
+                        data: contactUpdateData
+                    });
+                }
+            }
 
             ctx.send({
                 success: true,
                 message: 'Basics updated successfully',
                 account: {
-                    id: account.id,
-                    onboardingData: account.onboardingData
-                }
+                    id: updatedAccount.id,
+                    companyName: updatedAccount.companyName,
+                    industry: updatedAccount.industry,
+                    onboardingData: updatedAccount.onboardingData
+                },
+                contact: updatedContact ? {
+                    id: updatedContact.id,
+                    firstName: updatedContact.firstName,
+                    lastName: updatedContact.lastName,
+                    email: updatedContact.email
+                } : null
             });
         } catch (error) {
             console.error('Update basics error:', error);
@@ -460,18 +607,37 @@ module.exports = {
      */
     async updateCommunities(ctx) {
         try {
-            const { accountId, selectedCommunities } = ctx.request.body;
+            const { accountId, selectedCommunities, email } = ctx.request.body;
 
-            if (!accountId || !selectedCommunities) {
-                return ctx.badRequest('Account ID and selected communities are required');
+            if (!selectedCommunities) {
+                return ctx.badRequest('Selected communities are required');
+            }
+
+            // Find account by ID or email
+            let account;
+            if (accountId) {
+                account = await strapi.db.query('api::client-account.client-account').findOne({
+                    where: { id: accountId }
+                });
+            } else if (email) {
+                account = await strapi.db.query('api::client-account.client-account').findOne({
+                    where: { email: email.toLowerCase() }
+                });
+            } else {
+                return ctx.badRequest('Account ID or email is required');
+            }
+
+            if (!account) {
+                return ctx.notFound('Account not found');
             }
 
             // Update account with selected communities
-            const account = await strapi.db.query('api::client-account.client-account').update({
-                where: { id: accountId },
+            const updatedAccount = await strapi.db.query('api::client-account.client-account').update({
+                where: { id: account.id },
                 data: {
                     selectedCommunities: selectedCommunities,
                     onboardingData: {
+                        ...(account.onboardingData || {}),
                         selectedCommunities: selectedCommunities,
                         updatedAt: new Date()
                     }
@@ -481,7 +647,7 @@ module.exports = {
             ctx.send({
                 success: true,
                 message: 'Communities updated successfully',
-                selectedCommunities: account.selectedCommunities
+                selectedCommunities: updatedAccount.selectedCommunities
             });
         } catch (error) {
             console.error('Update communities error:', error);
@@ -494,18 +660,36 @@ module.exports = {
      */
     async submitCommunityApplication(ctx) {
         try {
-            const { accountId, community, submissionData } = ctx.request.body;
+            const { accountId, community, submissionData, email } = ctx.request.body;
 
-            if (!accountId || !community || !submissionData) {
-                return ctx.badRequest('Account ID, community, and submission data are required');
+            if (!community || !submissionData) {
+                return ctx.badRequest('Community and submission data are required');
             }
 
-            const submissionId = `${accountId}-${community}-${Date.now()}`;
+            // Find account by ID or email
+            let account;
+            if (accountId) {
+                account = await strapi.db.query('api::client-account.client-account').findOne({
+                    where: { id: accountId }
+                });
+            } else if (email) {
+                account = await strapi.db.query('api::client-account.client-account').findOne({
+                    where: { email: email.toLowerCase() }
+                });
+            } else {
+                return ctx.badRequest('Account ID or email is required');
+            }
+
+            if (!account) {
+                return ctx.notFound('Account not found');
+            }
+
+            const submissionId = `${account.id}-${community}-${Date.now()}`;
 
             // Create community submission
             const submission = await strapi.db.query('api::community-submission.community-submission').create({
                 data: {
-                    clientAccount: accountId,
+                    clientAccount: account.id,
                     community: community,
                     submissionData: submissionData,
                     submissionId: submissionId,

@@ -188,6 +188,7 @@ export default function ProjectDetail({ params }) {
               "deal",
               "deal.leadCompany",
               "deal.clientAccount",
+              "clientAccount",
             ]);
           } catch (idError) {
             console.log("Failed to fetch by ID, trying by slug:", idError);
@@ -209,6 +210,7 @@ export default function ProjectDetail({ params }) {
               "deal",
               "deal.leadCompany",
               "deal.clientAccount",
+              "clientAccount",
             ]);
           } catch (slugError) {
             console.error("Failed to fetch by slug:", slugError);
@@ -848,6 +850,7 @@ export default function ProjectDetail({ params }) {
         "deal",
         "deal.leadCompany",
         "deal.clientAccount",
+        "clientAccount",
       ]);
       const transformedProject = transformProject(updatedProject);
       // Preserve stats when reverting
@@ -909,6 +912,7 @@ export default function ProjectDetail({ params }) {
         "deal",
         "deal.leadCompany",
         "deal.clientAccount",
+        "clientAccount",
       ]);
       const transformedProject = transformProject(updatedProject);
       setProject({ ...project, tasks: transformedProject.tasks });
@@ -957,6 +961,7 @@ export default function ProjectDetail({ params }) {
         "deal",
         "deal.leadCompany",
         "deal.clientAccount",
+        "clientAccount",
       ]);
       const transformedProject = transformProject(updatedProject);
       setProject({ ...project, tasks: transformedProject.tasks });
@@ -1102,7 +1107,7 @@ export default function ProjectDetail({ params }) {
       render: (_, task) => {
         // Get collaborators - prefer collaborators array, fallback to assignee
         let collaborators = [];
-        
+
         // Check if task has valid collaborators
         if (
           task.collaborators &&
@@ -1113,15 +1118,10 @@ export default function ProjectDetail({ params }) {
           collaborators = task.collaborators.filter(
             (c) =>
               c &&
-              (c.id ||
-                c._id ||
-                c.firstName ||
-                c.lastName ||
-                c.name ||
-                c.email)
+              (c.id || c._id || c.firstName || c.lastName || c.name || c.email)
           );
         }
-        
+
         // If no valid collaborators, check for assignee
         if (collaborators.length === 0 && task.assignee) {
           // Check if assignee is a valid user object
@@ -1133,7 +1133,7 @@ export default function ProjectDetail({ params }) {
               task.assignee.lastName ||
               task.assignee.name ||
               task.assignee.email);
-          
+
           if (hasAssignee) {
             collaborators = [task.assignee];
           }
@@ -2068,6 +2068,111 @@ export default function ProjectDetail({ params }) {
 
               {/* Right Column - Key Metrics */}
               <div className="space-y-6">
+                {/* Client Account Section */}
+                {project.clientAccount && (
+                  <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Client Account
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <Building2 className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="text-lg font-semibold text-gray-900">
+                              {project.clientAccount?.companyName ||
+                                project.clientAccount?.name ||
+                                "Unknown Company"}
+                            </h4>
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Client
+                            </span>
+                          </div>
+
+                          <div className="space-y-3 text-sm">
+                            {project.clientAccount?.companyType && (
+                              <div>
+                                <span className="text-gray-500">
+                                  Company Type
+                                </span>
+                                <p className="font-medium text-gray-900">
+                                  {project.clientAccount.companyType ===
+                                  "startup-corporate"
+                                    ? "Startup and Corporates"
+                                    : project.clientAccount.companyType ===
+                                      "investor"
+                                    ? "Investors"
+                                    : project.clientAccount.companyType ===
+                                      "enablers-academia"
+                                    ? "Enablers & Academia"
+                                    : project.clientAccount.companyType}
+                                </p>
+                              </div>
+                            )}
+
+                            {project.clientAccount?.email && (
+                              <div>
+                                <span className="text-gray-500">Email</span>
+                                <p className="font-medium text-gray-900">
+                                  {project.clientAccount.email}
+                                </p>
+                              </div>
+                            )}
+
+                            {project.clientAccount?.website && (
+                              <div>
+                                <span className="text-gray-500">Website</span>
+                                <a
+                                  href={
+                                    project.clientAccount.website.startsWith(
+                                      "http"
+                                    )
+                                      ? project.clientAccount.website
+                                      : `https://${project.clientAccount.website}`
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                >
+                                  <Globe className="w-3 h-3" />
+                                  {project.clientAccount.website.replace(
+                                    /^https?:\/\//,
+                                    ""
+                                  )}
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-4">
+                            <button
+                              onClick={() => {
+                                const isProduction =
+                                  window.location.hostname !== "localhost" &&
+                                  window.location.hostname !== "127.0.0.1";
+                                const crmBaseUrl = isProduction
+                                  ? "https://crm.xtrawrkx.com"
+                                  : "http://localhost:3000";
+                                window.open(
+                                  `${crmBaseUrl}/clients/accounts/${project.clientAccount.id}`,
+                                  "_blank"
+                                );
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors w-full justify-center"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View Client Account
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Project Lead/Owner */}
                 <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -3034,39 +3139,48 @@ export default function ProjectDetail({ params }) {
               const parsedId = parseInt(slugParam, 10);
               if (!isNaN(parsedId)) {
                 try {
-                  strapiProject = await projectService.getProjectById(parsedId, [
-                    "projectManager",
-                    "teamMembers",
-                    "tasks",
-                    "tasks.assignee",
-                    "tasks.collaborators",
-                    "tasks.project",
-                    "tasks.subtasks",
-                    "account",
-                    "deal",
-                    "deal.leadCompany",
-                    "deal.clientAccount",
-                  ]);
+                  strapiProject = await projectService.getProjectById(
+                    parsedId,
+                    [
+                      "projectManager",
+                      "teamMembers",
+                      "tasks",
+                      "tasks.assignee",
+                      "tasks.collaborators",
+                      "tasks.project",
+                      "tasks.subtasks",
+                      "account",
+                      "deal",
+                      "deal.leadCompany",
+                      "deal.clientAccount",
+                    ]
+                  );
                 } catch (idError) {
-                  console.log("Failed to fetch by ID, trying by slug:", idError);
+                  console.log(
+                    "Failed to fetch by ID, trying by slug:",
+                    idError
+                  );
                 }
               }
 
               if (!strapiProject) {
                 try {
-                  strapiProject = await projectService.getProjectBySlug(slugParam, [
-                    "projectManager",
-                    "teamMembers",
-                    "tasks",
-                    "tasks.assignee",
-                    "tasks.collaborators",
-                    "tasks.project",
-                    "tasks.subtasks",
-                    "account",
-                    "deal",
-                    "deal.leadCompany",
-                    "deal.clientAccount",
-                  ]);
+                  strapiProject = await projectService.getProjectBySlug(
+                    slugParam,
+                    [
+                      "projectManager",
+                      "teamMembers",
+                      "tasks",
+                      "tasks.assignee",
+                      "tasks.collaborators",
+                      "tasks.project",
+                      "tasks.subtasks",
+                      "account",
+                      "deal",
+                      "deal.leadCompany",
+                      "deal.clientAccount",
+                    ]
+                  );
                 } catch (slugError) {
                   console.error("Failed to fetch by slug:", slugError);
                 }
@@ -3074,7 +3188,7 @@ export default function ProjectDetail({ params }) {
 
               if (strapiProject) {
                 const transformedProject = transformProject(strapiProject);
-                
+
                 // Recalculate stats
                 let recalculatedStats = {
                   totalTasks: transformedProject.tasks?.length || 0,
@@ -3084,7 +3198,10 @@ export default function ProjectDetail({ params }) {
                   overdueTasks: 0,
                 };
 
-                if (transformedProject.tasks && transformedProject.tasks.length > 0) {
+                if (
+                  transformedProject.tasks &&
+                  transformedProject.tasks.length > 0
+                ) {
                   transformedProject.tasks.forEach((task) => {
                     if (task.status === "Done" || task.status === "COMPLETED") {
                       recalculatedStats.completedTasks++;
@@ -3150,7 +3267,8 @@ export default function ProjectDetail({ params }) {
                 // Handle account data
                 let accountData = null;
                 if (strapiProject.account) {
-                  const account = strapiProject.account.data || strapiProject.account;
+                  const account =
+                    strapiProject.account.data || strapiProject.account;
                   const accountAttributes = account?.attributes || account;
                   accountData = {
                     id: account?.id || account?.documentId,
@@ -3160,12 +3278,16 @@ export default function ProjectDetail({ params }) {
                       account?.name ||
                       account?.companyName ||
                       "N/A",
-                    industry: accountAttributes?.industry || account?.industry || "",
-                    website: accountAttributes?.website || account?.website || "",
-                    employees: accountAttributes?.employees || account?.employees || "",
+                    industry:
+                      accountAttributes?.industry || account?.industry || "",
+                    website:
+                      accountAttributes?.website || account?.website || "",
+                    employees:
+                      accountAttributes?.employees || account?.employees || "",
                     city: accountAttributes?.city || account?.city || "",
                     state: accountAttributes?.state || account?.state || "",
-                    country: accountAttributes?.country || account?.country || "",
+                    country:
+                      accountAttributes?.country || account?.country || "",
                   };
                 }
 
@@ -3183,7 +3305,10 @@ export default function ProjectDetail({ params }) {
                 setProject(enrichedProject);
               }
             } catch (error) {
-              console.error("Error reloading project after task creation:", error);
+              console.error(
+                "Error reloading project after task creation:",
+                error
+              );
             }
           }
         }}

@@ -424,18 +424,36 @@ class StrapiClient {
      */
     async saveOnboardingBasics(basicsData) {
         try {
+            // Get account email from localStorage or current user
+            let email = null;
+            if (typeof window !== 'undefined') {
+                const accountData = localStorage.getItem('client_account');
+                if (accountData) {
+                    try {
+                        const account = JSON.parse(accountData);
+                        email = account.email;
+                    } catch (e) {
+                        console.error('Error parsing account data:', e);
+                    }
+                }
+            }
+
             const accountId = this.getCurrentAccountId();
             const response = await fetch(`${this.baseURL}${this.apiPath}/onboarding/basics`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ accountId, basics: basicsData }),
+                body: JSON.stringify({ 
+                    accountId: accountId || null, 
+                    email: email,
+                    basics: basicsData 
+                }),
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                throw new Error(errorData.error?.message || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
             }
 
             return await response.json();

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, Button, Input, Select, Textarea } from "../../../components/ui";
 import PageHeader from "../../../components/shared/PageHeader";
 import projectService from "../../../lib/projectService";
+import apiClient from "../../../lib/apiClient";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   FolderOpen,
@@ -19,6 +20,7 @@ import {
 
 export default function AddProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -27,6 +29,10 @@ export default function AddProjectPage() {
   // Users for project manager dropdown
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  
+  // Client accounts for selection
+  const [clientAccounts, setClientAccounts] = useState([]);
+  const [loadingClientAccounts, setLoadingClientAccounts] = useState(false);
 
   // Project data
   const [projectData, setProjectData] = useState({
@@ -37,6 +43,7 @@ export default function AddProjectPage() {
     endDate: "",
     budget: "",
     projectManager: "",
+    clientAccount: "",
   });
 
   const statusOptions = [
@@ -70,13 +77,83 @@ export default function AddProjectPage() {
     }
   };
 
+  // Fetch client accounts
+  const fetchClientAccounts = async () => {
+    try {
+      setLoadingClientAccounts(true);
+      let allAccounts = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+      
+      while (hasMore) {
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+        };
+        
+        const response = await apiClient.get("/api/client-accounts", queryParams);
+        
+        let accountsData = [];
+        if (Array.isArray(response)) {
+          accountsData = response;
+        } else if (Array.isArray(response?.data)) {
+          accountsData = response.data;
+        }
+        
+        if (Array.isArray(accountsData) && accountsData.length > 0) {
+          const extracted = accountsData.map((a) => {
+            const accountData = a.attributes || a;
+            return {
+              id: a.id || a.documentId,
+              documentId: a.id || a.documentId,
+              name: accountData.companyName || accountData.name || "Unknown Account",
+              companyName: accountData.companyName || accountData.name,
+              ...accountData,
+            };
+          });
+          allAccounts = [...allAccounts, ...extracted];
+          
+          const pageCount = response?.meta?.pagination?.pageCount || 
+                           (response?.pagination?.pageCount) || 1;
+          hasMore = page < pageCount && accountsData.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      setClientAccounts(allAccounts);
+    } catch (e) {
+      console.error("Error fetching client accounts:", e);
+      setClientAccounts([]);
+    } finally {
+      setLoadingClientAccounts(false);
+    }
+  };
+
   // Fetch users on mount
   useEffect(() => {
     if (!authLoading) {
       fetchUsers();
+      fetchClientAccounts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
+
+  // Check for account parameter in URL
+  useEffect(() => {
+    const accountParam = searchParams?.get('account');
+    if (accountParam && clientAccounts.length > 0) {
+      const accountId = parseInt(accountParam, 10);
+      if (!isNaN(accountId)) {
+        setProjectData((prev) => ({
+          ...prev,
+          clientAccount: accountId.toString(),
+        }));
+      }
+    }
+  }, [searchParams, clientAccounts]);
 
   const handleProjectChange = (field, value) => {
     setProjectData((prev) => ({ ...prev, [field]: value }));
@@ -150,6 +227,9 @@ export default function AddProjectPage() {
       }
       if (projectData.projectManager) {
         projectPayload.projectManager = parseInt(projectData.projectManager);
+      }
+      if (projectData.clientAccount) {
+        projectPayload.clientAccount = parseInt(projectData.clientAccount);
       }
 
       console.log("Creating project with data:", projectPayload);
@@ -363,6 +443,25 @@ export default function AddProjectPage() {
                   ]}
                   disabled={loadingUsers}
                   placeholder="Select project manager"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Select
+                  label="Client Account"
+                  value={projectData.clientAccount}
+                  onChange={(value) =>
+                    handleProjectChange("clientAccount", value)
+                  }
+                  options={[
+                    { value: "", label: "No Client Account" },
+                    ...clientAccounts.map((ca) => ({
+                      value: ca.id.toString(),
+                      label: ca.companyName || ca.name || "Unknown Account",
+                    })),
+                  ]}
+                  disabled={loadingClientAccounts}
+                  placeholder="Select client account (optional)"
+                  icon={Building2}
                 />
               </div>
             </div>

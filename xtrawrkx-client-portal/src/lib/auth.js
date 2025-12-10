@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, createContext, useContext } from 'react';
-import { sendOTP as apiSendOTP, verifyOTP as apiVerifyOTP, login as apiLogin, logout as apiLogout, getCurrentUser } from './api.js';
+import { verifyOTP as apiVerifyOTP, login as apiLogin, logout as apiLogout, getCurrentUser } from './api.js';
 
 // Auth Context
 const AuthContext = createContext(null);
@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
     const checkAuth = async () => {
         try {
             console.log('Auth check started...');
-            const token = localStorage.getItem('auth_token');
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('client_token');
             console.log('Auth token found:', !!token);
 
             if (!token) {
@@ -31,17 +31,23 @@ export function AuthProvider({ children }) {
             const user = await getCurrentUser();
             console.log('User data received:', user);
 
+            // Handle both account-based and user-based responses
+            const account = user?.account || user;
+            const accountId = account?.id || user?.id;
+            const accountEmail = account?.email || user?.email;
+            const accountName = account?.companyName || account?.name || accountEmail;
+
             setSession({
                 user: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
+                    id: accountId,
+                    email: accountEmail,
+                    name: accountName,
                     profile: {
-                        id: user.id,
-                        email: user.email,
-                        phone: user.phone || '',
-                        onboarded: user.onboarded || false,
-                        needsOnboarding: user.needsOnboarding !== false,
+                        id: accountId,
+                        email: accountEmail,
+                        phone: account?.phone || user?.phone || '',
+                        onboarded: account?.onboardingCompleted || user?.onboarded || false,
+                        needsOnboarding: !(account?.onboardingCompleted || user?.onboarded),
                     }
                 }
             });
@@ -50,22 +56,18 @@ export function AuthProvider({ children }) {
         } catch (error) {
             console.error('Auth check failed:', error);
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('client_token');
             localStorage.removeItem('demo_user');
             setSession(null);
             setStatus('unauthenticated');
         }
     };
 
+    // sendOTP is deprecated - use clientSignup instead
     const sendOTP = async (email, phone) => {
-        try {
-            setStatus('loading');
-            const response = await apiSendOTP(email, phone);
-            setStatus('unauthenticated'); // Still not authenticated until OTP is verified
-            return response;
-        } catch (error) {
-            setStatus('unauthenticated');
-            throw error;
-        }
+        console.warn('sendOTP is deprecated. Use clientSignup instead.');
+        setStatus('unauthenticated');
+        throw new Error('sendOTP is no longer supported. Please use the signup flow.');
     };
 
     const verifyOTP = async (email, phone, otp, name = '') => {
@@ -113,22 +115,36 @@ export function AuthProvider({ children }) {
             setStatus('loading');
             const response = await apiLogin(email, password);
 
+            // Handle both account-based and user-based responses
+            const account = response.account || response.user;
+            const accountId = account?.id || account?.id;
+            const accountEmail = account?.email || email;
+            const accountName = account?.companyName || account?.name || accountEmail;
+
             setSession({
                 user: {
-                    id: response.user.id,
-                    email: response.user.email,
-                    name: response.user.name,
+                    id: accountId,
+                    email: accountEmail,
+                    name: accountName,
                     profile: {
-                        id: response.user.id,
-                        email: response.user.email,
-                        phone: response.user.phone || '',
-                        onboarded: response.user.onboarded || false,
-                        needsOnboarding: response.user.needsOnboarding !== false,
+                        id: accountId,
+                        email: accountEmail,
+                        phone: account?.phone || '',
+                        onboarded: account?.onboardingCompleted || false,
+                        needsOnboarding: !account?.onboardingCompleted,
                     }
                 }
             });
             setStatus('authenticated');
-            return response;
+            return {
+                ...response,
+                user: {
+                    id: accountId,
+                    email: accountEmail,
+                    name: accountName,
+                    needsOnboarding: !account?.onboardingCompleted,
+                }
+            };
         } catch (error) {
             setStatus('unauthenticated');
             throw error;

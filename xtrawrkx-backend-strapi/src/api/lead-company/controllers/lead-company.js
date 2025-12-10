@@ -208,6 +208,8 @@ module.exports = createCoreController('api::lead-company.lead-company', ({ strap
             const clientAccountData = {
                 companyName: leadCompany.companyName,
                 industry: leadCompany.industry,
+                companyType: leadCompany.type, // Copy type from leadCompany
+                subType: leadCompany.subType, // Copy subType from leadCompany
                 website: leadCompany.website,
                 phone: leadCompany.phone,
                 email: leadCompany.email,

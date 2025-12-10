@@ -21,8 +21,11 @@ export function CommunitiesStep({
 }) {
   const { saveCommunities, loadingStates } = useOnboardingState();
   const isSaving = loadingStates.communities;
+  
+  // Extract selectedCommunities from initialData object or use empty array
+  const initialCommunities = initialData?.selectedCommunities || initialData || [];
   const [selectedCommunities, setSelectedCommunities] = useState(
-    initialData || []
+    Array.isArray(initialCommunities) ? initialCommunities : []
   );
 
   const {
@@ -33,16 +36,18 @@ export function CommunitiesStep({
   } = useForm({
     resolver: zodResolver(communitySelectionSchema),
     defaultValues: {
-      selectedCommunities: initialData || [],
+      selectedCommunities: Array.isArray(initialCommunities) ? initialCommunities : [],
     },
     mode: "onChange",
   });
 
   const handleCommunityToggle = (communityKey) => {
     const community = communityKey;
-    const updated = selectedCommunities.includes(community)
-      ? selectedCommunities.filter((c) => c !== community)
-      : [...selectedCommunities, community];
+    // Ensure selectedCommunities is always an array
+    const current = Array.isArray(selectedCommunities) ? selectedCommunities : [];
+    const updated = current.includes(community)
+      ? current.filter((c) => c !== community)
+      : [...current, community];
 
     setSelectedCommunities(updated);
     setValue("selectedCommunities", updated);
@@ -106,7 +111,7 @@ export function CommunitiesStep({
             Available Communities
           </h2>
           <span className="text-sm text-gray-500">
-            {selectedCommunities.length} selected
+            {Array.isArray(selectedCommunities) ? selectedCommunities.length : 0} selected
           </span>
         </div>
 
@@ -115,7 +120,7 @@ export function CommunitiesStep({
             <CommunityCard
               key={community.key}
               community={community}
-              isSelected={selectedCommunities.includes(community.key)}
+              isSelected={Array.isArray(selectedCommunities) && selectedCommunities.includes(community.key)}
               onToggle={handleCommunityToggle}
             />
           ))}
@@ -123,7 +128,7 @@ export function CommunitiesStep({
       </div>
 
       {/* Selection summary */}
-      {selectedCommunities.length > 0 && (
+      {Array.isArray(selectedCommunities) && selectedCommunities.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="text-sm font-medium text-blue-900 mb-2">
             What's next?
@@ -171,7 +176,7 @@ export function CommunitiesStep({
           </Button>
           <Button
             type="submit"
-            disabled={isSaving || selectedCommunities.length === 0}
+            disabled={isSaving || !Array.isArray(selectedCommunities) || selectedCommunities.length === 0}
             className="px-8"
           >
             {isSaving ? "Saving..." : "Continue"}

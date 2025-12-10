@@ -63,6 +63,16 @@ export default function DealsTabs({
             <Plus className="w-5 h-5" />
           </button>
         )}
+        {/* Column Visibility Button */}
+        {onColumnVisibilityClick && (
+          <button
+            onClick={onColumnVisibilityClick}
+            className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm border border-white/40 text-gray-700 hover:bg-white/90 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center"
+            title="Column Visibility"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+        )}
         {onExportClick && (
           <button
             onClick={onExportClick}

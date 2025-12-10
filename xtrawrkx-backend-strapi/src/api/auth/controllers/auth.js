@@ -203,8 +203,8 @@ module.exports = {
                 return ctx.badRequest('Email and password are required');
             }
 
-            // Find account by email
-            const account = await strapi.db.query('api::account.account').findOne({
+            // Find client account by email
+            const account = await strapi.db.query('api::client-account.client-account').findOne({
                 where: {
                     email: email.toLowerCase(),
                     isActive: true
@@ -228,7 +228,7 @@ module.exports = {
             }
 
             // Update last login
-            await strapi.db.query('api::account.account').update({
+            await strapi.db.query('api::client-account.client-account').update({
                 where: { id: account.id },
                 data: { lastLoginAt: new Date() },
             });
@@ -257,6 +257,240 @@ module.exports = {
         } catch (error) {
             console.error('Client login error:', error);
             ctx.internalServerError('Authentication failed');
+        }
+    },
+
+    /**
+     * Client account signup (Client portal registration)
+     */
+    async clientSignup(ctx) {
+        try {
+            const { name, email, phone, password } = ctx.request.body;
+
+            if (!name || !email || !phone || !password) {
+                return ctx.badRequest('Name, email, phone, and password are required');
+            }
+
+            // Validate password strength
+            if (password.length < 8) {
+                return ctx.badRequest('Password must be at least 8 characters long');
+            }
+
+            // Check if client account already exists
+            const existingAccount = await strapi.db.query('api::client-account.client-account').findOne({
+                where: {
+                    email: email.toLowerCase()
+                }
+            });
+
+            if (existingAccount) {
+                return ctx.badRequest('An account with this email already exists');
+            }
+
+            // Generate OTP (4-digit code)
+            const otp = Math.floor(1000 + Math.random() * 9000).toString();
+            const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+            // Hash password
+            const hashedPassword = await bcrypt.hash(password, 12);
+
+            // Parse name into firstName and lastName
+            const nameParts = name.trim().split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            // Create client account with emailVerified = false (will be verified via OTP)
+            const account = await strapi.db.query('api::client-account.client-account').create({
+                data: {
+                    email: email.toLowerCase(),
+                    phone: phone,
+                    password: hashedPassword,
+                    companyName: `${firstName}'s Company`, // Temporary company name - will be updated during onboarding
+                    industry: 'Other', // Default industry - will be updated during onboarding
+                    type: 'CUSTOMER',
+                    emailVerificationToken: otp,
+                    emailVerified: false,
+                    isActive: false, // Inactive until OTP is verified
+                    source: 'ONBOARDING'
+                }
+            });
+
+            // Create primary contact for the client account
+            let contact = null;
+            try {
+                contact = await strapi.db.query('api::contact.contact').create({
+                    data: {
+                        firstName: firstName,
+                        lastName: lastName || firstName, // Use firstName if lastName is empty
+                        email: email.toLowerCase(),
+                        phone: phone,
+                        role: 'PRIMARY_CONTACT',
+                        portalAccessLevel: 'FULL_ACCESS',
+                        status: 'ACTIVE',
+                        clientAccount: account.id,
+                        source: 'ONBOARDING'
+                    }
+                });
+                console.log('Primary contact created successfully:', contact.id);
+            } catch (contactError) {
+                console.error('Failed to create contact:', contactError);
+                // If contact creation fails, delete the account to maintain data integrity
+                await strapi.db.query('api::client-account.client-account').delete({
+                    where: { id: account.id }
+                });
+                return ctx.internalServerError('Failed to create contact. Please try again.');
+            }
+
+            // Send OTP email
+            let emailSent = false;
+            try {
+                // Check if email plugin is available
+                if (strapi.plugins['email'] && strapi.plugins['email'].services && strapi.plugins['email'].services.email) {
+                    await strapi.plugins['email'].services.email.send({
+                        to: email,
+                        subject: 'Verify Your XtraWrkx Account',
+                        html: `
+                            <h2>Welcome to XtraWrkx!</h2>
+                            <p>Hello ${firstName},</p>
+                            <p>Thank you for signing up! Please use the verification code below to complete your registration:</p>
+                            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                                <h1 style="font-size: 32px; letter-spacing: 8px; color: #7c3aed; margin: 0;">${otp}</h1>
+                            </div>
+                            <p>This code will expire in 10 minutes.</p>
+                            <p>If you didn't create an account, please ignore this email.</p>
+                            <p>Best regards,<br>The XtraWrkx Team</p>
+                        `
+                    });
+                    emailSent = true;
+                    console.log('OTP email sent successfully to:', email);
+                } else {
+                    console.warn('Email plugin not available. OTP will be returned in response for development.');
+                }
+            } catch (emailError) {
+                console.error('Failed to send OTP email:', emailError);
+                console.error('Email error details:', {
+                    message: emailError.message,
+                    stack: emailError.stack,
+                    name: emailError.name
+                });
+                // In development, don't delete the account - return OTP in response
+                if (process.env.NODE_ENV === 'production') {
+                    // Delete the contact and account if email fails in production
+                    if (contact) {
+                        await strapi.db.query('api::contact.contact').delete({
+                            where: { id: contact.id }
+                        });
+                    }
+                    await strapi.db.query('api::client-account.client-account').delete({
+                        where: { id: account.id }
+                    });
+                    return ctx.internalServerError('Failed to send verification email. Please try again.');
+                }
+            }
+
+            // Return response with OTP in development mode if email failed
+            const response = {
+                success: true,
+                message: emailSent
+                    ? 'Account created successfully. Please check your email for the verification code.'
+                    : 'Account created successfully. Please use the verification code below (email service not configured).',
+                accountId: account.id,
+                email: email.toLowerCase(),
+                contactId: contact ? contact.id : null
+            };
+
+            // Include OTP in response for development/testing if email wasn't sent
+            if (!emailSent || process.env.NODE_ENV !== 'production') {
+                response.otp = otp;
+                response.devMode = true;
+            }
+
+            ctx.send(response);
+        } catch (error) {
+            console.error('Client signup error:', error);
+            ctx.internalServerError('Failed to create account: ' + error.message);
+        }
+    },
+
+    /**
+     * Verify OTP and activate client account
+     */
+    async verifyOTP(ctx) {
+        try {
+            const { email, otp } = ctx.request.body;
+
+            if (!email || !otp) {
+                return ctx.badRequest('Email and OTP are required');
+            }
+
+            // Find client account with matching email and OTP
+            const account = await strapi.db.query('api::client-account.client-account').findOne({
+                where: {
+                    email: email.toLowerCase(),
+                    emailVerificationToken: otp,
+                    emailVerified: false
+                },
+                populate: {
+                    contacts: {
+                        where: { status: 'ACTIVE' },
+                        select: ['id', 'firstName', 'lastName', 'email', 'role', 'portalAccessLevel']
+                    }
+                }
+            });
+
+            if (!account) {
+                return ctx.badRequest('Invalid or expired verification code');
+            }
+
+            // Check if OTP is expired (10 minutes)
+            const otpCreatedAt = account.updatedAt || account.createdAt;
+            const otpAge = Date.now() - new Date(otpCreatedAt).getTime();
+            if (otpAge > 10 * 60 * 1000) {
+                return ctx.badRequest('Verification code has expired. Please request a new one.');
+            }
+
+            // Activate client account and clear OTP token
+            const updatedAccount = await strapi.db.query('api::client-account.client-account').update({
+                where: { id: account.id },
+                data: {
+                    emailVerified: true,
+                    isActive: true,
+                    emailVerificationToken: null
+                },
+                populate: {
+                    contacts: {
+                        where: { status: 'ACTIVE' },
+                        select: ['id', 'firstName', 'lastName', 'email', 'role', 'portalAccessLevel']
+                    }
+                }
+            });
+
+            // Generate JWT token
+            const token = jwt.sign({
+                id: updatedAccount.id,
+                email: updatedAccount.email,
+                type: 'client',
+                companyName: updatedAccount.companyName
+            }, JWT_SECRET, { expiresIn: '7d' });
+
+            ctx.send({
+                success: true,
+                message: 'Account verified successfully',
+                account: {
+                    id: updatedAccount.id,
+                    email: updatedAccount.email,
+                    companyName: updatedAccount.companyName,
+                    industry: updatedAccount.industry,
+                    type: updatedAccount.type,
+                    isActive: updatedAccount.isActive,
+                    emailVerified: updatedAccount.emailVerified,
+                },
+                contacts: updatedAccount.contacts || [],
+                token: token,
+            });
+        } catch (error) {
+            console.error('OTP verification error:', error);
+            ctx.internalServerError('Failed to verify OTP: ' + error.message);
         }
     },
 

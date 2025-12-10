@@ -13,6 +13,7 @@ import DealsKPIs from "./components/DealsKPIs";
 import DealsTabs from "./components/DealsTabs";
 import DealsListView from "./components/DealsListView";
 import DealsFilterModal from "./components/DealsFilterModal";
+import ColumnVisibilityModal from "../lead-companies/components/ColumnVisibilityModal";
 import { Avatar, Badge, Button } from "../../../components/ui";
 import { formatCurrency } from "../../../lib/utils/format";
 import KanbanBoard from "../../../components/kanban/KanbanBoard";
@@ -95,6 +96,8 @@ export default function DealsPage() {
   const [showCreateProjectPrompt, setShowCreateProjectPrompt] = useState(false);
   const [dealForProject, setDealForProject] = useState(null);
   const [creatingProject, setCreatingProject] = useState(false);
+  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState([]);
 
   const isAdmin = () => {
     if (!user) return false;
@@ -1122,6 +1125,59 @@ export default function DealsPage() {
     }
   };
 
+  // Initialize visible columns from localStorage or default to all columns
+  useEffect(() => {
+    const STORAGE_KEY = "dealColumnsVisibility";
+    const allColumnKeys = [
+      "deal",
+      "company",
+      "value",
+      "stage",
+      "probability",
+      "closeDate",
+      "owner",
+      "priority",
+      "createdAt",
+      "actions",
+    ];
+
+    if (visibleColumns.length === 0) {
+      try {
+        // Try to load from localStorage
+        const savedColumns = localStorage.getItem(STORAGE_KEY);
+        if (savedColumns) {
+          const parsedColumns = JSON.parse(savedColumns);
+          // Validate that saved columns are valid
+          const validColumns = parsedColumns.filter((key) =>
+            allColumnKeys.includes(key)
+          );
+          if (validColumns.length > 0) {
+            setVisibleColumns(validColumns);
+          } else {
+            setVisibleColumns(allColumnKeys);
+          }
+        } else {
+          setVisibleColumns(allColumnKeys);
+        }
+      } catch (error) {
+        console.error("Error loading column visibility from localStorage:", error);
+        setVisibleColumns(allColumnKeys);
+      }
+    }
+  }, []);
+
+  // Save column visibility to localStorage whenever it changes
+  useEffect(() => {
+    if (visibleColumns.length > 0) {
+      const STORAGE_KEY = "dealColumnsVisibility";
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns));
+      } catch (error) {
+        console.error("Error saving column visibility to localStorage:", error);
+      }
+    }
+  }, [visibleColumns]);
+
   // Table columns configuration
   const dealColumnsTable = [
     {
@@ -1464,6 +1520,16 @@ export default function DealsPage() {
     },
   ];
 
+  // Get visible columns based on user preferences
+  const getVisibleColumns = () => {
+    if (visibleColumns.length === 0) {
+      return dealColumnsTable;
+    }
+    return dealColumnsTable.filter((col) => visibleColumns.includes(col.key));
+  };
+
+  const visibleColumnsTable = getVisibleColumns();
+
   // Status stats for KPIs
   const statusStats = [
     {
@@ -1729,6 +1795,7 @@ export default function DealsPage() {
             setSearchQuery={setSearchQuery}
             onAddClick={handleAddDeal}
             onExportClick={() => handleExport()}
+            onColumnVisibilityClick={() => setIsColumnVisibilityModalOpen(true)}
           />
 
           {/* Results Count */}
@@ -1741,7 +1808,7 @@ export default function DealsPage() {
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <DealsListView
               filteredDeals={paginatedDeals}
-              dealColumnsTable={dealColumnsTable}
+              dealColumnsTable={visibleColumnsTable}
               selectedDeals={selectedDeals}
               setSelectedDeals={setSelectedDeals}
               searchQuery={searchQuery}
@@ -1787,6 +1854,15 @@ export default function DealsPage() {
         </div>
 
         {/* Modals */}
+        {/* Column Visibility Modal */}
+        <ColumnVisibilityModal
+          isOpen={isColumnVisibilityModalOpen}
+          onClose={() => setIsColumnVisibilityModalOpen(false)}
+          columns={dealColumnsTable}
+          visibleColumns={visibleColumns}
+          onVisibilityChange={setVisibleColumns}
+        />
+
         <DealsFilterModal
           isOpen={isFilterModalOpen}
           onClose={() => setIsFilterModalOpen(false)}

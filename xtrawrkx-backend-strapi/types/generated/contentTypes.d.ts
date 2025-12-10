@@ -701,6 +701,9 @@ export interface ApiClientAccountClientAccount
     companyName: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
+    companyType: Schema.Attribute.Enumeration<
+      ['startup-corporate', 'investor', 'enablers-academia']
+    >;
     contacts: Schema.Attribute.Relation<'oneToMany', 'api::contact.contact'>;
     conversionDate: Schema.Attribute.DateTime;
     convertedFromLead: Schema.Attribute.Relation<
@@ -714,6 +717,7 @@ export interface ApiClientAccountClientAccount
     deals: Schema.Attribute.Relation<'oneToMany', 'api::deal.deal'>;
     description: Schema.Attribute.Text;
     email: Schema.Attribute.Email;
+    emailVerificationToken: Schema.Attribute.String;
     emailVerified: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     employees: Schema.Attribute.String;
     founded: Schema.Attribute.String;
@@ -731,6 +735,7 @@ export interface ApiClientAccountClientAccount
     isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     lastActivity: Schema.Attribute.String;
     lastActivityDate: Schema.Attribute.DateTime;
+    lastLoginAt: Schema.Attribute.DateTime;
     linkedIn: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -759,6 +764,7 @@ export interface ApiClientAccountClientAccount
       ['ACTIVE', 'INACTIVE', 'CHURNED', 'ON_HOLD']
     > &
       Schema.Attribute.DefaultTo<'ACTIVE'>;
+    subType: Schema.Attribute.String;
     tasks: Schema.Attribute.Relation<'oneToMany', 'api::task.task'>;
     twitter: Schema.Attribute.String;
     type: Schema.Attribute.Enumeration<['CUSTOMER', 'PARTNER', 'VENDOR']> &
@@ -1603,8 +1609,12 @@ export interface ApiLeadCompanyLeadCompany extends Struct.CollectionTypeSchema {
       ]
     > &
       Schema.Attribute.DefaultTo<'NEW'>;
+    subType: Schema.Attribute.String;
     tasks: Schema.Attribute.Relation<'oneToMany', 'api::task.task'>;
     twitter: Schema.Attribute.String;
+    type: Schema.Attribute.Enumeration<
+      ['startup-corporate', 'investor', 'enablers-academia']
+    >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1779,6 +1789,10 @@ export interface ApiProjectProject extends Struct.CollectionTypeSchema {
       'api::activity.activity'
     >;
     budget: Schema.Attribute.Decimal;
+    clientAccount: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::client-account.client-account'
+    >;
     color: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -2050,6 +2064,10 @@ export interface ApiTaskTask extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    creator: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
     deal: Schema.Attribute.Relation<'manyToOne', 'api::deal.deal'>;
     description: Schema.Attribute.Text;
     leadCompany: Schema.Attribute.Relation<
@@ -2287,6 +2305,7 @@ export interface ApiXtrawrkxUserXtrawrkxUser
       'oneToMany',
       'api::report.report'
     >;
+    createdTasks: Schema.Attribute.Relation<'oneToMany', 'api::task.task'>;
     createdTemplates: Schema.Attribute.Relation<
       'oneToMany',
       'api::email-template.email-template'

@@ -7,9 +7,10 @@ import { Icon } from "@iconify/react";
 import { useAuth } from "@/lib/auth";
 import { isOnboardingEnabled } from "@/lib/onboarding-config";
 import { SignInForm, SignUpForm, ForgotPasswordForm } from "@/components/auth";
+import { clientSignup, verifyOTP } from "@/lib/api";
 
 // OTP Verification Component
-function OTPVerificationForm({ tempOTP, onVerify, onBack }) {
+function OTPVerificationForm({ tempOTP, onVerify, onBack, email }) {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -47,12 +48,28 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack }) {
             the onboarding process
           </p>
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <p className="text-sm text-blue-800 mb-2">
-              <strong>Demo Mode:</strong> Use the code below to proceed
-            </p>
-            <p className="text-lg font-mono font-bold text-blue-900 bg-blue-100 px-3 py-2 rounded-lg inline-block">
-              {tempOTP}
-            </p>
+            {tempOTP ? (
+              <>
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Development Mode:</strong> Use the code below to proceed
+                </p>
+                <p className="text-lg font-mono font-bold text-blue-900 bg-blue-100 px-3 py-2 rounded-lg inline-block">
+                  {tempOTP}
+                </p>
+                <p className="text-xs text-blue-700 mt-2">
+                  Email service not configured. Code shown for testing.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Verification Code:</strong> Check your email for the verification code
+                </p>
+                <p className="text-xs text-blue-700">
+                  The code was sent to <strong>{email || 'your email'}</strong>
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -78,7 +95,7 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack }) {
               className={`w-full px-4 py-3 border rounded-xl shadow-sm outline-none transition-all text-lg font-mono text-center tracking-widest ${
                 error
                   ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100"
-                  : otp === tempOTP && otp.length === 4
+                  : otp.length === 4
                     ? "border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-green-50"
                     : "border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
               }`}
@@ -86,7 +103,7 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack }) {
               maxLength="4"
               required
             />
-            {otp === tempOTP && otp.length === 4 && !error && (
+            {otp.length === 4 && !error && (
               <div className="mt-2 flex items-center text-sm text-green-600">
                 <svg
                   className="w-4 h-4 mr-1"
@@ -99,7 +116,7 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack }) {
                     clipRule="evenodd"
                   />
                 </svg>
-                Code verified! Click to continue.
+                Code ready! Click to verify.
               </div>
             )}
           </div>
@@ -223,40 +240,41 @@ export default function AuthPage() {
 
   const handleSignUp = async (formData) => {
     try {
-      // Skip sending OTP, directly show OTP verification step
-      setOtpData({
-        email: formData.email,
-        phone: formData.phone,
-        name: formData.name || "",
-        tempOTP: "1234", // Demo OTP for development
-      });
-      setOtpStep(true);
+      // Call backend signup endpoint
+      const response = await clientSignup(
+        formData.name,
+        formData.email,
+        formData.phone,
+        formData.password
+      );
+
+      if (response.success) {
+        // Show OTP verification step
+        // If OTP is returned in response (dev mode or email failed), use it
+        const otpCode = response.otp || "";
+        setOtpData({
+          email: formData.email,
+          phone: formData.phone,
+          name: formData.name || "",
+          tempOTP: otpCode, // OTP from email or dev mode
+        });
+        setOtpStep(true);
+      } else {
+        throw new Error(response.message || "Sign up failed");
+      }
     } catch (error) {
       console.error("Sign up error:", error);
-      alert("Sign up failed. Please try again.");
+      alert(error.message || "Sign up failed. Please try again.");
     }
   };
 
   const handleOTPVerification = async (otp) => {
     try {
-      // For demo purposes, just check if the entered OTP matches the demo code
-      if (otp === otpData.tempOTP) {
-        // Simulate successful verification
-        console.log("Demo OTP verification successful");
+      // Call backend OTP verification endpoint
+      const response = await verifyOTP(otpData.email, otp);
 
-        // Create a demo session by storing demo auth token and user data
-        const demoUser = {
-          id: "demo-user-" + Date.now(),
-          email: otpData.email,
-          name: otpData.name,
-          phone: otpData.phone,
-          onboarded: false,
-          needsOnboarding: true,
-        };
-
-        // Store demo auth token to simulate authentication
-        localStorage.setItem("auth_token", "demo-token-" + Date.now());
-        localStorage.setItem("demo_user", JSON.stringify(demoUser));
+      if (response.success && response.token) {
+        console.log("OTP verification successful");
 
         // Trigger auth context to re-check authentication
         console.log("Updating auth context...");
@@ -277,8 +295,7 @@ export default function AuthPage() {
           window.location.href = "/dashboard";
         }
       } else {
-        // Show error for incorrect OTP
-        throw new Error("Invalid verification code. Please try again.");
+        throw new Error(response.message || "Verification failed");
       }
     } catch (error) {
       console.error("OTP verification error:", error);
@@ -346,6 +363,7 @@ export default function AuthPage() {
               tempOTP={otpData.tempOTP}
               onVerify={handleOTPVerification}
               onBack={handleBackToSignUp}
+              email={otpData.email}
             />
           </motion.div>
         </div>

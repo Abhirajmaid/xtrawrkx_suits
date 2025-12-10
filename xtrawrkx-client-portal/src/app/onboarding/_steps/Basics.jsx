@@ -2,11 +2,13 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { userBasicsSchema } from "@/lib/onboarding-schemas";
 import { ROLE_OPTIONS, INTEREST_OPTIONS } from "@/lib/onboarding-config";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
+import { getOnboardingAccount } from "@/lib/api";
+import { useSession } from "@/lib/auth";
 import { Input, Label } from "@/components/ui";
 import { BlueButton, PurpleButton, WhiteButton } from "@/components/ui";
 import { X, Plus, User, MapPin, Heart } from "lucide-react";
@@ -20,22 +22,89 @@ export function BasicsStep({
   initialData,
 }) {
   const { saveBasics, loadingStates } = useOnboardingState();
+  const { data: session } = useSession();
   const isSaving = loadingStates.basics;
   const [selectedInterests, setSelectedInterests] = useState(
     initialData?.interests || []
   );
+  const [isLoadingAccount, setIsLoadingAccount] = useState(true);
+  const [accountData, setAccountData] = useState(null);
+
+  // Load account data on mount
+  useEffect(() => {
+    const loadAccountData = async () => {
+      try {
+        setIsLoadingAccount(true);
+        const account = await getOnboardingAccount();
+        if (account) {
+          setAccountData(account);
+        }
+      } catch (error) {
+        console.error("Failed to load account data:", error);
+      } finally {
+        setIsLoadingAccount(false);
+      }
+    };
+
+    loadAccountData();
+  }, []);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isSubmitted, touchedFields },
     setValue,
     watch,
+    trigger,
+    clearErrors,
+    reset,
   } = useForm({
     resolver: zodResolver(userBasicsSchema),
-    defaultValues: initialData || {},
-    mode: "onChange",
+    defaultValues: {
+      companyName: "",
+      industry: "",
+      name: "",
+      role: "",
+      location: "",
+      interests: [],
+    },
+    mode: "onTouched", // Only validate after field is touched
+    reValidateMode: "onChange",
+    criteriaMode: "firstError",
+    shouldFocusError: false,
+    shouldUnregister: false,
   });
+
+  // Update form when account data or initialData loads
+  useEffect(() => {
+    if (!isLoadingAccount) {
+      const companyName =
+        initialData?.companyName || accountData?.companyName || "";
+      const industry = initialData?.industry || accountData?.industry || "";
+      const name = initialData?.name || accountData?.name || "";
+
+      // Only reset if we have data to populate
+      if (
+        companyName ||
+        industry ||
+        name ||
+        initialData?.role ||
+        initialData?.location
+      ) {
+        reset(
+          {
+            companyName: companyName,
+            industry: industry,
+            name: name,
+            role: initialData?.role || "",
+            location: initialData?.location || "",
+            interests: initialData?.interests || [],
+          },
+          { keepErrors: false, keepDefaultValues: false }
+        );
+      }
+    }
+  }, [accountData, initialData, reset, isLoadingAccount]);
 
   const selectedRole = watch("role");
 
@@ -52,13 +121,27 @@ export function BasicsStep({
 
   const handleRoleSelect = (role) => {
     setValue("role", role, { shouldValidate: true });
+    trigger("role");
+    clearErrors("role");
   };
 
   const onSubmit = async (data) => {
-    const formData = { ...data, interests: selectedInterests };
-    const success = await saveBasics(formData, true); // immediate save
-    if (success) {
-      onNext(formData);
+    // Trim all string values before submission
+    const trimmedData = {
+      ...data,
+      companyName: data.companyName?.trim() || "",
+      industry: data.industry?.trim() || "",
+      name: data.name?.trim() || "",
+      role: data.role?.trim() || "",
+      location: data.location?.trim() || "",
+      interests: selectedInterests,
+    };
+    const success = await saveBasics(trimmedData, true); // immediate save
+    if (success && onNext && typeof onNext === "function") {
+      onNext(trimmedData);
+    } else if (success) {
+      // Fallback: if onNext is not provided, just proceed
+      console.warn("onNext is not a function, proceeding without navigation");
     }
   };
 
@@ -95,24 +178,139 @@ export function BasicsStep({
         </motion.div>
       </div>
 
-      {/* Error summary */}
-      {Object.keys(errors).length > 0 && (
-        <div
-          className="bg-red-50 border border-red-200 rounded-lg p-4"
-          role="alert"
-        >
-          <h3 className="text-sm font-medium text-red-800 mb-2">
-            Please fix the following errors:
-          </h3>
-          <ul className="text-sm text-red-700 space-y-1">
-            {Object.entries(errors).map(([field, error]) => (
-              <li key={field}>• {error.message}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Error summary - only show errors when form is submitted */}
+      {isSubmitted &&
+        Object.keys(errors).filter((key) => {
+          return ["companyName", "industry", "name", "role"].includes(key);
+        }).length > 0 && (
+          <div
+            className="bg-red-50 border border-red-200 rounded-lg p-4"
+            role="alert"
+          >
+            <h3 className="text-sm font-medium text-red-800 mb-2">
+              Please fix the following errors:
+            </h3>
+            <ul className="text-sm text-red-700 space-y-1">
+              {Object.entries(errors)
+                .filter(([field]) =>
+                  ["companyName", "industry", "name", "role"].includes(field)
+                )
+                .map(([field, error]) => (
+                  <li key={field}>
+                    • {error?.message || `${field} is required`}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
 
       <div className="space-y-8">
+        {/* Hidden role field for react-hook-form tracking */}
+        <input type="hidden" {...register("role")} />
+
+        {/* Company Name */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.05, duration: 0.6 }}
+        >
+          <div className="flex items-center space-x-2 mb-2">
+            <User className="w-5 h-5 text-indigo-600" />
+            <Label
+              htmlFor="companyName"
+              className="text-lg font-medium text-gray-900"
+            >
+              Company Name *
+            </Label>
+          </div>
+          <Input
+            id="companyName"
+            {...register("companyName", {
+              onChange: (e) => {
+                const value = e.target.value;
+                setValue("companyName", value, { shouldValidate: false });
+                if (errors.companyName && value.trim().length > 0) {
+                  clearErrors("companyName");
+                }
+              },
+              onBlur: () => {
+                const value = watch("companyName");
+                setValue("companyName", value.trim(), { shouldValidate: true });
+                trigger("companyName");
+              },
+            })}
+            placeholder="Enter your company name"
+            aria-describedby={
+              errors.companyName && (touchedFields.companyName || isSubmitted)
+                ? "companyName-error"
+                : undefined
+            }
+            className={`h-12 text-lg ${
+              errors.companyName && (touchedFields.companyName || isSubmitted)
+                ? "border-red-500"
+                : "border-gray-300 focus:border-indigo-500"
+            }`}
+          />
+          {errors.companyName && (touchedFields.companyName || isSubmitted) && (
+            <p id="companyName-error" className="text-sm text-red-600">
+              {errors.companyName.message}
+            </p>
+          )}
+        </motion.div>
+
+        {/* Industry */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.08, duration: 0.6 }}
+        >
+          <Label
+            htmlFor="industry"
+            className="text-lg font-medium text-gray-900"
+          >
+            Industry *
+          </Label>
+          <select
+            id="industry"
+            {...register("industry", {
+              onChange: () => {
+                trigger("industry");
+                if (errors.industry) clearErrors("industry");
+              },
+            })}
+            className={`h-12 w-full px-4 border rounded-lg text-lg ${
+              errors.industry
+                ? "border-red-500"
+                : "border-gray-300 focus:border-indigo-500"
+            }`}
+          >
+            <option value="">Select industry</option>
+            <option value="Technology">Technology</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Finance">Finance</option>
+            <option value="Education">Education</option>
+            <option value="E-commerce">E-commerce</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Real Estate">Real Estate</option>
+            <option value="Transportation">Transportation</option>
+            <option value="Energy">Energy</option>
+            <option value="Agriculture">Agriculture</option>
+            <option value="Food & Beverage">Food & Beverage</option>
+            <option value="Fashion">Fashion</option>
+            <option value="Sports">Sports</option>
+            <option value="Travel">Travel</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Consulting">Consulting</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Other">Other</option>
+          </select>
+          {errors.industry && (touchedFields.industry || isSubmitted) && (
+            <p className="text-sm text-red-600">{errors.industry.message}</p>
+          )}
+        </motion.div>
+
         {/* Name */}
         <motion.div
           className="space-y-3"
@@ -123,21 +321,38 @@ export function BasicsStep({
           <div className="flex items-center space-x-2 mb-2">
             <User className="w-5 h-5 text-indigo-600" />
             <Label htmlFor="name" className="text-lg font-medium text-gray-900">
-              Full Name
+              Your Full Name *
             </Label>
           </div>
           <Input
             id="name"
-            {...register("name")}
+            {...register("name", {
+              onChange: (e) => {
+                const value = e.target.value;
+                setValue("name", value, { shouldValidate: false });
+                if (errors.name && value.trim().length > 0) {
+                  clearErrors("name");
+                }
+              },
+              onBlur: () => {
+                const value = watch("name");
+                setValue("name", value.trim(), { shouldValidate: true });
+                trigger("name");
+              },
+            })}
             placeholder="Enter your full name"
-            aria-describedby={errors.name ? "name-error" : undefined}
+            aria-describedby={
+              errors.name && (touchedFields.name || isSubmitted)
+                ? "name-error"
+                : undefined
+            }
             className={`h-12 text-lg ${
-              errors.name
+              errors.name && (touchedFields.name || isSubmitted)
                 ? "border-red-500"
                 : "border-gray-300 focus:border-indigo-500"
             }`}
           />
-          {errors.name && (
+          {errors.name && (touchedFields.name || isSubmitted) && (
             <p id="name-error" className="text-sm text-red-600">
               {errors.name.message}
             </p>
@@ -196,7 +411,7 @@ export function BasicsStep({
               </motion.button>
             ))}
           </div>
-          {errors.role && (
+          {errors.role && (touchedFields.role || isSubmitted) && (
             <p className="text-sm text-red-600">{errors.role.message}</p>
           )}
         </motion.div>

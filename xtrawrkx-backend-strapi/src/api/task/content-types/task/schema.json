@@ -45,11 +45,11 @@
         "completedDate": {
             "type": "datetime"
         },
-        "createdBy": {
+        "creator": {
             "type": "relation",
             "relation": "manyToOne",
             "target": "api::xtrawrkx-user.xtrawrkx-user",
-            "inversedBy": "tasks"
+            "inversedBy": "createdTasks"
         },
         "assignee": {
             "type": "relation",

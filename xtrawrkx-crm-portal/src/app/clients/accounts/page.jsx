@@ -32,6 +32,7 @@ import ClientAccountsKPIs from "./components/ClientAccountsKPIs";
 import ClientAccountsTabs from "./components/ClientAccountsTabs";
 import ClientAccountsListView from "./components/ClientAccountsListView";
 import ClientAccountsFilterModal from "./components/ClientAccountsFilterModal";
+import ColumnVisibilityModal from "../../sales/lead-companies/components/ColumnVisibilityModal";
 
 import {
   Plus,
@@ -84,6 +85,60 @@ export default function ClientAccountsPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [accountToAssign, setAccountToAssign] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState([]);
+
+  // Initialize visible columns from localStorage or default to all columns
+  useEffect(() => {
+    const STORAGE_KEY = "clientAccountColumnsVisibility";
+    const allColumnKeys = [
+      "company",
+      "contact",
+      "healthScore",
+      "dealValue",
+      "contacts",
+      "accountManager",
+      "status",
+      "created",
+      "actions",
+    ];
+
+    if (visibleColumns.length === 0) {
+      try {
+        // Try to load from localStorage
+        const savedColumns = localStorage.getItem(STORAGE_KEY);
+        if (savedColumns) {
+          const parsedColumns = JSON.parse(savedColumns);
+          // Validate that saved columns are valid
+          const validColumns = parsedColumns.filter((key) =>
+            allColumnKeys.includes(key)
+          );
+          if (validColumns.length > 0) {
+            setVisibleColumns(validColumns);
+          } else {
+            setVisibleColumns(allColumnKeys);
+          }
+        } else {
+          setVisibleColumns(allColumnKeys);
+        }
+      } catch (error) {
+        console.error("Error loading column visibility from localStorage:", error);
+        setVisibleColumns(allColumnKeys);
+      }
+    }
+  }, []);
+
+  // Save column visibility to localStorage whenever it changes
+  useEffect(() => {
+    if (visibleColumns.length > 0) {
+      const STORAGE_KEY = "clientAccountColumnsVisibility";
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns));
+      } catch (error) {
+        console.error("Error saving column visibility to localStorage:", error);
+      }
+    }
+  }, [visibleColumns]);
 
   const isAdmin = () => {
     if (!user) return false;
@@ -690,6 +745,16 @@ export default function ClientAccountsPage() {
     },
   ];
 
+  // Get visible columns based on user preferences
+  const getVisibleColumns = () => {
+    if (visibleColumns.length === 0) {
+      return accountColumnsTable;
+    }
+    return accountColumnsTable.filter((col) => visibleColumns.includes(col.key));
+  };
+
+  const visibleColumnsTable = getVisibleColumns();
+
   // Handle status updates
   const handleStatusUpdate = async (accountId, newStatus) => {
     if (!accountId) {
@@ -1019,6 +1084,7 @@ export default function ClientAccountsPage() {
             onExportClick={handleExport}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            onColumnVisibilityClick={() => setIsColumnVisibilityModalOpen(true)}
           />
 
           {/* Results Count */}
@@ -1036,7 +1102,7 @@ export default function ClientAccountsPage() {
             {activeView === "list" && (
               <ClientAccountsListView
                 filteredAccounts={paginatedAccounts}
-                accountColumnsTable={accountColumnsTable}
+                accountColumnsTable={visibleColumnsTable}
                 selectedAccounts={selectedAccounts}
                 setSelectedAccounts={setSelectedAccounts}
                 searchQuery={searchQuery}
@@ -1060,6 +1126,15 @@ export default function ClientAccountsPage() {
             )}
           </div>
         </div>
+
+        {/* Column Visibility Modal */}
+        <ColumnVisibilityModal
+          isOpen={isColumnVisibilityModalOpen}
+          onClose={() => setIsColumnVisibilityModalOpen(false)}
+          columns={accountColumnsTable}
+          visibleColumns={visibleColumns}
+          onVisibilityChange={setVisibleColumns}
+        />
 
         {/* Modals */}
         {isFilterModalOpen && (

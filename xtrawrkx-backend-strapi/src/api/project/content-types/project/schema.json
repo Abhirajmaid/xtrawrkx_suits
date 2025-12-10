@@ -24,6 +24,12 @@
             "target": "api::account.account",
             "inversedBy": "projects"
         },
+        "clientAccount": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::client-account.client-account",
+            "inversedBy": "projects"
+        },
         "name": {
             "type": "string",
             "required": true

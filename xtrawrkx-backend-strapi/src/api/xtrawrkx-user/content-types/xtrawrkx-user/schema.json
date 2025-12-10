@@ -130,6 +130,12 @@
             "target": "api::subtask.subtask",
             "mappedBy": "assignee"
         },
+        "createdTasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task.task",
+            "mappedBy": "creator"
+        },
         "managedProjects": {
             "type": "relation",
             "relation": "oneToMany",

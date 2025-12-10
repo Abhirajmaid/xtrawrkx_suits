@@ -14,13 +14,38 @@ const useStrapi = process.env.NEXT_PUBLIC_USE_STRAPI !== 'false';
 // ============================================================================
 
 /**
- * Send OTP to email and phone
+ * Client signup - creates account and sends OTP
+ * @param {string} name 
  * @param {string} email 
  * @param {string} phone 
- * @returns {Promise<{success: boolean, message: string, tempOTP?: string}>}
+ * @param {string} password 
+ * @returns {Promise<{success: boolean, message: string}>}
  */
-export async function sendOTP(email, phone) {
-    // This still uses the mock backend for OTP functionality
+export async function clientSignup(name, email, phone, password) {
+    if (useStrapi) {
+        try {
+            const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+            const response = await fetch(`${strapiUrl}/api/auth/client/signup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, email, phone, password }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error signing up via Strapi:', error);
+            throw error;
+        }
+    }
+
+    // Fallback to mock backend
     return backendClient.post('/auth/send-otp', {
         email,
         phone
@@ -28,19 +53,52 @@ export async function sendOTP(email, phone) {
 }
 
 /**
- * Verify OTP and create account
+ * Verify OTP and activate account
  * @param {string} email 
- * @param {string} phone 
  * @param {string} otp 
- * @param {string} name 
- * @returns {Promise<{user: any, token: string}>}
+ * @returns {Promise<{account: any, token: string}>}
  */
-export async function verifyOTP(email, phone, otp, name = '') {
+export async function verifyOTP(email, otp) {
+    if (useStrapi) {
+        try {
+            const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+            const response = await fetch(`${strapiUrl}/api/auth/client/verify-otp`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, otp }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Store token in localStorage (client-side only)
+            if (data.token && typeof window !== 'undefined') {
+                localStorage.setItem('auth_token', data.token);
+                localStorage.setItem('client_token', data.token);
+                if (data.account) {
+                    localStorage.setItem('client_account', JSON.stringify(data.account));
+                }
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error verifying OTP via Strapi:', error);
+            throw error;
+        }
+    }
+
+    // Fallback to mock backend
     const response = await backendClient.post('/auth/verify-otp', {
         email,
-        phone,
+        phone: '',
         otp,
-        name
+        name: ''
     });
 
     // Store token in localStorage (client-side only)
@@ -55,20 +113,40 @@ export async function verifyOTP(email, phone, otp, name = '') {
  * Login user (existing users only)
  * @param {string} email 
  * @param {string} password 
- * @returns {Promise<{user: any, token: string}>}
+ * @returns {Promise<{account: any, token: string}>}
  */
 export async function login(email, password) {
     if (useStrapi) {
         try {
-            const response = await strapiClient.clientLogin(email, password);
+            const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+            const response = await fetch(`${strapiUrl}/api/auth/client/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
             
             // Store token in localStorage (client-side only)
-            if (response.token && typeof window !== 'undefined') {
-                localStorage.setItem('client_token', response.token);
-                localStorage.setItem('auth_token', response.token); // For compatibility
+            if (data.token && typeof window !== 'undefined') {
+                localStorage.setItem('client_token', data.token);
+                localStorage.setItem('auth_token', data.token); // For compatibility
+                if (data.account) {
+                    localStorage.setItem('client_account', JSON.stringify(data.account));
+                }
+                if (data.contacts) {
+                    localStorage.setItem('client_contacts', JSON.stringify(data.contacts));
+                }
             }
             
-            return response;
+            return data;
         } catch (error) {
             console.error('Error logging in via Strapi:', error);
             throw error;
@@ -93,6 +171,80 @@ export async function login(email, password) {
  * @returns {Promise<any>}
  */
 export async function getCurrentUser() {
+    if (useStrapi) {
+        try {
+            // Check localStorage first for client account
+            if (typeof window !== 'undefined') {
+                const accountData = localStorage.getItem('client_account');
+                if (accountData) {
+                    try {
+                        const account = JSON.parse(accountData);
+                        return {
+                            account: account,
+                            id: account.id,
+                            email: account.email,
+                            name: account.companyName
+                        };
+                    } catch (error) {
+                        console.error('Error parsing client account:', error);
+                    }
+                }
+            }
+
+            // Try to fetch from Strapi
+            const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+            const token = typeof window !== 'undefined' ? (localStorage.getItem('client_token') || localStorage.getItem('auth_token')) : null;
+            
+            if (!token) {
+                throw new Error('No authentication token');
+            }
+
+            const response = await fetch(`${strapiUrl}/api/auth/me`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to get current user');
+            }
+
+            const data = await response.json();
+            
+            // Handle client account response
+            if (data.type === 'client' && data.account) {
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('client_account', JSON.stringify(data.account));
+                }
+                return {
+                    account: data.account,
+                    id: data.account.id,
+                    email: data.account.email,
+                    name: data.account.companyName
+                };
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error getting current user from Strapi:', error);
+            // Fallback to demo user check
+            if (typeof window !== 'undefined') {
+                const demoUser = localStorage.getItem('demo_user');
+                if (demoUser) {
+                    try {
+                        return JSON.parse(demoUser);
+                    } catch (parseError) {
+                        console.error('Error parsing demo user:', parseError);
+                        localStorage.removeItem('demo_user');
+                    }
+                }
+            }
+            throw error;
+        }
+    }
+
     // Check if this is a demo user (client-side only)
     if (typeof window !== 'undefined') {
         const demoUser = localStorage.getItem('demo_user');
@@ -133,13 +285,65 @@ export async function logout() {
 export async function getOnboardingAccount() {
     if (useStrapi) {
         try {
-            const user = await strapiClient.getCurrentUser();
-            if (user) {
-                return {
-                    email: user.email || '',
-                    phone: user.phone || '',
-                    name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                };
+            // Get account from localStorage first
+            if (typeof window !== 'undefined') {
+                const accountData = localStorage.getItem('client_account');
+                if (accountData) {
+                    try {
+                        const account = JSON.parse(accountData);
+                        // Get contact data if available
+                        const contactsData = localStorage.getItem('client_contacts');
+                        let name = '';
+                        if (contactsData) {
+                            try {
+                                const contacts = JSON.parse(contactsData);
+                                const primaryContact = contacts.find(c => c.role === 'PRIMARY_CONTACT') || contacts[0];
+                                if (primaryContact) {
+                                    name = `${primaryContact.firstName || ''} ${primaryContact.lastName || ''}`.trim();
+                                }
+                            } catch (e) {
+                                console.error('Error parsing contacts:', e);
+                            }
+                        }
+                        
+                        return {
+                            email: account.email || '',
+                            phone: account.phone || '',
+                            name: name,
+                            companyName: account.companyName || '',
+                            industry: account.industry || ''
+                        };
+                    } catch (error) {
+                        console.error('Error parsing account data:', error);
+                    }
+                }
+            }
+
+            // Try to fetch from API
+            const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+            const token = typeof window !== 'undefined' ? (localStorage.getItem('client_token') || localStorage.getItem('auth_token')) : null;
+            
+            if (token) {
+                const response = await fetch(`${strapiUrl}/api/onboarding/account?email=${encodeURIComponent(session?.user?.email || '')}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.account) {
+                        return {
+                            email: data.account.email || '',
+                            phone: data.account.phone || '',
+                            name: '',
+                            companyName: data.account.companyName || '',
+                            industry: data.account.industry || ''
+                        };
+                    }
+                }
             }
         } catch (error) {
             console.error('Error fetching account from Strapi:', error);
@@ -156,7 +360,9 @@ export async function getOnboardingAccount() {
                 return {
                     email: user.email,
                     phone: user.phone,
-                    name: user.name
+                    name: user.name,
+                    companyName: '',
+                    industry: ''
                 };
             } catch (error) {
                 console.error('Error parsing demo user for onboarding:', error);

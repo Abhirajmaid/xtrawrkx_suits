@@ -1,4 +1,4 @@
-import { List, Search, Plus, Download } from "lucide-react";
+import { List, Search, Plus, Download, Eye } from "lucide-react";
 
 export default function ContactsTabs({
   tabItems,
@@ -8,6 +8,7 @@ export default function ContactsTabs({
   setSearchQuery,
   onAddClick,
   onExportClick,
+  onColumnVisibilityClick,
 }) {
   return (
     <div className="flex items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl p-3">
@@ -61,6 +62,16 @@ export default function ContactsTabs({
             title="Add New"
           >
             <Plus className="w-5 h-5" />
+          </button>
+        )}
+        {/* Column Visibility Button */}
+        {onColumnVisibilityClick && (
+          <button
+            onClick={onColumnVisibilityClick}
+            className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm border border-white/40 text-gray-700 hover:bg-white/90 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center"
+            title="Column Visibility"
+          >
+            <Eye className="w-5 h-5" />
           </button>
         )}
         {onExportClick && (

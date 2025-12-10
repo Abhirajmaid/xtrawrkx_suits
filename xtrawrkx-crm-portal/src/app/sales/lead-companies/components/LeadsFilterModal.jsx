@@ -20,11 +20,111 @@ export default function LeadsFilterModal({
   const [filters, setFilters] = useState({
     status: "",
     source: "",
+    type: "",
+    subType: "",
     assignedTo: "",
     dateRange: "",
     valueRange: "",
     company: "",
   });
+
+  const companyTypes = [
+    { id: "startup-corporate", name: "Startup and Corporates" },
+    { id: "investor", name: "Investors" },
+    { id: "enablers-academia", name: "Enablers & Academia" },
+  ];
+
+  const subTypeOptions = {
+    "startup-corporate": [
+      "EV 2W",
+      "EV 3W",
+      "EV OEM",
+      "EV 4W",
+      "Motor OEM",
+      "Motor Controller OEM",
+      "Batteries",
+      "Charging Infra",
+      "Drones",
+      "AGVs",
+      "Consumer electronics",
+      "Incubator / accelerator",
+      "Power electronics",
+      "Other OE",
+      "Group",
+      "EV Fleet",
+      "E-commerce companies",
+      "3rd party logistics",
+      "Vehicle Smarts",
+      "Swapping",
+      "EV Leasing",
+      "EV Rentals",
+      "EV NBFC",
+      "Power electronics+Vechicle smart",
+      "Electronics Components",
+      "1DL/MDL",
+      "Franchisee",
+      "Smart Battery",
+      "Dealer",
+      "Motor Parts",
+      "Spare Part",
+      "Traditional Auto",
+      "Smart Electronic",
+      "Mech Parts",
+      "Energy Storing",
+      "Automotive Parts_ EV manufacturers",
+      "IOT",
+      "Inverter",
+      "Aggregator",
+    ],
+    investor: [
+      "Future Founder",
+      "Private Lender P2P",
+      "Angel",
+      "Angel Network",
+      "Micro VC",
+      "VC",
+      "Family Office",
+      "Private Equity PE",
+      "Debt",
+      "WC Working Capital",
+      "NBFC",
+      "Bill discounting",
+      "Investment Bank",
+      "Banks",
+      "Asset Investor",
+      "Asset Financier",
+      "Asset Leasing",
+      "Op Franchisee",
+      "Franchise Network",
+      "Incubation Center",
+      "Accelerator",
+      "Industry body",
+      "Gov Body",
+      "Gov Policy",
+      "Alternative Investment Platform",
+      "Strategic investor",
+      "CVC",
+      "HNI",
+    ],
+    "enablers-academia": [
+      "Incubator",
+      "Accelerator",
+      "Venture Studio",
+      "Academia",
+      "Government Office",
+      "Mentor",
+      "Investment Banker",
+    ],
+  };
+
+  // Get sub-type options based on selected type
+  const getSubTypeOptions = () => {
+    if (!filters.type) return [];
+    return subTypeOptions[filters.type]?.map((subType) => ({
+      value: subType,
+      label: subType,
+    })) || [];
+  };
 
   // Initialize filters with applied filters when modal opens
   useEffect(() => {
@@ -32,6 +132,8 @@ export default function LeadsFilterModal({
       setFilters({
         status: appliedFilters.status || "",
         source: appliedFilters.source || "",
+        type: appliedFilters.type || "",
+        subType: appliedFilters.subType || "",
         assignedTo: appliedFilters.assignedTo || "",
         dateRange: appliedFilters.dateRange || "",
         valueRange: appliedFilters.valueRange || "",
@@ -41,10 +143,14 @@ export default function LeadsFilterModal({
   }, [isOpen, appliedFilters]);
 
   const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setFilters((prev) => {
+      const updated = { ...prev, [key]: value };
+      // Reset subType when type changes
+      if (key === "type") {
+        updated.subType = "";
+      }
+      return updated;
+    });
   };
 
   const handleApplyFilters = () => {
@@ -56,6 +162,8 @@ export default function LeadsFilterModal({
     const clearedFilters = {
       status: "",
       source: "",
+      type: "",
+      subType: "",
       assignedTo: "",
       dateRange: "",
       valueRange: "",
@@ -142,6 +250,50 @@ export default function LeadsFilterModal({
                   { value: "MANUAL", label: "Manual" },
                 ]}
                 placeholder="Select source"
+                className="w-full"
+              />
+            </div>
+
+            {/* Company Type Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Building2 className="w-4 h-4 inline mr-2" />
+                Company Type
+              </label>
+              <Select
+                value={filters.type}
+                onChange={(value) => handleFilterChange("type", value)}
+                options={[
+                  { value: "", label: "All Types" },
+                  ...companyTypes.map((type) => ({
+                    value: type.id,
+                    label: type.name,
+                  })),
+                ]}
+                placeholder="Select company type"
+                className="w-full"
+              />
+            </div>
+
+            {/* Sub-Type Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Building2 className="w-4 h-4 inline mr-2" />
+                Sub-Type
+              </label>
+              <Select
+                value={filters.subType}
+                onChange={(value) => handleFilterChange("subType", value)}
+                options={[
+                  { value: "", label: "All Sub-Types" },
+                  ...getSubTypeOptions(),
+                ]}
+                placeholder={
+                  filters.type
+                    ? "Select sub-type"
+                    : "Select company type first"
+                }
+                disabled={!filters.type}
                 className="w-full"
               />
             </div>

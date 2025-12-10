@@ -2,13 +2,45 @@ import { z } from 'zod';
 
 // Zod schemas for validation
 export const userBasicsSchema = z.object({
-    companyName: z.string().min(1, 'Company name is required').max(100, 'Company name too long'),
-    companyEmail: z.string().email('Please enter a valid email address').max(100, 'Email too long'),
-    companyPhone: z.string().min(1, 'Company phone is required').max(20, 'Phone number too long'),
-    companyAddress: z.string().max(200, 'Address too long').optional(),
+    // Company information
+    companyName: z.string()
+        .trim()
+        .min(1, 'Company name is required')
+        .max(100, 'Company name too long'),
+    industry: z.string()
+        .trim()
+        .min(1, 'Industry is required')
+        .max(50, 'Industry too long'),
+
+    // Personal information
+    name: z.string()
+        .trim()
+        .min(1, 'Name is required')
+        .max(100, 'Name too long'),
+    role: z.string()
+        .trim()
+        .min(1, 'Role is required'),
+    location: z.string().max(100, 'Location too long').optional().or(z.literal('')),
+    interests: z.array(z.string()).max(6, 'Maximum 6 interests allowed').optional(),
+
+    // Optional company fields
+    companyEmail: z.string().email('Please enter a valid email address').max(100, 'Email too long').optional().or(z.literal('')),
+    companyPhone: z.string().max(20, 'Phone number too long').optional().or(z.literal('')),
+    companyAddress: z.string().max(200, 'Address too long').optional().or(z.literal('')),
     companyWebsite: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
-    companySize: z.string().max(50, 'Company size too long').optional(),
-    industry: z.string().min(1, 'Industry is required').max(50, 'Industry too long'),
+    companySize: z.string().max(50, 'Company size too long').optional().or(z.literal('')),
+    website: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
+    phone: z.string().max(20, 'Phone number too long').optional().or(z.literal('')),
+    address: z.string().max(200, 'Address too long').optional().or(z.literal('')),
+    city: z.string().max(100, 'City too long').optional().or(z.literal('')),
+    state: z.string().max(100, 'State too long').optional().or(z.literal('')),
+    zipCode: z.string().max(20, 'Zip code too long').optional().or(z.literal('')),
+    country: z.string().max(100, 'Country too long').optional().or(z.literal('')),
+    employees: z.string().max(50, 'Employees too long').optional().or(z.literal('')),
+    description: z.string().max(1000, 'Description too long').optional().or(z.literal('')),
+    founded: z.string().max(20, 'Founded year too long').optional().or(z.literal('')),
+    title: z.string().max(100, 'Title too long').optional().or(z.literal('')),
+    department: z.string().max(100, 'Department too long').optional().or(z.literal('')),
 });
 
 export const communitySelectionSchema = z.object({

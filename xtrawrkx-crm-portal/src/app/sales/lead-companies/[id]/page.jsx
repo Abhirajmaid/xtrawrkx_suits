@@ -398,6 +398,8 @@ export default function LeadCompanyDetailPage() {
           name: leadCompanyData.companyName,
           companyName: leadCompanyData.companyName,
           industry: leadCompanyData.industry,
+          type: leadCompanyData.type,
+          subType: leadCompanyData.subType,
           status: leadCompanyData.status,
           segment: leadCompanyData.segment || "WARM",
           contacts: contacts.length, // Real count from state
@@ -1397,6 +1399,28 @@ export default function LeadCompanyDetailPage() {
                       </label>
                       <p className="text-gray-900 mt-1">
                         {formatIndustry(company.industry)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Company Type
+                      </label>
+                      <p className="text-gray-900 mt-1">
+                        {company.type === "startup-corporate"
+                          ? "Startup and Corporates"
+                          : company.type === "investor"
+                          ? "Investors"
+                          : company.type === "enablers-academia"
+                          ? "Enablers & Academia"
+                          : company.type || "Not specified"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Sub-Type
+                      </label>
+                      <p className="text-gray-900 mt-1">
+                        {company.subType || "Not specified"}
                       </p>
                     </div>
                     <div>

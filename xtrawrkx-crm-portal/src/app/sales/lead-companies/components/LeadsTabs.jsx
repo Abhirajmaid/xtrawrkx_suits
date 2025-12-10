@@ -1,11 +1,11 @@
 import {
   List,
-  Grid3X3,
   Search,
   Filter,
   Plus,
   MoreHorizontal,
   Download,
+  Eye,
 } from "lucide-react";
 
 export default function LeadsTabs({
@@ -17,6 +17,7 @@ export default function LeadsTabs({
   onFilterClick,
   onAddClick,
   onExportClick,
+  onColumnVisibilityClick,
   searchQuery,
   setSearchQuery,
 }) {
@@ -85,17 +86,16 @@ export default function LeadsTabs({
         >
           <List className="w-5 h-5" />
         </button>
-        <button
-          onClick={() => setActiveView("board")}
-          className={`w-10 h-10 rounded-full backdrop-blur-sm border transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center ${
-            activeView === "board"
-              ? "bg-orange-500 text-white border-orange-500/50"
-              : "bg-white/80 text-gray-700 border-white/40 hover:bg-white/90"
-          }`}
-          title="Board View"
-        >
-          <Grid3X3 className="w-5 h-5" />
-        </button>
+        {/* Column Visibility Button */}
+        {onColumnVisibilityClick && (
+          <button
+            onClick={onColumnVisibilityClick}
+            className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm border border-white/40 text-gray-700 hover:bg-white/90 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center"
+            title="Column Visibility"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+        )}
         {/* Export Button */}
         {onExportClick && (
           <button

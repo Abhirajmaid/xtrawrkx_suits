@@ -41,6 +41,8 @@ export default function AddClientAccountPage() {
   const [accountData, setAccountData] = useState({
     companyName: "",
     industry: "",
+    companyType: "",
+    subType: "",
     website: "",
     phone: "",
     email: "",
@@ -94,6 +96,104 @@ export default function AddClientAccountPage() {
     { value: "TRIAL", label: "Trial" },
   ];
 
+  const companyTypes = [
+    { id: "startup-corporate", name: "Startup and Corporates" },
+    { id: "investor", name: "Investors" },
+    { id: "enablers-academia", name: "Enablers & Academia" },
+  ];
+
+  const subTypeOptions = {
+    "startup-corporate": [
+      "EV 2W",
+      "EV 3W",
+      "EV OEM",
+      "EV 4W",
+      "Motor OEM",
+      "Motor Controller OEM",
+      "Batteries",
+      "Charging Infra",
+      "Drones",
+      "AGVs",
+      "Consumer electronics",
+      "Incubator / accelerator",
+      "Power electronics",
+      "Other OE",
+      "Group",
+      "EV Fleet",
+      "E-commerce companies",
+      "3rd party logistics",
+      "Vehicle Smarts",
+      "Swapping",
+      "EV Leasing",
+      "EV Rentals",
+      "EV NBFC",
+      "Power electronics+Vechicle smart",
+      "Electronics Components",
+      "1DL/MDL",
+      "Franchisee",
+      "Smart Battery",
+      "Dealer",
+      "Motor Parts",
+      "Spare Part",
+      "Traditional Auto",
+      "Smart Electronic",
+      "Mech Parts",
+      "Energy Storing",
+      "Automotive Parts_ EV manufacturers",
+      "IOT",
+      "Inverter",
+      "Aggregator",
+    ],
+    investor: [
+      "Future Founder",
+      "Private Lender P2P",
+      "Angel",
+      "Angel Network",
+      "Micro VC",
+      "VC",
+      "Family Office",
+      "Private Equity PE",
+      "Debt",
+      "WC Working Capital",
+      "NBFC",
+      "Bill discounting",
+      "Investment Bank",
+      "Banks",
+      "Asset Investor",
+      "Asset Financier",
+      "Asset Leasing",
+      "Op Franchisee",
+      "Franchise Network",
+      "Incubation Center",
+      "Accelerator",
+      "Industry body",
+      "Gov Body",
+      "Gov Policy",
+      "Alternative Investment Platform",
+      "Strategic investor",
+      "CVC",
+      "HNI",
+    ],
+    "enablers-academia": [
+      "Incubator",
+      "Accelerator",
+      "Venture Studio",
+      "Academia",
+      "Government Office",
+      "Mentor",
+      "Investment Banker",
+    ],
+  };
+
+  // Get sub-type options based on selected type
+  const getSubTypeOptions = () => {
+    if (!accountData.companyType) return [];
+    return subTypeOptions[accountData.companyType]?.map((subType) => ({
+      value: subType,
+      label: subType,
+    })) || [];
+  };
+
   const employeeSizeOptions = [
     { value: "1-10", label: "1-10 employees" },
     { value: "11-50", label: "11-50 employees" },
@@ -118,10 +218,14 @@ export default function AddClientAccountPage() {
   ];
 
   const handleInputChange = (field, value) => {
-    setAccountData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setAccountData((prev) => {
+      const updated = { ...prev, [field]: value };
+      // Reset subType when companyType changes
+      if (field === "companyType") {
+        updated.subType = "";
+      }
+      return updated;
+    });
 
     // Clear error when user starts typing
     if (errors[field]) {
@@ -210,6 +314,8 @@ export default function AddClientAccountPage() {
         revenue: accountData.revenue ? parseFloat(accountData.revenue) : 0,
         healthScore: accountData.healthScore ? parseInt(accountData.healthScore) : 75,
         notes: accountData.notes,
+        companyType: accountData.companyType || null,
+        subType: accountData.subType || null,
         onboardingDate: accountData.onboardingDate || null,
         contractStartDate: accountData.contractStartDate || null,
         contractEndDate: accountData.contractEndDate || null,
@@ -309,6 +415,34 @@ export default function AddClientAccountPage() {
                   options={industryOptions}
                   error={errors.industry}
                   placeholder="Select industry"
+                />
+              </div>
+
+              <div>
+                <Select
+                  label="Company Type"
+                  value={accountData.companyType}
+                  onChange={(value) => handleInputChange("companyType", value)}
+                  options={companyTypes.map((type) => ({
+                    value: type.id,
+                    label: type.name,
+                  }))}
+                  placeholder="Select company type"
+                />
+              </div>
+
+              <div>
+                <Select
+                  label="Sub-Type"
+                  value={accountData.subType}
+                  onChange={(value) => handleInputChange("subType", value)}
+                  options={getSubTypeOptions()}
+                  placeholder={
+                    accountData.companyType
+                      ? "Select sub-type"
+                      : "Select company type first"
+                  }
+                  disabled={!accountData.companyType}
                 />
               </div>
 

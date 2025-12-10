@@ -24,7 +24,7 @@ class TaskService {
                     ...taskData,
                     entityType,
                     entityId,
-                    createdBy: userId
+                    creator: userId
                 }
             });
             return response;

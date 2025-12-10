@@ -28,6 +28,7 @@ import {
   Briefcase,
   PieChart,
   Star,
+  ArrowRight,
 } from "lucide-react";
 import {
   Card,
@@ -44,6 +45,7 @@ import contactService from "../../../../lib/api/contactService";
 import activityService from "../../../../lib/api/activityService";
 import dealService from "../../../../lib/api/dealService";
 import invoiceService from "../../../../lib/api/invoiceService";
+import projectService from "../../../../lib/api/projectService";
 import strapiClient from "../../../../lib/strapiClient";
 import { useAuth } from "../../../../contexts/AuthContext";
 import authService from "../../../../lib/authService";
@@ -66,6 +68,7 @@ const ClientAccountDetailPage = ({ params }) => {
   const [contactsLoading, setContactsLoading] = useState(false);
   const [dealsLoading, setDealsLoading] = useState(false);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -116,6 +119,13 @@ const ClientAccountDetailPage = ({ params }) => {
   useEffect(() => {
     if (activeTab === "invoices" && account?.id) {
       fetchInvoices(account.id);
+    }
+  }, [activeTab, account?.id]);
+
+  // Fetch projects when projects tab is active
+  useEffect(() => {
+    if (activeTab === "projects" && account?.id) {
+      fetchProjects(account.id);
     }
   }, [activeTab, account?.id]);
 
@@ -222,35 +232,8 @@ const ClientAccountDetailPage = ({ params }) => {
         await fetchDeals(accountId);
       }
 
-      setProjects([
-        {
-          id: 1,
-          name: "System Implementation",
-          status: "IN_PROGRESS",
-          progress: 75,
-          startDate: "2024-01-01",
-          endDate: "2024-03-31",
-          manager: "John Smith",
-        },
-        {
-          id: 2,
-          name: "Data Migration",
-          status: "COMPLETED",
-          progress: 100,
-          startDate: "2023-11-01",
-          endDate: "2023-12-31",
-          manager: "Sarah Johnson",
-        },
-        {
-          id: 3,
-          name: "Training Program",
-          status: "PLANNED",
-          progress: 0,
-          startDate: "2024-04-01",
-          endDate: "2024-05-15",
-          manager: "Mike Chen",
-        },
-      ]);
+      // Projects will be fetched when projects tab is active via useEffect
+      setProjects([]);
 
       // Invoices will be fetched when invoices tab is active via useEffect
       setInvoices([]);
@@ -399,6 +382,263 @@ const ClientAccountDetailPage = ({ params }) => {
     } finally {
       setInvoicesLoading(false);
     }
+  };
+
+  const fetchProjects = async (accountId) => {
+    const accountIdToUse = accountId?.id || accountId?.documentId || accountId;
+
+    try {
+      setProjectsLoading(true);
+      console.log("Fetching projects for client account ID:", accountIdToUse);
+
+      // Fetch all projects and filter by clientAccount client-side
+      // This is more reliable than server-side filtering until the relation is fully set up
+      const allProjects = await projectService.getAll({
+        pageSize: 100,
+        populate: ["projectManager", "teamMembers", "account", "clientAccount"],
+      });
+
+      // Log the first project's full structure to debug
+      if (allProjects?.data && allProjects.data.length > 0) {
+        console.log(
+          "First project full structure:",
+          JSON.stringify(allProjects.data[0], null, 2)
+        );
+      }
+
+      console.log("All projects fetched:", allProjects);
+      console.log(
+        "Looking for client account ID:",
+        accountIdToUse,
+        "Type:",
+        typeof accountIdToUse
+      );
+
+      // Filter projects by clientAccount ID
+      const projectsData = allProjects?.data || [];
+      console.log("Total projects fetched:", projectsData.length);
+
+      const filteredProjects = projectsData.filter((project) => {
+        const projectData = project.attributes || project;
+
+        // Check direct clientAccount relation - handle multiple possible structures
+        let projectClientAccount = null;
+        let projectClientAccountId = null;
+
+        // Try different ways to access clientAccount
+        if (projectData.clientAccount) {
+          if (projectData.clientAccount.attributes) {
+            projectClientAccount = projectData.clientAccount.attributes;
+            projectClientAccountId =
+              projectClientAccount.id || projectClientAccount.documentId;
+          } else if (
+            projectData.clientAccount.id ||
+            projectData.clientAccount.documentId
+          ) {
+            projectClientAccount = projectData.clientAccount;
+            projectClientAccountId =
+              projectClientAccount.id || projectClientAccount.documentId;
+          } else if (
+            typeof projectData.clientAccount === "number" ||
+            typeof projectData.clientAccount === "string"
+          ) {
+            // clientAccount might be just an ID
+            projectClientAccountId = projectData.clientAccount;
+          }
+        }
+
+        // Debug logging for each project
+        console.log("Project:", projectData.name, {
+          clientAccountRaw: projectData.clientAccount,
+          clientAccountId: projectClientAccountId,
+          accountIdToUse: accountIdToUse,
+          projectFull: project,
+        });
+
+        // If clientAccount is null or undefined, skip this project
+        if (!projectClientAccountId) {
+          console.log("  -> Skipping: No clientAccount ID found");
+          return false;
+        }
+
+        // Normalize IDs for comparison
+        const accountIdNum =
+          typeof accountIdToUse === "string"
+            ? parseInt(accountIdToUse, 10)
+            : accountIdToUse;
+        const projectClientAccountIdNum =
+          typeof projectClientAccountId === "string"
+            ? parseInt(projectClientAccountId, 10)
+            : projectClientAccountId;
+
+        // Try multiple comparison methods
+        const matches =
+          projectClientAccountIdNum === accountIdNum ||
+          projectClientAccountId?.toString() === accountIdToUse?.toString() ||
+          projectClientAccountId === accountIdToUse ||
+          projectClientAccountId === parseInt(accountIdToUse) ||
+          parseInt(projectClientAccountId) === parseInt(accountIdToUse);
+
+        if (matches) {
+          console.log(
+            "  -> ✅ MATCH FOUND! Project:",
+            projectData.name,
+            "matches account:",
+            accountIdToUse
+          );
+        } else {
+          console.log(
+            "  -> ❌ No match. Project clientAccountId:",
+            projectClientAccountIdNum,
+            "vs Account ID:",
+            accountIdNum
+          );
+        }
+
+        return matches;
+      });
+
+      console.log(
+        "Projects filtered by clientAccount:",
+        filteredProjects.length,
+        "projects found"
+      );
+
+      // Transform projects to match UI format
+      const transformedProjects = filteredProjects.map((project) => {
+        const projectData = project.attributes || project;
+        const projectManager =
+          projectData.projectManager?.attributes || projectData.projectManager;
+
+        // Calculate progress from tasks or use provided progress
+        const progress = projectData.progress || 0;
+
+        return {
+          id: project.id || project.documentId,
+          slug: projectData.slug || null,
+          name: projectData.name || "Unnamed Project",
+          status: projectData.status || "PLANNING",
+          progress: progress,
+          startDate: projectData.startDate || null,
+          endDate: projectData.endDate || null,
+          manager: projectManager
+            ? `${projectManager.firstName || ""} ${
+                projectManager.lastName || ""
+              }`.trim() ||
+              projectManager.username ||
+              "Unassigned"
+            : "Unassigned",
+          description: projectData.description || "",
+          budget: projectData.budget || 0,
+          spent: projectData.spent || 0,
+        };
+      });
+
+      setProjects(transformedProjects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      // Final fallback: get all projects and filter client-side by any matching criteria
+      try {
+        const allProjects = await projectService.getAll({
+          pageSize: 100,
+          populate: [
+            "projectManager",
+            "teamMembers",
+            "account",
+            "clientAccount",
+          ],
+        });
+
+        const projectsData = allProjects?.data || [];
+
+        // Get client account data for filtering
+        const clientAccountData = await clientAccountService.getById(
+          accountIdToUse
+        );
+        const companyName = clientAccountData?.companyName;
+
+        // Filter projects by:
+        // 1. Direct clientAccount relation match
+        // 2. Account company name match (if account was converted from client account)
+        const filteredProjects = projectsData.filter((project) => {
+          const projectData = project.attributes || project;
+
+          // Check direct clientAccount relation
+          const projectClientAccount =
+            projectData.clientAccount?.attributes || projectData.clientAccount;
+          const projectClientAccountId =
+            projectClientAccount?.id || projectClientAccount?.documentId;
+          if (projectClientAccountId === accountIdToUse) {
+            return true;
+          }
+
+          // Check account company name match
+          if (companyName) {
+            const account =
+              projectData.account?.attributes || projectData.account;
+            const accountCompanyName = account?.companyName;
+            if (accountCompanyName === companyName) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        const transformedProjects = filteredProjects.map((project) => {
+          const projectData = project.attributes || project;
+          const projectManager =
+            projectData.projectManager?.attributes ||
+            projectData.projectManager;
+
+          return {
+            id: project.id || project.documentId,
+            slug: projectData.slug || null,
+            name: projectData.name || "Unnamed Project",
+            status: projectData.status || "PLANNING",
+            progress: projectData.progress || 0,
+            startDate: projectData.startDate || null,
+            endDate: projectData.endDate || null,
+            manager: projectManager
+              ? `${projectManager.firstName || ""} ${
+                  projectManager.lastName || ""
+                }`.trim() ||
+                projectManager.username ||
+                "Unassigned"
+              : "Unassigned",
+            description: projectData.description || "",
+            budget: projectData.budget || 0,
+            spent: projectData.spent || 0,
+          };
+        });
+
+        setProjects(transformedProjects);
+      } catch (fallbackError) {
+        console.error("Error in final fallback project fetch:", fallbackError);
+        setProjects([]);
+      }
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const handleCreateProject = () => {
+    // Navigate to PM dashboard to create a new project
+    // Or open a create project modal
+    const accountId = account?.id || account?.documentId || id;
+    // Determine PM dashboard URL based on environment
+    const isProduction =
+      typeof window !== "undefined" &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1";
+    const pmDashboardBaseUrl = isProduction
+      ? "https://pm.xtrawrkx.com"
+      : "http://localhost:3005";
+    // Navigate to PM dashboard with pre-filled account
+    window.open(
+      `${pmDashboardBaseUrl}/projects/add?account=${accountId}`,
+      "_blank"
+    );
   };
 
   const handleAddInvoice = () => {
@@ -739,14 +979,17 @@ const ClientAccountDetailPage = ({ params }) => {
   };
 
   const getProjectStatusColor = (status) => {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case "COMPLETED":
         return "bg-green-100 text-green-800";
       case "IN_PROGRESS":
+      case "ACTIVE":
         return "bg-blue-100 text-blue-800";
       case "PLANNED":
+      case "PLANNING":
         return "bg-gray-100 text-gray-800";
       case "ON_HOLD":
+      case "ONHOLD":
         return "bg-yellow-100 text-yellow-800";
       case "CANCELLED":
         return "bg-red-100 text-red-800";
@@ -1271,6 +1514,30 @@ const ClientAccountDetailPage = ({ params }) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Company Type
+                      </label>
+                      <span className="text-gray-900">
+                        {account.companyType === "startup-corporate"
+                          ? "Startup and Corporates"
+                          : account.companyType === "investor"
+                          ? "Investors"
+                          : account.companyType === "enablers-academia"
+                          ? "Enablers & Academia"
+                          : account.companyType || "Not specified"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Sub-Type
+                      </label>
+                      <span className="text-gray-900">
+                        {account.subType || "Not specified"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
                         Account Type
                       </label>
                       <span
@@ -1763,59 +2030,209 @@ const ClientAccountDetailPage = ({ params }) => {
                 <h3 className="text-lg font-semibold text-gray-900">
                   Account Projects
                 </h3>
-                <button className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                <button
+                  onClick={handleCreateProject}
+                  className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                >
                   <Plus className="w-4 h-4" />
                   Create Project
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {projects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="bg-gradient-to-br from-white/60 to-white/40 backdrop-blur-sm border border-white/30 shadow-md hover:shadow-lg rounded-xl p-4 transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h4 className="font-medium text-gray-900">
-                          {project.name}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          Manager: {project.manager}
-                        </p>
+              {projectsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                  <span className="ml-3 text-gray-600">
+                    Loading projects...
+                  </span>
+                </div>
+              ) : projects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+                      onClick={() => {
+                        // Navigate to project details in PM dashboard
+                        // Prefer slug if available, otherwise use ID
+                        const projectIdentifier = project.slug || project.id;
+                        if (projectIdentifier) {
+                          // Determine PM dashboard URL based on environment
+                          const isProduction =
+                            window.location.hostname !== "localhost" &&
+                            window.location.hostname !== "127.0.0.1";
+                          // const pmDashboardBaseUrl = "https://pm.xtrawrkx.com";
+                          const pmDashboardBaseUrl = "http://localhost:3005";
+                          window.open(
+                            `${pmDashboardBaseUrl}/projects/${projectIdentifier}`,
+                            "_blank"
+                          );
+                        }
+                      }}
+                    >
+                      {/* Header with icon and status */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-orange-50 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border border-orange-200">
+                            <Target className="w-6 h-6 text-orange-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 text-lg mb-1 truncate">
+                              {project.name}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Users className="w-3.5 h-3.5" />
+                              <span className="truncate">
+                                {project.manager}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getProjectStatusColor(
+                            project.status
+                          )}`}
+                        >
+                          {project.status?.replace("_", " ") || "PLANNING"}
+                        </span>
                       </div>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${getProjectStatusColor(
-                          project.status
-                        )}`}
-                      >
-                        {project.status.replace("_", " ")}
-                      </span>
-                    </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="font-medium">{project.progress}%</span>
+                      {/* Progress Section */}
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                            <PieChart className="w-4 h-4" />
+                            Progress
+                          </span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {project.progress || 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-orange-500 to-pink-500 h-2.5 rounded-full transition-all duration-500 flex items-center justify-end pr-1"
+                            style={{
+                              width: `${Math.min(project.progress || 0, 100)}%`,
+                            }}
+                          >
+                            {project.progress > 5 && (
+                              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-orange-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${project.progress}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>
-                          {new Date(project.startDate).toLocaleDateString()}
+
+                      {/* Dates */}
+                      {project.startDate && project.endDate && (
+                        <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {new Date(project.startDate).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </div>
+                              <div className="text-gray-500 text-[10px]">
+                                Start
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex-1 flex items-center">
+                            <div className="h-px bg-gray-200 flex-1"></div>
+                            <ArrowRight className="w-3 h-3 text-gray-400 mx-2" />
+                            <div className="h-px bg-gray-200 flex-1"></div>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {new Date(project.endDate).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </div>
+                              <div className="text-gray-500 text-[10px]">
+                                End
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Description */}
+                      {project.description && (
+                        <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed mb-4">
+                          {project.description}
+                        </p>
+                      )}
+
+                      {/* Budget Info (if available) */}
+                      {(project.budget || project.spent) && (
+                        <div className="mb-4 pb-4 border-b border-gray-100 flex items-center justify-between">
+                          {project.budget > 0 && (
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+                              <span className="text-gray-600">
+                                Budget:{" "}
+                                <span className="font-semibold text-gray-900">
+                                  ${project.budget.toLocaleString()}
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                          {project.spent > 0 && (
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
+                              <span className="text-gray-600">
+                                Spent:{" "}
+                                <span className="font-semibold text-gray-900">
+                                  ${project.spent.toLocaleString()}
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* View Details Footer */}
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Eye className="w-3.5 h-3.5" />
+                          View Details
                         </span>
-                        <span>
-                          {new Date(project.endDate).toLocaleDateString()}
-                        </span>
+                        <ArrowRight className="w-4 h-4 text-gray-400" />
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium mb-2">
+                    No projects found for this account
+                  </p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Create a new project to get started
+                  </p>
+                  <button
+                    onClick={handleCreateProject}
+                    className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors mx-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Project
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -1867,7 +2284,9 @@ const ClientAccountDetailPage = ({ params }) => {
                   Coming Soon
                 </h3>
                 <p className="text-gray-600 text-center max-w-md">
-                  The Meetings feature is currently under development. You'll be able to schedule, manage, and track meetings with this account soon.
+                  The Meetings feature is currently under development. You'll be
+                  able to schedule, manage, and track meetings with this account
+                  soon.
                 </p>
               </div>
             </div>

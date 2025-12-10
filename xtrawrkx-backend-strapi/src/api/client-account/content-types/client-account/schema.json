@@ -21,6 +21,17 @@
             "type": "string",
             "required": true
         },
+        "companyType": {
+            "type": "enumeration",
+            "enum": [
+                "startup-corporate",
+                "investor",
+                "enablers-academia"
+            ]
+        },
+        "subType": {
+            "type": "string"
+        },
         "website": {
             "type": "string"
         },
@@ -163,9 +174,15 @@
             "type": "password",
             "required": false
         },
+        "emailVerificationToken": {
+            "type": "string"
+        },
         "emailVerified": {
             "type": "boolean",
             "default": false
+        },
+        "lastLoginAt": {
+            "type": "datetime"
         },
         "isActive": {
             "type": "boolean",

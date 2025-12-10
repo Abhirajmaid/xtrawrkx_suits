@@ -41,6 +41,7 @@ import LeadsListView from "./components/LeadsListView";
 import LeadsBoardView from "./components/LeadsBoardView";
 import LeadsFilterModal from "./components/LeadsFilterModal";
 import LeadsImportModal from "./components/LeadsImportModal";
+import ColumnVisibilityModal from "./components/ColumnVisibilityModal";
 import {
   Plus,
   Search,
@@ -101,6 +102,8 @@ export default function LeadCompaniesPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [companyToAssign, setCompanyToAssign] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState([]);
 
   // Check if user is admin or super admin
   const isAdmin = () => {
@@ -114,6 +117,60 @@ export default function LeadCompaniesPage() {
       )
     );
   };
+
+  // Initialize visible columns from localStorage or default to all columns
+  useEffect(() => {
+    const STORAGE_KEY = "leadCompanyColumnsVisibility";
+    const allColumnKeys = [
+      "company",
+      "contact",
+      "status",
+      "source",
+      "type",
+      "subType",
+      "value",
+      "contactsCount",
+      "assignedTo",
+      "createdAt",
+      "actions",
+    ];
+
+    if (visibleColumns.length === 0) {
+      try {
+        // Try to load from localStorage
+        const savedColumns = localStorage.getItem(STORAGE_KEY);
+        if (savedColumns) {
+          const parsedColumns = JSON.parse(savedColumns);
+          // Validate that saved columns are valid
+          const validColumns = parsedColumns.filter((key) =>
+            allColumnKeys.includes(key)
+          );
+          if (validColumns.length > 0) {
+            setVisibleColumns(validColumns);
+          } else {
+            setVisibleColumns(allColumnKeys);
+          }
+        } else {
+          setVisibleColumns(allColumnKeys);
+        }
+      } catch (error) {
+        console.error("Error loading column visibility from localStorage:", error);
+        setVisibleColumns(allColumnKeys);
+      }
+    }
+  }, []);
+
+  // Save column visibility to localStorage whenever it changes
+  useEffect(() => {
+    if (visibleColumns.length > 0) {
+      const STORAGE_KEY = "leadCompanyColumnsVisibility";
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns));
+      } catch (error) {
+        console.error("Error saving column visibility to localStorage:", error);
+      }
+    }
+  }, [visibleColumns]);
 
   // Fetch lead companies from Strapi
   useEffect(() => {
@@ -305,6 +362,22 @@ export default function LeadCompaniesPage() {
       if (appliedFilters.source) {
         const companySource = company.source || "";
         if (companySource !== appliedFilters.source) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Type filter
+      if (appliedFilters.type) {
+        const companyType = company.type || "";
+        if (companyType !== appliedFilters.type) {
+          matchesFilters = false;
+        }
+      }
+      
+      // Sub-Type filter
+      if (appliedFilters.subType) {
+        const companySubType = company.subType || "";
+        if (companySubType !== appliedFilters.subType) {
           matchesFilters = false;
         }
       }
@@ -608,6 +681,68 @@ export default function LeadCompaniesPage() {
       ),
     },
     {
+      key: "type",
+      label: "COMPANY TYPE",
+      width: "200px",
+      render: (_, company) => {
+        const companyType = company.type || "";
+        const typeColors = {
+          "startup-corporate": {
+            bg: "bg-orange-100",
+            text: "text-orange-800",
+            border: "border-orange-400",
+            shadow: "shadow-orange-200",
+            label: "Startup and Corporates",
+          },
+          investor: {
+            bg: "bg-indigo-100",
+            text: "text-indigo-800",
+            border: "border-indigo-400",
+            shadow: "shadow-indigo-200",
+            label: "Investors",
+          },
+          "enablers-academia": {
+            bg: "bg-teal-100",
+            text: "text-teal-800",
+            border: "border-teal-400",
+            shadow: "shadow-teal-200",
+            label: "Enablers & Academia",
+          },
+        };
+
+        const colors = typeColors[companyType];
+        const displayType = colors?.label || companyType || "Not specified";
+
+        if (!colors) {
+          return (
+            <span className="text-sm text-gray-500 whitespace-nowrap min-w-[150px]">
+              {displayType}
+            </span>
+          );
+        }
+
+        return (
+          <div className="min-w-[150px]">
+            <div
+              className={`${colors.bg} ${colors.text} ${colors.border} border rounded-md px-2 py-1 font-semibold text-[10px] text-center shadow-sm ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-md inline-block`}
+            >
+              {displayType.toUpperCase()}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "subType",
+      label: "SUB-TYPE",
+      width: "200px",
+      render: (_, company) => (
+        <span className="text-sm text-gray-600 whitespace-nowrap min-w-[180px]">
+          {company.subType || "Not specified"}
+        </span>
+      ),
+    },
+    {
       key: "value",
       label: "DEAL VALUE",
       width: "140px",
@@ -784,6 +919,16 @@ export default function LeadCompaniesPage() {
       ),
     },
   ];
+
+  // Filter columns based on visibility
+  const getVisibleColumns = () => {
+    if (visibleColumns.length === 0) {
+      return leadCompanyColumnsTable;
+    }
+    return leadCompanyColumnsTable.filter((col) => visibleColumns.includes(col.key));
+  };
+
+  const visibleColumnsTable = getVisibleColumns();
 
   // Handle status updates
   const handleStatusUpdate = async (companyId, newStatus) => {
@@ -1147,6 +1292,7 @@ export default function LeadCompaniesPage() {
             onFilterClick={() => setIsFilterModalOpen(true)}
             onAddClick={() => router.push("/sales/lead-companies/new")}
             onExportClick={handleExport}
+            onColumnVisibilityClick={() => setIsColumnVisibilityModalOpen(true)}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
           />
@@ -1162,7 +1308,7 @@ export default function LeadCompaniesPage() {
             {activeView === "list" && (
               <LeadsListView
                 filteredLeads={paginatedCompanies}
-                leadColumnsTable={leadCompanyColumnsTable}
+                leadColumnsTable={visibleColumnsTable}
                 selectedLeads={selectedCompanies}
                 setSelectedLeads={setSelectedCompanies}
                 searchQuery={searchQuery}
@@ -1210,6 +1356,15 @@ export default function LeadCompaniesPage() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImport={handleImport}
+      />
+
+      {/* Column Visibility Modal */}
+      <ColumnVisibilityModal
+        isOpen={isColumnVisibilityModalOpen}
+        onClose={() => setIsColumnVisibilityModalOpen(false)}
+        columns={leadCompanyColumnsTable}
+        visibleColumns={visibleColumns}
+        onVisibilityChange={setVisibleColumns}
       />
 
       {/* Convert to Client Confirmation Modal */}

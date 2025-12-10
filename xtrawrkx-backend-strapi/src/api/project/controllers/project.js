@@ -95,9 +95,15 @@ module.exports = createCoreController('api::project.project', ({ strapi }) => {
                 populate = {
                     projectManager: true,
                     account: true,
-                    deal: true
+                    deal: true,
+                    clientAccount: true
                 };
             }
+            
+            // Always ensure clientAccount is populated
+            populate.clientAccount = true;
+            
+            console.log('Project find - populate object:', JSON.stringify(populate, null, 2));
 
             // Parse filters from query string
             let filters = {};
@@ -181,6 +187,15 @@ module.exports = createCoreController('api::project.project', ({ strapi }) => {
                 dataLength: projectsData.length,
                 hasMeta: !!projectsMeta
             });
+            
+            // Debug: Log first project's clientAccount
+            if (projectsData.length > 0) {
+                const firstProject = projectsData[0];
+                const projectData = firstProject.attributes || firstProject;
+                console.log('First project name:', projectData.name);
+                console.log('First project clientAccount:', projectData.clientAccount);
+                console.log('First project full (first 500 chars):', JSON.stringify(firstProject).substring(0, 500));
+            }
 
             // Ensure we return a proper format even if empty
             if (!projectsData || projectsData.length === 0) {
@@ -278,6 +293,22 @@ module.exports = createCoreController('api::project.project', ({ strapi }) => {
                 return ctx.badRequest('No data provided');
             }
 
+            // Handle clientAccount field - set it directly if provided
+            if (data.clientAccount) {
+                console.log('Setting clientAccount field:', data.clientAccount);
+                // clientAccount is already the correct ID, just ensure it's valid
+                try {
+                    const clientAccount = await strapi.entityService.findOne('api::client-account.client-account', data.clientAccount);
+                    if (!clientAccount) {
+                        console.log('Client account not found, removing clientAccount field');
+                        delete data.clientAccount;
+                    }
+                } catch (error) {
+                    console.log('Error validating client account:', error);
+                    delete data.clientAccount;
+                }
+            }
+
             // Handle account field - check if it's a client account ID
             if (data.account) {
                 // Check if this ID belongs to a client account
@@ -305,7 +336,8 @@ module.exports = createCoreController('api::project.project', ({ strapi }) => {
                 populate: {
                     projectManager: true,
                     account: true,
-                    deal: true
+                    deal: true,
+                    clientAccount: true
                 }
             });
 
@@ -397,6 +429,28 @@ module.exports = createCoreController('api::project.project', ({ strapi }) => {
                 data.account = null;
             }
 
+            // Handle clientAccount field - set it directly if provided
+            if (data.clientAccount !== undefined) {
+                if (data.clientAccount) {
+                    console.log('Setting clientAccount field:', data.clientAccount);
+                    // Validate client account exists
+                    try {
+                        const clientAccount = await strapi.entityService.findOne('api::client-account.client-account', data.clientAccount);
+                        if (!clientAccount) {
+                            console.log('Client account not found, setting to null');
+                            data.clientAccount = null;
+                        }
+                    } catch (error) {
+                        console.log('Error validating client account:', error);
+                        data.clientAccount = null;
+                    }
+                } else {
+                    data.clientAccount = null;
+                }
+            }
+
+            console.log('Updating project with final data:', JSON.stringify(data, null, 2));
+            
             // Update the project using entityService
             const entity = await strapi.entityService.update('api::project.project', id, {
                 data,
@@ -404,9 +458,12 @@ module.exports = createCoreController('api::project.project', ({ strapi }) => {
                     projectManager: true,
                     account: true,
                     deal: true,
-                    teamMembers: true
+                    teamMembers: true,
+                    clientAccount: true
                 }
             });
+            
+            console.log('Updated project clientAccount:', entity?.clientAccount || entity?.attributes?.clientAccount);
 
             console.log('Updated project:', entity);
 

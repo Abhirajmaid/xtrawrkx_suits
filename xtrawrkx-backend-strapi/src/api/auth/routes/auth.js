@@ -22,6 +22,26 @@ module.exports = {
         },
         {
             method: 'POST',
+            path: '/auth/client/signup',
+            handler: 'auth.clientSignup',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'POST',
+            path: '/auth/client/verify-otp',
+            handler: 'auth.verifyOTP',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'POST',
             path: '/auth/create-internal-user',
             handler: 'auth.createInternalUser',
             config: {

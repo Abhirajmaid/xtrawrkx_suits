@@ -57,6 +57,7 @@ export default function EditProjectPage() {
     icon: "",
     projectManager: "",
     account: "",
+    clientAccount: "",
   });
 
   const statusOptions = [
@@ -241,6 +242,7 @@ export default function EditProjectPage() {
             "projectManager",
             "account",
             "deal",
+            "clientAccount",
           ]);
           setProjectId(parsedId);
         } catch (idError) {
@@ -255,6 +257,7 @@ export default function EditProjectPage() {
             "projectManager",
             "account",
             "deal",
+            "clientAccount",
           ]);
           setProjectId(strapiProject.id || strapiProject.documentId);
         } catch (slugError) {
@@ -302,6 +305,10 @@ export default function EditProjectPage() {
         // For now, we'll set it to empty and let the user select from client accounts
         // The backend will handle the conversion when updating
         account: "", // We'll find the corresponding client account if needed
+        clientAccount:
+          project.clientAccount?.id ||
+          project.clientAccount?.documentId ||
+          "",
       });
     } catch (error) {
       console.error("Error fetching project:", error);
@@ -442,6 +449,17 @@ export default function EditProjectPage() {
         // No account selected, set to null to clear the field
         updateData.account = null;
         console.log("No account selected, setting account to null");
+      }
+
+      // Handle clientAccount field
+      if (projectData.clientAccount && projectData.clientAccount !== "") {
+        const clientAccountId = typeof projectData.clientAccount === 'string' 
+          ? parseInt(projectData.clientAccount, 10) 
+          : projectData.clientAccount;
+        updateData.clientAccount = !isNaN(clientAccountId) ? clientAccountId : null;
+        console.log("Setting clientAccount field:", updateData.clientAccount);
+      } else {
+        updateData.clientAccount = null;
       }
 
       // Remove empty string values and replace with null
@@ -782,10 +800,10 @@ export default function EditProjectPage() {
                 <div>
                   <Select
                     label="Client Account"
-                    value={projectData.account}
-                    onChange={(value) => handleInputChange("account", value)}
+                    value={projectData.clientAccount}
+                    onChange={(value) => handleInputChange("clientAccount", value)}
                     options={[
-                      { value: "", label: "No Account" },
+                      { value: "", label: "No Client Account" },
                       ...accounts.map((a) => ({
                         value: (a.id || a.documentId).toString(),
                         label: a.name || a.companyName || a.attributes?.name || a.attributes?.companyName || "Unknown Account",

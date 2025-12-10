@@ -21,6 +21,17 @@
             "type": "string",
             "required": true
         },
+        "type": {
+            "type": "enumeration",
+            "enum": [
+                "startup-corporate",
+                "investor",
+                "enablers-academia"
+            ]
+        },
+        "subType": {
+            "type": "string"
+        },
         "website": {
             "type": "string"
         },

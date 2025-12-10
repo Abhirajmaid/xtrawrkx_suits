@@ -254,26 +254,49 @@ export const getUserColor = (userId) => {
 export const transformProject = (strapiProject) => {
     if (!strapiProject) return null;
     
+    // Handle both Strapi v4 attributes format and direct format
+    const projectData = strapiProject.attributes || strapiProject;
+    
+    // Extract clientAccount - handle different possible structures
+    let clientAccount = null;
+    if (projectData.clientAccount) {
+        const clientAccountData = projectData.clientAccount.attributes || projectData.clientAccount;
+        clientAccount = {
+            id: clientAccountData?.id || projectData.clientAccount.id || projectData.clientAccount.documentId,
+            companyName: clientAccountData?.companyName || clientAccountData?.name,
+            industry: clientAccountData?.industry,
+            website: clientAccountData?.website,
+            email: clientAccountData?.email,
+            phone: clientAccountData?.phone,
+            companyType: clientAccountData?.companyType,
+            subType: clientAccountData?.subType,
+            ...clientAccountData
+        };
+    }
+    
     return {
         id: strapiProject.id,
-        name: strapiProject.name,
-        slug: strapiProject.slug,
-        description: strapiProject.description,
-        status: transformProjectStatus(strapiProject.status),
-        startDate: formatDate(strapiProject.startDate),
-        endDate: formatDate(strapiProject.endDate),
-        budget: strapiProject.budget,
-        spent: strapiProject.spent,
-        color: strapiProject.color || 'from-blue-400 to-blue-600',
-        icon: strapiProject.icon || strapiProject.name?.charAt(0)?.toUpperCase() || 'P',
+        name: projectData.name || strapiProject.name,
+        slug: projectData.slug || strapiProject.slug,
+        description: projectData.description || strapiProject.description,
+        status: transformProjectStatus(projectData.status || strapiProject.status),
+        startDate: formatDate(projectData.startDate || strapiProject.startDate),
+        endDate: formatDate(projectData.endDate || strapiProject.endDate),
+        budget: projectData.budget || strapiProject.budget,
+        spent: projectData.spent || strapiProject.spent,
+        color: projectData.color || strapiProject.color || 'from-blue-400 to-blue-600',
+        icon: projectData.icon || strapiProject.icon || projectData.name?.charAt(0)?.toUpperCase() || 'P',
         progress: calculateProjectProgress(strapiProject),
-        projectManager: transformUser(strapiProject.projectManager),
-        teamMembers: strapiProject.teamMembers?.map(transformUser) || [],
-        tasks: strapiProject.tasks?.map(transformTask) || [],
+        projectManager: transformUser(projectData.projectManager || strapiProject.projectManager),
+        teamMembers: (projectData.teamMembers || strapiProject.teamMembers)?.map(transformUser) || [],
+        tasks: (projectData.tasks || strapiProject.tasks)?.map(transformTask) || [],
+        clientAccount: clientAccount,
+        account: projectData.account || strapiProject.account,
+        deal: projectData.deal || strapiProject.deal,
         // Additional computed fields
-        tasksCount: strapiProject.tasks?.length || 0,
-        bgColor: getProjectBgColor(strapiProject.name),
-        textColor: getProjectTextColor(strapiProject.name)
+        tasksCount: (projectData.tasks || strapiProject.tasks)?.length || 0,
+        bgColor: getProjectBgColor(projectData.name || strapiProject.name),
+        textColor: getProjectTextColor(projectData.name || strapiProject.name)
     };
 };
 

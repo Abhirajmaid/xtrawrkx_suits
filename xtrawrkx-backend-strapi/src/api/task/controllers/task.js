@@ -68,7 +68,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             const tasks = await strapi.entityService.findPage('api::task.task', {
                 filters,
                 populate: {
-                    createdBy: true,
+                    creator: true,
                     assignee: true,
                     projects: true,
                     collaborators: true,
@@ -96,7 +96,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                         dbTasks.map(async (task) => {
                             const populated = await strapi.entityService.findOne('api::task.task', task.id, {
                                 populate: {
-                                    createdBy: true,
+                                    creator: true,
                                     assignee: true,
                                     projects: true,
                                     collaborators: true,
@@ -177,7 +177,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                     }
                 },
                 populate: {
-                    createdBy: true,
+                    creator: true,
                     assignee: true,
                     collaborators: true
                 },
@@ -230,7 +230,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             } else {
                 // Default populate
                 populate = {
-                    createdBy: true,
+                    creator: true,
                     assignee: true,
                     projects: true,
                     subtasks: {
@@ -271,44 +271,133 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 return ctx.badRequest('Title is required');
             }
 
-            let userId = data.createdBy || ctx.state?.user?.id;
+            // Use creator field instead of createdBy to avoid conflict with Strapi's built-in createdBy field
+            let userId = data.creator || data.createdBy || ctx.state?.user?.id;
             if (!userId) {
                 return ctx.badRequest('User ID is required to create a task');
             }
 
-            // Verify user exists
+            // Verify schema is loaded correctly
+            const contentType = strapi.contentTypes['api::task.task'];
+            if (!contentType) {
+                console.error('Task content type not found in strapi.contentTypes');
+                return ctx.badRequest('Task content type is not registered. Please restart Strapi.');
+            }
+
+            // @ts-ignore - TypeScript types may not be updated yet, but field exists in schema
+            const creatorAttribute = contentType.attributes.creator;
+            if (!creatorAttribute) {
+                console.error('creator attribute not found in task schema');
+                return ctx.badRequest('Task schema is missing creator attribute. Please check schema.json and restart Strapi.');
+            }
+
+            // Log schema details for debugging
+            console.log('Task schema creator attribute:', {
+                type: creatorAttribute.type,
+                relation: creatorAttribute.relation,
+                target: creatorAttribute.target,
+                inversedBy: creatorAttribute.inversedBy
+            });
+
+            // @ts-ignore - TypeScript types may be stale, but runtime check is necessary
+            const targetValue = String(creatorAttribute.target || '');
+            if (targetValue !== 'api::xtrawrkx-user.xtrawrkx-user') {
+                console.error('Schema mismatch detected:', {
+                    expected: 'api::xtrawrkx-user.xtrawrkx-user',
+                    found: targetValue,
+                    fullAttribute: creatorAttribute
+                });
+                return ctx.badRequest(
+                    `Schema relation target mismatch. Expected 'api::xtrawrkx-user.xtrawrkx-user' but found '${targetValue || 'unknown'}'. ` +
+                    'This usually means Strapi\'s cache is stale. Please:\n' +
+                    '1. Stop Strapi server\n' +
+                    '2. Delete the .cache folder (if it exists)\n' +
+                    '3. Delete the .tmp folder (if it exists)\n' +
+                    '4. Restart Strapi server\n' +
+                    'If the issue persists, check that src/api/task/content-types/task/schema.json has creator.target set to "api::xtrawrkx-user.xtrawrkx-user"'
+                );
+            }
+
+            // Verify user exists - try multiple lookup strategies
             let userRecord = null;
             try {
-                userRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
-                    where: { documentId: userId, isActive: true },
-                });
+                // Convert userId to string for documentId lookup, and number for id lookup
+                const userIdStr = String(userId);
+                const userIdNum = parseInt(userId);
+                const isValidNum = !isNaN(userIdNum) && userIdNum > 0;
 
-                if (!userRecord) {
+                // Try documentId first (as string) - documentId can be any string
+                if (userIdStr) {
                     userRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
-                        where: { id: userId, isActive: true },
+                        where: { documentId: userIdStr, isActive: true },
+                    });
+                }
+
+                // Try id as number
+                if (!userRecord && isValidNum) {
+                    userRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                        where: { id: userIdNum, isActive: true },
+                    });
+                }
+
+                // Try id as string (fallback)
+                if (!userRecord && userIdStr && !isValidNum) {
+                    userRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                        where: { id: userIdStr, isActive: true },
                     });
                 }
 
                 if (!userRecord) {
-                    return ctx.badRequest('User not found or inactive');
+                    console.error('User lookup failed for userId:', userId, 'type:', typeof userId);
+                    return ctx.badRequest(`User not found or inactive. User ID: ${userId}`);
                 }
             } catch (userError) {
                 console.error('Error finding user:', userError);
-                return ctx.badRequest('Failed to verify user');
+                return ctx.badRequest(`Failed to verify user: ${userError.message}`);
             }
 
             // Prepare task data with numeric IDs for relations
-            const userRelationIdNum = userRecord.id || parseInt(userRecord.documentId) || parseInt(userId);
+            // Use the numeric id from the userRecord, not the original userId
+            const userRelationIdNum = userRecord.id;
+
+            if (!userRelationIdNum) {
+                return ctx.badRequest('Invalid user record: missing id');
+            }
 
             // Handle assignee if provided
             let assigneeId = null;
             if (data.assignee) {
                 try {
-                    const assigneeRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
-                        where: { id: parseInt(data.assignee) },
-                    });
+                    const assigneeIdStr = String(data.assignee);
+                    const assigneeIdNum = parseInt(data.assignee);
+
+                    let assigneeRecord = null;
+
+                    // Try documentId first
+                    if (!isNaN(assigneeIdNum)) {
+                        assigneeRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                            where: { documentId: assigneeIdStr },
+                        });
+                    }
+
+                    // Try id as number
+                    if (!assigneeRecord && !isNaN(assigneeIdNum)) {
+                        assigneeRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                            where: { id: assigneeIdNum },
+                        });
+                    }
+
+                    // Try id as string
+                    if (!assigneeRecord && assigneeIdStr) {
+                        assigneeRecord = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                            where: { id: assigneeIdStr },
+                        });
+                    }
+
                     if (assigneeRecord) {
                         assigneeId = assigneeRecord.id;
+                    } else {
+                        console.warn('Assignee not found:', data.assignee);
                     }
                 } catch (assigneeError) {
                     console.error('Error finding assignee:', assigneeError);
@@ -394,7 +483,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 scheduledDate: data.scheduledDate || null,
                 progress: data.progress || 0,
                 tags: data.tags || null,
-                createdBy: userRelationIdNum,
+                creator: userRelationIdNum, // Use creator instead of createdBy to avoid Strapi's built-in field
             };
 
             // Add relations
@@ -450,7 +539,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             // Fetch with populated relations
             const populatedTask = await strapi.entityService.findOne('api::task.task', task.id, {
                 populate: {
-                    createdBy: true,
+                    creator: true,
                     assignee: true,
                     projects: true,
                     collaborators: true,
@@ -464,14 +553,28 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             return { data: populatedTask };
         } catch (error) {
             console.error('Error creating task:', error);
+            console.error('Error stack:', error.stack);
+            console.error('Error details:', {
+                message: error.message,
+                name: error.name,
+                code: error.code
+            });
 
-            if (error.message?.includes('relation') || error.message?.includes('admin::user')) {
+            // Check for schema/relation errors
+            const errorMessage = error.message || '';
+            if (errorMessage.includes('relation') || errorMessage.includes('admin::user') || errorMessage.includes('Schema')) {
                 return ctx.badRequest(
-                    `Failed to create task. Please ensure Strapi has been restarted after schema changes. Error: ${error.message}`
+                    `Failed to create task: ${errorMessage}\n\n` +
+                    'This error usually indicates a schema mismatch. Please:\n' +
+                    '1. Stop Strapi server\n' +
+                    '2. Delete the .cache folder (if it exists in xtrawrkx-backend-strapi directory)\n' +
+                    '3. Delete the .tmp folder (if it exists in xtrawrkx-backend-strapi directory)\n' +
+                    '4. Restart Strapi server\n' +
+                    '5. Verify the schema file: src/api/task/content-types/task/schema.json should have createdBy.target = "api::xtrawrkx-user.xtrawrkx-user"'
                 );
             }
 
-            return ctx.badRequest(`Failed to create task: ${error.message}`);
+            return ctx.badRequest(`Failed to create task: ${errorMessage}`);
         }
     },
 
@@ -485,8 +588,9 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
 
 
             // Get the existing task
+            // @ts-ignore - TypeScript types may not be updated yet
             const existingTask = await strapi.entityService.findOne('api::task.task', id, {
-                populate: ['createdBy', 'assignee']
+                populate: ['creator', 'assignee']
             });
 
             if (!existingTask) {
@@ -666,7 +770,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             const updatedTask = await strapi.entityService.update('api::task.task', id, {
                 data: updateData,
                 populate: {
-                    createdBy: true,
+                    creator: true,
                     assignee: true,
                     projects: true,
                     collaborators: true
@@ -710,7 +814,7 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             const updatedTask = await strapi.entityService.update('api::task.task', id, {
                 data: updateData,
                 populate: {
-                    createdBy: true,
+                    creator: true,
                     assignee: true
                 }
             });

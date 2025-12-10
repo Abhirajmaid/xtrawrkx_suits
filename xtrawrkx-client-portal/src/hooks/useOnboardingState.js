@@ -102,11 +102,22 @@ export function useOnboardingState() {
     // Generic API call helper with better error handling
     const apiCall = useCallback(async (endpoint, data, method = 'POST') => {
         try {
+            // Get auth token from localStorage
+            const token = typeof window !== 'undefined'
+                ? (localStorage.getItem('client_token') || localStorage.getItem('auth_token'))
+                : null;
+
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(endpoint, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: method !== 'GET' ? JSON.stringify(data) : undefined,
             });
 
@@ -205,7 +216,27 @@ export function useOnboardingState() {
         setOperationLoading('basics', true);
         setError(null);
 
-        const response = await apiCall(ONBOARDING_API_ENDPOINTS.basics, basics, 'PATCH');
+        // Get email and accountId from localStorage to include in request
+        let email = null;
+        let accountId = null;
+        if (typeof window !== 'undefined') {
+            const accountData = localStorage.getItem('client_account');
+            if (accountData) {
+                try {
+                    const account = JSON.parse(accountData);
+                    email = account.email;
+                    accountId = account.id;
+                } catch (e) {
+                    console.error('Error parsing account data:', e);
+                }
+            }
+        }
+
+        const response = await apiCall(ONBOARDING_API_ENDPOINTS.basics, {
+            ...basics,
+            email: email,
+            accountId: accountId
+        }, 'PATCH');
 
         if (response.ok) {
             setOperationLoading('basics', false);
@@ -293,7 +324,71 @@ export function useOnboardingState() {
         setOperationLoading('complete', true);
         setError(null);
 
-        const response = await apiCall(ONBOARDING_API_ENDPOINTS.complete, {});
+        // Get user session data for email and name
+        let userEmail = '';
+        let userName = '';
+        let userPhone = '';
+
+        try {
+            if (typeof window !== 'undefined') {
+                const demoUser = localStorage.getItem('demo_user');
+                if (demoUser) {
+                    const demo = JSON.parse(demoUser);
+                    userEmail = demo.email || '';
+                    userName = demo.name || '';
+                    userPhone = demo.phone || '';
+                }
+            }
+        } catch (err) {
+            console.error('Error getting user data:', err);
+        }
+
+        // Extract name parts from userName
+        const nameParts = (userName || '').split(' ');
+        const contactFirstName = nameParts[0] || '';
+        const contactLastName = nameParts.slice(1).join(' ') || '';
+
+        // Prepare onboarding data
+        const onboardingPayload = {
+            // Company information - use basics data or defaults
+            companyName: state.basics?.companyName || (contactFirstName ? `${contactFirstName}'s Company` : 'My Company'),
+            industry: state.basics?.industry || 'Technology',
+            email: state.account?.email || userEmail,
+            phone: state.account?.phone || userPhone || state.basics?.phone || '',
+            website: state.basics?.website || '',
+            address: state.basics?.address || '',
+            city: state.basics?.city || '',
+            state: state.basics?.state || '',
+            zipCode: state.basics?.zipCode || '',
+            country: state.basics?.country || '',
+            employees: state.basics?.companySize || state.basics?.employees || '',
+            description: state.basics?.description || '',
+            founded: state.basics?.founded || '',
+
+            // Primary contact information
+            contactFirstName: state.basics?.name?.split(' ')[0] || contactFirstName || 'User',
+            contactLastName: state.basics?.name?.split(' ').slice(1).join(' ') || contactLastName || '',
+            contactEmail: state.account?.email || userEmail,
+            contactPhone: state.account?.phone || userPhone || state.basics?.phone || '',
+            contactTitle: state.basics?.title || state.basics?.role || '',
+            contactDepartment: state.basics?.department || '',
+
+            // Authentication - generate a temporary password for demo users
+            // In production, this should be collected during signup
+            // Use a fixed demo password for demo users (at least 8 characters)
+            password: state.account?.password || `DemoPass123!`,
+
+            // Additional onboarding data
+            onboardingData: {
+                selectedCommunities: state.selectedCommunities || [],
+                submissions: state.submissions || {},
+                basics: state.basics || {},
+                interests: state.basics?.interests || [],
+                location: state.basics?.location || '',
+            }
+        };
+
+        const response = await apiCall(ONBOARDING_API_ENDPOINTS.complete, onboardingPayload);
 
         if (response.ok) {
             setState(prev => ({
@@ -309,7 +404,7 @@ export function useOnboardingState() {
             setOperationLoading('complete', false);
             return false;
         }
-    }, [apiCall, setOperationLoading]);
+    }, [apiCall, setOperationLoading, state]);
 
     // Navigation helpers
     const goToStep = useCallback((step) => {
@@ -374,6 +469,8 @@ export function useOnboardingState() {
 
         // Navigation
         goToStep,
+        goToNextStep: nextStep, // Alias for compatibility
+        goToPrevStep: prevStep, // Alias for compatibility
         nextStep,
         prevStep,
         getCurrentStepInfo,

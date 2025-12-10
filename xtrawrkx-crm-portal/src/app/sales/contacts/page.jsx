@@ -29,6 +29,7 @@ import ContactsTabs from "./components/ContactsTabs";
 import ContactsListView from "./components/ContactsListView";
 import ContactsFilterModal from "./components/ContactsFilterModal";
 import ContactsImportModal from "./components/ContactsImportModal";
+import ColumnVisibilityModal from "../lead-companies/components/ColumnVisibilityModal";
 
 import {
   Plus,
@@ -94,9 +95,62 @@ export default function ContactsPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [contactToAssign, setContactToAssign] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState([]);
 
   // Refs
   const exportDropdownRef = useRef(null);
+
+  // Initialize visible columns from localStorage or default to all columns
+  useEffect(() => {
+    const STORAGE_KEY = "contactColumnsVisibility";
+    const allColumnKeys = [
+      "contact",
+      "company",
+      "contact_info",
+      "role",
+      "owner",
+      "created_date",
+      "status",
+      "actions",
+    ];
+
+    if (visibleColumns.length === 0) {
+      try {
+        // Try to load from localStorage
+        const savedColumns = localStorage.getItem(STORAGE_KEY);
+        if (savedColumns) {
+          const parsedColumns = JSON.parse(savedColumns);
+          // Validate that saved columns are valid
+          const validColumns = parsedColumns.filter((key) =>
+            allColumnKeys.includes(key)
+          );
+          if (validColumns.length > 0) {
+            setVisibleColumns(validColumns);
+          } else {
+            setVisibleColumns(allColumnKeys);
+          }
+        } else {
+          setVisibleColumns(allColumnKeys);
+        }
+      } catch (error) {
+        console.error("Error loading column visibility from localStorage:", error);
+        setVisibleColumns(allColumnKeys);
+      }
+    }
+  }, []);
+
+  // Save column visibility to localStorage whenever it changes
+  useEffect(() => {
+    if (visibleColumns.length > 0) {
+      const STORAGE_KEY = "contactColumnsVisibility";
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns));
+      } catch (error) {
+        console.error("Error saving column visibility to localStorage:", error);
+      }
+    }
+  }, [visibleColumns]);
 
   const isAdmin = () => {
     if (!user) return false;
@@ -999,6 +1053,16 @@ export default function ContactsPage() {
     },
   ];
 
+  // Get visible columns based on user preferences
+  const getVisibleColumns = () => {
+    if (visibleColumns.length === 0) {
+      return contactColumnsTable;
+    }
+    return contactColumnsTable.filter((col) => visibleColumns.includes(col.key));
+  };
+
+  const visibleColumnsTable = getVisibleColumns();
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
@@ -1107,6 +1171,7 @@ export default function ContactsPage() {
             setSearchQuery={handleSearchChange}
             onAddClick={() => router.push("/sales/contacts/new")}
             onExportClick={() => handleExport("csv")}
+            onColumnVisibilityClick={() => setIsColumnVisibilityModalOpen(true)}
           />
 
           {/* Results Count */}
@@ -1118,7 +1183,7 @@ export default function ContactsPage() {
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <ContactsListView
               filteredContacts={paginatedContacts}
-              contactColumnsTable={contactColumnsTable}
+              contactColumnsTable={visibleColumnsTable}
               selectedContacts={selectedContacts}
               setSelectedContacts={setSelectedContacts}
               searchQuery={searchQuery}
@@ -1142,6 +1207,15 @@ export default function ContactsPage() {
           </div>
         </div>
       </div>
+
+      {/* Column Visibility Modal */}
+      <ColumnVisibilityModal
+        isOpen={isColumnVisibilityModalOpen}
+        onClose={() => setIsColumnVisibilityModalOpen(false)}
+        columns={contactColumnsTable}
+        visibleColumns={visibleColumns}
+        onVisibilityChange={setVisibleColumns}
+      />
 
       {/* Filter Modal */}
       <ContactsFilterModal
