@@ -1,4 +1,4 @@
-import { List, Search, Plus, Download } from "lucide-react";
+import { List, Search, Plus, Download, Eye } from "lucide-react";
 
 export default function DealsTabs({
   tabItems,
@@ -8,6 +8,7 @@ export default function DealsTabs({
   setSearchQuery,
   onAddClick,
   onExportClick,
+  onColumnVisibilityClick,
 }) {
   return (
     <div className="flex items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl p-3">
