@@ -61,7 +61,7 @@ module.exports = createCoreController('api::task-comment.task-comment', ({ strap
             // Method 1: Direct bracket notation (URL encoded)
             let commentableTypeFilter = query['filters[commentableType][$eq]'];
             let commentableIdFilter = query['filters[commentableId][$eq]'];
-            
+
             // Method 2: Check if Strapi parsed it into a nested object
             if (!commentableTypeFilter && query.filters && query.filters.commentableType) {
                 commentableTypeFilter = query.filters.commentableType.$eq || query.filters.commentableType;
@@ -311,6 +311,201 @@ module.exports = createCoreController('api::task-comment.task-comment', ({ strap
             }
 
             console.log('Comment verified in database:', verifiedComment.id);
+
+            // Create notifications for mentioned users
+            console.log('=== Creating notifications for mentions ===', {
+                hasMentions: !!data.mentions,
+                mentionsType: typeof data.mentions,
+                mentionsIsArray: Array.isArray(data.mentions),
+                mentionsLength: Array.isArray(data.mentions) ? data.mentions.length : 0,
+                mentions: data.mentions,
+                userId: userId,
+                entityType: data.commentableType,
+                entityId: data.commentableId
+            });
+
+            if (data.mentions && Array.isArray(data.mentions) && data.mentions.length > 0) {
+                try {
+                    // Get the user who created the comment
+                    const commenter = await strapi.entityService.findOne('api::xtrawrkx-user.xtrawrkx-user', userId, {
+                        populate: ['primaryRole']
+                    });
+
+                    const commenterName = commenter
+                        ? `${commenter.firstName || ''} ${commenter.lastName || ''}`.trim() || commenter.email || 'Someone'
+                        : 'Someone';
+
+                    // Get entity name for context
+                    let entityName = '';
+                    const entityType = data.commentableType;
+                    const entityId = parseInt(data.commentableId);
+
+                    try {
+                        const entityModelMap = {
+                            'LEAD_COMPANY': 'api::lead-company.lead-company',
+                            'CLIENT_ACCOUNT': 'api::client-account.client-account',
+                            'CONTACT': 'api::contact.contact',
+                            'DEAL': 'api::deal.deal',
+                            'TASK': 'api::task.task',
+                            'SUBTASK': 'api::subtask.subtask'
+                        };
+
+                        const entityModel = entityModelMap[entityType];
+                        if (entityModel) {
+                            const entity = await strapi.entityService.findOne(entityModel, entityId);
+                            if (entity) {
+                                if (entityType === 'LEAD_COMPANY') {
+                                    entityName = entity.companyName || '';
+                                } else if (entityType === 'CLIENT_ACCOUNT') {
+                                    entityName = entity.companyName || entity.name || '';
+                                } else if (entityType === 'CONTACT') {
+                                    entityName = `${entity.firstName || ''} ${entity.lastName || ''}`.trim() || '';
+                                } else if (entityType === 'DEAL') {
+                                    entityName = entity.title || entity.name || '';
+                                } else if (entityType === 'TASK' || entityType === 'SUBTASK') {
+                                    entityName = entity.title || '';
+                                }
+                            }
+                        }
+                    } catch (entityError) {
+                        console.error('Error fetching entity for notification:', entityError);
+                    }
+
+                    // Get commenter's actual user record for proper ID comparison
+                    const commenterUser = await strapi.entityService.findOne('api::xtrawrkx-user.xtrawrkx-user', userId);
+                    const commenterUserId = commenterUser?.id || userId;
+                    const commenterDocumentId = commenterUser?.documentId || null;
+
+                    // Create notification for each mentioned user
+                    for (const mentionedUserId of data.mentions) {
+                        try {
+                            // Verify mentioned user exists - try multiple lookup methods
+                            let mentionedUser = null;
+
+                            // Try documentId first (as string)
+                            if (mentionedUserId) {
+                                mentionedUser = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                                    where: {
+                                        documentId: String(mentionedUserId),
+                                        isActive: true
+                                    }
+                                });
+                            }
+
+                            // Try id as number if documentId lookup failed
+                            const mentionedUserIdNum = typeof mentionedUserId === 'string'
+                                ? parseInt(mentionedUserId, 10)
+                                : mentionedUserId;
+
+                            if (!mentionedUser && !isNaN(mentionedUserIdNum) && mentionedUserIdNum > 0) {
+                                mentionedUser = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                                    where: {
+                                        id: mentionedUserIdNum,
+                                        isActive: true
+                                    }
+                                });
+                            }
+
+                            // Try id as string (fallback)
+                            if (!mentionedUser && String(mentionedUserId)) {
+                                mentionedUser = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                                    where: {
+                                        id: String(mentionedUserId),
+                                        isActive: true
+                                    }
+                                });
+                            }
+
+                            if (!mentionedUser) {
+                                console.warn(`⚠️ Mentioned user not found: ${mentionedUserId} (type: ${typeof mentionedUserId})`);
+                                continue;
+                            }
+
+                            // Compare using actual database IDs (both id and documentId to be safe)
+                            const mentionedUserDbId = mentionedUser.id;
+                            const mentionedUserDocId = mentionedUser.documentId || null;
+
+                            // Skip if mentioned user is the same as commenter
+                            // Compare both database id and documentId
+                            if (mentionedUserDbId === commenterUserId ||
+                                (mentionedUserDocId && commenterDocumentId && mentionedUserDocId === commenterDocumentId) ||
+                                String(mentionedUserDbId) === String(commenterUserId) ||
+                                String(mentionedUserId) === String(userId) ||
+                                String(mentionedUserId) === String(commenterUserId) ||
+                                String(mentionedUserId) === String(commenterDocumentId)) {
+                                console.log(`Skipping notification: mentioned user ${mentionedUserDbId} (${mentionedUser.firstName} ${mentionedUser.lastName}) is the same as commenter ${commenterUserId}`);
+                                continue;
+                            }
+
+                            // Create notification
+                            const notificationMessage = entityName
+                                ? `${commenterName} mentioned you in a comment on ${entityName}`
+                                : `${commenterName} mentioned you in a comment`;
+
+                            const notificationData = {
+                                user: mentionedUserDbId, // Use numeric database ID
+                                type: 'MENTIONED_IN_COMMENT',
+                                title: 'You were mentioned in a comment',
+                                message: notificationMessage,
+                                isRead: false
+                            };
+
+                            console.log('=== Creating notification ===', {
+                                notificationData: notificationData,
+                                mentionedUserDbId: mentionedUserDbId,
+                                mentionedUser: {
+                                    id: mentionedUser.id,
+                                    documentId: mentionedUser.documentId,
+                                    name: `${mentionedUser.firstName || ''} ${mentionedUser.lastName || ''}`
+                                }
+                            });
+
+                            try {
+                                const createdNotification = await strapi.entityService.create('api::notification.notification', {
+                                    data: notificationData
+                                });
+
+                                console.log(`✅ Notification created successfully!`, {
+                                    notificationId: createdNotification.id,
+                                    notificationData: createdNotification,
+                                    userId: mentionedUserDbId,
+                                    userName: `${mentionedUser.firstName || ''} ${mentionedUser.lastName || ''}`,
+                                    message: notificationMessage
+                                });
+
+                                // Verify notification was saved by fetching it back
+                                const verifiedNotification = await strapi.entityService.findOne('api::notification.notification', createdNotification.id, {
+                                    populate: ['user']
+                                });
+
+                                if (verifiedNotification) {
+                                    console.log(`✅ Notification verified in database:`, {
+                                        id: verifiedNotification.id,
+                                        userId: verifiedNotification.user?.id || verifiedNotification.user,
+                                        type: verifiedNotification.type,
+                                        message: verifiedNotification.message
+                                    });
+                                } else {
+                                    console.error(`❌ Notification was created but could not be verified!`);
+                                }
+                            } catch (createError) {
+                                console.error(`❌ Error creating notification:`, {
+                                    error: createError.message,
+                                    stack: createError.stack,
+                                    notificationData: notificationData
+                                });
+                                throw createError;
+                            }
+                        } catch (mentionError) {
+                            console.error(`❌ Error creating notification for mentioned user ${mentionedUserId}:`, mentionError);
+                            // Continue with other mentions even if one fails
+                        }
+                    }
+                } catch (notificationError) {
+                    console.error('Error creating mention notifications:', notificationError);
+                    // Don't fail comment creation if notification fails
+                }
+            }
 
             return { data: verifiedComment };
         } catch (error) {

@@ -34,7 +34,11 @@ const CommentsTab = ({ entityType, entityId }) => {
   const [showFormatting, setShowFormatting] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState({ type: null, id: null, parentId: null });
+  const [deleteTarget, setDeleteTarget] = useState({
+    type: null,
+    id: null,
+    parentId: null,
+  });
 
   // Mention functionality
   const [users, setUsers] = useState([]);
@@ -141,19 +145,19 @@ const CommentsTab = ({ entityType, entityId }) => {
 
         if (entityType === "leadCompany") {
           response = await commentService.getLeadCompanyComments(entityId, {
-            populate: ["user", "replies", "replies.user"],
+            populate: ["user", "replies", "replies.user", "mentions"],
           });
         } else if (entityType === "clientAccount") {
           response = await commentService.getClientAccountComments(entityId, {
-            populate: ["user", "replies", "replies.user"],
+            populate: ["user", "replies", "replies.user", "mentions"],
           });
         } else if (entityType === "deal") {
           response = await commentService.getDealComments(entityId, {
-            populate: ["user", "replies", "replies.user"],
+            populate: ["user", "replies", "replies.user", "mentions"],
           });
-        } else if (entityType === "deal") {
-          response = await commentService.getDealComments(entityId, {
-            populate: ["user", "replies", "replies.user"],
+        } else if (entityType === "contact") {
+          response = await commentService.getContactComments(entityId, {
+            populate: ["user", "replies", "replies.user", "mentions"],
           });
         } else {
           console.warn("Unsupported entity type:", entityType);
@@ -173,7 +177,8 @@ const CommentsTab = ({ entityType, entityId }) => {
 
         // Filter to only root comments (no parent)
         const rootComments = commentsData.filter(
-          (comment) => !comment.parentComment && !comment.attributes?.parentComment
+          (comment) =>
+            !comment.parentComment && !comment.attributes?.parentComment
         );
         const transformedComments = rootComments
           .map(transformComment)
@@ -220,8 +225,10 @@ const CommentsTab = ({ entityType, entityId }) => {
       return { initials: "U", color: "bg-gray-500" };
     }
 
-    const firstName = commentUser.firstName || commentUser.name?.split(" ")[0] || "";
-    const lastName = commentUser.lastName || commentUser.name?.split(" ")[1] || "";
+    const firstName =
+      commentUser.firstName || commentUser.name?.split(" ")[0] || "";
+    const lastName =
+      commentUser.lastName || commentUser.name?.split(" ")[1] || "";
     const initials =
       (firstName.charAt(0) + (lastName?.charAt(0) || "")).toUpperCase() || "U";
 
@@ -257,16 +264,21 @@ const CommentsTab = ({ entityType, entityId }) => {
   });
 
   // Filter users based on mention query
-  const filteredUsersForMention = users.filter((user) => {
-    if (!mentionQuery) return true;
-    const query = mentionQuery.toLowerCase();
-    return (
-      user.name.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      user.firstName.toLowerCase().includes(query) ||
-      user.lastName.toLowerCase().includes(query)
-    );
-  });
+  const filteredUsersForMention = users
+    .filter((user) => {
+      if (!mentionQuery || mentionQuery.trim() === "") {
+        // Show all users when just @ is typed
+        return true;
+      }
+      const query = mentionQuery.toLowerCase().trim();
+      return (
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query) ||
+        user.firstName.toLowerCase().includes(query) ||
+        user.lastName.toLowerCase().includes(query)
+      );
+    })
+    .slice(0, 10); // Limit to 10 users for better performance
 
   // Handle @ mention in textarea
   const handleCommentChange = (e) => {
@@ -278,53 +290,36 @@ const CommentsTab = ({ entityType, entityId }) => {
     const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
     if (lastAtIndex !== -1) {
-      // Check if there's a space after @ (meaning it's not an active mention)
+      // Get text after @ symbol
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
+
+      // Check if there's a space or newline after @ (meaning it's not an active mention)
+      // Also check if there's already a space before @ (to handle cases like "hello @")
+      const hasSpaceAfter =
+        textAfterAt.includes(" ") || textAfterAt.includes("\n");
+      const textBeforeAt = textBeforeCursor.substring(0, lastAtIndex);
+      const hasSpaceBefore =
+        lastAtIndex > 0 && textBeforeAt[textBeforeAt.length - 1] !== " ";
+
+      if (!hasSpaceAfter) {
         // Show mention dropdown
         const query = textAfterAt.toLowerCase();
         setMentionQuery(query);
         setShowMentionDropdown(true);
         setSelectedMentionIndex(0);
 
-        // Calculate dropdown position
-        if (textareaRef.current) {
-          const textarea = textareaRef.current;
-          const rect = textarea.getBoundingClientRect();
-          const style = window.getComputedStyle(textarea);
-          const fontSize = parseFloat(style.fontSize) || 14;
-          const paddingLeft = parseFloat(style.paddingLeft) || 12;
-          const paddingTop = parseFloat(style.paddingTop) || 12;
-          const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.5;
-
-          const lines = textBeforeCursor.split("\n");
-          const currentLine = lines.length - 1;
-          const textInCurrentLine = lines[currentLine];
-
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d");
-          context.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
-          const textWidth = context.measureText(textInCurrentLine).width;
-
-          const leftOffset = paddingLeft + textWidth;
-          const topOffset = paddingTop + currentLine * lineHeight + lineHeight;
-          const scrollTop = textarea.scrollTop || 0;
-
-          const dropdownLeft = Math.min(
-            rect.left + leftOffset + window.scrollX,
-            window.innerWidth - 250
-          );
-
-          setMentionPosition({
-            top: rect.top + topOffset - scrollTop + window.scrollY,
-            left: dropdownLeft,
-          });
-        }
+        // Center the dropdown on the page like other modals
+        setMentionPosition({
+          top: window.innerHeight / 2,
+          left: window.innerWidth / 2,
+        });
       } else {
         setShowMentionDropdown(false);
+        setMentionQuery("");
       }
     } else {
       setShowMentionDropdown(false);
+      setMentionQuery("");
     }
 
     setNewComment(value);
@@ -342,6 +337,7 @@ const CommentsTab = ({ entityType, entityId }) => {
 
     if (lastAtIndex !== -1) {
       const textAfterCursor = value.substring(cursorPosition);
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
 
       // Replace @query with @username
       const newText =
@@ -351,21 +347,40 @@ const CommentsTab = ({ entityType, entityId }) => {
 
       setNewComment(newText);
 
-      // Add user to mentions array
-      if (!mentions.find((m) => m === selectedUser.id)) {
-        setMentions([...mentions, selectedUser.id]);
+      // Add user to mentions array if not already present
+      const userIdToAdd = selectedUser.id || selectedUser.documentId;
+      if (
+        userIdToAdd &&
+        !mentions.find(
+          (m) =>
+            m === userIdToAdd ||
+            m === parseInt(userIdToAdd) ||
+            String(m) === String(userIdToAdd)
+        )
+      ) {
+        console.log("Adding user to mentions:", {
+          userId: userIdToAdd,
+          userName: selectedUser.name,
+          currentMentions: mentions,
+          newMentions: [...mentions, userIdToAdd],
+        });
+        setMentions([...mentions, userIdToAdd]);
       }
+
+      // Close dropdown and reset
+      setShowMentionDropdown(false);
+      setMentionQuery("");
+      setSelectedMentionIndex(0);
 
       // Set cursor position after the mention
       setTimeout(() => {
-        const newCursorPos = lastAtIndex + selectedUser.name.length + 2;
-        textarea.focus();
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
+        if (textareaRef.current) {
+          const newCursorPos = lastAtIndex + selectedUser.name.length + 2;
+          textarea.focus();
+          textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 10);
     }
-
-    setShowMentionDropdown(false);
-    setMentionQuery("");
   };
 
   // Handle keyboard navigation in mention dropdown
@@ -412,6 +427,19 @@ const CommentsTab = ({ entityType, entityId }) => {
     try {
       setSubmitting(true);
 
+      // Log mentions before sending
+      console.log("=== Creating comment with mentions ===", {
+        entityType,
+        entityId,
+        userId,
+        mentions,
+        mentionsCount: mentions.length,
+        mentionsDetails: mentions.map((m) => {
+          const user = users.find((u) => u.id === m || u.id === parseInt(m));
+          return { mentionId: m, userName: user?.name || "Unknown" };
+        }),
+      });
+
       let createdComment;
       try {
         if (entityType === "leadCompany") {
@@ -430,6 +458,13 @@ const CommentsTab = ({ entityType, entityId }) => {
           );
         } else if (entityType === "deal") {
           createdComment = await commentService.createDealComment(
+            entityId,
+            newComment.trim(),
+            userId,
+            mentions
+          );
+        } else if (entityType === "contact") {
+          createdComment = await commentService.createContactComment(
             entityId,
             newComment.trim(),
             userId,
@@ -460,15 +495,19 @@ const CommentsTab = ({ entityType, entityId }) => {
       try {
         if (entityType === "leadCompany") {
           response = await commentService.getLeadCompanyComments(entityId, {
-            populate: ["user", "replies", "replies.user"],
+            populate: ["user", "replies", "replies.user", "mentions"],
           });
         } else if (entityType === "clientAccount") {
           response = await commentService.getClientAccountComments(entityId, {
-            populate: ["user", "replies", "replies.user"],
+            populate: ["user", "replies", "replies.user", "mentions"],
           });
         } else if (entityType === "deal") {
           response = await commentService.getDealComments(entityId, {
-            populate: ["user", "replies", "replies.user"],
+            populate: ["user", "replies", "replies.user", "mentions"],
+          });
+        } else if (entityType === "contact") {
+          response = await commentService.getContactComments(entityId, {
+            populate: ["user", "replies", "replies.user", "mentions"],
           });
         }
       } catch (reloadError) {
@@ -486,7 +525,8 @@ const CommentsTab = ({ entityType, entityId }) => {
       }
 
       const rootComments = commentsData.filter(
-        (comment) => !comment.parentComment && !comment.attributes?.parentComment
+        (comment) =>
+          !comment.parentComment && !comment.attributes?.parentComment
       );
       const transformedComments = rootComments
         .map(transformComment)
@@ -524,7 +564,11 @@ const CommentsTab = ({ entityType, entityId }) => {
       setSubmitting(true);
       const userId = user?.documentId || user?.id || user?.data?.id;
 
-      await commentService.replyToComment(parentCommentId, replyContent, userId);
+      await commentService.replyToComment(
+        parentCommentId,
+        replyContent,
+        userId
+      );
 
       // Reload comments
       let response;
@@ -540,6 +584,10 @@ const CommentsTab = ({ entityType, entityId }) => {
         response = await commentService.getDealComments(entityId, {
           populate: ["user", "replies", "replies.user"],
         });
+      } else if (entityType === "contact") {
+        response = await commentService.getContactComments(entityId, {
+          populate: ["user", "replies", "replies.user"],
+        });
       }
 
       // Handle different response structures
@@ -553,7 +601,8 @@ const CommentsTab = ({ entityType, entityId }) => {
       }
 
       const rootComments = commentsData.filter(
-        (comment) => !comment.parentComment && !comment.attributes?.parentComment
+        (comment) =>
+          !comment.parentComment && !comment.attributes?.parentComment
       );
       const transformedComments = rootComments
         .map(transformComment)
@@ -596,6 +645,10 @@ const CommentsTab = ({ entityType, entityId }) => {
         response = await commentService.getDealComments(entityId, {
           populate: ["user", "replies", "replies.user"],
         });
+      } else if (entityType === "contact") {
+        response = await commentService.getContactComments(entityId, {
+          populate: ["user", "replies", "replies.user"],
+        });
       }
 
       // Handle different response structures
@@ -609,7 +662,8 @@ const CommentsTab = ({ entityType, entityId }) => {
       }
 
       const rootComments = commentsData.filter(
-        (comment) => !comment.parentComment && !comment.attributes?.parentComment
+        (comment) =>
+          !comment.parentComment && !comment.attributes?.parentComment
       );
       const transformedComments = rootComments
         .map(transformComment)
@@ -658,6 +712,78 @@ const CommentsTab = ({ entityType, entityId }) => {
     } finally {
       setDeletingCommentId(null);
     }
+  };
+
+  // Render comment content with highlighted mentions
+  const renderCommentContent = (content, mentions) => {
+    if (!content) return null;
+
+    // Create a map of user IDs to user names for quick lookup
+    const mentionMap = new Map();
+    if (mentions && Array.isArray(mentions)) {
+      mentions.forEach((mentionId) => {
+        const mentionedUser = users.find(
+          (u) => u.id === mentionId || u.id === parseInt(mentionId)
+        );
+        if (mentionedUser) {
+          mentionMap.set(mentionId.toString(), mentionedUser.name);
+          mentionMap.set(parseInt(mentionId).toString(), mentionedUser.name);
+        }
+      });
+    }
+
+    // Split content by @mentions and create JSX elements
+    const parts = [];
+    let lastIndex = 0;
+    const mentionRegex = /@(\w+(?:\s+\w+)*)/g;
+    let match;
+
+    while ((match = mentionRegex.exec(content)) !== null) {
+      // Add text before mention
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`text-${lastIndex}`}>
+            {content.substring(lastIndex, match.index)}
+          </span>
+        );
+      }
+
+      const mentionText = match[1];
+      // Check if this mention matches any user in the mentions array
+      const isMentioned = Array.from(mentionMap.values()).some(
+        (name) => name.toLowerCase() === mentionText.toLowerCase()
+      );
+
+      if (isMentioned) {
+        // Highlight the mention
+        parts.push(
+          <span
+            key={`mention-${match.index}`}
+            className="font-semibold text-blue-600 bg-blue-50 px-1 rounded"
+          >
+            {match[0]}
+          </span>
+        );
+      } else {
+        // Regular @mention that's not in the mentions array
+        parts.push(
+          <span key={`mention-${match.index}`} className="text-blue-500">
+            {match[0]}
+          </span>
+        );
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push(
+        <span key={`text-${lastIndex}`}>{content.substring(lastIndex)}</span>
+      );
+    }
+
+    return parts.length > 0 ? parts : content;
   };
 
   const currentUserDisplay = getUserDisplay(user);
@@ -740,9 +866,13 @@ const CommentsTab = ({ entityType, entityId }) => {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900">
-                          {comment.user?.name || comment.author || "Unknown User"}
+                          {comment.user?.name ||
+                            comment.author ||
+                            "Unknown User"}
                         </span>
-                        <span className="text-xs text-gray-500">{timestamp}</span>
+                        <span className="text-xs text-gray-500">
+                          {timestamp}
+                        </span>
                       </div>
                       {/* Delete Button */}
                       <button
@@ -766,7 +896,10 @@ const CommentsTab = ({ entityType, entityId }) => {
                     {/* Comment Content */}
                     <div className="bg-gray-50 rounded-lg p-3 mb-2">
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {comment.content}
+                        {renderCommentContent(
+                          comment.content,
+                          comment.mentions
+                        )}
                       </p>
                     </div>
 
@@ -891,12 +1024,17 @@ const CommentsTab = ({ entityType, entityId }) => {
                                     ) : (
                                       <Trash2 className="w-3 h-3" />
                                     )}
-                                    <span className="hidden sm:inline">Delete</span>
+                                    <span className="hidden sm:inline">
+                                      Delete
+                                    </span>
                                   </button>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-2">
                                   <p className="text-xs text-gray-700 whitespace-pre-wrap">
-                                    {reply.content}
+                                    {renderCommentContent(
+                                      reply.content,
+                                      reply.mentions
+                                    )}
                                   </p>
                                 </div>
                               </div>
@@ -951,8 +1089,59 @@ const CommentsTab = ({ entityType, entityId }) => {
                   </button>
                   <div className="w-px h-4 bg-gray-300" />
                   <button
-                    className="p-1.5 hover:bg-gray-100 rounded text-gray-600"
-                    title="Mention"
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (textareaRef.current) {
+                        const textarea = textareaRef.current;
+                        const currentValue = newComment;
+                        const cursorPos =
+                          textarea.selectionStart || currentValue.length;
+                        const newValue =
+                          currentValue.substring(0, cursorPos) +
+                          "@" +
+                          currentValue.substring(cursorPos);
+                        setNewComment(newValue);
+                        // Focus and set cursor after @
+                        setTimeout(() => {
+                          if (textareaRef.current) {
+                            textarea.focus();
+                            const newCursorPos = cursorPos + 1;
+                            textarea.setSelectionRange(
+                              newCursorPos,
+                              newCursorPos
+                            );
+                            // Manually trigger the mention dropdown logic
+                            const textBeforeCursor = newValue.substring(
+                              0,
+                              newCursorPos
+                            );
+                            const lastAtIndex =
+                              textBeforeCursor.lastIndexOf("@");
+                            if (lastAtIndex !== -1) {
+                              const textAfterAt = textBeforeCursor.substring(
+                                lastAtIndex + 1
+                              );
+                              if (
+                                !textAfterAt.includes(" ") &&
+                                !textAfterAt.includes("\n")
+                              ) {
+                                setMentionQuery("");
+                                setShowMentionDropdown(true);
+                                setSelectedMentionIndex(0);
+                                // Center the dropdown on the page like other modals
+                                setMentionPosition({
+                                  top: window.innerHeight / 2,
+                                  left: window.innerWidth / 2,
+                                });
+                              }
+                            }
+                          }
+                        }, 10);
+                      }
+                    }}
+                    className="p-1.5 hover:bg-gray-100 rounded text-gray-600 transition-colors"
+                    title="Mention someone (@)"
                   >
                     <AtSign className="w-4 h-4" />
                   </button>
@@ -1002,40 +1191,76 @@ const CommentsTab = ({ entityType, entityId }) => {
                   }}
                 />
 
-                {/* Mention Dropdown */}
-                {showMentionDropdown && filteredUsersForMention.length > 0 && (
-                  <div
-                    ref={mentionDropdownRef}
-                    className="fixed z-[10000] bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto min-w-[200px]"
-                    style={{
-                      top: `${mentionPosition.top}px`,
-                      left: `${mentionPosition.left}px`,
-                    }}
-                  >
-                    <div className="p-1">
-                      {filteredUsersForMention.map((user, index) => (
-                        <button
-                          key={user.id}
-                          onClick={() => insertMention(user)}
-                          className={`w-full text-left px-3 py-2 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2 ${
-                            index === selectedMentionIndex ? "bg-blue-50" : ""
-                          }`}
-                        >
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                            {user.name.charAt(0).toUpperCase()}
+                {/* Mention Dropdown - Centered Modal */}
+                {showMentionDropdown && (
+                  <>
+                    {/* Backdrop */}
+                    <div
+                      className="fixed inset-0"
+                      onClick={() => {
+                        setShowMentionDropdown(false);
+                        setMentionQuery("");
+                      }}
+                    />
+                    {/* Modal */}
+                    <div
+                      ref={mentionDropdownRef}
+                      className="fixed z-[10000] bg-white border border-gray-200 rounded-xl shadow-2xl max-h-[60vh] overflow-y-auto w-full max-w-md"
+                      style={{
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      {filteredUsersForMention.length > 0 ? (
+                        <div className="p-1">
+                          <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                            Mention someone
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate">
-                              {user.name}
-                            </div>
-                            <div className="text-xs text-gray-500 truncate">
-                              {user.email}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                          {filteredUsersForMention.map((user, index) => (
+                            <button
+                              key={user.id}
+                              onClick={() => insertMention(user)}
+                              onMouseEnter={() =>
+                                setSelectedMentionIndex(index)
+                              }
+                              className={`w-full text-left px-3 py-2 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2 ${
+                                index === selectedMentionIndex
+                                  ? "bg-blue-50"
+                                  : ""
+                              }`}
+                            >
+                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm">
+                                {user.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {user.name}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {user.email}
+                                </div>
+                              </div>
+                              {index === selectedMentionIndex && (
+                                <div className="text-blue-500">
+                                  <AtSign className="w-4 h-4" />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center">
+                          <p className="text-sm text-gray-500">
+                            No users found
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Try typing a name or email
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
 
@@ -1107,7 +1332,8 @@ const CommentsTab = ({ entityType, entityId }) => {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Delete {deleteTarget.type === "comment" ? "Comment" : "Reply"}?
+                      Delete{" "}
+                      {deleteTarget.type === "comment" ? "Comment" : "Reply"}?
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">
                       This action cannot be undone.
@@ -1125,8 +1351,8 @@ const CommentsTab = ({ entityType, entityId }) => {
                 <div className="mb-6">
                   <p className="text-sm text-gray-700">
                     Are you sure you want to delete this{" "}
-                    {deleteTarget.type === "comment" ? "comment" : "reply"}? This
-                    action cannot be undone and will permanently remove it.
+                    {deleteTarget.type === "comment" ? "comment" : "reply"}?
+                    This action cannot be undone and will permanently remove it.
                   </p>
                 </div>
 
@@ -1167,4 +1393,3 @@ const CommentsTab = ({ entityType, entityId }) => {
 };
 
 export default CommentsTab;
-

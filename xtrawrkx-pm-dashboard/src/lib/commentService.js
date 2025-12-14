@@ -70,7 +70,7 @@ class CommentService {
             page = 1,
             pageSize = 100,
             sort = 'createdAt:asc',
-            populate = ['user', 'parentComment', 'replies', 'replies.user']
+            populate = ['user', 'parentComment', 'replies', 'replies.user', 'mentions']
         } = options;
 
         try {
@@ -102,7 +102,7 @@ class CommentService {
             page = 1,
             pageSize = 100,
             sort = 'createdAt:asc',
-            populate = ['user', 'parentComment', 'replies', 'replies.user']
+            populate = ['user', 'parentComment', 'replies', 'replies.user', 'mentions']
         } = options;
 
         try {

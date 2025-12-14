@@ -72,6 +72,7 @@ export default function LeadCompanyDetailPage() {
   const [showAddDealModal, setShowAddDealModal] = useState(false);
   const [showAddProposalModal, setShowAddProposalModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const [contactFormData, setContactFormData] = useState({
     firstName: "",
     lastName: "",
@@ -898,6 +899,11 @@ export default function LeadCompanyDetailPage() {
   };
 
   const handleConvertToClient = async () => {
+    if (!company) return;
+    
+    // Set loading state
+    setIsConverting(true);
+    
     try {
       await leadCompanyService.convertToClient(company.id);
       setShowConvertModal(false);
@@ -905,14 +911,15 @@ export default function LeadCompanyDetailPage() {
       // Show confetti animation
       setShowConfetti(true);
 
-      // Hide confetti after animation
+      // Hide confetti after animation and redirect
       setTimeout(() => {
         setShowConfetti(false);
         // Redirect to client accounts list page
         router.push("/clients/accounts");
-      }, 3000);
+      }, 3500);
     } catch (error) {
       console.error("Error converting to client:", error);
+      setIsConverting(false);
       alert("Failed to convert to client. Please try again.");
     }
   };
@@ -1159,7 +1166,7 @@ export default function LeadCompanyDetailPage() {
 
   return (
     <div className="min-h-screen bg-white relative">
-      {/* Confetti Animation */}
+      {/* Enhanced Confetti Animation */}
       {showConfetti && (
         <>
           <style
@@ -1167,19 +1174,27 @@ export default function LeadCompanyDetailPage() {
               __html: `
               @keyframes confetti-fall {
                 0% {
-                  transform: translateY(0) rotate(0deg);
+                  transform: translateY(-10px) rotate(0deg) scale(1);
+                  opacity: 1;
+                }
+                50% {
                   opacity: 1;
                 }
                 100% {
-                  transform: translateY(100vh) rotate(720deg);
+                  transform: translateY(110vh) rotate(720deg) scale(0.5);
                   opacity: 0;
                 }
+              }
+              @keyframes confetti-spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
               }
             `,
             }}
           />
           <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-            {[...Array(100)].map((_, i) => {
+            {/* Enhanced Confetti Particles */}
+            {[...Array(150)].map((_, i) => {
               const colors = [
                 "#FF6B6B",
                 "#4ECDC4",
@@ -1189,17 +1204,23 @@ export default function LeadCompanyDetailPage() {
                 "#F7DC6F",
                 "#BB8FCE",
                 "#85C1E2",
+                "#10B981",
+                "#F59E0B",
+                "#EF4444",
+                "#8B5CF6",
               ];
               const color = colors[Math.floor(Math.random() * colors.length)];
               const left = Math.random() * 100;
-              const delay = Math.random() * 3;
-              const duration = 3 + Math.random() * 2;
-              const size = 10 + Math.random() * 10;
+              const delay = Math.random() * 2;
+              const duration = 2.5 + Math.random() * 2;
+              const size = 8 + Math.random() * 12;
+              const shape = Math.random() > 0.5 ? 'rounded-full' : 'rounded-sm';
+              const rotation = Math.random() * 360;
 
               return (
                 <div
                   key={i}
-                  className="absolute rounded-full"
+                  className={`absolute ${shape}`}
                   style={{
                     left: `${left}%`,
                     top: "-10px",
@@ -1207,29 +1228,13 @@ export default function LeadCompanyDetailPage() {
                     height: `${size}px`,
                     backgroundColor: color,
                     animation: `confetti-fall ${duration}s ease-out ${delay}s forwards`,
-                    transform: `rotate(${Math.random() * 360}deg)`,
+                    transform: `rotate(${rotation}deg)`,
+                    boxShadow: `0 0 ${size/2}px ${color}40`,
                   }}
                 />
               );
             })}
 
-            {/* Success Message Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-              <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 border-2 border-green-500 animate-bounce">
-                <div className="text-center">
-                  <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                    🎉 Successfully Converted!
-                  </h2>
-                  <p className="text-lg text-gray-600">
-                    {company.name} has been converted to a client account
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Redirecting to client accounts...
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </>
       )}
@@ -2004,10 +2009,20 @@ export default function LeadCompanyDetailPage() {
               </Button>
               <Button
                 onClick={handleConvertToClient}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
+                disabled={isConverting}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
               >
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Convert to Client
+                {isConverting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Converting...</span>
+                  </div>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Convert to Client
+                  </>
+                )}
               </Button>
             </div>
           </div>

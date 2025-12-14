@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,10 +18,13 @@ import {
   Share,
   Bell,
   Image,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import { Card } from "./ui";
 import { useAuth } from "../contexts/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
+import notificationService from "../lib/api/notificationService";
 
 export default function PageHeader({
   title,
@@ -44,8 +47,79 @@ export default function PageHeader({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const notificationDropdownRef = useRef(null);
+
+  // Get current user ID - try multiple formats
+  const getCurrentUserId = () => {
+    if (!user) return null;
+    const userData = user.attributes || user;
+    // Try numeric id first, then documentId
+    const userId = userData.id || user.id;
+    const documentId = userData.documentId || user.documentId;
+    
+    // Prefer numeric id, fallback to documentId
+    return userId || documentId || null;
+  };
+
+  // Load notifications
+  useEffect(() => {
+    const loadNotifications = async () => {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      try {
+        setLoadingNotifications(true);
+        console.log('Loading notifications for user:', userId);
+        const notificationsData = await notificationService.getNotifications(userId);
+        console.log('Raw notifications data:', notificationsData);
+        const transformed = notificationsData.map(notificationService.transformNotification);
+        console.log('Transformed notifications:', transformed);
+        setNotifications(transformed);
+        setUnreadCount(transformed.filter(n => !n.isRead).length);
+        console.log(`Loaded ${transformed.length} notifications, ${transformed.filter(n => !n.isRead).length} unread`);
+      } catch (error) {
+        console.error("Error loading notifications:", error);
+        console.error("Error details:", {
+          message: error.message,
+          stack: error.stack,
+          userId: userId
+        });
+      } finally {
+        setLoadingNotifications(false);
+      }
+    };
+
+    loadNotifications();
+
+    // Poll for new notifications every 30 seconds
+    const pollInterval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(pollInterval);
+  }, [user]);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        notificationDropdownRef.current &&
+        !notificationDropdownRef.current.contains(event.target)
+      ) {
+        setShowNotificationDropdown(false);
+      }
+    };
+
+    if (showNotificationDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [showNotificationDropdown]);
 
   // Handle keyboard shortcut (Cmd/Ctrl + K) to open global search
   useEffect(() => {
@@ -66,6 +140,33 @@ export default function PageHeader({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showSearch, showGlobalSearch]);
+
+  // Handle mark notification as read
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await notificationService.markAsRead(notificationId);
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  // Handle mark all as read
+  const handleMarkAllAsRead = async () => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+
+    try {
+      await notificationService.markAllAsRead(userId);
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
+  };
 
   const getUserInitials = () => {
     if (!user) {
@@ -202,9 +303,12 @@ export default function PageHeader({
             // Fallback: use item as label, try to construct href
             return { label: item, href: "#" };
           }
-          // If it's already an object, ensure it has href
+          // If it's already an object, ensure it has href and label is a string
+          const label = typeof item.label === 'string' 
+            ? item.label 
+            : (typeof item === 'string' ? item : '');
           return {
-            label: item.label || item,
+            label: label || 'Page',
             href: item.href || "#",
           };
         })
@@ -230,14 +334,14 @@ export default function PageHeader({
                 <div key={index} className="flex items-center gap-2">
                   {index === breadcrumbItems.length - 1 ? (
                     <span className="text-brand-foreground font-medium">
-                      {item.label}
+                      {typeof item.label === 'string' ? item.label : String(item.label || '')}
                     </span>
                   ) : (
                     <Link
-                      href={item.href}
+                      href={item.href || '#'}
                       className="text-brand-text-light hover:text-brand-foreground transition-colors duration-200 cursor-pointer"
                     >
-                      {item.label}
+                      {typeof item.label === 'string' ? item.label : String(item.label || '')}
                     </Link>
                   )}
                   {index < breadcrumbItems.length - 1 && (
@@ -373,9 +477,103 @@ export default function PageHeader({
           </div>
         )}
 
-        {/* User Profile */}
+        {/* Notifications & User Profile */}
         {showProfile && (
-          <div className="flex items-center ml-4">
+          <div className="flex items-center gap-3 ml-4">
+            {/* Notification Button */}
+            <div className="relative" ref={notificationDropdownRef}>
+              <button
+                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                className="relative p-2.5 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5 text-brand-text-light" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white/95 shadow-sm">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {showNotificationDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-[99998]"
+                    onClick={() => setShowNotificationDropdown(false)}
+                  />
+                  <div
+                    className="fixed right-6 top-20 w-96 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/30 z-[99999] max-h-[600px] flex flex-col"
+                    style={{ zIndex: 99999 }}
+                  >
+                    {/* Header */}
+                    <div className="p-4 border-b border-white/20 flex items-center justify-between">
+                      <h3 className="font-semibold text-brand-foreground">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllAsRead}
+                          className="text-xs text-brand-primary hover:text-brand-primary/80 flex items-center gap-1"
+                        >
+                          <CheckCheck className="w-3 h-3" />
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Notifications List */}
+                    <div className="flex-1 overflow-y-auto">
+                      {loadingNotifications ? (
+                        <div className="p-8 text-center text-brand-text-light">
+                          <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                          <p className="text-sm">Loading notifications...</p>
+                        </div>
+                      ) : notifications.length === 0 ? (
+                        <div className="p-8 text-center text-brand-text-light">
+                          <Bell className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No notifications</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {notifications.map((notification) => (
+                            <button
+                              key={notification.id}
+                              onClick={() => handleMarkAsRead(notification.id)}
+                              className={`w-full text-left p-4 hover:bg-brand-hover transition-colors ${
+                                !notification.isRead ? "bg-blue-50/50" : ""
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                                  !notification.isRead ? "bg-blue-500" : "bg-transparent"
+                                }`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium ${
+                                    !notification.isRead ? "text-brand-foreground" : "text-brand-text-light"
+                                  }`}>
+                                    {notification.title}
+                                  </p>
+                                  <p className="text-xs text-brand-text-light mt-1 line-clamp-2">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-xs text-brand-text-light mt-2">
+                                    {notification.timeAgo}
+                                  </p>
+                                </div>
+                                {!notification.isRead && (
+                                  <Check className="w-4 h-4 text-blue-500 flex-shrink-0 mt-1" />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* User Profile */}
             <div className="relative">
               <button
                 className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"

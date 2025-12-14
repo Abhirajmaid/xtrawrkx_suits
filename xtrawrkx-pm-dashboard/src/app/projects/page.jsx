@@ -20,6 +20,10 @@ import {
   UserMinus,
   FileText,
   FileSpreadsheet,
+  Edit,
+  Trash2,
+  Archive,
+  MoreVertical,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -66,6 +70,9 @@ export default function ProjectsPage() {
   const [allUsers, setAllUsers] = useState([]);
   const [toastMessage, setToastMessage] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  const [loadingActions, setLoadingActions] = useState({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -721,7 +728,7 @@ export default function ProjectsPage() {
       key: "actions",
       label: "ACTIONS",
       render: (_, project) => (
-        <div className="flex items-center gap-1 min-w-[120px]">
+        <div className="flex items-center gap-1 min-w-[180px]">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -731,6 +738,36 @@ export default function ProjectsPage() {
             title="View Project"
           >
             <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditProject(project);
+            }}
+            className="p-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded transition-colors"
+            title="Edit Project"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleArchiveProject(project);
+            }}
+            className="p-1.5 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded transition-colors"
+            title="Archive Project"
+          >
+            <Archive className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteClick(project);
+            }}
+            className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+            title="Delete Project"
+          >
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       ),
@@ -742,6 +779,97 @@ export default function ProjectsPage() {
       router.push(`/projects/${project.slug}`);
     } else if (project?.id) {
       router.push(`/projects/${project.id}`);
+    }
+  };
+
+  // Handle edit project
+  const handleEditProject = (project) => {
+    if (project?.slug) {
+      router.push(`/projects/${project.slug}/edit`);
+    } else if (project?.id) {
+      router.push(`/projects/${project.id}/edit`);
+    }
+  };
+
+  // Handle archive project
+  const handleArchiveProject = async (project) => {
+    try {
+      // Update project status to archived
+      await projectService.updateProject(project.id, {
+        status: "ARCHIVED",
+      });
+      
+      // Update local state
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === project.id ? { ...p, status: "ARCHIVED" } : p
+        )
+      );
+      
+      setToastMessage("Project archived successfully");
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
+    } catch (error) {
+      console.error("Error archiving project:", error);
+      setToastMessage("Failed to archive project. Please try again.");
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
+    }
+  };
+
+  // Handle delete click - open confirmation modal
+  const handleDeleteClick = (project) => {
+    setProjectToDelete(project);
+    setShowDeleteModal(true);
+  };
+
+  // Handle delete project
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+
+    const loadingKey = `${projectToDelete.id}-delete`;
+    setLoadingActions((prev) => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      console.log(`Deleting project ${projectToDelete.id}`);
+
+      // Delete the project via API
+      await projectService.deleteProject(projectToDelete.id);
+
+      // Remove from local state
+      setProjects((prev) =>
+        prev.filter((project) => project.id !== projectToDelete.id)
+      );
+
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setProjectToDelete(null);
+
+      // Show success message
+      setToastMessage("Project deleted successfully");
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
+
+      console.log("Project deleted successfully");
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      setToastMessage("Failed to delete project. Please try again.");
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setToastMessage("");
+      }, 3000);
+    } finally {
+      setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -1445,6 +1573,75 @@ export default function ProjectsPage() {
         users={allUsers}
         appliedFilters={appliedFilters}
       />
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && projectToDelete && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-2xl border border-white/40 shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Delete Project
+                </h3>
+                <p className="text-sm text-gray-500">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-3">
+                Are you sure you want to delete{" "}
+                <strong>{projectToDelete.name || projectToDelete.title}</strong>?
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700 font-medium mb-2">
+                  ⚠️ This will permanently delete:
+                </p>
+                <ul className="text-sm text-red-600 space-y-1">
+                  <li>• Project information and details</li>
+                  <li>• All associated tasks and subtasks</li>
+                  <li>• Team member assignments</li>
+                  <li>• Project timeline and milestones</li>
+                  <li>• All project-related data</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setProjectToDelete(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                disabled={loadingActions[`${projectToDelete.id}-delete`]}
+                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300 rounded-lg font-medium flex items-center justify-center gap-2"
+              >
+                {loadingActions[`${projectToDelete.id}-delete`] ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Project
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast Messages */}
       {showSuccessMessage && toastMessage && (

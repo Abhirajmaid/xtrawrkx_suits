@@ -13,7 +13,7 @@ class CommentService {
             page = 1,
             pageSize = 100,
             sort = 'createdAt:asc',
-            populate = ['user', 'parentComment', 'replies', 'replies.user']
+            populate = ['user', 'parentComment', 'replies', 'replies.user', 'mentions']
         } = options;
 
         try {
@@ -45,7 +45,7 @@ class CommentService {
             page = 1,
             pageSize = 100,
             sort = 'createdAt:asc',
-            populate = ['user', 'parentComment', 'replies', 'replies.user']
+            populate = ['user', 'parentComment', 'replies', 'replies.user', 'mentions']
         } = options;
 
         try {
@@ -133,7 +133,7 @@ class CommentService {
             page = 1,
             pageSize = 100,
             sort = 'createdAt:asc',
-            populate = ['user', 'parentComment', 'replies', 'replies.user']
+            populate = ['user', 'parentComment', 'replies', 'replies.user', 'mentions']
         } = options;
 
         try {
@@ -178,6 +178,66 @@ class CommentService {
             return response.data || response;
         } catch (error) {
             console.error(`Error creating deal comment for ${dealId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get comments for a contact
+     * @param {string|number} contactId - Contact ID
+     * @param {Object} options - Query options
+     * @returns {Promise<Object>} - Comments data
+     */
+    async getContactComments(contactId, options = {}) {
+        const {
+            page = 1,
+            pageSize = 100,
+            sort = 'createdAt:asc',
+            populate = ['user', 'parentComment', 'replies', 'replies.user', 'mentions']
+        } = options;
+
+        try {
+            const params = {
+                'pagination[page]': page,
+                'pagination[pageSize]': pageSize,
+                sort,
+                populate: populate.join(','),
+                'filters[commentableType][$eq]': 'CONTACT',
+                'filters[commentableId][$eq]': contactId.toString()
+            };
+
+            const response = await strapiClient.get('/task-comments', params);
+            return response;
+        } catch (error) {
+            console.error(`Error fetching comments for contact ${contactId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Create comment for contact
+     * @param {string|number} contactId - Contact ID
+     * @param {string} content - Comment content
+     * @param {string|number} userId - User ID
+     * @param {Array} mentions - Array of mentioned user IDs
+     * @returns {Promise<Object>} - Created comment data
+     */
+    async createContactComment(contactId, content, userId, mentions = []) {
+        try {
+            const commentData = {
+                commentableType: 'CONTACT',
+                commentableId: contactId.toString(),
+                content,
+                user: userId,
+                mentions: mentions.length > 0 ? mentions : null
+            };
+
+            const response = await strapiClient.post('/task-comments', {
+                data: commentData
+            });
+            return response.data || response;
+        } catch (error) {
+            console.error(`Error creating contact comment for ${contactId}:`, error);
             throw error;
         }
     }

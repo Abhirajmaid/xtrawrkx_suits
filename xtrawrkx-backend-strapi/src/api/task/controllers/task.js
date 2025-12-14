@@ -550,6 +550,70 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 }
             });
 
+            // Create notification for assigned user if task has an assignee
+            if (assigneeId && assigneeId !== userRelationIdNum) {
+                try {
+                    const assignee = await strapi.entityService.findOne('api::xtrawrkx-user.xtrawrkx-user', assigneeId);
+                    const creator = await strapi.entityService.findOne('api::xtrawrkx-user.xtrawrkx-user', userRelationIdNum);
+
+                    if (assignee && creator) {
+                        const creatorName = `${creator.firstName || ''} ${creator.lastName || ''}`.trim() || creator.email || 'Someone';
+                        const taskTitle = populatedTask.title || 'a task';
+
+                        const notificationData = {
+                            user: assigneeId,
+                            type: 'TASK_ASSIGNED',
+                            title: 'New task assigned to you',
+                            message: `${creatorName} assigned you the task: ${taskTitle}`,
+                            isRead: false
+                        };
+
+                        console.log('=== Creating task assignment notification ===', {
+                            notificationData: notificationData,
+                            assigneeId: assigneeId,
+                            assignee: {
+                                id: assignee.id,
+                                name: `${assignee.firstName || ''} ${assignee.lastName || ''}`
+                            }
+                        });
+
+                        try {
+                            const createdNotification = await strapi.entityService.create('api::notification.notification', {
+                                data: notificationData
+                            });
+
+                            console.log(`✅ Task assignment notification created successfully!`, {
+                                notificationId: createdNotification.id,
+                                userId: assigneeId,
+                                message: notificationData.message
+                            });
+
+                            // Verify notification was saved
+                            const verifiedNotification = await strapi.entityService.findOne('api::notification.notification', createdNotification.id, {
+                                populate: ['user']
+                            });
+
+                            if (verifiedNotification) {
+                                console.log(`✅ Task notification verified in database:`, {
+                                    id: verifiedNotification.id,
+                                    userId: verifiedNotification.user?.id || verifiedNotification.user
+                                });
+                            }
+                        } catch (notificationError) {
+                            console.error('❌ Error creating task assignment notification:', {
+                                error: notificationError.message,
+                                stack: notificationError.stack,
+                                notificationData: notificationData
+                            });
+                            throw notificationError;
+                        }
+                    }
+                } catch (notificationError) {
+                    console.error('Error creating task assignment notification:', notificationError);
+                    // Don't fail task creation if notification fails
+                }
+            }
+
             return { data: populatedTask };
         } catch (error) {
             console.error('Error creating task:', error);
@@ -777,6 +841,65 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 }
             });
 
+            // Create notification if assignee changed
+            if (data.assignee !== undefined && updatedTask.assignee) {
+                const newAssigneeId = typeof updatedTask.assignee === 'object'
+                    ? updatedTask.assignee.id
+                    : updatedTask.assignee;
+                const oldAssigneeId = existingTask.assignee
+                    ? (typeof existingTask.assignee === 'object' ? existingTask.assignee.id : existingTask.assignee)
+                    : null;
+
+                // Only create notification if assignee actually changed and is different from creator
+                if (newAssigneeId && newAssigneeId !== oldAssigneeId) {
+                    try {
+                        const assignee = await strapi.entityService.findOne('api::xtrawrkx-user.xtrawrkx-user', newAssigneeId);
+                        const creator = updatedTask.creator
+                            ? (typeof updatedTask.creator === 'object' ? updatedTask.creator : await strapi.entityService.findOne('api::xtrawrkx-user.xtrawrkx-user', updatedTask.creator))
+                            : null;
+
+                        if (assignee && creator) {
+                            const creatorId = typeof creator === 'object' ? creator.id : creator;
+                            const creatorRecord = typeof creator === 'object' ? creator : await strapi.entityService.findOne('api::xtrawrkx-user.xtrawrkx-user', creatorId);
+
+                            // Normalize IDs for comparison (handle both string and number)
+                            const newAssigneeIdNum = typeof newAssigneeId === 'string'
+                                ? parseInt(newAssigneeId, 10)
+                                : newAssigneeId;
+                            const creatorIdNum = typeof creatorId === 'string'
+                                ? parseInt(creatorId, 10)
+                                : creatorId;
+
+                            // Don't notify if assigning to self (compare both as numbers and strings)
+                            if (newAssigneeIdNum !== creatorIdNum &&
+                                newAssigneeId !== creatorId &&
+                                String(newAssigneeId) !== String(creatorId)) {
+                                const creatorName = creatorRecord
+                                    ? `${creatorRecord.firstName || ''} ${creatorRecord.lastName || ''}`.trim() || creatorRecord.email || 'Someone'
+                                    : 'Someone';
+                                const taskTitle = updatedTask.title || 'a task';
+
+                                await strapi.entityService.create('api::notification.notification', {
+                                    data: {
+                                        user: newAssigneeIdNum || newAssigneeId,
+                                        type: 'TASK_ASSIGNED',
+                                        title: 'Task assigned to you',
+                                        message: `${creatorName} assigned you the task: ${taskTitle}`,
+                                        isRead: false
+                                    }
+                                });
+
+                                console.log(`✅ Notification created for newly assigned user ${newAssigneeIdNum || newAssigneeId} (${assignee.firstName} ${assignee.lastName})`);
+                            } else {
+                                console.log(`Skipping notification: assigning task to self (assignee: ${newAssigneeId}, creator: ${creatorId})`);
+                            }
+                        }
+                    } catch (notificationError) {
+                        console.error('Error creating task assignment notification:', notificationError);
+                        // Don't fail task update if notification fails
+                    }
+                }
+            }
 
             return { data: updatedTask };
         } catch (error) {

@@ -99,6 +99,8 @@ export default function LeadCompaniesPage() {
   const [companyToDelete, setCompanyToDelete] = useState(null);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [companyToConvert, setCompanyToConvert] = useState(null);
+  const [showConvertSuccess, setShowConvertSuccess] = useState(false);
+  const [convertedCompanyName, setConvertedCompanyName] = useState("");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [companyToAssign, setCompanyToAssign] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -1000,18 +1002,39 @@ export default function LeadCompaniesPage() {
       );
       console.log("Conversion response:", response);
 
+      // Store company name for success animation
+      const companyName = companyToConvert.companyName;
+
+      // Close modal first
+      setShowConvertModal(false);
+      setCompanyToConvert(null);
+
+      // Show success animation
+      setConvertedCompanyName(companyName);
+      setShowConvertSuccess(true);
+
+      // Show toast notification
+      toast.success(
+        `Lead company "${companyName}" successfully converted to client account!`,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+
       // Refresh the lead companies list and stats
       await fetchLeadCompanies();
       await fetchStats();
 
-      // Close modal and reset state
-      setShowConvertModal(false);
-      setCompanyToConvert(null);
-
-      // Show success message
-      alert(
-        "✅ Lead company successfully converted to client account!\n\nYou can now find it in the Client Accounts section."
-      );
+      // Hide success animation after 3.5 seconds
+      setTimeout(() => {
+        setShowConvertSuccess(false);
+        setConvertedCompanyName("");
+      }, 3500);
 
       console.log(
         `Successfully converted company ${companyToConvert.id} to client`
@@ -1023,7 +1046,10 @@ export default function LeadCompaniesPage() {
       // Show user-friendly error message
       const errorMessage =
         error.message || "Failed to convert lead to client. Please try again.";
-      alert(`❌ Conversion Failed\n\n${errorMessage}`);
+      toast.error(`Conversion Failed: ${errorMessage}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
     } finally {
       // Clear loading state
       setLoadingActions((prev) => ({ ...prev, [loadingKey]: false }));
@@ -1419,12 +1445,12 @@ export default function LeadCompaniesPage() {
               <Button
                 onClick={handleConvertToClient}
                 disabled={loadingActions[`${companyToConvert.id}-convert`]}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
+                className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300"
               >
                 {loadingActions[`${companyToConvert.id}-convert`] ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Converting...
+                    <span>Converting...</span>
                   </div>
                 ) : (
                   <>
@@ -1436,6 +1462,75 @@ export default function LeadCompaniesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Convert Success Animation */}
+      {showConvertSuccess && convertedCompanyName && (
+        <>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+              @keyframes confetti-fall {
+                0% {
+                  transform: translateY(-10px) rotate(0deg) scale(1);
+                  opacity: 1;
+                }
+                50% {
+                  opacity: 1;
+                }
+                100% {
+                  transform: translateY(110vh) rotate(720deg) scale(0.5);
+                  opacity: 0;
+                }
+              }
+            `,
+            }}
+          />
+          <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden">
+            {/* Confetti Particles */}
+            {[...Array(120)].map((_, i) => {
+              const colors = [
+                "#FF6B6B",
+                "#4ECDC4",
+                "#45B7D1",
+                "#FFA07A",
+                "#98D8C8",
+                "#F7DC6F",
+                "#BB8FCE",
+                "#85C1E2",
+                "#10B981",
+                "#F59E0B",
+                "#EF4444",
+                "#8B5CF6",
+              ];
+              const color = colors[Math.floor(Math.random() * colors.length)];
+              const left = Math.random() * 100;
+              const delay = Math.random() * 2;
+              const duration = 2.5 + Math.random() * 2;
+              const size = 8 + Math.random() * 12;
+              const shape = Math.random() > 0.5 ? 'rounded-full' : 'rounded-sm';
+              const rotation = Math.random() * 360;
+
+              return (
+                <div
+                  key={i}
+                  className={`absolute ${shape}`}
+                  style={{
+                    left: `${left}%`,
+                    top: "-10px",
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    backgroundColor: color,
+                    animation: `confetti-fall ${duration}s ease-out ${delay}s forwards`,
+                    transform: `rotate(${rotation}deg)`,
+                    boxShadow: `0 0 ${size/2}px ${color}40`,
+                  }}
+                />
+              );
+            })}
+
+          </div>
+        </>
       )}
 
       {/* Delete Confirmation Modal */}

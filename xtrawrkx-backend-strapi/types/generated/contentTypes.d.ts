@@ -1758,7 +1758,14 @@ export interface ApiNotificationNotification
     readAt: Schema.Attribute.DateTime;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     type: Schema.Attribute.Enumeration<
-      ['DEAL_WON', 'TASK_ASSIGNED', 'PROJECT_UPDATE', 'LEAD_ASSIGNED', 'SYSTEM']
+      [
+        'DEAL_WON',
+        'TASK_ASSIGNED',
+        'PROJECT_UPDATE',
+        'LEAD_ASSIGNED',
+        'MENTIONED_IN_COMMENT',
+        'SYSTEM',
+      ]
     > &
       Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;

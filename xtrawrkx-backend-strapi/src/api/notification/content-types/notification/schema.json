@@ -25,6 +25,7 @@
                 "TASK_ASSIGNED",
                 "PROJECT_UPDATE",
                 "LEAD_ASSIGNED",
+                "MENTIONED_IN_COMMENT",
                 "SYSTEM"
             ],
             "required": true
