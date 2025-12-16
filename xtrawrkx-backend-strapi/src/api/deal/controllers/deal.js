@@ -28,7 +28,9 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
                     contact: true,
                     assignedTo: true,
                     activities: true,
-                    proposals: true
+                    proposals: true,
+                    dealGroup: true,
+                    visibleTo: true
                 }
             });
 
@@ -43,27 +45,73 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
     },
 
     /**
-     * Find deals with advanced filtering
+     * Find deals with advanced filtering and visibility control
      */
     async find(ctx) {
         try {
             console.log('Finding deals with params:', ctx.query);
 
             const { query } = ctx;
+            
+            // Get current user ID from request (if available)
+            // This could come from auth token, query param, or header
+            const userId = ctx.query.userId || ctx.state?.user?.id || null;
 
             const populate = {
                 leadCompany: true,
                 clientAccount: true,
                 contact: true,
-                assignedTo: true
+                assignedTo: true,
+                dealGroup: true,
+                visibleTo: true
             };
 
-            const entities = await strapi.entityService.findMany('api::deal.deal', {
+            // Fetch all deals first
+            let entities = await strapi.entityService.findMany('api::deal.deal', {
                 ...query,
                 populate
             });
 
-            console.log(`Found ${entities?.length || 0} deals`);
+            // Filter deals based on visibility
+            if (Array.isArray(entities)) {
+                entities = entities.filter(deal => {
+                    // Public deals are visible to everyone
+                    if (deal.visibility === 'PUBLIC' || !deal.visibility) {
+                        return true;
+                    }
+                    
+                    // Private deals: only visible to assigned user, users in visibleTo, or if no userId provided (show all for admin)
+                    if (deal.visibility === 'PRIVATE') {
+                        if (!userId) {
+                            // If no user context, show all (for admin/stats purposes)
+                            return true;
+                        }
+                        
+                        // Check if user is assigned to the deal
+                        const assignedUserId = deal.assignedTo?.id || deal.assignedTo?.documentId;
+                        if (assignedUserId && (assignedUserId.toString() === userId.toString())) {
+                            return true;
+                        }
+                        
+                        // Check if user is in visibleTo list
+                        if (deal.visibleTo && Array.isArray(deal.visibleTo)) {
+                            const hasAccess = deal.visibleTo.some(user => {
+                                const uid = user.id || user.documentId;
+                                return uid && uid.toString() === userId.toString();
+                            });
+                            if (hasAccess) {
+                                return true;
+                            }
+                        }
+                        
+                        return false;
+                    }
+                    
+                    return true;
+                });
+            }
+
+            console.log(`Found ${entities?.length || 0} deals (after visibility filtering)`);
 
             if (Array.isArray(entities)) {
                 return {
@@ -97,12 +145,14 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
     },
 
     /**
-     * Find one deal by ID
+     * Find one deal by ID with visibility check
      */
     async findOne(ctx) {
         try {
             const { id } = ctx.params;
             console.log(`Finding deal with ID: ${id}`);
+
+            const userId = ctx.query.userId || ctx.state?.user?.id || null;
 
             const entity = await strapi.entityService.findOne('api::deal.deal', id, {
                 populate: {
@@ -116,13 +166,31 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
                     },
                     activities: true,
                     proposals: true,
-                    projects: true
+                    projects: true,
+                    dealGroup: true,
+                    visibleTo: true
                 }
             });
 
             if (!entity) {
                 console.log(`Deal with ID ${id} not found`);
                 return ctx.notFound(`Deal with ID ${id} not found`);
+            }
+
+            // Check visibility for private deals
+            if (entity.visibility === 'PRIVATE' && userId) {
+                const assignedUserId = entity.assignedTo?.id || entity.assignedTo?.documentId;
+                const isAssigned = assignedUserId && assignedUserId.toString() === userId.toString();
+                
+                const hasAccess = entity.visibleTo && Array.isArray(entity.visibleTo) && 
+                    entity.visibleTo.some(user => {
+                        const uid = user.id || user.documentId;
+                        return uid && uid.toString() === userId.toString();
+                    });
+                
+                if (!isAssigned && !hasAccess) {
+                    return ctx.forbidden('You do not have access to this private deal');
+                }
             }
 
             return { data: entity };
@@ -150,7 +218,9 @@ module.exports = createCoreController('api::deal.deal', ({ strapi }) => ({
                     contact: true,
                     assignedTo: true,
                     activities: true,
-                    proposals: true
+                    proposals: true,
+                    dealGroup: true,
+                    visibleTo: true
                 }
             });
 

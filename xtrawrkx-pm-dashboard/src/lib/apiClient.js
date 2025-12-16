@@ -1,8 +1,8 @@
 // Base API client for Strapi backend communication
 // Handles authentication, error management, and request/response interceptors
 
-// const API_BASE_URL = 'http://localhost:1337';
-const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:1337';
+// const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
 
 class ApiClient {
     constructor() {
@@ -90,6 +90,15 @@ class ApiClient {
                 responseText ||
                 `HTTP ${response.status}: ${response.statusText}`;
 
+            // Log error details for debugging
+            console.error('API Error Response:', {
+                status: response.status,
+                statusText: response.statusText,
+                endpoint: response.url,
+                errorData: data,
+                responseText: responseText
+            });
+
             // Handle specific error cases
             if (response.status === 401) {
                 // Token expired or invalid
@@ -102,7 +111,11 @@ class ApiClient {
             } else if (response.status === 405) {
                 throw new Error('Method not allowed. The requested endpoint does not support this HTTP method.');
             } else if (response.status >= 500) {
-                throw new Error('Server error. Please try again later.');
+                // Preserve actual error message from server if available, otherwise use generic message
+                const serverErrorMessage = errorMessage && errorMessage !== `HTTP ${response.status}: ${response.statusText}`
+                    ? `Server error: ${errorMessage}`
+                    : 'Server error. Please try again later.';
+                throw new Error(serverErrorMessage);
             }
 
             throw new Error(errorMessage);

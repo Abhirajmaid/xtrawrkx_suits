@@ -78,7 +78,7 @@ export default function NotificationDetail({
                     {selectedNotification.name}
                   </p>
                   {!selectedNotification.isRead && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-lg">
                       Unread
                     </span>
                   )}

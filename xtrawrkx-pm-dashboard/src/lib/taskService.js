@@ -79,12 +79,13 @@ class TaskService {
         } = options;
 
         try {
+            // Tasks have many-to-many relationship with projects, so filter by projects.id
             const params = {
                 'pagination[page]': page,
                 'pagination[pageSize]': pageSize,
                 sort,
                 populate: populate.join(','),
-                'filters[project][id][$eq]': projectId
+                'filters[projects][id][$eq]': projectId
             };
 
             const response = await apiClient.get('/api/tasks', params);

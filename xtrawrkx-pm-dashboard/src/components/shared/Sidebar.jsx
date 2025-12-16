@@ -292,7 +292,7 @@ const Sidebar = memo(function Sidebar({ collapsed = false, onToggle }) {
             } shadow-lg hover:shadow-xl transition-all duration-300 group`}
           >
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-md flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
                 <Plus className="w-4 h-4 text-white" />
               </div>
               {!collapsed && (
@@ -330,7 +330,7 @@ const Sidebar = memo(function Sidebar({ collapsed = false, onToggle }) {
                       className="w-full flex items-center gap-3 p-3.5 text-sm text-gray-800 rounded-xl hover:bg-gray-50 transition-all duration-200 group/item"
                     >
                       <div
-                        className={`w-10 h-10 ${item.bgColor} ${item.borderColor} border rounded-xl flex items-center justify-center shadow-sm group-hover/item:scale-110 group-hover/item:shadow-md transition-all duration-200`}
+                        className={`w-10 h-10 ${item.bgColor} ${item.borderColor} border rounded-lg flex items-center justify-center shadow-sm group-hover/item:scale-110 group-hover/item:shadow-md transition-all duration-200`}
                       >
                         <Icon className={`w-5 h-5 ${item.color}`} />
                       </div>

@@ -57,7 +57,7 @@ export function Card({
   return (
     <div
       className={clsx(
-        "rounded-xl transition-all duration-300",
+        "rounded-2xl transition-all duration-300",
         getVariantClasses(),
         hoverable && `${getHoverClasses()} cursor-pointer`,
         padding && "p-6",

@@ -116,13 +116,30 @@ export const transformPriority = (strapiPriority) => {
  * @returns {string} - Strapi priority enum
  */
 export const transformPriorityToStrapi = (frontendPriority) => {
+    if (!frontendPriority) return 'MEDIUM';
+    
+    // Normalize to lowercase first for consistent matching
+    const normalized = String(frontendPriority).toLowerCase().trim();
+    
     const priorityMap = {
         'low': 'LOW',
         'medium': 'MEDIUM',
         'high': 'HIGH'
     };
     
-    return priorityMap[frontendPriority] || frontendPriority?.toUpperCase();
+    // Check map with normalized value first
+    if (priorityMap[normalized]) {
+        return priorityMap[normalized];
+    }
+    
+    // Fallback: try original value (for capitalized versions)
+    const original = String(frontendPriority).trim();
+    if (priorityMap[original.toLowerCase()]) {
+        return priorityMap[original.toLowerCase()];
+    }
+    
+    // Final fallback: uppercase the normalized value or default to MEDIUM
+    return normalized.toUpperCase() || 'MEDIUM';
 };
 
 /**
@@ -199,23 +216,38 @@ export const transformUser = (strapiUser) => {
         return null; // Can't transform just an ID without full user data
     }
     
+    // Handle Strapi v4 attributes format
+    const userData = strapiUser.attributes || strapiUser;
+    
+    // Extract ID - handle both documentId and id
+    const userId = strapiUser.id || strapiUser.documentId || userData.id || userData.documentId;
+    
+    if (!userId) {
+        console.warn('transformUser: No ID found for user:', strapiUser);
+        return null;
+    }
+    
     // Handle case where user data might be minimal
-    const name = strapiUser.name || 
-                 `${strapiUser.firstName || ''} ${strapiUser.lastName || ''}`.trim() ||
-                 strapiUser.username ||
+    const firstName = userData.firstName || '';
+    const lastName = userData.lastName || '';
+    const name = userData.name || 
+                 `${firstName} ${lastName}`.trim() ||
+                 userData.username ||
+                 userData.email ||
                  'Unknown User';
     
     return {
-        id: strapiUser.id,
+        id: userId,
+        _id: userId, // For backward compatibility
         name: name,
-        firstName: strapiUser.firstName,
-        lastName: strapiUser.lastName,
-        email: strapiUser.email,
-        avatar: strapiUser.avatar?.url || null,
-        initials: getInitials(strapiUser.firstName, strapiUser.lastName) || name.charAt(0).toUpperCase(),
-        color: getUserColor(strapiUser.id),
-        role: strapiUser.primaryRole?.name || strapiUser.role || 'User',
-        isActive: strapiUser.isActive !== undefined ? strapiUser.isActive : true
+        firstName: firstName,
+        lastName: lastName,
+        email: userData.email,
+        avatar: userData.avatar?.url || userData.avatar || null,
+        initials: getInitials(firstName, lastName) || name.charAt(0).toUpperCase(),
+        color: getUserColor(userId),
+        role: userData.primaryRole?.name || userData.role?.name || userData.role || 'User',
+        isActive: userData.isActive !== undefined ? userData.isActive : true
     };
 };
 

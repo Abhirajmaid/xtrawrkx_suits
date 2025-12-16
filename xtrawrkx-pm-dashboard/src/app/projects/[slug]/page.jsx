@@ -33,7 +33,7 @@ import {
   Trash2,
   Building2,
   Globe,
-  Pencil,
+  Edit,
 } from "lucide-react";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -88,6 +88,10 @@ export default function ProjectDetail({ params }) {
   const [subtaskDropdownPositions, setSubtaskDropdownPositions] = useState({});
   const subtaskButtonRefs = useRef({});
   const [loadingStatusUpdate, setLoadingStatusUpdate] = useState(false);
+
+  // Bulk selection state
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
+  const [isBulkEditMode, setIsBulkEditMode] = useState(false);
 
   // Close subtask dropdowns on scroll
   useEffect(() => {
@@ -225,28 +229,6 @@ export default function ProjectDetail({ params }) {
         // Transform to frontend format
         const transformedProject = transformProject(strapiProject);
 
-        // Debug: Check raw Strapi data for assignees/collaborators
-        console.log(
-          "Raw Strapi project tasks:",
-          strapiProject.tasks?.slice(0, 2).map((t) => ({
-            id: t.id,
-            title: t.title,
-            assignee: t.assignee,
-            collaborators: t.collaborators,
-            assigneeId: t.assignee?.id,
-            collaboratorIds: t.collaborators?.map((c) => c?.id),
-          }))
-        );
-        console.log(
-          "Transformed project tasks:",
-          transformedProject.tasks?.slice(0, 2).map((t) => ({
-            id: t.id,
-            name: t.name,
-            assignee: t.assignee,
-            collaborators: t.collaborators,
-          }))
-        );
-
         // Load all projects for ProjectSelector
         try {
           const projectsResponse = await projectService.getAllProjects({
@@ -303,25 +285,87 @@ export default function ProjectDetail({ params }) {
           });
         }
 
+        // Always fetch task details separately to ensure assignees are populated
+        // This matches the approach used in my-task page which works correctly
+        let enrichedTasks = transformedProject.tasks || [];
+        if (transformedProject.tasks && transformedProject.tasks.length > 0) {
+          try {
+            // Fetch all tasks for this project with proper populate
+            const projectTasksResponse = await taskService.getTasksByProject(
+              transformedProject.id,
+              {
+                pageSize: 100,
+                populate: [
+                  "assignee",
+                  "assignee.firstName",
+                  "assignee.lastName",
+                  "assignee.email",
+                  "collaborators",
+                  "collaborators.firstName",
+                  "collaborators.lastName",
+                  "collaborators.email",
+                  "projects",
+                  "subtasks",
+                ],
+              }
+            );
+
+            // Transform the fetched tasks
+            const fetchedTasks = (projectTasksResponse.data || []).map(
+              transformTask
+            );
+
+            // Create a map of fetched tasks by ID for quick lookup
+            const fetchedTasksMap = new Map(fetchedTasks.map((t) => [t.id, t]));
+
+            // Merge fetched task data with project tasks (preserve project-specific data)
+            enrichedTasks = transformedProject.tasks.map((projectTask) => {
+              const fetchedTask = fetchedTasksMap.get(projectTask.id);
+              if (fetchedTask) {
+                // Use fetched task data but preserve project relation
+                return {
+                  ...fetchedTask,
+                  project: projectTask.project || {
+                    id: transformedProject.id,
+                    name: transformedProject.name,
+                    slug: transformedProject.slug,
+                    color: transformedProject.color,
+                    icon: transformedProject.icon,
+                  },
+                };
+              }
+              return projectTask;
+            });
+          } catch (error) {
+            console.error("Error fetching task details:", error);
+            // Fallback: try individual fetches
+            try {
+              const taskDetailsPromises = transformedProject.tasks.map((task) =>
+                taskService
+                  .getTaskById(task.id, [
+                    "assignee",
+                    "collaborators",
+                    "projects",
+                    "subtasks",
+                  ])
+                  .then((fullTask) => transformTask(fullTask))
+                  .catch((err) => {
+                    console.error(`Error fetching task ${task.id}:`, err);
+                    return task;
+                  })
+              );
+              enrichedTasks = await Promise.all(taskDetailsPromises);
+            } catch (fallbackError) {
+              console.error("Fallback fetch also failed:", fallbackError);
+              enrichedTasks = transformedProject.tasks;
+            }
+          }
+        }
+
         // Ensure all tasks have the project relation set (since we're on project details page)
         // Also ensure assignee/collaborators are properly set
         const tasksWithProject =
-          transformedProject.tasks?.map((task) => {
-            // Debug: Log task data to see what we're working with
-            if (process.env.NODE_ENV === "development") {
-              console.log("Task before processing:", {
-                id: task.id,
-                name: task.name,
-                assignee: task.assignee,
-                collaborators: task.collaborators,
-                rawAssignee: strapiProject.tasks?.find((t) => t.id === task.id)
-                  ?.assignee,
-                rawCollaborators: strapiProject.tasks?.find(
-                  (t) => t.id === task.id
-                )?.collaborators,
-              });
-            }
-
+          enrichedTasks?.map((task) => {
             // Ensure assignee is included in collaborators if not already there
             let collaborators = task.collaborators || [];
 
@@ -342,17 +386,6 @@ export default function ProjectDetail({ params }) {
                 : task.assignee
                 ? [task.assignee]
                 : [];
-
-            if (
-              process.env.NODE_ENV === "development" &&
-              finalCollaborators.length > 0
-            ) {
-              console.log("Task after processing:", {
-                id: task.id,
-                name: task.name,
-                finalCollaborators: finalCollaborators,
-              });
-            }
 
             return {
               ...task,
@@ -568,8 +601,8 @@ export default function ProjectDetail({ params }) {
       return;
     }
 
-    console.log("Navigating to /tasks/" + taskId);
-    router.push(`/tasks/${taskId}`);
+    console.log("Navigating to /my-task/" + taskId);
+    router.push(`/my-task/${taskId}`);
   };
 
   const handleOpenProject = (project) => {
@@ -968,6 +1001,104 @@ export default function ProjectDetail({ params }) {
     }
   };
 
+  // Bulk selection handlers
+  const handleSelectTask = (taskId, isSelected) => {
+    if (isSelected) {
+      setSelectedTaskIds((prev) => [...prev, taskId]);
+    } else {
+      setSelectedTaskIds((prev) => prev.filter((id) => id !== taskId));
+    }
+  };
+
+  const handleSelectAll = (isSelected) => {
+    if (isSelected) {
+      setSelectedTaskIds(filteredAndSortedTasks.map((task) => task.id));
+    } else {
+      setSelectedTaskIds([]);
+    }
+  };
+
+  // Toggle bulk edit mode
+  const handleToggleBulkEdit = () => {
+    setIsBulkEditMode((prev) => !prev);
+    // Clear selection when turning off bulk edit mode
+    if (isBulkEditMode) {
+      setSelectedTaskIds([]);
+    }
+  };
+
+  // Bulk action handlers
+  const handleBulkDelete = () => {
+    if (selectedTaskIds.length === 0) return;
+
+    // Find the first selected task for the delete modal
+    const firstSelectedTask = filteredAndSortedTasks.find(
+      (task) => task.id === selectedTaskIds[0]
+    );
+
+    if (firstSelectedTask) {
+      setDeleteModal({
+        isOpen: true,
+        task: {
+          ...firstSelectedTask,
+          bulkDelete: true,
+          taskIds: selectedTaskIds,
+        },
+      });
+    }
+  };
+
+  const handleBulkStatusUpdate = async (newStatus) => {
+    if (selectedTaskIds.length === 0) return;
+
+    try {
+      const strapiStatus = transformStatusToStrapi(newStatus);
+
+      // Update all selected tasks
+      await Promise.all(
+        selectedTaskIds.map((taskId) =>
+          taskService.updateTaskStatus(taskId, strapiStatus)
+        )
+      );
+
+      // Update local state
+      setProject((prevProject) => ({
+        ...prevProject,
+        tasks: prevProject.tasks.map((task) =>
+          selectedTaskIds.includes(task.id)
+            ? { ...task, status: newStatus }
+            : task
+        ),
+      }));
+
+      // Clear selection
+      setSelectedTaskIds([]);
+    } catch (error) {
+      console.error("Error updating task statuses:", error);
+      // Revert on error - reload project
+      try {
+        const updatedProject = await projectService.getProjectById(project.id, [
+          "projectManager",
+          "teamMembers",
+          "tasks",
+          "tasks.assignee",
+          "tasks.collaborators",
+          "tasks.project",
+          "tasks.subtasks",
+          "account",
+          "deal",
+          "deal.leadCompany",
+          "deal.clientAccount",
+          "clientAccount",
+        ]);
+        const transformedProject = transformProject(updatedProject);
+        setProject(transformedProject);
+      } catch (reloadError) {
+        console.error("Error reloading project:", reloadError);
+      }
+    }
+  };
+
   // Task table columns - matching my-task page exactly
   const taskColumnsTable = [
     {
@@ -1074,7 +1205,7 @@ export default function ProjectDetail({ params }) {
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div
                     onClick={handleNameClick}
-                    className={`font-medium truncate cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors flex-1 min-w-0 ${
+                    className={`font-medium truncate cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-md transition-colors flex-1 min-w-0 ${
                       isDone ? "line-through text-gray-500" : "text-gray-900"
                     }`}
                     title="Click to edit task name"
@@ -1083,7 +1214,7 @@ export default function ProjectDetail({ params }) {
                   </div>
                   {hasSubtasks && (
                     <div
-                      className="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"
+                      className="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600"
                       title={`${rootSubtasks.length} ${
                         rootSubtasks.length === 1 ? "subtask" : "subtasks"
                       }`}
@@ -1124,11 +1255,14 @@ export default function ProjectDetail({ params }) {
 
         // If no valid collaborators, check for assignee
         if (collaborators.length === 0 && task.assignee) {
-          // Check if assignee is a valid user object
+          // Check if assignee is a valid user object (not just an ID)
+          const assigneeIsObject =
+            typeof task.assignee === "object" && task.assignee !== null;
           const hasAssignee =
-            task.assignee &&
+            assigneeIsObject &&
             (task.assignee.id ||
               task.assignee._id ||
+              task.assignee.documentId ||
               task.assignee.firstName ||
               task.assignee.lastName ||
               task.assignee.name ||
@@ -1136,6 +1270,16 @@ export default function ProjectDetail({ params }) {
 
           if (hasAssignee) {
             collaborators = [task.assignee];
+          } else if (process.env.NODE_ENV === "development") {
+            console.warn(
+              "Task has assignee but it's not a valid user object:",
+              {
+                taskId: task.id,
+                taskName: task.name,
+                assignee: task.assignee,
+                assigneeType: typeof task.assignee,
+              }
+            );
           }
         }
 
@@ -1147,7 +1291,7 @@ export default function ProjectDetail({ params }) {
               e.stopPropagation();
               setCollaboratorModal({ isOpen: true, task });
             }}
-            className="flex items-center gap-2 min-w-[140px] hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors text-left"
+            className="flex items-center gap-2 min-w-[140px] hover:bg-gray-50 rounded px-2 py-1 transition-colors text-left"
           >
             {hasCollaborators ? (
               <div className="flex items-center gap-1">
@@ -1252,7 +1396,35 @@ export default function ProjectDetail({ params }) {
           { value: "Cancelled", label: "Cancelled" },
         ];
 
-        const currentStatus = task.status || "To Do";
+        // Normalize status to match option values
+        const normalizeStatus = (status) => {
+          if (!status) return "To Do";
+          const statusLower = status.toLowerCase();
+          if (
+            statusLower === "to do" ||
+            statusLower === "todo" ||
+            statusLower === "scheduled"
+          )
+            return "To Do";
+          if (statusLower === "in progress" || statusLower === "in_progress")
+            return "In Progress";
+          if (statusLower === "in review" || statusLower === "in_review")
+            return "In Review";
+          if (statusLower === "done" || statusLower === "completed")
+            return "Done";
+          if (statusLower === "cancelled" || statusLower === "canceled")
+            return "Cancelled";
+          // Try to match by capitalizing first letter of each word
+          return status
+            .split(" ")
+            .map(
+              (word) =>
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            )
+            .join(" ");
+        };
+
+        const currentStatus = normalizeStatus(task.status || "To Do");
         const status = currentStatus?.toLowerCase().replace(/\s+/g, "-") || "";
 
         const statusColors = {
@@ -1302,7 +1474,7 @@ export default function ProjectDetail({ params }) {
                 e.stopPropagation();
                 handleStatusUpdate(task.id, e.target.value);
               }}
-              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
+              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs uppercase text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: "no-repeat",
@@ -1330,7 +1502,20 @@ export default function ProjectDetail({ params }) {
           { value: "High", label: "High" },
         ];
 
-        const currentPriority = task.priority || "Medium";
+        // Normalize priority to match option values (capitalize first letter)
+        const normalizePriority = (priority) => {
+          if (!priority) return "Medium";
+          const priorityLower = priority.toLowerCase();
+          if (priorityLower === "low") return "Low";
+          if (priorityLower === "medium") return "Medium";
+          if (priorityLower === "high") return "High";
+          // Fallback: capitalize first letter
+          return (
+            priority.charAt(0).toUpperCase() + priority.slice(1).toLowerCase()
+          );
+        };
+
+        const currentPriority = normalizePriority(task.priority || "Medium");
         const priorityLower = currentPriority.toLowerCase();
 
         const priorityColors = {
@@ -1365,7 +1550,7 @@ export default function ProjectDetail({ params }) {
                 e.stopPropagation();
                 handlePriorityUpdate(task.id, e.target.value);
               }}
-              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
+              className={`w-full ${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs uppercase text-center shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: "no-repeat",
@@ -1664,7 +1849,8 @@ export default function ProjectDetail({ params }) {
   //   }
   // };
 
-  // Navigate between months
+  // Navigate between months (for calendar components)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const navigateMonth = (direction) => {
     if (direction === "next") {
       if (month === 11) {
@@ -1682,13 +1868,6 @@ export default function ProjectDetail({ params }) {
       }
     }
   };
-
-  // Note: navigateMonth is available for calendar navigation functionality
-  console.log("Calendar navigation available:", {
-    month,
-    year,
-    navigateMonth: !!navigateMonth,
-  });
 
   if (!project) {
     return (
@@ -1740,7 +1919,7 @@ export default function ProjectDetail({ params }) {
           actions={[
             {
               label: "Edit",
-              icon: Pencil,
+              icon: Edit,
               onClick: () =>
                 router.push(`/projects/${project.slug || project.id}/edit`),
               variant: "primary",
@@ -1778,7 +1957,7 @@ export default function ProjectDetail({ params }) {
                     {stat.title}
                   </p>
                   <div
-                    className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                    className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-semibold ${
                       stat.changeType === "increase"
                         ? "bg-green-50 text-green-600"
                         : stat.changeType === "decrease"
@@ -1815,7 +1994,7 @@ export default function ProjectDetail({ params }) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
                     activeTab === tab.id
                       ? "bg-orange-500 text-white shadow-lg"
                       : "bg-transparent text-gray-700 hover:bg-white/50"
@@ -2086,7 +2265,7 @@ export default function ProjectDetail({ params }) {
                                 project.clientAccount?.name ||
                                 "Unknown Company"}
                             </h4>
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className="px-2 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-800">
                               Client
                             </span>
                           </div>
@@ -2328,7 +2507,7 @@ export default function ProjectDetail({ params }) {
                                 <h4 className="text-lg font-semibold text-gray-900">
                                   {companyName}
                                 </h4>
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                <span className="px-2 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                                   {companyType}
                                 </span>
                               </div>
@@ -2539,7 +2718,7 @@ export default function ProjectDetail({ params }) {
                     placeholder="Search tasks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white/70 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 bg-white/70 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   />
                 </div>
 
@@ -2549,7 +2728,7 @@ export default function ProjectDetail({ params }) {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-3 py-2 rounded-xl border border-gray-200 bg-white/70 backdrop-blur-sm text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="px-3 py-2 rounded-lg border border-gray-200 bg-white/70 backdrop-blur-sm text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   >
                     <option value="all">All Status</option>
                     <option value="to-do">To Do</option>
@@ -2559,12 +2738,28 @@ export default function ProjectDetail({ params }) {
                     <option value="cancelled">Cancelled</option>
                   </select>
 
+                  {/* Bulk Edit Toggle Button */}
+                  <button
+                    onClick={handleToggleBulkEdit}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 shadow-md ${
+                      isBulkEditMode
+                        ? "bg-orange-500 text-white hover:bg-orange-600"
+                        : "bg-white/70 backdrop-blur-sm border border-gray-200 text-gray-700 hover:bg-white/90"
+                    }`}
+                    title="Bulk Edit"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span className="hidden lg:inline">
+                      {isBulkEditMode ? "Exit Bulk Edit" : "Bulk Edit"}
+                    </span>
+                  </button>
+
                   {/* New Task Button */}
                   <button
                     onClick={() => {
                       setAddTaskModal({ isOpen: true, projectId: project.id });
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white rounded-xl font-medium transition-all duration-300 shadow-lg hover:shadow-xl"
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white rounded-lg font-medium transition-all duration-300 shadow-lg hover:shadow-xl"
                   >
                     <Plus className="w-4 h-4" />
                     New Task
@@ -2582,6 +2777,46 @@ export default function ProjectDetail({ params }) {
                   setAddTaskModal({ isOpen: true, projectId: project.id });
                 }}
                 onRowClick={handleTaskClick}
+                selectable={isBulkEditMode}
+                selectedTaskIds={selectedTaskIds}
+                onSelectTask={handleSelectTask}
+                onSelectAll={handleSelectAll}
+                bulkActions={
+                  isBulkEditMode && selectedTaskIds.length > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleBulkStatusUpdate(e.target.value);
+                            e.target.value = "";
+                          }
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        defaultValue=""
+                      >
+                        <option value="">Change Status...</option>
+                        <option value="To Do">To Do</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="In Review">In Review</option>
+                        <option value="Done">Done</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                      <button
+                        onClick={handleBulkDelete}
+                        className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => setSelectedTaskIds([])}
+                        className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  ) : null
+                }
               />
             </div>
           )}
@@ -3076,17 +3311,39 @@ export default function ProjectDetail({ params }) {
         isOpen={collaboratorModal.isOpen}
         task={collaboratorModal.task}
         onClose={() => setCollaboratorModal({ isOpen: false, task: null })}
-        onUpdate={(updatedTask) => {
-          setProject((prevProject) => ({
-            ...prevProject,
-            tasks: prevProject.tasks.map((t) =>
-              t.id === updatedTask.id ? updatedTask : t
-            ),
-          }));
-          if (taskDetailModal.task?.id === updatedTask.id) {
-            setTaskDetailModal((prev) => ({
-              ...prev,
-              task: updatedTask,
+        onUpdate={async (updatedTask) => {
+          // Refresh task from server to ensure we have latest data with all relations
+          try {
+            const refreshedTask = await taskService.getTaskById(
+              updatedTask.id,
+              ["assignee", "collaborators", "projects", "subtasks"]
+            );
+            const transformedTask = transformTask(refreshedTask);
+
+            setProject((prevProject) => ({
+              ...prevProject,
+              tasks: prevProject.tasks.map((t) =>
+                t.id === transformedTask.id ? transformedTask : t
+              ),
+            }));
+
+            if (taskDetailModal.task?.id === transformedTask.id) {
+              setTaskDetailModal((prev) => ({
+                ...prev,
+                task: transformedTask,
+              }));
+            }
+          } catch (error) {
+            console.error(
+              "Error refreshing task after assignee update:",
+              error
+            );
+            // Fallback to optimistic update if refresh fails
+            setProject((prevProject) => ({
+              ...prevProject,
+              tasks: prevProject.tasks.map((t) =>
+                t.id === updatedTask.id ? updatedTask : t
+              ),
             }));
           }
         }}
@@ -3098,22 +3355,38 @@ export default function ProjectDetail({ params }) {
         task={deleteModal.task}
         onClose={() => setDeleteModal({ isOpen: false, task: null })}
         onConfirm={async (taskToDelete) => {
-          if (!taskToDelete?.id) return;
-
           try {
-            await taskService.deleteTask(taskToDelete.id);
-            // Remove task from project
-            setProject((prevProject) => ({
-              ...prevProject,
-              tasks: prevProject.tasks.filter((t) => t.id !== taskToDelete.id),
-            }));
-            // Close modal if it's open for this task
-            if (taskDetailModal.task?.id === taskToDelete.id) {
-              setTaskDetailModal({ isOpen: false, task: null });
+            if (taskToDelete?.bulkDelete && taskToDelete?.taskIds) {
+              // Bulk delete
+              const taskIds = taskToDelete.taskIds;
+              await Promise.all(
+                taskIds.map((taskId) => taskService.deleteTask(taskId))
+              );
+              // Remove tasks from project
+              setProject((prevProject) => ({
+                ...prevProject,
+                tasks: prevProject.tasks.filter((t) => !taskIds.includes(t.id)),
+              }));
+              // Clear selection
+              setSelectedTaskIds([]);
+            } else if (taskToDelete?.id) {
+              // Single task delete
+              await taskService.deleteTask(taskToDelete.id);
+              // Remove task from project
+              setProject((prevProject) => ({
+                ...prevProject,
+                tasks: prevProject.tasks.filter(
+                  (t) => t.id !== taskToDelete.id
+                ),
+              }));
+              // Close modal if it's open for this task
+              if (taskDetailModal.task?.id === taskToDelete.id) {
+                setTaskDetailModal({ isOpen: false, task: null });
+              }
             }
             setDeleteModal({ isOpen: false, task: null });
           } catch (error) {
-            console.error("Error deleting task:", error);
+            console.error("Error deleting task(s):", error);
           }
         }}
       />
@@ -3123,7 +3396,7 @@ export default function ProjectDetail({ params }) {
         isOpen={addTaskModal.isOpen}
         onClose={() => setAddTaskModal({ isOpen: false, projectId: null })}
         initialProjectId={addTaskModal.projectId}
-        onTaskCreated={async (newTask) => {
+        onTaskCreated={async () => {
           // Reload project to get updated tasks list
           if (params?.slug) {
             try {

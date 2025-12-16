@@ -1,6 +1,6 @@
 // Use environment variable or fallback to production URL
-const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
-// const API_BASE_URL = 'http://localhost:1337';
+// const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:1337';
 class StrapiClient {
     constructor() {
         this.baseURL = API_BASE_URL;
@@ -405,6 +405,27 @@ class StrapiClient {
 
     async getXtrawrkxUser(id, params = {}) {
         return this.get(`/xtrawrkx-users/${id}`, params);
+    }
+
+    // Deal Groups API
+    async getDealGroups(params = {}) {
+        return this.get('/deal-groups', params);
+    }
+
+    async getDealGroup(id, params = {}) {
+        return this.get(`/deal-groups/${id}`, params);
+    }
+
+    async createDealGroup(data) {
+        return this.post('/deal-groups', { data });
+    }
+
+    async updateDealGroup(id, data) {
+        return this.put(`/deal-groups/${id}`, { data });
+    }
+
+    async deleteDealGroup(id) {
+        return this.delete(`/deal-groups/${id}`);
     }
 }
 

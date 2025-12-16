@@ -25,6 +25,25 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         const token = authService.getToken();
 
+        // Check if there's a cookie but no localStorage token (stale cookie scenario)
+        // This happens when cookie exists but localStorage was cleared
+        if (!token && typeof document !== "undefined") {
+          const cookies = document.cookie.split(";");
+          const hasAuthCookie = cookies.some((cookie) =>
+            cookie.trim().startsWith("xtrawrkx-authToken=")
+          );
+
+          if (hasAuthCookie) {
+            // Cookie exists but no localStorage token - clear the stale cookie
+            console.log("Found stale auth cookie, clearing it...");
+            authService.logout();
+            setUser(null);
+            setIsAuthenticated(false);
+            setLoading(false);
+            return;
+          }
+        }
+
         if (token) {
           // Verify token by getting current user
           try {

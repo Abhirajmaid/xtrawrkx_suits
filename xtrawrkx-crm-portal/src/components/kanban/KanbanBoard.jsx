@@ -33,8 +33,11 @@ export default function KanbanBoard({
     const { destination, source, draggableId } = result;
 
     // If no destination or dropped in same position, do nothing
-    if (!destination ||
-        (destination.droppableId === source.droppableId && destination.index === source.index)) {
+    if (
+      !destination ||
+      (destination.droppableId === source.droppableId &&
+        destination.index === source.index)
+    ) {
       return;
     }
 
@@ -61,7 +64,8 @@ export default function KanbanBoard({
           return (
             <div key={columnId} className="flex-shrink-0 w-80">
               {/* Column Header */}
-              {renderColumnHeader && renderColumnHeader(columnId, columnCards.length)}
+              {renderColumnHeader &&
+                renderColumnHeader(columnId, columnCards.length)}
 
               {/* Droppable Column */}
               <Droppable droppableId={columnId}>
@@ -69,10 +73,10 @@ export default function KanbanBoard({
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[200px] max-h-[600px] overflow-y-auto p-4 rounded-lg transition-all duration-200 ${
+                    className={`min-h-[200px] max-h-[600px] overflow-y-auto p-4 rounded-xl transition-all duration-200 ${
                       snapshot.isDraggingOver
-                        ? "bg-blue-50 border-2 border-dashed border-blue-300"
-                        : "bg-gray-50 border-2 border-transparent"
+                        ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-400 shadow-lg shadow-blue-200/50"
+                        : "bg-gradient-to-br from-gray-50/50 to-white border-2 border-transparent shadow-md"
                     }`}
                   >
                     {/* Draggable Cards */}
@@ -96,7 +100,9 @@ export default function KanbanBoard({
                                 : provided.draggableProps.style?.transform,
                             }}
                             className={`mb-3 transition-all duration-200 ${
-                              snapshot.isDragging ? "shadow-2xl z-50" : "hover:shadow-md"
+                              snapshot.isDragging
+                                ? "shadow-2xl z-50"
+                                : "hover:shadow-md"
                             }`}
                           >
                             {renderCard && renderCard(card, provided, snapshot)}

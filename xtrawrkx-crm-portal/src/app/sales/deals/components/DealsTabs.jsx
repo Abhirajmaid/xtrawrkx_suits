@@ -1,4 +1,12 @@
-import { List, Search, Plus, Download, Eye } from "lucide-react";
+import {
+  List,
+  Search,
+  Plus,
+  Download,
+  Eye,
+  Columns,
+  Folder,
+} from "lucide-react";
 
 export default function DealsTabs({
   tabItems,
@@ -9,6 +17,8 @@ export default function DealsTabs({
   onAddClick,
   onExportClick,
   onColumnVisibilityClick,
+  viewMode,
+  setViewMode,
 }) {
   return (
     <div className="flex items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl p-3">
@@ -74,6 +84,8 @@ export default function DealsTabs({
             <Eye className="w-5 h-5" />
           </button>
         )}
+
+        {/* Export Button */}
         {onExportClick && (
           <button
             onClick={onExportClick}
@@ -83,6 +95,48 @@ export default function DealsTabs({
             <Download className="w-4 h-4" />
             <span className="hidden lg:inline">Export</span>
           </button>
+        )}
+
+        {/* View Mode Toggle */}
+        {viewMode !== undefined && setViewMode && (
+          <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                viewMode === "list"
+                  ? "bg-white shadow-sm text-orange-600"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              title="List View"
+            >
+              <List className="w-4 h-4" />
+              <span className="hidden lg:inline">List</span>
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                viewMode === "kanban"
+                  ? "bg-white shadow-sm text-orange-600"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              title="Kanban View"
+            >
+              <Columns className="w-4 h-4" />
+              <span className="hidden lg:inline">Kanban</span>
+            </button>
+            <button
+              onClick={() => setViewMode("grouped")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                viewMode === "grouped"
+                  ? "bg-white shadow-sm text-orange-600"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              title="Grouped View"
+            >
+              <Folder className="w-4 h-4" />
+              <span className="hidden lg:inline">Grouped</span>
+            </button>
+          </div>
         )}
       </div>
     </div>

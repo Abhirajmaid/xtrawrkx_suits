@@ -22,6 +22,7 @@ const TaskDetailModal = ({
   isFullView = false,
   onToggleView,
   onOpenProject,
+  onOpenFullPage,
 }) => {
   const [activeTab, setActiveTab] = useState("subtasks");
 
@@ -51,6 +52,7 @@ const TaskDetailModal = ({
     dueDate: task.dueDate || "No due date",
     time: task.time || null,
     status: task.status || "To Do",
+    priority: task.priority || "Medium",
     progress: task.progress || 0,
     hasMultipleAssignees: task.hasMultipleAssignees || false,
     // Explicitly preserve enriched data
@@ -70,6 +72,20 @@ const TaskDetailModal = ({
         return "bg-orange-100 text-orange-700 border-orange-200";
       case "Backlog":
         return "bg-purple-100 text-purple-700 border-purple-200";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    const priorityLower = (priority || "Medium")?.toLowerCase();
+    switch (priorityLower) {
+      case "high":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-700 border-green-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
     }
@@ -102,23 +118,34 @@ const TaskDetailModal = ({
               Open Project
             </button>
 
-            {/* Full/Half View Toggle */}
-            <button
-              onClick={onToggleView}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors border border-gray-200"
-            >
-              {isFullView ? (
-                <>
-                  <Minimize2 className="w-3 h-3" />
-                  Half
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-3 h-3" />
-                  Full
-                </>
-              )}
-            </button>
+            {/* Full/Half View Toggle or Open Full Page */}
+            {onOpenFullPage ? (
+              <button
+                onClick={() => onOpenFullPage(safeTask)}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors border border-gray-200"
+                title="Open full task details page"
+              >
+                <Maximize2 className="w-3 h-3" />
+                Full
+              </button>
+            ) : onToggleView ? (
+              <button
+                onClick={onToggleView}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors border border-gray-200"
+              >
+                {isFullView ? (
+                  <>
+                    <Minimize2 className="w-3 h-3" />
+                    Half
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3 h-3" />
+                    Full
+                  </>
+                )}
+              </button>
+            ) : null}
 
             {/* Close Button */}
             <button
@@ -209,9 +236,21 @@ const TaskDetailModal = ({
                     Status
                   </label>
                   <span
-                    className={`inline-flex px-2 py-1 rounded text-xs font-medium border ${getStatusColor(safeTask.status)}`}
+                    className={`inline-flex px-2 py-1 rounded text-xs font-medium uppercase border ${getStatusColor(safeTask.status)}`}
                   >
                     {safeTask.status}
+                  </span>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">
+                    Priority
+                  </label>
+                  <span
+                    className={`inline-flex px-2 py-1 rounded text-xs font-medium uppercase border ${getPriorityColor(safeTask.priority)}`}
+                  >
+                    {safeTask.priority}
                   </span>
                 </div>
 

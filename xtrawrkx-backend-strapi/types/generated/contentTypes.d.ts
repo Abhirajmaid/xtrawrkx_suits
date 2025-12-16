@@ -1106,6 +1106,39 @@ export interface ApiContractContract extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiDealGroupDealGroup extends Struct.CollectionTypeSchema {
+  collectionName: 'deal_groups';
+  info: {
+    description: 'Groups or folders to organize deals by department or team';
+    displayName: 'Deal Group';
+    pluralName: 'deal-groups';
+    singularName: 'deal-group';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    deals: Schema.Attribute.Relation<'oneToMany', 'api::deal.deal'>;
+    department: Schema.Attribute.String;
+    description: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::deal-group.deal-group'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    team: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiDealDeal extends Struct.CollectionTypeSchema {
   collectionName: 'deals';
   info: {
@@ -1141,6 +1174,10 @@ export interface ApiDealDeal extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    dealGroup: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::deal-group.deal-group'
+    >;
     description: Schema.Attribute.Text;
     leadCompany: Schema.Attribute.Relation<
       'manyToOne',
@@ -1169,6 +1206,12 @@ export interface ApiDealDeal extends Struct.CollectionTypeSchema {
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     value: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    visibility: Schema.Attribute.Enumeration<['PUBLIC', 'PRIVATE']> &
+      Schema.Attribute.DefaultTo<'PUBLIC'>;
+    visibleTo: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
   };
 }
 
@@ -2778,6 +2821,7 @@ declare module '@strapi/strapi' {
       'api::community.community': ApiCommunityCommunity;
       'api::contact.contact': ApiContactContact;
       'api::contract.contract': ApiContractContract;
+      'api::deal-group.deal-group': ApiDealGroupDealGroup;
       'api::deal.deal': ApiDealDeal;
       'api::department.department': ApiDepartmentDepartment;
       'api::email-campaign.email-campaign': ApiEmailCampaignEmailCampaign;

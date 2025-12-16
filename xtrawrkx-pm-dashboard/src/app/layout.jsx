@@ -48,6 +48,39 @@ function LayoutContent({ children }) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Client-side redirect for unauthenticated users (fallback if middleware doesn't catch it)
+  // Must be before any conditional returns (React hooks rule)
+  useEffect(() => {
+    if (
+      !loading &&
+      !isAuthenticated &&
+      !isLoginPage &&
+      !isSignupPage &&
+      !isUnauthorizedPage
+    ) {
+      // Check if we're already on login page to avoid redirect loop
+      const actualPath =
+        typeof window !== "undefined" ? window.location.pathname : pathname;
+      const isActuallyOnLoginPage =
+        actualPath === "/login" || actualPath.startsWith("/login");
+
+      if (!isActuallyOnLoginPage) {
+        // Small delay to ensure cookie is cleared if needed
+        const timer = setTimeout(() => {
+          window.location.href = "/login";
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [
+    loading,
+    isAuthenticated,
+    isLoginPage,
+    isSignupPage,
+    isUnauthorizedPage,
+    pathname,
+  ]);
+
   // Show loading spinner while checking authentication
   if (loading) {
     return (

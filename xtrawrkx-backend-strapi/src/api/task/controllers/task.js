@@ -474,12 +474,29 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 }
             }
 
+            // Map frontend priority values to backend enum values
+            let priorityValue = 'MEDIUM';
+            if (data.priority) {
+                const priorityMap = {
+                    'Low': 'LOW',
+                    'low': 'LOW',
+                    'LOW': 'LOW',
+                    'Medium': 'MEDIUM',
+                    'medium': 'MEDIUM',
+                    'MEDIUM': 'MEDIUM',
+                    'High': 'HIGH',
+                    'high': 'HIGH',
+                    'HIGH': 'HIGH'
+                };
+                priorityValue = priorityMap[data.priority] || data.priority.toUpperCase() || 'MEDIUM';
+            }
+
             // Build task data
             const taskData = {
                 title: data.title,
                 description: data.description || null,
                 status: data.status || 'SCHEDULED',
-                priority: data.priority || 'MEDIUM',
+                priority: priorityValue,
                 scheduledDate: data.scheduledDate || null,
                 progress: data.progress || 0,
                 tags: data.tags || null,

@@ -9,7 +9,7 @@ const KanbanColumnHeader = ({ title, count, color, onAddTask, onMoreOptions }) =
       <div className="flex items-center gap-3">
         <div className={`w-3 h-3 rounded-full ${color}`}></div>
         <h3 className="font-semibold text-brand-foreground text-sm">{title}</h3>
-        <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200">
+        <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200">
           {count}
         </span>
       </div>

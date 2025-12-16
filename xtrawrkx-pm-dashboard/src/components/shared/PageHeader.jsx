@@ -45,7 +45,8 @@ export default function PageHeader({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [showNotificationDropdown, setShowNotificationDropdown] =
+    useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState("");
   const [notifications, setNotifications] = useState([]);
@@ -66,10 +67,14 @@ export default function PageHeader({
 
       try {
         setLoadingNotifications(true);
-        const notificationsData = await notificationService.getNotifications(userId);
-        const transformed = notificationsData.map(notificationService.transformNotification);
+        const notificationsData = await notificationService.getNotifications(
+          userId
+        );
+        const transformed = notificationsData.map(
+          notificationService.transformNotification
+        );
         setNotifications(transformed);
-        setUnreadCount(transformed.filter(n => !n.isRead).length);
+        setUnreadCount(transformed.filter((n) => !n.isRead).length);
       } catch (error) {
         console.error("Error loading notifications:", error);
       } finally {
@@ -127,10 +132,10 @@ export default function PageHeader({
   const handleMarkAsRead = async (notificationId) => {
     try {
       await notificationService.markAsRead(notificationId);
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -143,7 +148,7 @@ export default function PageHeader({
 
     try {
       await notificationService.markAllAsRead(userId);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
@@ -295,7 +300,7 @@ export default function PageHeader({
                   {onAddClick && (
                     <button
                       onClick={onAddClick}
-                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-orange-500 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
+                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-orange-500 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all duration-300 group shadow-lg"
                     >
                       <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
                     </button>
@@ -304,7 +309,7 @@ export default function PageHeader({
                   {onFilterClick && (
                     <button
                       onClick={onFilterClick}
-                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
+                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
                     >
                       <Filter className="w-5 h-5 text-gray-600" />
                     </button>
@@ -313,7 +318,7 @@ export default function PageHeader({
                   {onImportClick && (
                     <button
                       onClick={onImportClick}
-                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
+                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
                     >
                       <Upload className="w-5 h-5 text-gray-600" />
                     </button>
@@ -322,7 +327,7 @@ export default function PageHeader({
                   {onExportClick && (
                     <button
                       onClick={onExportClick}
-                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
+                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
                     >
                       <Download className="w-5 h-5 text-gray-600" />
                     </button>
@@ -331,7 +336,7 @@ export default function PageHeader({
                   {onShareImageClick && (
                     <button
                       onClick={onShareImageClick}
-                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
+                      className="p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg"
                       title="Share Image"
                     >
                       <Image className="w-5 h-5 text-gray-600" />
@@ -346,7 +351,7 @@ export default function PageHeader({
                 <button
                   key={index}
                   onClick={action.onClick}
-                  className={`p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg ${
+                  className={`p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all duration-300 shadow-lg ${
                     action.className || ""
                   }`}
                 >
@@ -364,8 +369,10 @@ export default function PageHeader({
             {/* Notification Button */}
             <div className="relative" ref={notificationDropdownRef}>
               <button
-                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
-                className="relative p-2.5 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
+                onClick={() =>
+                  setShowNotificationDropdown(!showNotificationDropdown)
+                }
+                className="relative p-2.5 rounded-lg hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
                 title="Notifications"
               >
                 <Bell className="w-5 h-5 text-gray-600" />
@@ -389,7 +396,9 @@ export default function PageHeader({
                   >
                     {/* Header */}
                     <div className="p-4 border-b border-white/20 flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                      <h3 className="font-semibold text-gray-900">
+                        Notifications
+                      </h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={handleMarkAllAsRead}
@@ -424,13 +433,21 @@ export default function PageHeader({
                               }`}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                                  !notification.isRead ? "bg-blue-500" : "bg-transparent"
-                                }`} />
+                                <div
+                                  className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                                    !notification.isRead
+                                      ? "bg-blue-500"
+                                      : "bg-transparent"
+                                  }`}
+                                />
                                 <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-medium ${
-                                    !notification.isRead ? "text-gray-900" : "text-gray-600"
-                                  }`}>
+                                  <p
+                                    className={`text-sm font-medium ${
+                                      !notification.isRead
+                                        ? "text-gray-900"
+                                        : "text-gray-600"
+                                    }`}
+                                  >
                                     {notification.title}
                                   </p>
                                   <p className="text-xs text-gray-500 mt-1 line-clamp-2">
@@ -457,12 +474,12 @@ export default function PageHeader({
             {/* User Profile */}
             <div className="relative">
               <button
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
                 onMouseEnter={() => setShowProfileDropdown(true)}
                 onMouseLeave={() => setShowProfileDropdown(false)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg flex items-center justify-center shadow-lg">
                     <span className="text-orange-500 text-sm font-medium">
                       {getUserInitials()}
                     </span>

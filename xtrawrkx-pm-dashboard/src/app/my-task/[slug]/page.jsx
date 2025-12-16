@@ -1234,7 +1234,7 @@ export default function TaskDetailPage({ params: paramsProp }) {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
                   activeTab === tab.key
                     ? "bg-orange-500 text-white shadow-lg"
                     : "bg-transparent text-gray-700 hover:bg-white/50"
@@ -1430,7 +1430,7 @@ export default function TaskDetailPage({ params: paramsProp }) {
                             setEditingValue(task.status || "To Do");
                             setEditingField("status");
                           }}
-                          className={`inline-block px-3 py-1.5 rounded-lg border-2 font-bold text-xs cursor-pointer hover:shadow-md transition-all ${getStatusColor(
+                          className={`inline-block px-3 py-1.5 rounded-lg border-2 font-bold text-xs uppercase cursor-pointer hover:shadow-md transition-all ${getStatusColor(
                             task.status
                           )}`}
                         >
@@ -1470,7 +1470,7 @@ export default function TaskDetailPage({ params: paramsProp }) {
                             setEditingValue(task.priority || "Medium");
                             setEditingField("priority");
                           }}
-                          className={`inline-block px-3 py-1.5 rounded-lg border-2 font-bold text-xs cursor-pointer hover:shadow-md transition-all ${getPriorityColor(
+                          className={`inline-block px-3 py-1.5 rounded-lg border-2 font-bold text-xs uppercase cursor-pointer hover:shadow-md transition-all ${getPriorityColor(
                             task.priority
                           )}`}
                         >

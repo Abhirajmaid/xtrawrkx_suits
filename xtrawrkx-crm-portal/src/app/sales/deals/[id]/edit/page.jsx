@@ -15,6 +15,10 @@ import dealService from "../../../../../lib/api/dealService";
 import leadCompanyService from "../../../../../lib/api/leadCompanyService";
 import clientAccountService from "../../../../../lib/api/clientAccountService";
 import contactService from "../../../../../lib/api/contactService";
+import dealGroupService from "../../../../../lib/api/dealGroupService";
+import strapiClient from "../../../../../lib/strapiClient";
+import { useAuth } from "../../../../../contexts/AuthContext";
+import DealGroupModal from "../../components/DealGroupModal";
 import {
   Target,
   Building2,
@@ -27,11 +31,13 @@ import {
   CheckCircle2,
   Loader2,
   FileText,
+  FolderPlus,
 } from "lucide-react";
 
 export default function EditDealPage() {
   const router = useRouter();
   const params = useParams();
+  const { user } = useAuth();
   const dealId = params.id;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +59,9 @@ export default function EditDealPage() {
     clientAccount: "",
     contact: "",
     assignedTo: "",
+    visibility: "PUBLIC",
+    dealGroup: "",
+    visibleTo: [],
   });
 
   // Dropdown options
@@ -63,6 +72,9 @@ export default function EditDealPage() {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [convertedClientAccount, setConvertedClientAccount] = useState(null);
   const [isCheckingConversion, setIsCheckingConversion] = useState(false);
+  const [dealGroups, setDealGroups] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [isDealGroupModalOpen, setIsDealGroupModalOpen] = useState(false);
 
   const stageOptions = [
     { value: "DISCOVERY", label: "Discovery" },
@@ -84,10 +96,17 @@ export default function EditDealPage() {
     { value: "MANUAL", label: "Manual" },
   ];
 
+  const visibilityOptions = [
+    { value: "PUBLIC", label: "Public" },
+    { value: "PRIVATE", label: "Private" },
+  ];
+
   // Fetch deal data and dropdown options on component mount
   useEffect(() => {
     fetchDealData();
     fetchDropdownOptions();
+    fetchDealGroups();
+    fetchUsers();
   }, [dealId]);
 
   const fetchDealData = async () => {
@@ -95,7 +114,7 @@ export default function EditDealPage() {
       setIsLoading(true);
       console.log("Fetching deal data for ID:", dealId);
       const response = await dealService.getById(dealId, {
-        populate: ["leadCompany", "clientAccount", "contact", "assignedTo"],
+        populate: ["leadCompany", "clientAccount", "contact", "assignedTo", "dealGroup", "visibleTo"],
       });
 
       console.log("Deal response:", response);
@@ -150,6 +169,16 @@ export default function EditDealPage() {
             dealInfo.assignedTo?.documentId ||
             deal.assignedTo?.documentId ||
             "",
+          visibility: dealInfo.visibility || deal.visibility || "PUBLIC",
+          dealGroup:
+            dealInfo.dealGroup?.id ||
+            deal.dealGroup?.id ||
+            dealInfo.dealGroup?.documentId ||
+            deal.dealGroup?.documentId ||
+            "",
+          visibleTo: (dealInfo.visibleTo || deal.visibleTo || []).map((user) => 
+            (user.id || user.documentId)?.toString()
+          ).filter(Boolean),
         });
 
         // Fetch contacts for the selected company if one exists
@@ -210,6 +239,58 @@ export default function EditDealPage() {
       setContacts(contactsData);
     } catch (error) {
       console.error("Error fetching dropdown options:", error);
+    }
+  };
+
+  const fetchDealGroups = async () => {
+    try {
+      const response = await dealGroupService.getAll({
+        pagination: { pageSize: 1000 },
+        sort: ["name:asc"],
+      });
+      const groupsData = Array.isArray(response) ? response : response?.data || [];
+      setDealGroups(groupsData);
+    } catch (error) {
+      console.error("Error fetching deal groups:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+
+      while (hasMore) {
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          populate: "primaryRole,userRoles",
+        };
+        const response = await strapiClient.getXtrawrkxUsers(queryParams);
+        const usersData = response?.data || [];
+        if (Array.isArray(usersData)) {
+          const extracted = usersData.map((u) =>
+            u.attributes
+              ? {
+                  id: u.id,
+                  documentId: u.id,
+                  ...u.attributes,
+                }
+              : u
+          );
+          allUsers = [...allUsers, ...extracted];
+          const pageCount = response?.meta?.pagination?.pageCount || 1;
+          hasMore = page < pageCount && usersData.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      setUsers(allUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
     }
   };
 
@@ -406,6 +487,11 @@ export default function EditDealPage() {
         probability: parseInt(dealData.probability),
         priority: dealData.priority,
         source: dealData.source,
+        visibility: dealData.visibility || "PUBLIC",
+        dealGroup: dealData.dealGroup ? parseInt(dealData.dealGroup) : null,
+        visibleTo: dealData.visibility === "PRIVATE" && dealData.visibleTo.length > 0
+          ? dealData.visibleTo.map(id => parseInt(id))
+          : [],
         description: dealData.description || null,
         closeDate: formatDateForStrapi(dealData.closeDate),
         leadCompany: dealData.leadCompany || null,
@@ -607,6 +693,45 @@ export default function EditDealPage() {
                 </div>
 
                 <div>
+                  <Select
+                    label="Visibility"
+                    value={dealData.visibility}
+                    onChange={(value) => handleInputChange("visibility", value)}
+                    options={visibilityOptions}
+                    placeholder="Select visibility"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Select
+                        label="Deal Group"
+                        value={dealData.dealGroup}
+                        onChange={(value) => handleInputChange("dealGroup", value)}
+                        options={[
+                          { value: "", label: "No Group" },
+                          ...dealGroups.map((group) => ({
+                            value: group.id || group.documentId,
+                            label: group.name || group.attributes?.name || "Unknown Group",
+                          })),
+                        ]}
+                        placeholder="Select group (optional)"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsDealGroupModalOpen(true)}
+                      className="mb-0.5 px-3 py-2 text-sm text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg border border-orange-200 hover:border-orange-300 transition-colors whitespace-nowrap"
+                      title="Manage Groups"
+                    >
+                      <FolderPlus className="w-4 h-4 inline mr-1" />
+                      Manage
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Expected Close Date
                   </label>
@@ -647,6 +772,43 @@ export default function EditDealPage() {
                   />
                 </div>
               </div>
+
+              {/* Private Deal Visibility Section */}
+              {dealData.visibility === "PRIVATE" && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Visible To (Select users who can view this private deal)
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                    {users.map((u) => {
+                      const userId = (u.id || u.documentId).toString();
+                      const userName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || "Unknown";
+                      const isSelected = dealData.visibleTo.includes(userId);
+                      return (
+                        <label key={userId} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const newVisibleTo = e.target.checked
+                                ? [...dealData.visibleTo, userId]
+                                : dealData.visibleTo.filter((id) => id !== userId);
+                              handleInputChange("visibleTo", newVisibleTo);
+                            }}
+                            className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                          />
+                          <span className="text-sm text-gray-700">{userName}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {dealData.visibleTo.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      No users selected. Only you (as the assigned owner) will be able to view this deal.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
 
@@ -822,6 +984,21 @@ export default function EditDealPage() {
             </div>
           </Card>
         </form>
+
+        {/* Deal Group Management Modal */}
+        <DealGroupModal
+          isOpen={isDealGroupModalOpen}
+          onClose={() => setIsDealGroupModalOpen(false)}
+          onGroupCreated={() => {
+            fetchDealGroups();
+          }}
+          onGroupUpdated={() => {
+            fetchDealGroups();
+          }}
+          onGroupDeleted={() => {
+            fetchDealGroups();
+          }}
+        />
       </div>
     </>
   );

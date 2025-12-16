@@ -15,7 +15,10 @@ import dealService from "../../../../lib/api/dealService";
 import leadCompanyService from "../../../../lib/api/leadCompanyService";
 import clientAccountService from "../../../../lib/api/clientAccountService";
 import contactService from "../../../../lib/api/contactService";
+import dealGroupService from "../../../../lib/api/dealGroupService";
+import strapiClient from "../../../../lib/strapiClient";
 import { useAuth } from "../../../../contexts/AuthContext";
+import DealGroupModal from "../components/DealGroupModal";
 import {
   Target,
   Building2,
@@ -28,6 +31,7 @@ import {
   CheckCircle2,
   TrendingUp,
   FileText,
+  FolderPlus,
 } from "lucide-react";
 
 export default function NewDealPage() {
@@ -52,6 +56,9 @@ export default function NewDealPage() {
     clientAccount: "",
     contact: "",
     notes: "",
+    visibility: "PUBLIC",
+    dealGroup: "",
+    visibleTo: [],
   });
 
   // Dropdown options
@@ -60,6 +67,9 @@ export default function NewDealPage() {
   const [contacts, setContacts] = useState([]);
   const [filteredContacts, setFilteredContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [dealGroups, setDealGroups] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [isDealGroupModalOpen, setIsDealGroupModalOpen] = useState(false);
 
   const stageOptions = [
     { value: "DISCOVERY", label: "Discovery" },
@@ -75,9 +85,16 @@ export default function NewDealPage() {
     { value: "LOW", label: "Low" },
   ];
 
+  const visibilityOptions = [
+    { value: "PUBLIC", label: "Public" },
+    { value: "PRIVATE", label: "Private" },
+  ];
+
   // Fetch dropdown options on component mount and handle pre-selected lead company or client account
   useEffect(() => {
     fetchDropdownOptions();
+    fetchDealGroups();
+    fetchUsers();
 
     // Check if lead company is pre-selected from URL
     const preSelectedLeadCompany = searchParams.get("leadCompany");
@@ -190,6 +207,60 @@ export default function NewDealPage() {
     }
   };
 
+  const fetchDealGroups = async () => {
+    try {
+      const response = await dealGroupService.getAll({
+        pagination: { pageSize: 1000 },
+        sort: ["name:asc"],
+      });
+      const groupsData = Array.isArray(response)
+        ? response
+        : response?.data || [];
+      setDealGroups(groupsData);
+    } catch (error) {
+      console.error("Error fetching deal groups:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+
+      while (hasMore) {
+        const queryParams = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          populate: "primaryRole,userRoles",
+        };
+        const response = await strapiClient.getXtrawrkxUsers(queryParams);
+        const usersData = response?.data || [];
+        if (Array.isArray(usersData)) {
+          const extracted = usersData.map((u) =>
+            u.attributes
+              ? {
+                  id: u.id,
+                  documentId: u.id,
+                  ...u.attributes,
+                }
+              : u
+          );
+          allUsers = [...allUsers, ...extracted];
+          const pageCount = response?.meta?.pagination?.pageCount || 1;
+          hasMore = page < pageCount && usersData.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      setUsers(allUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
   const fetchContactsByLeadCompany = async (leadCompanyId) => {
     try {
       console.log("Fetching contacts for lead company:", leadCompanyId);
@@ -297,6 +368,12 @@ export default function NewDealPage() {
         contact: dealData.contact ? parseInt(dealData.contact) : null,
         // Auto-assign to current user
         assignedTo: user?.id || user?.documentId || null,
+        // Visibility and grouping
+        visibility: dealData.visibility || "PUBLIC",
+        dealGroup: dealData.dealGroup ? parseInt(dealData.dealGroup) : null,
+        visibleTo: dealData.visibility === "PRIVATE" && dealData.visibleTo.length > 0
+          ? dealData.visibleTo.map(id => parseInt(id))
+          : [],
       };
 
       console.log("Creating deal with data:", dealPayload);
@@ -464,7 +541,79 @@ export default function NewDealPage() {
                   placeholder="25"
                 />
               </div>
+              <div>
+                <Select
+                  label="Visibility"
+                  value={dealData.visibility}
+                  onChange={(value) => handleInputChange("visibility", value)}
+                  options={visibilityOptions}
+                  placeholder="Select visibility"
+                />
+              </div>
+              <div>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Select
+                      label="Deal Group"
+                      value={dealData.dealGroup}
+                      onChange={(value) => handleInputChange("dealGroup", value)}
+                      options={[
+                        { value: "", label: "No Group" },
+                        ...dealGroups.map((group) => ({
+                          value: group.id || group.documentId,
+                          label: group.name || group.attributes?.name || "Unknown Group",
+                        })),
+                      ]}
+                      placeholder="Select group (optional)"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDealGroupModalOpen(true)}
+                    className="mb-0.5 px-3 py-2 text-sm text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg border border-orange-200 hover:border-orange-300 transition-colors whitespace-nowrap"
+                    title="Manage Groups"
+                  >
+                    <FolderPlus className="w-4 h-4 inline mr-1" />
+                    Manage
+                  </button>
+                </div>
+              </div>
             </div>
+
+            {dealData.visibility === "PRIVATE" && (
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Visible To (Select users who can view this private deal)
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                  {users.map((u) => {
+                    const userId = (u.id || u.documentId).toString();
+                    const userName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || "Unknown";
+                    return (
+                      <label key={userId} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={dealData.visibleTo.includes(userId)}
+                          onChange={(e) => {
+                            const newVisibleTo = e.target.checked
+                              ? [...dealData.visibleTo, userId]
+                              : dealData.visibleTo.filter((id) => id !== userId);
+                            handleInputChange("visibleTo", newVisibleTo);
+                          }}
+                          className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                        />
+                        <span className="text-sm text-gray-700">{userName}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {dealData.visibleTo.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    No users selected. Only you (as the assigned owner) will be able to view this deal.
+                  </p>
+                )}
+              </div>
+            )}
           </Card>
 
           {/* Company & Contact Information */}
@@ -635,6 +784,21 @@ export default function NewDealPage() {
             </div>
           </div>
         </form>
+
+        {/* Deal Group Management Modal */}
+        <DealGroupModal
+          isOpen={isDealGroupModalOpen}
+          onClose={() => setIsDealGroupModalOpen(false)}
+          onGroupCreated={() => {
+            fetchDealGroups();
+          }}
+          onGroupUpdated={() => {
+            fetchDealGroups();
+          }}
+          onGroupDeleted={() => {
+            fetchDealGroups();
+          }}
+        />
       </div>
     </div>
   );

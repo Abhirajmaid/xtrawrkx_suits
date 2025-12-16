@@ -127,10 +127,29 @@ class ProjectService {
      */
     async deleteProject(id) {
         try {
+            console.log(`Attempting to delete project ${id}...`);
             const response = await apiClient.delete(`/api/projects/${id}`);
-            return response.data;
+            console.log(`Delete project response:`, response);
+            
+            // Handle different response structures
+            // Strapi DELETE endpoints may return { data: {...} } or just the data directly
+            if (response.data) {
+                return response.data;
+            } else if (response.id || response.attributes) {
+                // Response is already the data object
+                return response;
+            } else {
+                // Return the full response if structure is unexpected
+                console.warn('Unexpected delete response structure:', response);
+                return response;
+            }
         } catch (error) {
             console.error(`Error deleting project ${id}:`, error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
             throw error;
         }
     }

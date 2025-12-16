@@ -47,7 +47,8 @@ export default function PageHeader({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [showNotificationDropdown, setShowNotificationDropdown] =
+    useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState("");
   const [notifications, setNotifications] = useState([]);
@@ -62,7 +63,7 @@ export default function PageHeader({
     // Try numeric id first, then documentId
     const userId = userData.id || user.id;
     const documentId = userData.documentId || user.documentId;
-    
+
     // Prefer numeric id, fallback to documentId
     return userId || documentId || null;
   };
@@ -75,20 +76,28 @@ export default function PageHeader({
 
       try {
         setLoadingNotifications(true);
-        console.log('Loading notifications for user:', userId);
-        const notificationsData = await notificationService.getNotifications(userId);
-        console.log('Raw notifications data:', notificationsData);
-        const transformed = notificationsData.map(notificationService.transformNotification);
-        console.log('Transformed notifications:', transformed);
+        console.log("Loading notifications for user:", userId);
+        const notificationsData = await notificationService.getNotifications(
+          userId
+        );
+        console.log("Raw notifications data:", notificationsData);
+        const transformed = notificationsData.map(
+          notificationService.transformNotification
+        );
+        console.log("Transformed notifications:", transformed);
         setNotifications(transformed);
-        setUnreadCount(transformed.filter(n => !n.isRead).length);
-        console.log(`Loaded ${transformed.length} notifications, ${transformed.filter(n => !n.isRead).length} unread`);
+        setUnreadCount(transformed.filter((n) => !n.isRead).length);
+        console.log(
+          `Loaded ${transformed.length} notifications, ${
+            transformed.filter((n) => !n.isRead).length
+          } unread`
+        );
       } catch (error) {
         console.error("Error loading notifications:", error);
         console.error("Error details:", {
           message: error.message,
           stack: error.stack,
-          userId: userId
+          userId: userId,
         });
       } finally {
         setLoadingNotifications(false);
@@ -145,10 +154,10 @@ export default function PageHeader({
   const handleMarkAsRead = async (notificationId) => {
     try {
       await notificationService.markAsRead(notificationId);
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -161,7 +170,7 @@ export default function PageHeader({
 
     try {
       await notificationService.markAllAsRead(userId);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
@@ -304,11 +313,14 @@ export default function PageHeader({
             return { label: item, href: "#" };
           }
           // If it's already an object, ensure it has href and label is a string
-          const label = typeof item.label === 'string' 
-            ? item.label 
-            : (typeof item === 'string' ? item : '');
+          const label =
+            typeof item.label === "string"
+              ? item.label
+              : typeof item === "string"
+              ? item
+              : "";
           return {
-            label: label || 'Page',
+            label: label || "Page",
             href: item.href || "#",
           };
         })
@@ -334,14 +346,18 @@ export default function PageHeader({
                 <div key={index} className="flex items-center gap-2">
                   {index === breadcrumbItems.length - 1 ? (
                     <span className="text-brand-foreground font-medium">
-                      {typeof item.label === 'string' ? item.label : String(item.label || '')}
+                      {typeof item.label === "string"
+                        ? item.label
+                        : String(item.label || "")}
                     </span>
                   ) : (
                     <Link
-                      href={item.href || '#'}
+                      href={item.href || "#"}
                       className="text-brand-text-light hover:text-brand-foreground transition-colors duration-200 cursor-pointer"
                     >
-                      {typeof item.label === 'string' ? item.label : String(item.label || '')}
+                      {typeof item.label === "string"
+                        ? item.label
+                        : String(item.label || "")}
                     </Link>
                   )}
                   {index < breadcrumbItems.length - 1 && (
@@ -483,7 +499,9 @@ export default function PageHeader({
             {/* Notification Button */}
             <div className="relative" ref={notificationDropdownRef}>
               <button
-                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                onClick={() =>
+                  setShowNotificationDropdown(!showNotificationDropdown)
+                }
                 className="relative p-2.5 rounded-xl hover:bg-white/10 hover:backdrop-blur-md transition-all duration-300"
                 title="Notifications"
               >
@@ -508,7 +526,9 @@ export default function PageHeader({
                   >
                     {/* Header */}
                     <div className="p-4 border-b border-white/20 flex items-center justify-between">
-                      <h3 className="font-semibold text-brand-foreground">Notifications</h3>
+                      <h3 className="font-semibold text-brand-foreground">
+                        Notifications
+                      </h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={handleMarkAllAsRead}
@@ -543,13 +563,21 @@ export default function PageHeader({
                               }`}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                                  !notification.isRead ? "bg-blue-500" : "bg-transparent"
-                                }`} />
+                                <div
+                                  className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                                    !notification.isRead
+                                      ? "bg-blue-500"
+                                      : "bg-transparent"
+                                  }`}
+                                />
                                 <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-medium ${
-                                    !notification.isRead ? "text-brand-foreground" : "text-brand-text-light"
-                                  }`}>
+                                  <p
+                                    className={`text-sm font-medium ${
+                                      !notification.isRead
+                                        ? "text-brand-foreground"
+                                        : "text-brand-text-light"
+                                    }`}
+                                  >
                                     {notification.title}
                                   </p>
                                   <p className="text-xs text-brand-text-light mt-1 line-clamp-2">

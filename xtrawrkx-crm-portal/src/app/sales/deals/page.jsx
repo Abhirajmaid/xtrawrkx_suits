@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import dealService from "../../../lib/api/dealService";
+import dealGroupService from "../../../lib/api/dealGroupService";
 import strapiClient from "../../../lib/strapiClient";
 import { useAuth } from "../../../contexts/AuthContext";
 import authService from "../../../lib/authService";
@@ -12,11 +13,12 @@ import { toast } from "react-toastify";
 import DealsKPIs from "./components/DealsKPIs";
 import DealsTabs from "./components/DealsTabs";
 import DealsListView from "./components/DealsListView";
+import DealsBoardView from "./components/DealsBoardView";
 import DealsFilterModal from "./components/DealsFilterModal";
 import ColumnVisibilityModal from "../lead-companies/components/ColumnVisibilityModal";
+import DealGroupModal from "./components/DealGroupModal";
 import { Avatar, Badge, Button } from "../../../components/ui";
 import { formatCurrency } from "../../../lib/utils/format";
-import KanbanBoard from "../../../components/kanban/KanbanBoard";
 import {
   Plus,
   Search,
@@ -42,6 +44,10 @@ import {
   List,
   Columns,
   CheckCircle2,
+  FolderPlus,
+  Folder,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 export default function DealsPage() {
@@ -70,9 +76,11 @@ export default function DealsPage() {
   const itemsPerPage = 15;
   const [viewMode, setViewMode] = useState(() => {
     // Check URL parameter for initial view mode
-    const viewParam = searchParams?.get('view');
-    return viewParam === 'kanban' ? 'kanban' : 'list';
-  }); // "list" or "kanban"
+    const viewParam = searchParams?.get("view");
+    if (viewParam === "kanban") return "kanban";
+    if (viewParam === "grouped") return "grouped";
+    return "list";
+  }); // "list", "kanban", or "grouped"
   const [dealStats, setDealStats] = useState({
     all: 0,
     new: 0,
@@ -96,8 +104,13 @@ export default function DealsPage() {
   const [showCreateProjectPrompt, setShowCreateProjectPrompt] = useState(false);
   const [dealForProject, setDealForProject] = useState(null);
   const [creatingProject, setCreatingProject] = useState(false);
-  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] = useState(false);
+  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] =
+    useState(false);
   const [visibleColumns, setVisibleColumns] = useState([]);
+  const [isDealGroupModalOpen, setIsDealGroupModalOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [dealGroups, setDealGroups] = useState([]);
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   const isAdmin = () => {
     if (!user) return false;
@@ -173,6 +186,9 @@ export default function DealsPage() {
           assignedTo: dealData.assignedTo || deal.assignedTo,
           createdAt: dealData.createdAt || deal.createdAt,
           updatedAt: dealData.updatedAt || deal.updatedAt,
+          dealGroup: dealData.dealGroup || deal.dealGroup,
+          visibility: dealData.visibility || deal.visibility || "PUBLIC",
+          visibleTo: dealData.visibleTo || deal.visibleTo || [],
         };
       });
 
@@ -244,10 +260,18 @@ export default function DealsPage() {
     const hasActiveFilters = Object.values(appliedFilters).some(
       (value) => value && value.toString().trim() !== ""
     );
-    
-    if (hasActiveFilters && !loading && filteredDeals.length !== prevFilteredCountRef.current) {
+
+    if (
+      hasActiveFilters &&
+      !loading &&
+      filteredDeals.length !== prevFilteredCountRef.current
+    ) {
       prevFilteredCountRef.current = filteredDeals.length;
-      toast.success(`Filters applied. Showing ${filteredDeals.length} result${filteredDeals.length !== 1 ? 's' : ''}`);
+      toast.success(
+        `Filters applied. Showing ${filteredDeals.length} result${
+          filteredDeals.length !== 1 ? "s" : ""
+        }`
+      );
     }
   }, [filteredDeals.length, appliedFilters, loading]);
 
@@ -268,6 +292,26 @@ export default function DealsPage() {
       fetchUsers();
     }
   }, [user]);
+
+  // Fetch deal groups
+  useEffect(() => {
+    fetchDealGroups();
+  }, []);
+
+  const fetchDealGroups = async () => {
+    try {
+      const response = await dealGroupService.getAll({
+        pagination: { pageSize: 1000 },
+        sort: ["name:asc"],
+      });
+      const groupsData = Array.isArray(response)
+        ? response
+        : response?.data || [];
+      setDealGroups(groupsData);
+    } catch (error) {
+      console.error("Error fetching deal groups:", error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -319,8 +363,17 @@ export default function DealsPage() {
 
       // Build query parameters
       const params = {
-        populate: ["leadCompany", "clientAccount", "contact", "assignedTo"],
+        populate: [
+          "leadCompany",
+          "clientAccount",
+          "contact",
+          "assignedTo",
+          "dealGroup",
+          "visibleTo",
+        ],
         sort: ["createdAt:desc"],
+        // Pass userId for visibility filtering
+        userId: user?.id || user?.documentId || null,
       };
 
       // Add stage filter if active tab is not "all"
@@ -346,7 +399,7 @@ export default function DealsPage() {
       // Add applied filters - transform filter values to match API format
       if (Object.keys(appliedFilters).length > 0) {
         const filterConditions = {};
-        
+
         // Stage filter - map UI values to API values
         if (appliedFilters.stage) {
           const stageMap = {
@@ -357,23 +410,33 @@ export default function DealsPage() {
             won: "CLOSED_WON",
             lost: "CLOSED_LOST",
           };
-          const mappedStage = stageMap[appliedFilters.stage.toLowerCase()] || appliedFilters.stage.toUpperCase();
+          const mappedStage =
+            stageMap[appliedFilters.stage.toLowerCase()] ||
+            appliedFilters.stage.toUpperCase();
           filterConditions.stage = { $eq: mappedStage };
         }
-        
+
         // Company filter - search in related companies
         if (appliedFilters.company) {
           filterConditions.$or = [
-            { "leadCompany.companyName": { $containsi: appliedFilters.company } },
-            { "clientAccount.companyName": { $containsi: appliedFilters.company } },
+            {
+              "leadCompany.companyName": { $containsi: appliedFilters.company },
+            },
+            {
+              "clientAccount.companyName": {
+                $containsi: appliedFilters.company,
+              },
+            },
           ];
         }
-        
+
         // Priority filter - map to uppercase
         if (appliedFilters.priority) {
-          filterConditions.priority = { $eq: appliedFilters.priority.toUpperCase() };
+          filterConditions.priority = {
+            $eq: appliedFilters.priority.toUpperCase(),
+          };
         }
-        
+
         // Value range filters
         if (appliedFilters.valueMin || appliedFilters.valueMax) {
           filterConditions.value = {};
@@ -384,18 +447,22 @@ export default function DealsPage() {
             filterConditions.value.$lte = parseFloat(appliedFilters.valueMax);
           }
         }
-        
+
         // Probability range filters
         if (appliedFilters.probabilityMin || appliedFilters.probabilityMax) {
           filterConditions.probability = {};
           if (appliedFilters.probabilityMin) {
-            filterConditions.probability.$gte = parseInt(appliedFilters.probabilityMin);
+            filterConditions.probability.$gte = parseInt(
+              appliedFilters.probabilityMin
+            );
           }
           if (appliedFilters.probabilityMax) {
-            filterConditions.probability.$lte = parseInt(appliedFilters.probabilityMax);
+            filterConditions.probability.$lte = parseInt(
+              appliedFilters.probabilityMax
+            );
           }
         }
-        
+
         // Close date range filters
         if (appliedFilters.closeDateFrom || appliedFilters.closeDateTo) {
           filterConditions.closeDate = {};
@@ -406,13 +473,13 @@ export default function DealsPage() {
             filterConditions.closeDate.$lte = appliedFilters.closeDateTo;
           }
         }
-        
+
         // Merge filter conditions with existing filters
         if (Object.keys(filterConditions).length > 0) {
-        params.filters = {
-          ...params.filters,
+          params.filters = {
+            ...params.filters,
             ...filterConditions,
-        };
+          };
         }
       }
 
@@ -475,6 +542,9 @@ export default function DealsPage() {
           assignedTo: dealData.assignedTo || deal.assignedTo,
           createdAt: dealData.createdAt || deal.createdAt,
           updatedAt: dealData.updatedAt || deal.updatedAt,
+          dealGroup: dealData.dealGroup || deal.dealGroup,
+          visibility: dealData.visibility || deal.visibility || "PUBLIC",
+          visibleTo: dealData.visibleTo || deal.visibleTo || [],
         };
       });
 
@@ -561,42 +631,60 @@ export default function DealsPage() {
   const handleDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
 
-    if (!destination) return;
+    console.log("Drag end result:", result);
+    console.log("Draggable ID:", draggableId);
+    console.log(
+      "Filtered deals:",
+      filteredDeals.map((d) => ({ id: d.id, name: d.name }))
+    );
 
-    // Find the dragged deal
-    const draggedDeal = filteredDeals.find(deal => deal.id.toString() === draggableId);
-    
-    if (!draggedDeal) return;
+    if (!destination) {
+      console.log("No destination, cancelling drag");
+      return;
+    }
+
+    // Find the dragged deal - check both id and documentId
+    const draggedDeal = filteredDeals.find(
+      (deal) =>
+        deal.id?.toString() === draggableId ||
+        deal.documentId?.toString() === draggableId ||
+        (deal.id || deal.documentId)?.toString() === draggableId
+    );
+
+    if (!draggedDeal) {
+      console.log("Deal not found for draggableId:", draggableId);
+      return;
+    }
+
+    console.log("Found dragged deal:", draggedDeal);
 
     // Map column IDs to deal stages
     const stageMap = {
-      'discovery': 'DISCOVERY',
-      'proposal': 'PROPOSAL', 
-      'negotiation': 'NEGOTIATION',
-      'closed-won': 'CLOSED_WON',
-      'closed-lost': 'CLOSED_LOST'
+      discovery: "DISCOVERY",
+      proposal: "PROPOSAL",
+      negotiation: "NEGOTIATION",
+      "closed-won": "CLOSED_WON",
+      "closed-lost": "CLOSED_LOST",
     };
 
     const newStage = stageMap[destination.droppableId];
-    
+
     if (!newStage || draggedDeal.stage === newStage) return;
 
     try {
       // Update deal stage via API
       await dealService.update(draggedDeal.id, { stage: newStage });
-      
+
       // Update local state
-      setDeals(prevDeals => 
-        prevDeals.map(deal => 
-          deal.id === draggedDeal.id 
-            ? { ...deal, stage: newStage }
-            : deal
+      setDeals((prevDeals) =>
+        prevDeals.map((deal) =>
+          deal.id === draggedDeal.id ? { ...deal, stage: newStage } : deal
         )
       );
 
       console.log(`Deal "${draggedDeal.name}" moved to ${newStage}`);
     } catch (error) {
-      console.error('Error updating deal stage:', error);
+      console.error("Error updating deal stage:", error);
       // You could show a toast notification here
     }
   };
@@ -607,208 +695,265 @@ export default function DealsPage() {
       discovery: [],
       proposal: [],
       negotiation: [],
-      'closed-won': [],
-      'closed-lost': []
+      "closed-won": [],
+      "closed-lost": [],
     };
 
-    filteredDeals.forEach(deal => {
-      const stageKey = deal.stage?.toLowerCase().replace('_', '-') || 'discovery';
+    filteredDeals.forEach((deal) => {
+      // Ensure each deal has a valid ID for dragging (must be string for react-beautiful-dnd)
+      const dealId = (
+        deal.id ||
+        deal.documentId ||
+        `deal-${Date.now()}-${Math.random()}`
+      ).toString();
+      const dealWithId = {
+        ...deal,
+        id: dealId,
+      };
+
+      const stageKey =
+        deal.stage?.toLowerCase().replace("_", "-") || "discovery";
       if (stages[stageKey]) {
-        stages[stageKey].push(deal);
+        stages[stageKey].push(dealWithId);
       }
     });
 
     return stages;
   };
 
-  // Render deal card for Kanban view
-  const renderDealCard = (deal) => {
-    const getPriorityColor = (priority) => {
-      switch (priority?.toLowerCase()) {
-        case 'high':
-          return 'border-l-red-500 bg-red-50';
-        case 'medium':
-          return 'border-l-yellow-500 bg-yellow-50';
-        case 'low':
-          return 'border-l-green-500 bg-green-50';
-        default:
-          return 'border-l-gray-500 bg-gray-50';
-      }
+  // Group deals by dealGroup for Grouped view
+  const groupDealsByGroup = () => {
+    const grouped = {
+      ungrouped: [],
     };
 
-    const getStatusColor = (stage) => {
-      switch (stage) {
-        case 'CLOSED_WON':
-          return 'text-green-600 bg-green-100';
-        case 'CLOSED_LOST':
-          return 'text-red-600 bg-red-100';
-        case 'NEGOTIATION':
-          return 'text-purple-600 bg-purple-100';
-        case 'PROPOSAL':
-          return 'text-blue-600 bg-blue-100';
-        default:
-          return 'text-gray-600 bg-gray-100';
+    filteredDeals.forEach((deal) => {
+      const groupId =
+        deal.dealGroup?.id || deal.dealGroup?.documentId || deal.dealGroup;
+      if (groupId) {
+        const groupKey = groupId.toString();
+        if (!grouped[groupKey]) {
+          grouped[groupKey] = [];
+        }
+        grouped[groupKey].push(deal);
+      } else {
+        grouped.ungrouped.push(deal);
       }
-    };
+    });
 
-    return (
-      <div
-        className={`p-4 rounded-lg border-l-4 cursor-move hover:shadow-md transition-all duration-200 bg-white border border-gray-200 ${getPriorityColor(deal.priority)}`}
-        onClick={() => handleViewDeal(deal)}
-      >
-        {/* Deal Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-gray-900 truncate mb-1 text-sm">
-              {deal.name || 'Untitled Deal'}
-            </h4>
-            <p className="text-xs text-gray-600 truncate">
-              {deal.leadCompany?.companyName || deal.clientAccount?.companyName || 'No Company'}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-sm font-semibold text-gray-900">
-              {formatCurrency(deal.value || 0)}
-            </div>
-            <Badge 
-              className={`text-xs mt-1 ${getStatusColor(deal.stage)}`}
-              variant="secondary"
-            >
-              {deal.stage?.replace('_', ' ') || 'Discovery'}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Deal Details */}
-        <div className="space-y-2 mb-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-600">Owner:</span>
-            <span className="font-medium text-gray-900 truncate ml-2">
-              {deal.assignedTo?.username || 'Unassigned'}
-            </span>
-          </div>
-          
-          {deal.expectedCloseDate && (
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600">Close Date:</span>
-              <span className="font-medium text-gray-900">
-                {new Date(deal.expectedCloseDate).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </span>
-            </div>
-          )}
-
-          {deal.probability && (
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600">Probability:</span>
-              <span className="font-medium text-gray-900">{deal.probability}%</span>
-            </div>
-          )}
-        </div>
-
-        {/* Progress Bar */}
-        {deal.probability && (
-          <div className="mb-3">
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
-              <div
-                className={`h-1.5 rounded-full ${
-                  deal.probability >= 80
-                    ? "bg-green-500"
-                    : deal.probability >= 60
-                    ? "bg-yellow-500"
-                    : deal.probability >= 40
-                    ? "bg-orange-500"
-                    : "bg-red-500"
-                }`}
-                style={{ width: `${deal.probability}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Contact Info */}
-        {deal.contact && (
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <User className="w-3 h-3" />
-            <span className="truncate">{deal.contact.name}</span>
-          </div>
-        )}
-      </div>
-    );
+    return grouped;
   };
 
-  // Render column header for Kanban view
-  const renderColumnHeader = (columnId, cardsCount) => {
-    const columnConfig = {
-      discovery: {
-        title: "Discovery",
-        color: "border-yellow-500",
-        bg: "bg-yellow-50",
-        icon: "🔍"
-      },
-      proposal: {
-        title: "Proposal",
-        color: "border-blue-500", 
-        bg: "bg-blue-50",
-        icon: "📋"
-      },
-      negotiation: {
-        title: "Negotiation",
-        color: "border-purple-500",
-        bg: "bg-purple-50",
-        icon: "🤝"
-      },
-      'closed-won': {
-        title: "Closed Won",
-        color: "border-green-500",
-        bg: "bg-green-50",
-        icon: "✅"
-      },
-      'closed-lost': {
-        title: "Closed Lost",
-        color: "border-red-500",
-        bg: "bg-red-50",
-        icon: "❌"
+  const toggleGroup = (groupId) => {
+    setExpandedGroups((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
       }
-    };
+      return newSet;
+    });
+  };
 
-    const config = columnConfig[columnId] || {
-      title: columnId,
-      color: "border-gray-500",
-      bg: "bg-gray-50",
-      icon: "📁"
-    };
+  // Render grouped view
+  const renderGroupedView = () => {
+    const grouped = groupDealsByGroup();
+    const groupIds = Object.keys(grouped).filter((key) => key !== "ungrouped");
+
+    // Get group details for each group ID
+    const groupsWithDetails = groupIds.map((groupId) => {
+      const group = dealGroups.find(
+        (g) => (g.id || g.documentId).toString() === groupId
+      );
+      return {
+        id: groupId,
+        name: group?.name || group?.attributes?.name || "Unknown Group",
+        description: group?.description || group?.attributes?.description || "",
+        department: group?.department || group?.attributes?.department || "",
+        team: group?.team || group?.attributes?.team || "",
+        deals: grouped[groupId],
+      };
+    });
 
     return (
-      <div className={`${config.bg} rounded-lg p-4 mb-4 border-l-4 ${config.color}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{config.icon}</span>
-            <h3 className="font-semibold text-gray-800 text-sm">
-              {config.title}
-            </h3>
+      <div className="space-y-4">
+        {/* Grouped Deals */}
+        {groupsWithDetails.map((group) => {
+          const isExpanded = expandedGroups.has(group.id);
+          const totalValue = group.deals.reduce(
+            (sum, deal) => sum + (deal.value || 0),
+            0
+          );
+
+          return (
+            <div
+              key={group.id}
+              className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden"
+            >
+              {/* Group Header */}
+              <div
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-pink-50 border-b border-gray-200 cursor-pointer hover:from-orange-100 hover:to-pink-100 transition-colors"
+                onClick={() => toggleGroup(group.id)}
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  {isExpanded ? (
+                    <ChevronDown className="w-5 h-5 text-gray-600" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                  )}
+                  <Folder className="w-5 h-5 text-orange-600" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">
+                      {group.name}
+                    </h3>
+                    {(group.description || group.department || group.team) && (
+                      <div className="flex gap-4 mt-1 text-xs text-gray-600">
+                        {group.description && <span>{group.description}</span>}
+                        {group.department && (
+                          <span>Dept: {group.department}</span>
+                        )}
+                        {group.team && <span>Team: {group.team}</span>}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="text-right">
+                      <div className="font-semibold text-gray-900">
+                        {group.deals.length}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        deal{group.deals.length !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-gray-900">
+                        {formatCurrency(totalValue)}
+                      </div>
+                      <div className="text-xs text-gray-600">total value</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group Content */}
+              {isExpanded && (
+                <div className="p-4">
+                  <div className="overflow-x-auto">
+                    <DealsListView
+                      filteredDeals={group.deals}
+                      dealColumnsTable={visibleColumnsTable}
+                      selectedDeals={selectedDeals}
+                      setSelectedDeals={setSelectedDeals}
+                      searchQuery=""
+                      setSearchQuery={() => {}}
+                      onAddClick={handleAddDeal}
+                      onRowClick={(deal) => handleViewDeal(deal)}
+                      pagination={null}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Ungrouped Deals */}
+        {grouped.ungrouped.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div
+              className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => toggleGroup("ungrouped")}
+            >
+              <div className="flex items-center gap-3 flex-1">
+                {expandedGroups.has("ungrouped") ? (
+                  <ChevronDown className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                )}
+                <Folder className="w-5 h-5 text-gray-500" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">
+                    Ungrouped Deals
+                  </h3>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Deals not assigned to any group
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="text-right">
+                    <div className="font-semibold text-gray-900">
+                      {grouped.ungrouped.length}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      deal{grouped.ungrouped.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-gray-900">
+                      {formatCurrency(
+                        grouped.ungrouped.reduce(
+                          (sum, deal) => sum + (deal.value || 0),
+                          0
+                        )
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-600">total value</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {expandedGroups.has("ungrouped") && (
+              <div className="p-4">
+                <div className="overflow-x-auto">
+                  <DealsListView
+                    filteredDeals={grouped.ungrouped}
+                    dealColumnsTable={visibleColumnsTable}
+                    selectedDeals={selectedDeals}
+                    setSelectedDeals={setSelectedDeals}
+                    searchQuery=""
+                    setSearchQuery={() => {}}
+                    onAddClick={handleAddDeal}
+                    onRowClick={(deal) => handleViewDeal(deal)}
+                    pagination={null}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-          <span className="bg-white text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
-            {cardsCount}
-          </span>
-        </div>
+        )}
+
+        {/* Empty State */}
+        {groupsWithDetails.length === 0 && grouped.ungrouped.length === 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <Folder className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No deals found
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Try adjusting your filters or create a new deal
+            </p>
+            <Button onClick={handleAddDeal}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Deal
+            </Button>
+          </div>
+        )}
       </div>
     );
   };
 
   const handleApplyFilters = (filters) => {
     console.log("Applying filters:", filters);
-    
+
     // Check if any filters are active
     const hasActiveFilters = Object.values(filters).some(
       (value) => value && value.toString().trim() !== ""
     );
-    
+
     if (hasActiveFilters) {
-    setAppliedFilters(filters);
+      setAppliedFilters(filters);
       // fetchDeals will be called by useEffect when appliedFilters changes
     } else {
       setAppliedFilters({});
@@ -816,7 +961,6 @@ export default function DealsPage() {
       // fetchDeals will be called by useEffect when appliedFilters changes
     }
   };
-
 
   const handleExport = () => {
     // Generate CSV content
@@ -874,9 +1018,7 @@ export default function DealsPage() {
       await dealService.delete(dealToDelete.id);
 
       // Remove from local state
-      setDeals((prev) =>
-        prev.filter((deal) => deal.id !== dealToDelete.id)
-      );
+      setDeals((prev) => prev.filter((deal) => deal.id !== dealToDelete.id));
       setFilteredDeals((prev) =>
         prev.filter((deal) => deal.id !== dealToDelete.id)
       );
@@ -925,19 +1067,20 @@ export default function DealsPage() {
 
     // Find the deal to check if it was already won
     const deal = deals.find((d) => d.id === dealId);
-    const isWon = newStage.toLowerCase() === 'won';
-    const wasWon = deal?.stage?.toLowerCase() === 'won';
+    const isWon = newStage.toLowerCase() === "won";
+    const wasWon = deal?.stage?.toLowerCase() === "won";
 
     // Map UI stage to Strapi stage
     const stageMap = {
-      discovery: 'DISCOVERY',
-      proposal: 'PROPOSAL',
-      negotiation: 'NEGOTIATION',
-      won: 'CLOSED_WON',
-      lost: 'CLOSED_LOST'
+      discovery: "DISCOVERY",
+      proposal: "PROPOSAL",
+      negotiation: "NEGOTIATION",
+      won: "CLOSED_WON",
+      lost: "CLOSED_LOST",
     };
 
-    const strapiStage = stageMap[newStage.toLowerCase()] || newStage.toUpperCase();
+    const strapiStage =
+      stageMap[newStage.toLowerCase()] || newStage.toUpperCase();
     const loadingKey = `${dealId}-${newStage.toLowerCase()}`;
 
     // Set loading state
@@ -951,34 +1094,26 @@ export default function DealsPage() {
 
       // Update local state - map Strapi stage back to UI stage
       const uiStageMap = {
-        'DISCOVERY': 'discovery',
-        'PROPOSAL': 'proposal',
-        'NEGOTIATION': 'negotiation',
-        'CLOSED_WON': 'won',
-        'CLOSED_LOST': 'lost'
+        DISCOVERY: "discovery",
+        PROPOSAL: "proposal",
+        NEGOTIATION: "negotiation",
+        CLOSED_WON: "won",
+        CLOSED_LOST: "lost",
       };
 
       const uiStage = uiStageMap[strapiStage] || newStage.toLowerCase();
 
       const updatedDeal = {
         ...deal,
-        stage: uiStage
+        stage: uiStage,
       };
 
       setDeals((prevDeals) =>
-        prevDeals.map((d) =>
-          d.id === dealId
-            ? updatedDeal
-            : d
-        )
+        prevDeals.map((d) => (d.id === dealId ? updatedDeal : d))
       );
 
       setFilteredDeals((prevDeals) =>
-        prevDeals.map((d) =>
-          d.id === dealId
-            ? updatedDeal
-            : d
-        )
+        prevDeals.map((d) => (d.id === dealId ? updatedDeal : d))
       );
 
       // Refresh stats
@@ -1013,8 +1148,8 @@ export default function DealsPage() {
     setCreatingProject(true);
     try {
       // Get client name from deal
-      const clientName = 
-        dealForProject.clientAccount?.companyName || 
+      const clientName =
+        dealForProject.clientAccount?.companyName ||
         dealForProject.clientAccount?.attributes?.companyName ||
         dealForProject.leadCompany?.companyName ||
         dealForProject.leadCompany?.attributes?.companyName ||
@@ -1040,14 +1175,17 @@ export default function DealsPage() {
           const accountsResponse = await strapiClient.get("/accounts", {
             "filters[companyName][$eq]": clientName,
           });
-          
+
           if (accountsResponse?.data && accountsResponse.data.length > 0) {
             const account = accountsResponse.data[0];
             accountId = account.id || account.documentId;
           }
         }
       } catch (accountError) {
-        console.log("Could not find account, proceeding without account relation:", accountError);
+        console.log(
+          "Could not find account, proceeding without account relation:",
+          accountError
+        );
         // Continue without account relation
       }
 
@@ -1055,7 +1193,9 @@ export default function DealsPage() {
       const projectData = {
         name: `${clientName} - ${dealForProject.name}`,
         slug: `${slug}-${dealId}`,
-        description: dealForProject.description || `Project created from deal: ${dealForProject.name}`,
+        description:
+          dealForProject.description ||
+          `Project created from deal: ${dealForProject.name}`,
         status: "PLANNING",
         icon: icon,
         color: "from-blue-400 to-blue-600",
@@ -1160,7 +1300,10 @@ export default function DealsPage() {
           setVisibleColumns(allColumnKeys);
         }
       } catch (error) {
-        console.error("Error loading column visibility from localStorage:", error);
+        console.error(
+          "Error loading column visibility from localStorage:",
+          error
+        );
         setVisibleColumns(allColumnKeys);
       }
     }
@@ -1190,8 +1333,7 @@ export default function DealsPage() {
             alt={deal.name}
             fallback={deal.name?.charAt(0)}
             size="sm"
-            className="flex-shrink-0"
-            className="w-10 h-10"
+            className="flex-shrink-0 w-10 h-10"
           />
           <div>
             <div className="font-medium text-gray-900">{deal.name}</div>
@@ -1335,9 +1477,9 @@ export default function DealsPage() {
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-gray-400" />
             <span className="text-sm text-gray-900">
-            {deal.closeDate
-              ? new Date(deal.closeDate).toLocaleDateString("en-IN")
-              : "Not set"}
+              {deal.closeDate
+                ? new Date(deal.closeDate).toLocaleDateString("en-IN")
+                : "Not set"}
             </span>
           </div>
         </div>
@@ -1368,7 +1510,6 @@ export default function DealsPage() {
               alt={ownerName}
               fallback={(ownerName || "?").charAt(0).toUpperCase()}
               size="sm"
-              className="flex-shrink-0"
               className="flex-shrink-0"
             />
             <span className="text-sm font-medium text-gray-900 flex-1 truncate">
@@ -1426,7 +1567,8 @@ export default function DealsPage() {
             <div
               className={`${colors.bg} ${colors.text} ${colors.border} border-2 rounded-lg px-3 py-2 font-bold text-xs text-center shadow-md ${colors.shadow} transition-all duration-200 hover:scale-105 hover:shadow-lg`}
             >
-              {displayPriority.charAt(0).toUpperCase() + displayPriority.slice(1)}
+              {displayPriority.charAt(0).toUpperCase() +
+                displayPriority.slice(1)}
             </div>
           </div>
         );
@@ -1689,7 +1831,8 @@ export default function DealsPage() {
               </p>
               {dealForProject.value && (
                 <p className="text-sm text-gray-600 mb-4">
-                  Deal Value: <strong>{formatCurrency(dealForProject.value)}</strong>
+                  Deal Value:{" "}
+                  <strong>{formatCurrency(dealForProject.value)}</strong>
                 </p>
               )}
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -1697,7 +1840,8 @@ export default function DealsPage() {
                   Would you like to create a project for this client?
                 </p>
                 <p className="text-xs text-green-600">
-                  This will create a new project in the Projects section linked to this deal's client.
+                  This will create a new project in the Projects section linked
+                  to this deal's client.
                 </p>
               </div>
             </div>
@@ -1751,6 +1895,15 @@ export default function DealsPage() {
           onExportClick={() => handleExport()}
           customActions={
             <div className="flex items-center gap-2 ml-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDealGroupModalOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <FolderPlus className="w-4 h-4" />
+                Groups
+              </Button>
               <div className="flex items-center bg-gray-100 rounded-lg p-1">
                 <Button
                   variant={viewMode === "list" ? "default" : "ghost"}
@@ -1778,6 +1931,19 @@ export default function DealsPage() {
                   <Columns className="w-4 h-4 mr-1" />
                   Kanban
                 </Button>
+                <Button
+                  variant={viewMode === "grouped" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("grouped")}
+                  className={`px-3 py-1.5 ${
+                    viewMode === "grouped"
+                      ? "bg-white shadow-sm"
+                      : "hover:bg-gray-200"
+                  }`}
+                >
+                  <Folder className="w-4 h-4 mr-1" />
+                  Grouped
+                </Button>
               </div>
             </div>
           }
@@ -1796,59 +1962,70 @@ export default function DealsPage() {
             onAddClick={handleAddDeal}
             onExportClick={() => handleExport()}
             onColumnVisibilityClick={() => setIsColumnVisibilityModalOpen(true)}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
           />
 
           {/* Results Count */}
           <div className="text-sm text-gray-600 px-1">
-            Showing <span className="font-semibold text-gray-900">{filteredDeals.length}</span> result{filteredDeals.length !== 1 ? 's' : ''}
+            Showing{" "}
+            <span className="font-semibold text-gray-900">
+              {filteredDeals.length}
+            </span>{" "}
+            result{filteredDeals.length !== 1 ? "s" : ""}
           </div>
 
-          {/* Deals Content - List or Kanban View */}
+          {/* Groups Button - Shown only in Grouped View */}
+          {viewMode === "grouped" && (
+            <div className="flex items-center justify-between px-1 mb-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDealGroupModalOpen(true)}
+                  className="flex items-center gap-2 border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  Manage Groups
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Deals Content - List, Kanban, or Grouped View */}
           {viewMode === "list" ? (
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-            <DealsListView
-              filteredDeals={paginatedDeals}
-              dealColumnsTable={visibleColumnsTable}
-              selectedDeals={selectedDeals}
-              setSelectedDeals={setSelectedDeals}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              onAddClick={handleAddDeal}
-              onRowClick={(deal) => handleViewDeal(deal)}
-              pagination={
-                totalPages > 1 ? (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalItems={filteredDeals.length}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={setCurrentPage}
-                  />
-                ) : null
-              }
-            />
-          </div>
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <DealsListView
+                filteredDeals={paginatedDeals}
+                dealColumnsTable={visibleColumnsTable}
+                selectedDeals={selectedDeals}
+                setSelectedDeals={setSelectedDeals}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                onAddClick={handleAddDeal}
+                onRowClick={(deal) => handleViewDeal(deal)}
+                pagination={
+                  totalPages > 1 ? (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={filteredDeals.length}
+                      itemsPerPage={itemsPerPage}
+                      onPageChange={setCurrentPage}
+                    />
+                  ) : null
+                }
+              />
+            </div>
+          ) : viewMode === "grouped" ? (
+            renderGroupedView()
           ) : (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Pipeline Board
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Drag and drop deals between stages to update their status
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <div className="min-w-[1200px]">
-                  <KanbanBoard
-                    columns={groupDealsByStage()}
-                    onDragEnd={handleDragEnd}
-                    renderCard={renderDealCard}
-                    renderColumnHeader={renderColumnHeader}
-                    className="gap-6"
-                  />
-                </div>
-              </div>
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <DealsBoardView
+                columns={groupDealsByStage()}
+                onDragEnd={handleDragEnd}
+                onItemClick={handleViewDeal}
+              />
             </div>
           )}
         </div>
@@ -1871,6 +2048,24 @@ export default function DealsPage() {
           appliedFilters={appliedFilters}
         />
 
+        {/* Deal Group Modal */}
+        <DealGroupModal
+          isOpen={isDealGroupModalOpen}
+          onClose={() => setIsDealGroupModalOpen(false)}
+          onGroupCreated={() => {
+            fetchDealGroups();
+            fetchDeals();
+          }}
+          onGroupUpdated={() => {
+            fetchDealGroups();
+            fetchDeals();
+          }}
+          onGroupDeleted={() => {
+            fetchDealGroups();
+            fetchDeals();
+          }}
+        />
+
         {/* Assign Owner Modal */}
         {showAssignModal && dealToAssign && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1891,8 +2086,8 @@ export default function DealsPage() {
 
               <div className="mb-6">
                 <p className="text-gray-700 mb-4">
-                  Select a user to assign{" "}
-                  <strong>{dealToAssign.name}</strong> to:
+                  Select a user to assign <strong>{dealToAssign.name}</strong>{" "}
+                  to:
                 </p>
                 <Select
                   label="Assign To"
