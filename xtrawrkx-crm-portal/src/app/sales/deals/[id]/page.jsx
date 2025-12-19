@@ -6,6 +6,7 @@ import PageHeader from "../../../../components/PageHeader";
 import { Card, Badge, Button, Avatar, Table } from "../../../../components/ui";
 import ActivitiesPanel from "../../../../components/activities/ActivitiesPanel";
 import dealService from "../../../../lib/api/dealService";
+import leadCompanyService from "../../../../lib/api/leadCompanyService";
 import contactService from "../../../../lib/api/contactService";
 import strapiClient from "../../../../lib/strapiClient";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -96,8 +97,8 @@ export default function DealDetailPage() {
     setCreatingProject(true);
     try {
       // Get client name from deal
-      const clientName = 
-        deal.clientAccount?.companyName || 
+      const clientName =
+        deal.clientAccount?.companyName ||
         deal.clientAccount?.attributes?.companyName ||
         deal.leadCompany?.companyName ||
         deal.leadCompany?.attributes?.companyName ||
@@ -123,14 +124,17 @@ export default function DealDetailPage() {
           const accountsResponse = await strapiClient.get("/accounts", {
             "filters[companyName][$eq]": clientName,
           });
-          
+
           if (accountsResponse?.data && accountsResponse.data.length > 0) {
             const account = accountsResponse.data[0];
             accountId = account.id || account.documentId;
           }
         }
       } catch (accountError) {
-        console.log("Could not find account, proceeding without account relation:", accountError);
+        console.log(
+          "Could not find account, proceeding without account relation:",
+          accountError
+        );
         // Continue without account relation
       }
 
@@ -138,7 +142,8 @@ export default function DealDetailPage() {
       const projectData = {
         name: `${clientName} - ${deal.name}`,
         slug: `${slug}-${dealId}`,
-        description: deal.description || `Project created from deal: ${deal.name}`,
+        description:
+          deal.description || `Project created from deal: ${deal.name}`,
         status: "PLANNING",
         icon: icon,
         color: "from-blue-400 to-blue-600",
@@ -672,16 +677,17 @@ export default function DealDetailPage() {
 
     // Map UI stage to Strapi stage
     const stageMap = {
-      discovery: 'DISCOVERY',
-      proposal: 'PROPOSAL',
-      negotiation: 'NEGOTIATION',
-      won: 'CLOSED_WON',
-      lost: 'CLOSED_LOST'
+      discovery: "DISCOVERY",
+      proposal: "PROPOSAL",
+      negotiation: "NEGOTIATION",
+      won: "CLOSED_WON",
+      lost: "CLOSED_LOST",
     };
 
-    const strapiStage = stageMap[newStage.toLowerCase()] || newStage.toUpperCase();
-    const isWon = newStage.toLowerCase() === 'won';
-    const wasWon = deal.stage?.toLowerCase() === 'won';
+    const strapiStage =
+      stageMap[newStage.toLowerCase()] || newStage.toUpperCase();
+    const isWon = newStage.toLowerCase() === "won";
+    const wasWon = deal.stage?.toLowerCase() === "won";
 
     setLoadingStatusUpdate(true);
 
@@ -691,20 +697,114 @@ export default function DealDetailPage() {
       // Update the stage via API
       await dealService.update(deal.id, { stage: strapiStage });
 
+      // If deal is won, check if we need to convert lead company to client account
+      if (strapiStage === "CLOSED_WON" && isWon && !wasWon) {
+        try {
+          // Fetch the updated deal to get full data including leadCompany
+          const updatedDealResponse = await dealService.getById(deal.id, {
+            populate: {
+              leadCompany: {
+                populate: ["convertedAccount"],
+              },
+              clientAccount: true,
+            },
+          });
+
+          const fullDealData = updatedDealResponse?.data;
+          const dealAttributes = fullDealData?.attributes || fullDealData;
+
+          // Check if deal has a leadCompany and no clientAccount
+          const leadCompany =
+            dealAttributes?.leadCompany?.data || dealAttributes?.leadCompany;
+          const clientAccount =
+            dealAttributes?.clientAccount?.data ||
+            dealAttributes?.clientAccount;
+
+          if (leadCompany && !clientAccount) {
+            const leadCompanyId = leadCompany.id || leadCompany.documentId;
+            const leadCompanyData = leadCompany.attributes || leadCompany;
+
+            // Check if lead company has already been converted
+            const convertedAccount =
+              leadCompanyData?.convertedAccount?.data ||
+              leadCompanyData?.convertedAccount;
+
+            if (!convertedAccount) {
+              console.log(
+                `Converting lead company ${leadCompanyId} to client account for deal ${deal.id}`
+              );
+
+              // Convert lead company to client account
+              const conversionResponse =
+                await leadCompanyService.convertToClient(leadCompanyId);
+              const newClientAccount =
+                conversionResponse?.data?.convertedAccount?.data ||
+                conversionResponse?.convertedAccount ||
+                conversionResponse?.data;
+
+              if (newClientAccount) {
+                const clientAccountId =
+                  newClientAccount.id || newClientAccount.documentId;
+
+                // Update deal to link to the new client account
+                await dealService.update(deal.id, {
+                  clientAccount: clientAccountId,
+                });
+
+                console.log(
+                  `Successfully converted lead company to client account and linked to deal ${deal.id}`
+                );
+
+                // Show success toast if toast is available
+                if (typeof window !== "undefined" && window.toast) {
+                  window.toast.success(
+                    `Lead company "${
+                      leadCompanyData.companyName || "Unknown"
+                    }" converted to client account!`,
+                    {
+                      position: "top-right",
+                      autoClose: 5000,
+                    }
+                  );
+                }
+              }
+            } else {
+              // Lead company already converted, just link the existing client account to the deal
+              const existingClientAccountId =
+                convertedAccount.id || convertedAccount.documentId;
+
+              await dealService.update(deal.id, {
+                clientAccount: existingClientAccountId,
+              });
+
+              console.log(
+                `Linked existing client account ${existingClientAccountId} to deal ${deal.id}`
+              );
+            }
+          }
+        } catch (conversionError) {
+          console.error(
+            "Error converting lead company to client account:",
+            conversionError
+          );
+          // Don't fail the deal update if conversion fails, just log the error
+        }
+      }
+
       // Update local state - map Strapi stage back to UI stage
       const uiStageMap = {
-        'DISCOVERY': 'discovery',
-        'PROPOSAL': 'proposal',
-        'NEGOTIATION': 'negotiation',
-        'CLOSED_WON': 'won',
-        'CLOSED_LOST': 'lost'
+        DISCOVERY: "discovery",
+        PROPOSAL: "proposal",
+        NEGOTIATION: "negotiation",
+        CLOSED_WON: "won",
+        CLOSED_LOST: "lost",
       };
 
       const uiStage = uiStageMap[strapiStage] || newStage.toLowerCase();
 
       setDeal((prevDeal) => ({
         ...prevDeal,
-        stage: uiStage
+        stage: uiStage,
       }));
 
       // Trigger celebratory animation if converting to Won (and wasn't already won)
@@ -974,7 +1074,8 @@ export default function DealDetailPage() {
                     </p>
                     {deal?.value && (
                       <p className="text-sm text-gray-600 mb-4">
-                        Deal Value: <strong>{formatCurrency(deal.value)}</strong>
+                        Deal Value:{" "}
+                        <strong>{formatCurrency(deal.value)}</strong>
                       </p>
                     )}
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -982,7 +1083,8 @@ export default function DealDetailPage() {
                         Would you like to create a project for this client?
                       </p>
                       <p className="text-xs text-green-600">
-                        This will create a new project in the Projects section linked to this deal's client.
+                        This will create a new project in the Projects section
+                        linked to this deal's client.
                       </p>
                     </div>
                   </div>
@@ -1281,7 +1383,8 @@ export default function DealDetailPage() {
                               };
 
                               const colors =
-                                stageColors[currentStage] || stageColors.discovery;
+                                stageColors[currentStage] ||
+                                stageColors.discovery;
 
                               const statusOptions = [
                                 { value: "discovery", label: "Discovery" },
@@ -1307,12 +1410,16 @@ export default function DealDetailPage() {
                                       style={{
                                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                                         backgroundRepeat: "no-repeat",
-                                        backgroundPosition: "right 0.5rem center",
+                                        backgroundPosition:
+                                          "right 0.5rem center",
                                         paddingRight: "2rem",
                                       }}
                                     >
                                       {statusOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
+                                        <option
+                                          key={option.value}
+                                          value={option.value}
+                                        >
                                           {option.label}
                                         </option>
                                       ))}
@@ -1704,7 +1811,10 @@ export default function DealDetailPage() {
                       <h3 className="text-lg font-semibold text-gray-900">
                         Next Steps
                       </h3>
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-300">
+                      <Badge
+                        variant="secondary"
+                        className="bg-orange-100 text-orange-700 border-orange-300"
+                      >
                         Coming Soon
                       </Badge>
                     </div>
@@ -1714,7 +1824,8 @@ export default function DealDetailPage() {
                         Next Steps feature coming soon
                       </p>
                       <p className="text-sm text-gray-500 text-center max-w-sm">
-                        This feature will allow you to track and manage action items for your deals
+                        This feature will allow you to track and manage action
+                        items for your deals
                       </p>
                     </div>
                   </div>

@@ -1,16 +1,20 @@
+import { forwardRef } from "react";
 import { clsx } from "clsx";
 import { Search, AlertCircle } from "lucide-react";
 
-export function Input({
-  label,
-  error,
-  icon: Icon,
-  type = "text",
-  required = false,
-  className,
-  containerClassName,
-  ...props
-}) {
+export const Input = forwardRef(function Input(
+  {
+    label,
+    error,
+    icon: Icon,
+    type = "text",
+    required = false,
+    className,
+    containerClassName,
+    ...props
+  },
+  ref
+) {
   return (
     <div className={clsx("w-full", containerClassName)}>
       {label && (
@@ -26,6 +30,7 @@ export function Input({
           </div>
         )}
         <input
+          ref={ref}
           type={type}
           className={clsx(
             "block w-full rounded-lg border shadow-sm",
@@ -47,6 +52,6 @@ export function Input({
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
     </div>
   );
-}
+});
 
 export default Input;

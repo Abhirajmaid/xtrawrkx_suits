@@ -127,6 +127,7 @@ const ContactDetailPage = ({ params }) => {
         role: contact.role || "TECHNICAL_CONTACT",
         status: contact.status || "ACTIVE",
         address: contact.address || "",
+        location: contact.location || "",
         city: contact.city || "",
         state: contact.state || "",
         country: contact.country || "",
@@ -479,6 +480,21 @@ const ContactDetailPage = ({ params }) => {
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-500">
+                            Location
+                          </label>
+                          <p className="text-gray-900 flex items-center gap-1">
+                            {contact.location ? (
+                              <>
+                                <MapPin className="w-4 h-4 text-gray-400" />
+                                {contact.location}
+                              </>
+                            ) : (
+                              "Not specified"
+                            )}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">
                             Department
                           </label>
                           <p className="text-gray-900">
@@ -720,6 +736,7 @@ const ContactDetailPage = ({ params }) => {
 
                   {/* Address Information */}
                   {(contact.address ||
+                    contact.location ||
                     contact.city ||
                     contact.state ||
                     contact.country) && (
@@ -728,6 +745,14 @@ const ContactDetailPage = ({ params }) => {
                         Address Information
                       </h3>
                       <div className="space-y-2">
+                        {contact.location && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <p className="text-gray-900 font-medium">
+                              {contact.location}
+                            </p>
+                          </div>
+                        )}
                         {contact.address && (
                           <p className="text-gray-900">{contact.address}</p>
                         )}

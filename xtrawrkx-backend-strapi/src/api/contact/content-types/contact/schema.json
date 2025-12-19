@@ -74,6 +74,9 @@
         "address": {
             "type": "text"
         },
+        "location": {
+            "type": "string"
+        },
         "description": {
             "type": "text"
         },

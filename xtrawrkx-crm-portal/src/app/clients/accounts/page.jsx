@@ -55,6 +55,7 @@ import {
   Edit,
   Trash2,
   DollarSign,
+  MapPin,
 } from "lucide-react";
 
 export default function ClientAccountsPage() {
@@ -85,7 +86,8 @@ export default function ClientAccountsPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [accountToAssign, setAccountToAssign] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] = useState(false);
+  const [isColumnVisibilityModalOpen, setIsColumnVisibilityModalOpen] =
+    useState(false);
   const [visibleColumns, setVisibleColumns] = useState([]);
 
   // Initialize visible columns from localStorage or default to all columns
@@ -97,6 +99,8 @@ export default function ClientAccountsPage() {
       "healthScore",
       "dealValue",
       "contacts",
+      "location",
+      "interests",
       "accountManager",
       "status",
       "created",
@@ -113,8 +117,15 @@ export default function ClientAccountsPage() {
           const validColumns = parsedColumns.filter((key) =>
             allColumnKeys.includes(key)
           );
-          if (validColumns.length > 0) {
-            setVisibleColumns(validColumns);
+          // Merge saved columns with new default columns (location, interests)
+          // to ensure new columns are always visible
+          const newDefaultColumns = ["location", "interests"];
+          const mergedColumns = [
+            ...new Set([...validColumns, ...newDefaultColumns]),
+          ].filter((key) => allColumnKeys.includes(key));
+
+          if (mergedColumns.length > 0) {
+            setVisibleColumns(mergedColumns);
           } else {
             setVisibleColumns(allColumnKeys);
           }
@@ -122,7 +133,10 @@ export default function ClientAccountsPage() {
           setVisibleColumns(allColumnKeys);
         }
       } catch (error) {
-        console.error("Error loading column visibility from localStorage:", error);
+        console.error(
+          "Error loading column visibility from localStorage:",
+          error
+        );
         setVisibleColumns(allColumnKeys);
       }
     }
@@ -565,6 +579,63 @@ export default function ClientAccountsPage() {
       ),
     },
     {
+      key: "location",
+      label: "LOCATION",
+      width: "180px",
+      render: (_, account) => (
+        <div className="min-w-[150px]">
+          {account.location ? (
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-600 truncate">
+                {account.location}
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm text-gray-400">Not specified</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "interests",
+      label: "INTERESTS",
+      width: "200px",
+      render: (_, account) => {
+        const interests = account.interests;
+        if (
+          !interests ||
+          (Array.isArray(interests) && interests.length === 0)
+        ) {
+          return (
+            <div className="min-w-[150px]">
+              <span className="text-sm text-gray-400">No interests</span>
+            </div>
+          );
+        }
+        const interestsList = Array.isArray(interests) ? interests : [];
+        return (
+          <div className="min-w-[150px]">
+            <div className="flex flex-wrap gap-1">
+              {interestsList.slice(0, 2).map((interest, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800"
+                >
+                  {interest}
+                </span>
+              ))}
+              {interestsList.length > 2 && (
+                <span className="text-xs text-gray-500">
+                  +{interestsList.length - 2} more
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
       key: "accountManager",
       label: "ACCOUNT MANAGER",
       width: "220px",
@@ -750,7 +821,9 @@ export default function ClientAccountsPage() {
     if (visibleColumns.length === 0) {
       return accountColumnsTable;
     }
-    return accountColumnsTable.filter((col) => visibleColumns.includes(col.key));
+    return accountColumnsTable.filter((col) =>
+      visibleColumns.includes(col.key)
+    );
   };
 
   const visibleColumnsTable = getVisibleColumns();

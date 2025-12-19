@@ -1,4 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Host+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600;1,700;1,800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Host+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600;1,700;1,800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -400,4 +400,34 @@
 .table-fixed td {
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+
+/* Scale CRM portal for smaller laptop screens */
+@media (max-width: 1536px) {
+
+  html,
+  body {
+    height: 100vh;
+    overflow: hidden;
+    background: white !important;
+  }
+
+  .crm-scaled-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: white;
+  }
+
+  .crm-scaled {
+    transform: scale(0.9);
+    transform-origin: top left;
+    width: 111.11%;
+    /* 100% / 0.9 to compensate for scale */
+    height: 111.11vh;
+    /* 100vh / 0.9 to compensate for scale */
+  }
 }

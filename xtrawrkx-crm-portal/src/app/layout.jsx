@@ -52,23 +52,28 @@ function LayoutContent({ children }) {
   // For authenticated users, show the full layout with sidebar and top nav
   if (isAuthenticated) {
     return (
-      <div className="flex h-screen overflow-hidden">
-        {/* CRM Sidebar */}
-        <CRMSidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
+      <div className="crm-scaled-wrapper">
+        <div className="flex h-screen overflow-hidden crm-scaled">
+          {/* CRM Sidebar */}
+          <CRMSidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Page Content */}
-          <main className="flex-1 overflow-y-auto overflow-x-hidden">
-            {children}
-          </main>
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Page Content */}
+            <main className="flex-1 overflow-y-auto overflow-x-hidden">
+              {children}
+            </main>
+          </div>
+
+          {/* Extension Download Modal */}
+          <ExtensionDownloadModal
+            isOpen={showModal}
+            onClose={handleCloseModal}
+          />
         </div>
-
-        {/* Extension Download Modal */}
-        <ExtensionDownloadModal isOpen={showModal} onClose={handleCloseModal} />
       </div>
     );
   }

@@ -9,7 +9,7 @@ import { ROLE_OPTIONS, INTEREST_OPTIONS } from "@/lib/onboarding-config";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
 import { getOnboardingAccount } from "@/lib/api";
 import { useSession } from "@/lib/auth";
-import { Input, Label } from "@/components/ui";
+import { Input, Label, Select } from "@/components/ui";
 import { BlueButton, PurpleButton, WhiteButton } from "@/components/ui";
 import { X, Plus, User, MapPin, Heart } from "lucide-react";
 
@@ -29,6 +29,134 @@ export function BasicsStep({
   );
   const [isLoadingAccount, setIsLoadingAccount] = useState(true);
   const [accountData, setAccountData] = useState(null);
+
+  // Company types and sub-types (same as lead company form)
+  const companyTypes = [
+    { id: "startup-corporate", name: "Startup and Corporates" },
+    { id: "investor", name: "Investors" },
+    { id: "enablers-academia", name: "Enablers & Academia" },
+  ];
+
+  const subTypeOptions = {
+    "startup-corporate": [
+      "EV 2W",
+      "EV 3W",
+      "EV OEM",
+      "EV 4W",
+      "Motor OEM",
+      "Motor Controller OEM",
+      "Batteries",
+      "Charging Infra",
+      "Drones",
+      "AGVs",
+      "Consumer electronics",
+      "Incubator / accelerator",
+      "Power electronics",
+      "Other OE",
+      "Group",
+      "EV Fleet",
+      "E-commerce companies",
+      "3rd party logistics",
+      "Vehicle Smarts",
+      "Swapping",
+      "EV Leasing",
+      "EV Rentals",
+      "EV NBFC",
+      "Power electronics+Vechicle smart",
+      "Electronics Components",
+      "1DL/MDL",
+      "Franchisee",
+      "Smart Battery",
+      "Dealer",
+      "Motor Parts",
+      "Spare Part",
+      "Traditional Auto",
+      "Smart Electronic",
+      "Mech Parts",
+      "Energy Storing",
+      "Automotive Parts_ EV manufacturers",
+      "IOT",
+      "Inverter",
+      "Aggregator",
+    ],
+    investor: [
+      "Future Founder",
+      "Private Lender P2P",
+      "Angel",
+      "Angel Network",
+      "Micro VC",
+      "VC",
+      "Family Office",
+      "Private Equity PE",
+      "Debt",
+      "WC Working Capital",
+      "NBFC",
+      "Bill discounting",
+      "Investment Bank",
+      "Banks",
+      "Asset Investor",
+      "Asset Financier",
+      "Asset Leasing",
+      "Op Franchisee",
+      "Franchise Network",
+      "Incubation Center",
+      "Accelerator",
+      "Industry body",
+      "Gov Body",
+      "Gov Policy",
+      "Alternative Investment Platform",
+      "Strategic investor",
+      "CVC",
+      "HNI",
+    ],
+    "enablers-academia": [
+      "Incubator",
+      "Accelerator",
+      "Venture Studio",
+      "Academia",
+      "Government Office",
+      "Mentor",
+      "Investment Banker",
+    ],
+  };
+
+  // Get sub-type options based on selected company type
+  const getSubTypeOptions = () => {
+    const companyType = watch("companyType");
+    if (!companyType) return [];
+    return (
+      subTypeOptions[companyType]?.map((subType) => ({
+        value: subType,
+        label: subType,
+      })) || []
+    );
+  };
+
+  const accountTypeOptions = [
+    { value: "CUSTOMER", label: "Customer" },
+    { value: "PARTNER", label: "Partner" },
+    { value: "VENDOR", label: "Vendor" },
+  ];
+
+  const employeeSizeOptions = [
+    { value: "SIZE_1_10", label: "1-10 employees" },
+    { value: "SIZE_11_50", label: "11-50 employees" },
+    { value: "SIZE_51_200", label: "51-200 employees" },
+    { value: "SIZE_201_500", label: "201-500 employees" },
+    { value: "SIZE_501_1000", label: "501-1000 employees" },
+    { value: "SIZE_1000_PLUS", label: "1000+ employees" },
+  ];
+
+  const revenueOptions = [
+    { value: "REVENUE_0_1L", label: "₹0 - ₹1 Lakh" },
+    { value: "REVENUE_1L_10L", label: "₹1 Lakh - ₹10 Lakhs" },
+    { value: "REVENUE_10L_50L", label: "₹10 Lakhs - ₹50 Lakhs" },
+    { value: "REVENUE_50L_1C", label: "₹50 Lakhs - ₹1 Crore" },
+    { value: "REVENUE_1C_10C", label: "₹1 Crore - ₹10 Crores" },
+    { value: "REVENUE_10C_50C", label: "₹10 Crores - ₹50 Crores" },
+    { value: "REVENUE_50C_100C", label: "₹50 Crores - ₹100 Crores" },
+    { value: "REVENUE_100C_PLUS", label: "₹100+ Crores" },
+  ];
 
   // Load account data on mount
   useEffect(() => {
@@ -63,6 +191,12 @@ export function BasicsStep({
     defaultValues: {
       companyName: "",
       industry: "",
+      companyType: "",
+      subType: "",
+      type: "CUSTOMER",
+      employees: "",
+      revenue: "",
+      founded: "",
       name: "",
       role: "",
       location: "",
@@ -95,6 +229,17 @@ export function BasicsStep({
           {
             companyName: companyName,
             industry: industry,
+            companyType:
+              initialData?.companyType || accountData?.companyType || "",
+            subType: initialData?.subType || accountData?.subType || "",
+            type: initialData?.type || accountData?.type || "CUSTOMER",
+            employees:
+              initialData?.employees ||
+              accountData?.employees ||
+              initialData?.companySize ||
+              "",
+            revenue: initialData?.revenue || accountData?.revenue || "",
+            founded: initialData?.founded || accountData?.founded || "",
             name: name,
             role: initialData?.role || "",
             location: initialData?.location || "",
@@ -107,12 +252,29 @@ export function BasicsStep({
   }, [accountData, initialData, reset, isLoadingAccount]);
 
   const selectedRole = watch("role");
+  const selectedCompanyType = watch("companyType");
+  const currentSubType = watch("subType");
+
+  // Reset subType when companyType changes
+  useEffect(() => {
+    if (selectedCompanyType) {
+      const availableSubTypes = subTypeOptions[selectedCompanyType] || [];
+      // Clear subType if it's not valid for the new company type
+      if (currentSubType && !availableSubTypes.includes(currentSubType)) {
+        setValue("subType", "", { shouldValidate: false });
+      }
+    } else {
+      // Clear subType if company type is cleared
+      if (currentSubType) {
+        setValue("subType", "", { shouldValidate: false });
+      }
+    }
+  }, [selectedCompanyType, currentSubType, setValue]);
 
   const handleInterestToggle = (interest) => {
     const updated = selectedInterests.includes(interest)
       ? selectedInterests.filter((i) => i !== interest)
       : [...selectedInterests, interest];
-
     if (updated.length <= 6) {
       setSelectedInterests(updated);
       setValue("interests", updated, { shouldValidate: true });
@@ -126,11 +288,17 @@ export function BasicsStep({
   };
 
   const onSubmit = async (data) => {
-    // Trim all string values before submission
+    // Trim all string values before submission and include all fields
     const trimmedData = {
       ...data,
       companyName: data.companyName?.trim() || "",
       industry: data.industry?.trim() || "",
+      companyType: data.companyType || "",
+      subType: data.subType?.trim() || "",
+      type: data.type || "CUSTOMER",
+      employees: data.employees || "",
+      revenue: data.revenue || "",
+      founded: data.founded?.trim() || "",
       name: data.name?.trim() || "",
       role: data.role?.trim() || "",
       location: data.location?.trim() || "",
@@ -193,7 +361,18 @@ export function BasicsStep({
             <ul className="text-sm text-red-700 space-y-1">
               {Object.entries(errors)
                 .filter(([field]) =>
-                  ["companyName", "industry", "name", "role"].includes(field)
+                  [
+                    "companyName",
+                    "industry",
+                    "name",
+                    "role",
+                    "companyType",
+                    "subType",
+                    "type",
+                    "employees",
+                    "revenue",
+                    "founded",
+                  ].includes(field)
                 )
                 .map(([field, error]) => (
                   <li key={field}>
@@ -308,6 +487,192 @@ export function BasicsStep({
           </select>
           {errors.industry && (touchedFields.industry || isSubmitted) && (
             <p className="text-sm text-red-600">{errors.industry.message}</p>
+          )}
+        </motion.div>
+
+        {/* Company Type */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.09, duration: 0.6 }}
+        >
+          <Select
+            label="Company Type (Optional)"
+            value={watch("companyType") || ""}
+            onChange={(value) => {
+              setValue("companyType", value, { shouldValidate: true });
+              trigger("companyType");
+              if (errors.companyType) clearErrors("companyType");
+            }}
+            options={companyTypes.map((type) => ({
+              value: type.id,
+              label: type.name,
+            }))}
+            placeholder="Select company type"
+            error={
+              errors.companyType && (touchedFields.companyType || isSubmitted)
+                ? errors.companyType.message
+                : undefined
+            }
+            className={`h-12 text-lg ${
+              errors.companyType && (touchedFields.companyType || isSubmitted)
+                ? "border-red-500"
+                : ""
+            }`}
+          />
+        </motion.div>
+
+        {/* Sub Type */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.095, duration: 0.6 }}
+        >
+          <Select
+            label="Sub-Type (Optional)"
+            value={watch("subType") || ""}
+            onChange={(value) => {
+              setValue("subType", value, { shouldValidate: true });
+              trigger("subType");
+              if (errors.subType) clearErrors("subType");
+            }}
+            options={getSubTypeOptions()}
+            placeholder={
+              selectedCompanyType
+                ? "Select sub-type"
+                : "Select company type first"
+            }
+            disabled={!selectedCompanyType}
+            error={
+              errors.subType && (touchedFields.subType || isSubmitted)
+                ? errors.subType.message
+                : undefined
+            }
+            className={`h-12 text-lg ${
+              errors.subType && (touchedFields.subType || isSubmitted)
+                ? "border-red-500"
+                : ""
+            }`}
+          />
+        </motion.div>
+
+        {/* Account Type */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1, duration: 0.6 }}
+        >
+          <Select
+            label="Account Type (Optional)"
+            value={watch("type") || "CUSTOMER"}
+            onChange={(value) => {
+              setValue("type", value, { shouldValidate: true });
+              trigger("type");
+              if (errors.type) clearErrors("type");
+            }}
+            options={accountTypeOptions}
+            placeholder="Select account type"
+            error={
+              errors.type && (touchedFields.type || isSubmitted)
+                ? errors.type.message
+                : undefined
+            }
+            className={`h-12 text-lg ${
+              errors.type && (touchedFields.type || isSubmitted)
+                ? "border-red-500"
+                : ""
+            }`}
+          />
+        </motion.div>
+
+        {/* Company Size */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.105, duration: 0.6 }}
+        >
+          <Select
+            label="Company Size (Optional)"
+            value={watch("employees") || ""}
+            onChange={(value) => {
+              setValue("employees", value, { shouldValidate: true });
+              trigger("employees");
+              if (errors.employees) clearErrors("employees");
+            }}
+            options={employeeSizeOptions}
+            placeholder="Select company size"
+            error={
+              errors.employees && (touchedFields.employees || isSubmitted)
+                ? errors.employees.message
+                : undefined
+            }
+            className={`h-12 text-lg ${
+              errors.employees && (touchedFields.employees || isSubmitted)
+                ? "border-red-500"
+                : ""
+            }`}
+          />
+        </motion.div>
+
+        {/* Revenue */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.11, duration: 0.6 }}
+        >
+          <Select
+            label="Annual Revenue (Optional)"
+            value={watch("revenue") || ""}
+            onChange={(value) => {
+              setValue("revenue", value, { shouldValidate: true });
+              trigger("revenue");
+              if (errors.revenue) clearErrors("revenue");
+            }}
+            options={revenueOptions}
+            placeholder="Select revenue range"
+            error={
+              errors.revenue && (touchedFields.revenue || isSubmitted)
+                ? errors.revenue.message
+                : undefined
+            }
+            className={`h-12 text-lg ${
+              errors.revenue && (touchedFields.revenue || isSubmitted)
+                ? "border-red-500"
+                : ""
+            }`}
+          />
+        </motion.div>
+
+        {/* Founded */}
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.115, duration: 0.6 }}
+        >
+          <Label
+            htmlFor="founded"
+            className="text-lg font-medium text-gray-900"
+          >
+            Founded Year (Optional)
+          </Label>
+          <Input
+            id="founded"
+            {...register("founded")}
+            placeholder="e.g. 2020"
+            className={`h-12 text-lg ${
+              errors.founded && (touchedFields.founded || isSubmitted)
+                ? "border-red-500"
+                : "border-gray-300 focus:border-indigo-500"
+            }`}
+          />
+          {errors.founded && (touchedFields.founded || isSubmitted) && (
+            <p className="text-sm text-red-600">{errors.founded.message}</p>
           )}
         </motion.div>
 

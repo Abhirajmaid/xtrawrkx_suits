@@ -121,13 +121,36 @@ export function useOnboardingState() {
                 body: method !== 'GET' ? JSON.stringify(data) : undefined,
             });
 
-            // Check if response is JSON
+            // Check if response is JSON, but try to parse anyway
             const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Server returned non-JSON response');
-            }
+            let result;
 
-            const result = await response.json();
+            try {
+                const responseText = await response.text();
+                if (!responseText || responseText.trim() === '') {
+                    throw new Error('Server returned empty response');
+                }
+
+                // Try to parse as JSON
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    // If not JSON, check content type
+                    if (contentType && contentType.includes('application/json')) {
+                        throw new Error(`Failed to parse JSON response: ${parseError.message}`);
+                    } else {
+                        throw new Error(`Server returned non-JSON response (${contentType || 'unknown'}): ${responseText.substring(0, 200)}`);
+                    }
+                }
+            } catch (textError) {
+                console.error('Response parsing error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    contentType: contentType,
+                    error: textError.message
+                });
+                throw textError;
+            }
 
             if (!response.ok) {
                 throw new Error(result.error || `API call failed with status ${response.status}`);
@@ -272,7 +295,27 @@ export function useOnboardingState() {
         setOperationLoading('communities', true);
         setError(null);
 
-        const response = await apiCall(ONBOARDING_API_ENDPOINTS.communities, { selectedCommunities: communities }, 'PATCH');
+        // Get email and accountId from localStorage to include in request
+        let email = null;
+        let accountId = null;
+        if (typeof window !== 'undefined') {
+            const accountData = localStorage.getItem('client_account');
+            if (accountData) {
+                try {
+                    const account = JSON.parse(accountData);
+                    email = account.email;
+                    accountId = account.id;
+                } catch (e) {
+                    console.error('Error parsing account data:', e);
+                }
+            }
+        }
+
+        const response = await apiCall(ONBOARDING_API_ENDPOINTS.communities, {
+            selectedCommunities: communities,
+            email: email,
+            accountId: accountId
+        }, 'PATCH');
 
         if (response.ok) {
             setOperationLoading('communities', false);
@@ -364,6 +407,11 @@ export function useOnboardingState() {
             employees: state.basics?.companySize || state.basics?.employees || '',
             description: state.basics?.description || '',
             founded: state.basics?.founded || '',
+            // New fields from client account details
+            companyType: state.basics?.companyType || '',
+            subType: state.basics?.subType || '',
+            type: state.basics?.type || 'CUSTOMER',
+            revenue: state.basics?.revenue || '',
 
             // Primary contact information
             contactFirstName: state.basics?.name?.split(' ')[0] || contactFirstName || 'User',

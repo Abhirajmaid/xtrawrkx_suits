@@ -2,22 +2,22 @@ import { NextResponse } from 'next/server'
 
 export function middleware(request) {
   const { pathname } = request.nextUrl
-  
+
   // Get the token from cookies
   const token = request.cookies.get('xtrawrkx-authToken')?.value
 
   // Define public routes that don't require authentication
   const publicRoutes = ['/login', '/signup', '/signup-demo', '/unauthorized']
-  
+
   // Check if the current path is a public route
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
-  
+
   // If user is not authenticated and trying to access protected route
   if (!token && !isPublicRoute) {
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }
-  
+
   // If user is authenticated and trying to access login page, redirect to dashboard
   if (token && pathname === '/login') {
     const dashboardUrl = new URL('/', request.url)
@@ -35,8 +35,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - manifest.json (PWA manifest file)
      * - public assets
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|logo_full.webp|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|logo_full.webp|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg).*)',
   ],
 }

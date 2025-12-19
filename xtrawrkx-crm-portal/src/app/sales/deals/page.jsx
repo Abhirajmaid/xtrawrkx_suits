@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import dealService from "../../../lib/api/dealService";
 import dealGroupService from "../../../lib/api/dealGroupService";
+import leadCompanyService from "../../../lib/api/leadCompanyService";
 import strapiClient from "../../../lib/strapiClient";
 import { useAuth } from "../../../contexts/AuthContext";
 import authService from "../../../lib/authService";
@@ -1092,6 +1093,104 @@ export default function DealsPage() {
       // Update the stage via API
       await dealService.update(dealId, { stage: strapiStage });
 
+      // If deal is won, check if we need to convert lead company to client account
+      if (strapiStage === "CLOSED_WON" && isWon && !wasWon) {
+        try {
+          // Fetch the updated deal to get full data including leadCompany
+          const updatedDealResponse = await dealService.getById(dealId, {
+            populate: {
+              leadCompany: {
+                populate: ["convertedAccount"],
+              },
+              clientAccount: true,
+            },
+          });
+
+          const fullDealData = updatedDealResponse?.data;
+          const dealAttributes = fullDealData?.attributes || fullDealData;
+
+          // Check if deal has a leadCompany and no clientAccount
+          const leadCompany =
+            dealAttributes?.leadCompany?.data || dealAttributes?.leadCompany;
+          const clientAccount =
+            dealAttributes?.clientAccount?.data ||
+            dealAttributes?.clientAccount;
+
+          if (leadCompany && !clientAccount) {
+            const leadCompanyId = leadCompany.id || leadCompany.documentId;
+            const leadCompanyData = leadCompany.attributes || leadCompany;
+
+            // Check if lead company has already been converted
+            const convertedAccount =
+              leadCompanyData?.convertedAccount?.data ||
+              leadCompanyData?.convertedAccount;
+
+            if (!convertedAccount) {
+              console.log(
+                `Converting lead company ${leadCompanyId} to client account for deal ${dealId}`
+              );
+
+              // Convert lead company to client account
+              const conversionResponse =
+                await leadCompanyService.convertToClient(leadCompanyId);
+              const newClientAccount =
+                conversionResponse?.data?.convertedAccount?.data ||
+                conversionResponse?.convertedAccount ||
+                conversionResponse?.data;
+
+              if (newClientAccount) {
+                const clientAccountId =
+                  newClientAccount.id || newClientAccount.documentId;
+
+                // Update deal to link to the new client account
+                await dealService.update(dealId, {
+                  clientAccount: clientAccountId,
+                });
+
+                console.log(
+                  `Successfully converted lead company to client account and linked to deal ${dealId}`
+                );
+
+                toast.success(
+                  `Lead company "${
+                    leadCompanyData.companyName || "Unknown"
+                  }" converted to client account!`,
+                  {
+                    position: "top-right",
+                    autoClose: 5000,
+                  }
+                );
+              }
+            } else {
+              // Lead company already converted, just link the existing client account to the deal
+              const existingClientAccountId =
+                convertedAccount.id || convertedAccount.documentId;
+
+              await dealService.update(dealId, {
+                clientAccount: existingClientAccountId,
+              });
+
+              console.log(
+                `Linked existing client account ${existingClientAccountId} to deal ${dealId}`
+              );
+            }
+          }
+        } catch (conversionError) {
+          console.error(
+            "Error converting lead company to client account:",
+            conversionError
+          );
+          // Don't fail the deal update if conversion fails, just log the error
+          toast.warning(
+            "Deal marked as won, but there was an issue converting the lead company to a client account.",
+            {
+              position: "top-right",
+              autoClose: 5000,
+            }
+          );
+        }
+      }
+
       // Update local state - map Strapi stage back to UI stage
       const uiStageMap = {
         DISCOVERY: "discovery",
@@ -1337,7 +1436,13 @@ export default function DealsPage() {
           />
           <div>
             <div className="font-medium text-gray-900">{deal.name}</div>
-            <div className="text-sm text-gray-500">{deal.description}</div>
+            <div className="text-sm text-gray-500">
+              {deal.description
+                ? deal.description.length > 40
+                  ? `${deal.description.substring(0, 40)}...`
+                  : deal.description
+                : ""}
+            </div>
           </div>
         </div>
       ),

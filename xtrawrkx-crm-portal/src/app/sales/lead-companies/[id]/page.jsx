@@ -358,7 +358,28 @@ export default function LeadCompanyDetailPage() {
     try {
       const response = await dealService.getByLeadCompany(company.id);
       const dealsData = response.data || [];
-      setDeals(dealsData);
+
+      // Transform Strapi data to flatten attributes structure
+      const transformedDeals = dealsData.map((deal) => {
+        const dealData = deal.attributes || deal;
+        return {
+          id: deal.id || deal.documentId,
+          name: dealData.name || dealData.title || "",
+          value: parseFloat(dealData.value) || 0,
+          stage: dealData.stage || "", // Keep original stage value (CLOSED_WON, etc.)
+          probability: dealData.probability || 0,
+          closeDate: dealData.closeDate || null,
+          description: dealData.description || "",
+          leadCompany: dealData.leadCompany || deal.leadCompany,
+          clientAccount: dealData.clientAccount || deal.clientAccount,
+          contact: dealData.contact || deal.contact,
+          assignedTo: dealData.assignedTo || deal.assignedTo,
+          createdAt: dealData.createdAt || deal.createdAt,
+          updatedAt: dealData.updatedAt || deal.updatedAt,
+        };
+      });
+
+      setDeals(transformedDeals);
     } catch (error) {
       console.error("Error fetching deals:", error);
       setDeals([]);
@@ -593,15 +614,38 @@ export default function LeadCompanyDetailPage() {
     {
       key: "name",
       label: "Deal Name",
-      render: (value, row) => (
-        <div
-          className="cursor-pointer hover:text-orange-500"
-          onClick={() => router.push(`/sales/deals/${row.id}`)}
-        >
-          <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-sm text-gray-500">{row.stage}</div>
-        </div>
-      ),
+      render: (value, row) => {
+        // Format stage text for display under deal name
+        const formatStage = (stage) => {
+          const stageMap = {
+            DISCOVERY: "Discovery",
+            PROPOSAL: "Proposal",
+            NEGOTIATION: "Negotiation",
+            CLOSED_WON: "Closed Won",
+            CLOSED_LOST: "Closed Lost",
+            discovery: "Discovery",
+            proposal: "Proposal",
+            negotiation: "Negotiation",
+            won: "Won",
+            lost: "Lost",
+          };
+          return (
+            stageMap[stage] || stageMap[stage?.toUpperCase()] || stage || ""
+          );
+        };
+
+        return (
+          <div
+            className="cursor-pointer hover:text-orange-500"
+            onClick={() => router.push(`/sales/deals/${row.id}`)}
+          >
+            <div className="font-medium text-gray-900">{value}</div>
+            <div className="text-sm text-gray-500">
+              {formatStage(row.stage)}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "value",
@@ -613,16 +657,37 @@ export default function LeadCompanyDetailPage() {
     {
       key: "stage",
       label: "Stage",
-      render: (value) => {
-        const variants = {
-          Prospecting: "default",
-          Qualification: "warning",
-          Proposal: "info",
-          Negotiation: "warning",
-          "Closed Won": "success",
-          "Closed Lost": "destructive",
+      render: (value, row) => {
+        // Handle both flat and Strapi attributes structure
+        const stageValue = value || row?.stage || row?.attributes?.stage || "";
+
+        // Map Strapi stage values to Badge variants and format text
+        const stageMap = {
+          DISCOVERY: { variant: "primary", label: "Discovery" },
+          PROPOSAL: { variant: "warning", label: "Proposal" },
+          NEGOTIATION: { variant: "warning", label: "Negotiation" },
+          CLOSED_WON: { variant: "success", label: "Closed Won" },
+          CLOSED_LOST: { variant: "error", label: "Closed Lost" },
+          // Handle lowercase variations
+          discovery: { variant: "primary", label: "Discovery" },
+          proposal: { variant: "warning", label: "Proposal" },
+          negotiation: { variant: "warning", label: "Negotiation" },
+          won: { variant: "success", label: "Won" },
+          lost: { variant: "error", label: "Lost" },
+          // Handle legacy values
+          Prospecting: { variant: "primary", label: "Prospecting" },
+          Qualification: { variant: "warning", label: "Qualification" },
+          "Closed Won": { variant: "success", label: "Closed Won" },
+          "Closed Lost": { variant: "error", label: "Closed Lost" },
         };
-        return <Badge variant={variants[value] || "default"}>{value}</Badge>;
+
+        const stageInfo = stageMap[stageValue] ||
+          stageMap[stageValue?.toUpperCase()] || {
+            variant: "gray",
+            label: stageValue || "Unknown",
+          };
+
+        return <Badge variant={stageInfo.variant}>{stageInfo.label}</Badge>;
       },
     },
     {
@@ -900,10 +965,10 @@ export default function LeadCompanyDetailPage() {
 
   const handleConvertToClient = async () => {
     if (!company) return;
-    
+
     // Set loading state
     setIsConverting(true);
-    
+
     try {
       await leadCompanyService.convertToClient(company.id);
       setShowConvertModal(false);
@@ -1214,7 +1279,7 @@ export default function LeadCompanyDetailPage() {
               const delay = Math.random() * 2;
               const duration = 2.5 + Math.random() * 2;
               const size = 8 + Math.random() * 12;
-              const shape = Math.random() > 0.5 ? 'rounded-full' : 'rounded-sm';
+              const shape = Math.random() > 0.5 ? "rounded-full" : "rounded-sm";
               const rotation = Math.random() * 360;
 
               return (
@@ -1229,12 +1294,11 @@ export default function LeadCompanyDetailPage() {
                     backgroundColor: color,
                     animation: `confetti-fall ${duration}s ease-out ${delay}s forwards`,
                     transform: `rotate(${rotation}deg)`,
-                    boxShadow: `0 0 ${size/2}px ${color}40`,
+                    boxShadow: `0 0 ${size / 2}px ${color}40`,
                   }}
                 />
               );
             })}
-
           </div>
         </>
       )}
@@ -1957,7 +2021,9 @@ export default function LeadCompanyDetailPage() {
                 Coming Soon
               </h3>
               <p className="text-gray-600 text-center max-w-md">
-                The Meetings feature is currently under development. You'll be able to schedule, manage, and track meetings with this company soon.
+                The Meetings feature is currently under development. You'll be
+                able to schedule, manage, and track meetings with this company
+                soon.
               </p>
             </div>
           </div>

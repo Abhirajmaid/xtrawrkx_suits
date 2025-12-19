@@ -211,6 +211,12 @@
         "selectedCommunities": {
             "type": "json"
         },
+        "location": {
+            "type": "string"
+        },
+        "interests": {
+            "type": "json"
+        },
         "communitySubmissions": {
             "type": "relation",
             "relation": "oneToMany",

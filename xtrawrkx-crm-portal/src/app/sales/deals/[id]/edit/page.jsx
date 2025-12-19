@@ -75,6 +75,7 @@ export default function EditDealPage() {
   const [dealGroups, setDealGroups] = useState([]);
   const [users, setUsers] = useState([]);
   const [isDealGroupModalOpen, setIsDealGroupModalOpen] = useState(false);
+  const [originalStage, setOriginalStage] = useState(null);
 
   const stageOptions = [
     { value: "DISCOVERY", label: "Discovery" },
@@ -114,7 +115,14 @@ export default function EditDealPage() {
       setIsLoading(true);
       console.log("Fetching deal data for ID:", dealId);
       const response = await dealService.getById(dealId, {
-        populate: ["leadCompany", "clientAccount", "contact", "assignedTo", "dealGroup", "visibleTo"],
+        populate: [
+          "leadCompany",
+          "clientAccount",
+          "contact",
+          "assignedTo",
+          "dealGroup",
+          "visibleTo",
+        ],
       });
 
       console.log("Deal response:", response);
@@ -146,9 +154,11 @@ export default function EditDealPage() {
           deal.clientAccount?.documentId ||
           "";
 
+        const originalStage = dealInfo.stage || "DISCOVERY";
+
         setDealData({
           name: dealInfo.name || "",
-          stage: dealInfo.stage || "DISCOVERY",
+          stage: originalStage,
           value: dealInfo.value?.toString() || "",
           probability: dealInfo.probability || 50,
           priority: dealInfo.priority || "MEDIUM",
@@ -176,10 +186,13 @@ export default function EditDealPage() {
             dealInfo.dealGroup?.documentId ||
             deal.dealGroup?.documentId ||
             "",
-          visibleTo: (dealInfo.visibleTo || deal.visibleTo || []).map((user) => 
-            (user.id || user.documentId)?.toString()
-          ).filter(Boolean),
+          visibleTo: (dealInfo.visibleTo || deal.visibleTo || [])
+            .map((user) => (user.id || user.documentId)?.toString())
+            .filter(Boolean),
         });
+
+        // Store original stage for comparison
+        setOriginalStage(originalStage);
 
         // Fetch contacts for the selected company if one exists
         if (leadCompanyId || clientAccountId) {
@@ -248,7 +261,9 @@ export default function EditDealPage() {
         pagination: { pageSize: 1000 },
         sort: ["name:asc"],
       });
-      const groupsData = Array.isArray(response) ? response : response?.data || [];
+      const groupsData = Array.isArray(response)
+        ? response
+        : response?.data || [];
       setDealGroups(groupsData);
     } catch (error) {
       console.error("Error fetching deal groups:", error);
@@ -489,9 +504,10 @@ export default function EditDealPage() {
         source: dealData.source,
         visibility: dealData.visibility || "PUBLIC",
         dealGroup: dealData.dealGroup ? parseInt(dealData.dealGroup) : null,
-        visibleTo: dealData.visibility === "PRIVATE" && dealData.visibleTo.length > 0
-          ? dealData.visibleTo.map(id => parseInt(id))
-          : [],
+        visibleTo:
+          dealData.visibility === "PRIVATE" && dealData.visibleTo.length > 0
+            ? dealData.visibleTo.map((id) => parseInt(id))
+            : [],
         description: dealData.description || null,
         closeDate: formatDateForStrapi(dealData.closeDate),
         leadCompany: dealData.leadCompany || null,
@@ -509,6 +525,78 @@ export default function EditDealPage() {
 
       console.log("Updating deal with data:", updateData);
       await dealService.update(dealId, updateData);
+
+      // If deal is being marked as CLOSED_WON and wasn't already won, convert lead company to client account
+      const isWon = updateData.stage === "CLOSED_WON";
+      const wasWon = originalStage === "CLOSED_WON";
+
+      if (isWon && !wasWon && dealData.leadCompany && !dealData.clientAccount) {
+        try {
+          // Fetch the lead company to check if it's already converted
+          const leadCompanyResponse = await leadCompanyService.getById(
+            dealData.leadCompany,
+            {
+              populate: ["convertedAccount"],
+            }
+          );
+
+          const leadCompanyData = leadCompanyResponse?.data;
+          const leadCompanyAttributes =
+            leadCompanyData?.attributes || leadCompanyData;
+
+          // Check if lead company has already been converted
+          const convertedAccount =
+            leadCompanyAttributes?.convertedAccount?.data ||
+            leadCompanyAttributes?.convertedAccount;
+
+          if (!convertedAccount) {
+            console.log(
+              `Converting lead company ${dealData.leadCompany} to client account for deal ${dealId}`
+            );
+
+            // Convert lead company to client account
+            const conversionResponse = await leadCompanyService.convertToClient(
+              dealData.leadCompany
+            );
+            const newClientAccount =
+              conversionResponse?.data?.convertedAccount?.data ||
+              conversionResponse?.convertedAccount ||
+              conversionResponse?.data;
+
+            if (newClientAccount) {
+              const clientAccountId =
+                newClientAccount.id || newClientAccount.documentId;
+
+              // Update deal to link to the new client account
+              await dealService.update(dealId, {
+                clientAccount: clientAccountId,
+              });
+
+              console.log(
+                `Successfully converted lead company to client account and linked to deal ${dealId}`
+              );
+            }
+          } else {
+            // Lead company already converted, just link the existing client account to the deal
+            const existingClientAccountId =
+              convertedAccount.id || convertedAccount.documentId;
+
+            await dealService.update(dealId, {
+              clientAccount: existingClientAccountId,
+            });
+
+            console.log(
+              `Linked existing client account ${existingClientAccountId} to deal ${dealId}`
+            );
+          }
+        } catch (conversionError) {
+          console.error(
+            "Error converting lead company to client account:",
+            conversionError
+          );
+          // Don't fail the deal update if conversion fails, just log the error
+        }
+      }
 
       setShowSuccess(true);
       setTimeout(() => {
@@ -708,12 +796,17 @@ export default function EditDealPage() {
                       <Select
                         label="Deal Group"
                         value={dealData.dealGroup}
-                        onChange={(value) => handleInputChange("dealGroup", value)}
+                        onChange={(value) =>
+                          handleInputChange("dealGroup", value)
+                        }
                         options={[
                           { value: "", label: "No Group" },
                           ...dealGroups.map((group) => ({
                             value: group.id || group.documentId,
-                            label: group.name || group.attributes?.name || "Unknown Group",
+                            label:
+                              group.name ||
+                              group.attributes?.name ||
+                              "Unknown Group",
                           })),
                         ]}
                         placeholder="Select group (optional)"
@@ -782,29 +875,40 @@ export default function EditDealPage() {
                   <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
                     {users.map((u) => {
                       const userId = (u.id || u.documentId).toString();
-                      const userName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || "Unknown";
+                      const userName =
+                        `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                        u.username ||
+                        "Unknown";
                       const isSelected = dealData.visibleTo.includes(userId);
                       return (
-                        <label key={userId} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <label
+                          key={userId}
+                          className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                        >
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={(e) => {
                               const newVisibleTo = e.target.checked
                                 ? [...dealData.visibleTo, userId]
-                                : dealData.visibleTo.filter((id) => id !== userId);
+                                : dealData.visibleTo.filter(
+                                    (id) => id !== userId
+                                  );
                               handleInputChange("visibleTo", newVisibleTo);
                             }}
                             className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                           />
-                          <span className="text-sm text-gray-700">{userName}</span>
+                          <span className="text-sm text-gray-700">
+                            {userName}
+                          </span>
                         </label>
                       );
                     })}
                   </div>
                   {dealData.visibleTo.length === 0 && (
                     <p className="text-xs text-gray-500 mt-2">
-                      No users selected. Only you (as the assigned owner) will be able to view this deal.
+                      No users selected. Only you (as the assigned owner) will
+                      be able to view this deal.
                     </p>
                   )}
                 </div>

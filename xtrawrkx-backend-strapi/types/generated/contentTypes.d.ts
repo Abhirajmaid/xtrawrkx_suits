@@ -731,6 +731,7 @@ export interface ApiClientAccountClientAccount
       > &
       Schema.Attribute.DefaultTo<75>;
     industry: Schema.Attribute.String & Schema.Attribute.Required;
+    interests: Schema.Attribute.JSON;
     invoices: Schema.Attribute.Relation<'oneToMany', 'api::invoice.invoice'>;
     isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     lastActivity: Schema.Attribute.String;
@@ -743,6 +744,7 @@ export interface ApiClientAccountClientAccount
       'api::client-account.client-account'
     > &
       Schema.Attribute.Private;
+    location: Schema.Attribute.String;
     notes: Schema.Attribute.Text;
     onboardingCompleted: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
@@ -1017,6 +1019,7 @@ export interface ApiContactContact extends Struct.CollectionTypeSchema {
       'api::contact.contact'
     > &
       Schema.Attribute.Private;
+    location: Schema.Attribute.String;
     phone: Schema.Attribute.String;
     portalAccess: Schema.Attribute.Relation<
       'oneToOne',

@@ -29,6 +29,10 @@ import {
   PieChart,
   Star,
   ArrowRight,
+  UserCircle,
+  Award,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import {
   Card,
@@ -61,7 +65,6 @@ const ClientAccountDetailPage = ({ params }) => {
   const [deals, setDeals] = useState([]);
   const [projects, setProjects] = useState([]);
   const [invoices, setInvoices] = useState([]);
-  const [healthDetails, setHealthDetails] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -69,6 +72,9 @@ const ClientAccountDetailPage = ({ params }) => {
   const [dealsLoading, setDealsLoading] = useState(false);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [communitiesLoading, setCommunitiesLoading] = useState(false);
+  const [communityMemberships, setCommunityMemberships] = useState([]);
+  const [communitySubmissions, setCommunitySubmissions] = useState([]);
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -129,6 +135,13 @@ const ClientAccountDetailPage = ({ params }) => {
     }
   }, [activeTab, account?.id]);
 
+  // Fetch communities when communities tab is active
+  useEffect(() => {
+    if (activeTab === "communities" && account?.id) {
+      fetchCommunities(account.id);
+    }
+  }, [activeTab, account?.id]);
+
   // Fetch users for assignment
   useEffect(() => {
     const fetchUsers = async () => {
@@ -178,6 +191,22 @@ const ClientAccountDetailPage = ({ params }) => {
       try {
         accountData = await clientAccountService.getById(id);
         setAccount(accountData);
+
+        // Set initial community data if available
+        if (accountData?.communityMemberships) {
+          setCommunityMemberships(
+            Array.isArray(accountData.communityMemberships)
+              ? accountData.communityMemberships
+              : []
+          );
+        }
+        if (accountData?.communitySubmissions) {
+          setCommunitySubmissions(
+            Array.isArray(accountData.communitySubmissions)
+              ? accountData.communitySubmissions
+              : []
+          );
+        }
       } catch (accountError) {
         console.error("Failed to fetch account:", accountError);
         setError(
@@ -222,9 +251,6 @@ const ClientAccountDetailPage = ({ params }) => {
           ? activitiesData.value?.data || []
           : []
       );
-      setHealthDetails(
-        healthData.status === "fulfilled" ? healthData.value : {}
-      );
 
       // Fetch deals when account is loaded
       const accountId = accountData?.id || accountData?.documentId;
@@ -262,7 +288,29 @@ const ClientAccountDetailPage = ({ params }) => {
       const dealsData = response?.data || response || [];
       console.log("Deals data:", dealsData);
 
-      setDeals(Array.isArray(dealsData) ? dealsData : []);
+      // Transform Strapi data to flatten attributes structure
+      const transformedDeals = (Array.isArray(dealsData) ? dealsData : []).map(
+        (deal) => {
+          const dealData = deal.attributes || deal;
+          return {
+            id: deal.id || deal.documentId,
+            name: dealData.name || dealData.title || "",
+            value: parseFloat(dealData.value) || 0,
+            stage: dealData.stage || "", // Keep original stage value (CLOSED_WON, etc.)
+            probability: dealData.probability || 0,
+            closeDate: dealData.closeDate || null,
+            description: dealData.description || "",
+            leadCompany: dealData.leadCompany || deal.leadCompany,
+            clientAccount: dealData.clientAccount || deal.clientAccount,
+            contact: dealData.contact || deal.contact,
+            assignedTo: dealData.assignedTo || deal.assignedTo,
+            createdAt: dealData.createdAt || deal.createdAt,
+            updatedAt: dealData.updatedAt || deal.updatedAt,
+          };
+        }
+      );
+
+      setDeals(transformedDeals);
     } catch (error) {
       console.error("Error fetching deals:", error);
       setDeals([]);
@@ -281,15 +329,38 @@ const ClientAccountDetailPage = ({ params }) => {
     {
       key: "name",
       label: "Deal Name",
-      render: (value, row) => (
-        <div
-          className="cursor-pointer hover:text-orange-500"
-          onClick={() => router.push(`/sales/deals/${row.id}`)}
-        >
-          <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-sm text-gray-500">{row.stage}</div>
-        </div>
-      ),
+      render: (value, row) => {
+        // Format stage text for display under deal name
+        const formatStage = (stage) => {
+          const stageMap = {
+            DISCOVERY: "Discovery",
+            PROPOSAL: "Proposal",
+            NEGOTIATION: "Negotiation",
+            CLOSED_WON: "Closed Won",
+            CLOSED_LOST: "Closed Lost",
+            discovery: "Discovery",
+            proposal: "Proposal",
+            negotiation: "Negotiation",
+            won: "Won",
+            lost: "Lost",
+          };
+          return (
+            stageMap[stage] || stageMap[stage?.toUpperCase()] || stage || ""
+          );
+        };
+
+        return (
+          <div
+            className="cursor-pointer hover:text-orange-500"
+            onClick={() => router.push(`/sales/deals/${row.id}`)}
+          >
+            <div className="font-medium text-gray-900">{value}</div>
+            <div className="text-sm text-gray-500">
+              {formatStage(row.stage)}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "value",
@@ -301,16 +372,37 @@ const ClientAccountDetailPage = ({ params }) => {
     {
       key: "stage",
       label: "Stage",
-      render: (value) => {
-        const variants = {
-          Prospecting: "default",
-          Qualification: "warning",
-          Proposal: "info",
-          Negotiation: "warning",
-          "Closed Won": "success",
-          "Closed Lost": "destructive",
+      render: (value, row) => {
+        // Handle both flat and Strapi attributes structure
+        const stageValue = value || row?.stage || row?.attributes?.stage || "";
+
+        // Map Strapi stage values to Badge variants and format text
+        const stageMap = {
+          DISCOVERY: { variant: "primary", label: "Discovery" },
+          PROPOSAL: { variant: "warning", label: "Proposal" },
+          NEGOTIATION: { variant: "warning", label: "Negotiation" },
+          CLOSED_WON: { variant: "success", label: "Closed Won" },
+          CLOSED_LOST: { variant: "error", label: "Closed Lost" },
+          // Handle lowercase variations
+          discovery: { variant: "primary", label: "Discovery" },
+          proposal: { variant: "warning", label: "Proposal" },
+          negotiation: { variant: "warning", label: "Negotiation" },
+          won: { variant: "success", label: "Won" },
+          lost: { variant: "error", label: "Lost" },
+          // Handle legacy values
+          Prospecting: { variant: "primary", label: "Prospecting" },
+          Qualification: { variant: "warning", label: "Qualification" },
+          "Closed Won": { variant: "success", label: "Closed Won" },
+          "Closed Lost": { variant: "error", label: "Closed Lost" },
         };
-        return <Badge variant={variants[value] || "default"}>{value}</Badge>;
+
+        const stageInfo = stageMap[stageValue] ||
+          stageMap[stageValue?.toUpperCase()] || {
+            variant: "gray",
+            label: stageValue || "Unknown",
+          };
+
+        return <Badge variant={stageInfo.variant}>{stageInfo.label}</Badge>;
       },
     },
     {
@@ -619,6 +711,93 @@ const ClientAccountDetailPage = ({ params }) => {
       }
     } finally {
       setProjectsLoading(false);
+    }
+  };
+
+  const fetchCommunities = async (accountId) => {
+    try {
+      setCommunitiesLoading(true);
+
+      // Build query params for Strapi
+      const membershipParams = strapiClient.buildQueryString({
+        filters: {
+          clientAccount: {
+            id: {
+              $eq: accountId,
+            },
+          },
+        },
+        populate: "*",
+        pagination: {
+          pageSize: 100,
+        },
+      });
+
+      const submissionParams = strapiClient.buildQueryString({
+        filters: {
+          clientAccount: {
+            id: {
+              $eq: accountId,
+            },
+          },
+        },
+        populate: "*",
+        pagination: {
+          pageSize: 100,
+        },
+      });
+
+      // Fetch community memberships and submissions
+      const [membershipsResponse, submissionsResponse] =
+        await Promise.allSettled([
+          strapiClient
+            .request(`/community-memberships?${membershipParams}`, {
+              method: "GET",
+            })
+            .catch(() => ({ data: [] })),
+          strapiClient
+            .request(`/community-submissions?${submissionParams}`, {
+              method: "GET",
+            })
+            .catch(() => ({ data: [] })),
+        ]);
+
+      const memberships =
+        membershipsResponse.status === "fulfilled"
+          ? membershipsResponse.value?.data || []
+          : [];
+      const submissions =
+        submissionsResponse.status === "fulfilled"
+          ? submissionsResponse.value?.data || []
+          : [];
+
+      // Handle Strapi response structure (attributes pattern)
+      const processedMemberships = memberships.map((m) => ({
+        id: m.id,
+        ...(m.attributes || m),
+      }));
+      const processedSubmissions = submissions.map((s) => ({
+        id: s.id,
+        ...(s.attributes || s),
+      }));
+
+      setCommunityMemberships(processedMemberships);
+      setCommunitySubmissions(processedSubmissions);
+    } catch (error) {
+      console.error("Error fetching communities:", error);
+      // Fallback: use data from account if available
+      if (account?.communityMemberships) {
+        setCommunityMemberships(account.communityMemberships);
+      } else {
+        setCommunityMemberships([]);
+      }
+      if (account?.communitySubmissions) {
+        setCommunitySubmissions(account.communitySubmissions);
+      } else {
+        setCommunitySubmissions([]);
+      }
+    } finally {
+      setCommunitiesLoading(false);
     }
   };
 
@@ -998,6 +1177,188 @@ const ClientAccountDetailPage = ({ params }) => {
     }
   };
 
+  const projectColumns = [
+    {
+      key: "name",
+      label: "Project Name",
+      render: (value, row) => {
+        const formatStatus = (status) => {
+          const statusMap = {
+            PLANNING: "Planning",
+            IN_PROGRESS: "In Progress",
+            COMPLETED: "Completed",
+            ON_HOLD: "On Hold",
+            CANCELLED: "Cancelled",
+          };
+          return (
+            statusMap[status] ||
+            statusMap[status?.toUpperCase()] ||
+            status?.replace("_", " ") ||
+            "Planning"
+          );
+        };
+
+        return (
+          <div
+            className="cursor-pointer hover:text-orange-500"
+            onClick={() => {
+              const projectIdentifier = row.slug || row.id;
+              if (projectIdentifier) {
+                const isProduction =
+                  typeof window !== "undefined" &&
+                  window.location.hostname !== "localhost" &&
+                  window.location.hostname !== "127.0.0.1";
+                const pmDashboardBaseUrl = isProduction
+                  ? "https://pm.xtrawrkx.com"
+                  : "http://localhost:3005";
+                window.open(
+                  `${pmDashboardBaseUrl}/projects/${projectIdentifier}`,
+                  "_blank"
+                );
+              }
+            }}
+          >
+            <div className="font-medium text-gray-900">{value}</div>
+            <div className="text-sm text-gray-500">
+              {formatStatus(row.status)}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "manager",
+      label: "Manager",
+      render: (value) => (
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-gray-400" />
+          <span className="text-sm text-gray-900">{value || "Unassigned"}</span>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (value) => {
+        const statusValue = value || "PLANNING";
+        const statusMap = {
+          COMPLETED: { variant: "success", label: "Completed" },
+          IN_PROGRESS: { variant: "info", label: "In Progress" },
+          ACTIVE: { variant: "info", label: "Active" },
+          PLANNING: { variant: "secondary", label: "Planning" },
+          PLANNED: { variant: "secondary", label: "Planned" },
+          ON_HOLD: { variant: "warning", label: "On Hold" },
+          CANCELLED: { variant: "error", label: "Cancelled" },
+        };
+
+        const statusInfo = statusMap[statusValue] ||
+          statusMap[statusValue?.toUpperCase()] || {
+            variant: "secondary",
+            label: statusValue?.replace("_", " ") || "Planning",
+          };
+
+        return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
+      },
+    },
+    {
+      key: "progress",
+      label: "Progress",
+      render: (value) => (
+        <div className="flex items-center gap-2">
+          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+            <div
+              className="bg-orange-500 h-1.5 rounded-full"
+              style={{ width: `${value || 0}%` }}
+            />
+          </div>
+          <span className="text-xs font-medium text-gray-900 min-w-[35px]">
+            {value || 0}%
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "budget",
+      label: "Budget",
+      render: (value, row) => (
+        <div>
+          {value > 0 ? (
+            <>
+              <span className="font-semibold text-gray-900">
+                ${(value || 0).toLocaleString()}
+              </span>
+              {row.spent > 0 && (
+                <div className="text-xs text-gray-500">
+                  Spent: ${(row.spent || 0).toLocaleString()}
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-sm text-gray-400">Not set</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "startDate",
+      label: "Start Date",
+      render: (value, row) => {
+        if (!value)
+          return <span className="text-sm text-gray-400">Not set</span>;
+        return (
+          <div>
+            <span className="text-sm text-gray-900">
+              {new Date(value).toLocaleDateString()}
+            </span>
+            {row.endDate && (
+              <div className="text-xs text-gray-500">
+                End: {new Date(row.endDate).toLocaleDateString()}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "actions",
+      label: "ACTIONS",
+      render: (_, row) => {
+        const projectIdentifier = row.slug || row.id;
+        return (
+          <div
+            className="flex items-center gap-1 min-w-[120px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (projectIdentifier) {
+                  const isProduction =
+                    typeof window !== "undefined" &&
+                    window.location.hostname !== "localhost" &&
+                    window.location.hostname !== "127.0.0.1";
+                  const pmDashboardBaseUrl = isProduction
+                    ? "https://pm.xtrawrkx.com"
+                    : "http://localhost:3005";
+                  window.open(
+                    `${pmDashboardBaseUrl}/projects/${projectIdentifier}`,
+                    "_blank"
+                  );
+                }
+              }}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-all duration-200"
+              title="View Project"
+            >
+              <Eye className="w-4 h-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   const getActivityTypeColor = (type) => {
     switch (type) {
       case "CALL":
@@ -1229,8 +1590,8 @@ const ClientAccountDetailPage = ({ params }) => {
     { key: "deals", label: "Deals" },
     { key: "projects", label: "Projects" },
     { key: "invoices", label: "Invoices" },
+    { key: "communities", label: "Communities" },
     { key: "meetings", label: "Meetings" },
-    { key: "health", label: "Account Health" },
   ];
 
   return (
@@ -1325,10 +1686,30 @@ const ClientAccountDetailPage = ({ params }) => {
                     <span>{account.industry || "Industry not specified"}</span>
                   </div>
 
+                  {account.location && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      <span>{account.location}</span>
+                    </div>
+                  )}
+
                   {account.employees && (
                     <div className="flex items-center gap-1">
                       <Users className="w-4 h-4" />
-                      <span>{account.employees} employees</span>
+                      <span>
+                        {(() => {
+                          const employees = account.employees;
+                          const sizeMap = {
+                            SIZE_1_10: "1-10 employees",
+                            SIZE_11_50: "11-50 employees",
+                            SIZE_51_200: "51-200 employees",
+                            SIZE_201_500: "201-500 employees",
+                            SIZE_501_1000: "501-1000 employees",
+                            SIZE_1000_PLUS: "1000+ employees",
+                          };
+                          return sizeMap[employees] || `${employees} employees`;
+                        })()}
+                      </span>
                     </div>
                   )}
 
@@ -1605,6 +1986,47 @@ const ClientAccountDetailPage = ({ params }) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Location
+                      </label>
+                      <span className="text-gray-900 flex items-center gap-1">
+                        {account.location ? (
+                          <>
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            {account.location}
+                          </>
+                        ) : (
+                          "Not specified"
+                        )}
+                      </span>
+                    </div>
+
+                    {account.interests && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-600 mb-2">
+                          Interests
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.isArray(account.interests) &&
+                          account.interests.length > 0 ? (
+                            account.interests.map((interest, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                              >
+                                {interest}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-500">
+                              No interests specified
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
                         Account Manager
                       </label>
                       <div className="flex items-center gap-2">
@@ -1771,98 +2193,6 @@ const ClientAccountDetailPage = ({ params }) => {
 
               {/* Sidebar */}
               <div className="space-y-6">
-                {/* Account Health */}
-                <div className="bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Account Health
-                  </h3>
-
-                  {account.healthScore && (
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-600">
-                          Overall Score
-                        </span>
-                        <span
-                          className={`text-lg font-bold ${getHealthScoreColor(
-                            account.healthScore
-                          )}`}
-                        >
-                          {account.healthScore}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className={`h-3 rounded-full transition-all duration-300 ${
-                            account.healthScore >= 80
-                              ? "bg-green-500"
-                              : account.healthScore >= 60
-                              ? "bg-yellow-500"
-                              : account.healthScore >= 40
-                              ? "bg-orange-500"
-                              : "bg-red-500"
-                          }`}
-                          style={{ width: `${account.healthScore}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Last Activity</span>
-                      <span className="font-semibold text-gray-900">
-                        {account.lastActivityDate
-                          ? new Date(
-                              account.lastActivityDate
-                            ).toLocaleDateString()
-                          : "Never"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Total Revenue</span>
-                      <span className="font-semibold text-gray-900">
-                        $
-                        {wonDeals
-                          .reduce((sum, deal) => sum + deal.value, 0)
-                          .toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Active Deal Value</span>
-                      <span className="font-semibold text-gray-900">
-                        ${activeDealValue.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">
-                        Outstanding Invoices
-                      </span>
-                      <span className="font-semibold text-gray-900">
-                        $
-                        {invoices
-                          .filter((inv) => inv.status !== "PAID")
-                          .reduce((sum, inv) => sum + inv.amount, 0)
-                          .toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">
-                        Customer Lifetime Value
-                      </span>
-                      <span className="font-semibold text-gray-900">
-                        $
-                        {(
-                          wonDeals.reduce((sum, deal) => sum + deal.value, 0) +
-                          invoices
-                            .filter((inv) => inv.status === "PAID")
-                            .reduce((sum, inv) => sum + inv.amount, 0)
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Recent Activity */}
                 <div className="bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -2025,212 +2355,38 @@ const ClientAccountDetailPage = ({ params }) => {
           )}
 
           {activeTab === "projects" && (
-            <div className="bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl p-6">
-              <div className="flex justify-between items-center mb-6">
+            <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Account Projects
+                  Projects
                 </h3>
-                <button
+                <Button
+                  size="sm"
                   onClick={handleCreateProject}
-                  className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                  className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 mr-2" />
                   Create Project
-                </button>
+                </Button>
               </div>
-
               {projectsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-                  <span className="ml-3 text-gray-600">
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                  <span className="ml-2 text-gray-600">
                     Loading projects...
                   </span>
                 </div>
               ) : projects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {projects.map((project) => (
-                    <div
-                      key={project.id}
-                      className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-5 hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-                      onClick={() => {
-                        // Navigate to project details in PM dashboard
-                        // Prefer slug if available, otherwise use ID
-                        const projectIdentifier = project.slug || project.id;
-                        if (projectIdentifier) {
-                          // Determine PM dashboard URL based on environment
-                          const isProduction =
-                            window.location.hostname !== "localhost" &&
-                            window.location.hostname !== "127.0.0.1";
-                          // const pmDashboardBaseUrl = "https://pm.xtrawrkx.com";
-                          const pmDashboardBaseUrl = "http://localhost:3005";
-                          window.open(
-                            `${pmDashboardBaseUrl}/projects/${projectIdentifier}`,
-                            "_blank"
-                          );
-                        }
-                      }}
-                    >
-                      {/* Header with icon and status */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-orange-50 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border border-orange-200">
-                            <Target className="w-6 h-6 text-orange-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 text-lg mb-1 truncate">
-                              {project.name}
-                            </h4>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Users className="w-3.5 h-3.5" />
-                              <span className="truncate">
-                                {project.manager}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getProjectStatusColor(
-                            project.status
-                          )}`}
-                        >
-                          {project.status?.replace("_", " ") || "PLANNING"}
-                        </span>
-                      </div>
-
-                      {/* Progress Section */}
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                            <PieChart className="w-4 h-4" />
-                            Progress
-                          </span>
-                          <span className="text-sm font-bold text-gray-900">
-                            {project.progress || 0}%
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-orange-500 to-pink-500 h-2.5 rounded-full transition-all duration-500 flex items-center justify-end pr-1"
-                            style={{
-                              width: `${Math.min(project.progress || 0, 100)}%`,
-                            }}
-                          >
-                            {project.progress > 5 && (
-                              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Dates */}
-                      {project.startDate && project.endDate && (
-                        <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {new Date(project.startDate).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  }
-                                )}
-                              </div>
-                              <div className="text-gray-500 text-[10px]">
-                                Start
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex-1 flex items-center">
-                            <div className="h-px bg-gray-200 flex-1"></div>
-                            <ArrowRight className="w-3 h-3 text-gray-400 mx-2" />
-                            <div className="h-px bg-gray-200 flex-1"></div>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {new Date(project.endDate).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  }
-                                )}
-                              </div>
-                              <div className="text-gray-500 text-[10px]">
-                                End
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Description */}
-                      {project.description && (
-                        <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed mb-4">
-                          {project.description}
-                        </p>
-                      )}
-
-                      {/* Budget Info (if available) */}
-                      {(project.budget || project.spent) && (
-                        <div className="mb-4 pb-4 border-b border-gray-100 flex items-center justify-between">
-                          {project.budget > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs">
-                              <DollarSign className="w-3.5 h-3.5 text-gray-400" />
-                              <span className="text-gray-600">
-                                Budget:{" "}
-                                <span className="font-semibold text-gray-900">
-                                  ${project.budget.toLocaleString()}
-                                </span>
-                              </span>
-                            </div>
-                          )}
-                          {project.spent > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs">
-                              <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
-                              <span className="text-gray-600">
-                                Spent:{" "}
-                                <span className="font-semibold text-gray-900">
-                                  ${project.spent.toLocaleString()}
-                                </span>
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* View Details Footer */}
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5" />
-                          View Details
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Table columns={projectColumns} data={projects} />
               ) : (
-                <div className="text-center py-12">
-                  <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 font-medium mb-2">
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-4xl mb-2">📁</div>
+                  <p className="text-gray-600">
                     No projects found for this account
                   </p>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Create a new project to get started
+                  <p className="text-sm text-gray-500 mt-1">
+                    Create projects to track work
                   </p>
-                  <button
-                    onClick={handleCreateProject}
-                    className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors mx-auto"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create Project
-                  </button>
                 </div>
               )}
             </div>
@@ -2271,6 +2427,272 @@ const ClientAccountDetailPage = ({ params }) => {
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === "communities" && (
+            <div className="space-y-6">
+              {/* Selected Communities */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                      <UserCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Selected Communities
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Communities this account has joined
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {account?.selectedCommunities &&
+                Array.isArray(account.selectedCommunities) &&
+                account.selectedCommunities.length > 0 ? (
+                  <div className="flex flex-wrap gap-3">
+                    {account.selectedCommunities.map((community, idx) => (
+                      <Badge
+                        key={idx}
+                        variant="info"
+                        className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border border-purple-200"
+                      >
+                        {community}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <UserCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-600">No communities selected</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      This account hasn't joined any communities yet
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Community Memberships */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                      <Award className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Community Memberships
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Active and inactive community memberships
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {communitiesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                    <span className="ml-2 text-gray-600">
+                      Loading memberships...
+                    </span>
+                  </div>
+                ) : communityMemberships.length > 0 ? (
+                  <div className="space-y-4">
+                    {communityMemberships.map((membership) => {
+                      const membershipData =
+                        membership.attributes || membership;
+                      const isActive = membershipData.status === "ACTIVE";
+                      return (
+                        <div
+                          key={membership.id}
+                          className="flex items-center justify-between p-4 bg-white/50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                isActive
+                                  ? "bg-gradient-to-br from-green-100 to-emerald-100"
+                                  : "bg-gradient-to-br from-gray-100 to-gray-200"
+                              }`}
+                            >
+                              <Award
+                                className={`w-6 h-6 ${
+                                  isActive ? "text-green-600" : "text-gray-400"
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-gray-900">
+                                  {membershipData.community}
+                                </h4>
+                                <Badge
+                                  variant={isActive ? "success" : "secondary"}
+                                  className="text-xs"
+                                >
+                                  {isActive ? "Active" : "Inactive"}
+                                </Badge>
+                                {membershipData.membershipType && (
+                                  <Badge
+                                    variant={
+                                      membershipData.membershipType ===
+                                      "PREMIUM"
+                                        ? "warning"
+                                        : "info"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {membershipData.membershipType}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                                {membershipData.joinedAt && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    Joined{" "}
+                                    {new Date(
+                                      membershipData.joinedAt
+                                    ).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {membershipData.membershipData
+                                  ?.joinedViaOnboarding && (
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                    Via Onboarding
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isActive ? (
+                              <CheckCircle2 className="w-5 h-5 text-green-500" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-gray-400" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Award className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-600">
+                      No community memberships found
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      This account hasn't joined any communities yet
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Community Submissions */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Community Submissions
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Applications and submissions to communities
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {communitiesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                    <span className="ml-2 text-gray-600">
+                      Loading submissions...
+                    </span>
+                  </div>
+                ) : communitySubmissions.length > 0 ? (
+                  <div className="space-y-4">
+                    {communitySubmissions.map((submission) => {
+                      const submissionData =
+                        submission.attributes || submission;
+                      const status = submissionData.status || "SUBMITTED";
+                      const statusColors = {
+                        SUBMITTED: "bg-blue-100 text-blue-800",
+                        APPROVED: "bg-green-100 text-green-800",
+                        REJECTED: "bg-red-100 text-red-800",
+                        PENDING: "bg-yellow-100 text-yellow-800",
+                      };
+                      return (
+                        <div
+                          key={submission.id}
+                          className="flex items-center justify-between p-4 bg-white/50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
+                              <FileText className="w-6 h-6 text-orange-600" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-gray-900">
+                                  {submissionData.community}
+                                </h4>
+                                <span
+                                  className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                    statusColors[status] || statusColors.PENDING
+                                  }`}
+                                >
+                                  {status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                                {submissionData.submissionId && (
+                                  <span className="font-mono text-xs">
+                                    ID: {submissionData.submissionId}
+                                  </span>
+                                )}
+                                {submissionData.createdAt && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(
+                                      submissionData.createdAt
+                                    ).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // View submission details
+                              console.log("View submission:", submission);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-600">
+                      No community submissions found
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      This account hasn't submitted any community applications
+                      yet
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

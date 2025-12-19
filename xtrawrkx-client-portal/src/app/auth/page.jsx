@@ -51,7 +51,8 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack, email }) {
             {tempOTP ? (
               <>
                 <p className="text-sm text-blue-800 mb-2">
-                  <strong>Development Mode:</strong> Use the code below to proceed
+                  <strong>Development Mode:</strong> Use the code below to
+                  proceed
                 </p>
                 <p className="text-lg font-mono font-bold text-blue-900 bg-blue-100 px-3 py-2 rounded-lg inline-block">
                   {tempOTP}
@@ -63,10 +64,11 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack, email }) {
             ) : (
               <>
                 <p className="text-sm text-blue-800 mb-2">
-                  <strong>Verification Code:</strong> Check your email for the verification code
+                  <strong>Verification Code:</strong> Check your email for the
+                  verification code
                 </p>
                 <p className="text-xs text-blue-700">
-                  The code was sent to <strong>{email || 'your email'}</strong>
+                  The code was sent to <strong>{email || "your email"}</strong>
                 </p>
               </>
             )}
@@ -96,8 +98,8 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack, email }) {
                 error
                   ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100"
                   : otp.length === 4
-                    ? "border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-green-50"
-                    : "border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                  ? "border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-green-50"
+                  : "border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
               }`}
               placeholder="1234"
               maxLength="4"
@@ -219,17 +221,26 @@ export default function AuthPage() {
     try {
       const response = await signIn(formData.email, formData.password);
 
-      // Check if onboarding is enabled and user needs onboarding
+      // Check onboarding status from response
+      const account = response.account || response.user;
+      const onboardingCompleted = account?.onboardingCompleted || false;
       const onboardingEnabled = isOnboardingEnabled();
-      const userNeedsOnboarding = response.user.needsOnboarding;
 
-      if (onboardingEnabled && userNeedsOnboarding) {
-        // Redirect to onboarding for users who need it
-        console.log("Redirecting existing user to onboarding...");
+      console.log("Login response:", {
+        onboardingCompleted,
+        onboardingEnabled,
+        account: account,
+      });
+
+      if (onboardingEnabled && !onboardingCompleted) {
+        // User needs to complete onboarding
+        console.log("Redirecting to onboarding (not completed)...");
         router.push("/onboarding");
       } else {
-        // Redirect to dashboard for existing users
-        console.log("Redirecting to dashboard...");
+        // Onboarding is complete or disabled - go directly to dashboard
+        console.log(
+          "Redirecting to dashboard (onboarding complete or disabled)..."
+        );
         router.push("/dashboard");
       }
     } catch (error) {
@@ -423,8 +434,8 @@ export default function AuthPage() {
                         index === currentTestimonial
                           ? 0
                           : index > currentTestimonial
-                            ? 150
-                            : -150,
+                          ? 150
+                          : -150,
                       opacity: index === currentTestimonial ? 1 : 0,
                     }}
                     transition={{

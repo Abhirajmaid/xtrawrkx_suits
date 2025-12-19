@@ -40,22 +40,30 @@ export default function OnboardingPage() {
 
   // Check authentication and redirect if needed
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth');
+    if (status === "unauthenticated") {
+      router.push("/auth");
       return;
     }
 
-    // If user is authenticated and onboarding is complete, redirect to dashboard
-    if (status === 'authenticated' && session?.user?.profile?.onboarded) {
-      router.push('/dashboard');
-      return;
+    // If user is authenticated, check onboarding status
+    if (status === "authenticated" && session?.user) {
+      const onboardingCompleted = session?.user?.profile?.onboarded || false;
+
+      // If onboarding is complete, redirect to dashboard
+      if (onboardingCompleted) {
+        console.log(
+          "Onboarding already completed, redirecting to dashboard..."
+        );
+        router.push("/dashboard");
+        return;
+      }
     }
   }, [status, session, router]);
 
   // Handle onboarding completion
   useEffect(() => {
     if (state.isComplete) {
-      router.push('/dashboard');
+      router.push("/dashboard");
     }
   }, [state.isComplete, router]);
 
@@ -75,14 +83,14 @@ export default function OnboardingPage() {
     const stepId = currentStepInfo?.id;
 
     // If we're in submissions step and have a community selected, show community form
-    if (stepId === 'submissions' && currentCommunityStep) {
+    if (stepId === "submissions" && currentCommunityStep) {
       const communityProps = {
         onBack: handleCommunityStepBack,
         onNext: () => {
           setCurrentCommunityStep(null);
           // Check if all selected communities have submissions
           const allSubmitted = state.selectedCommunities.every(
-            community => state.submissions[community]
+            (community) => state.submissions[community]
           );
           if (allSubmitted) {
             goToNextStep();
@@ -93,13 +101,13 @@ export default function OnboardingPage() {
       };
 
       switch (currentCommunityStep) {
-        case 'XEN':
+        case "XEN":
           return <XENStep {...communityProps} />;
-        case 'XEVFIN':
+        case "XEVFIN":
           return <XEVFINStep {...communityProps} />;
-        case 'XEVTG':
+        case "XEVTG":
           return <XEVTGStep {...communityProps} />;
-        case 'XDD':
+        case "XDD":
           return <XDDStep {...communityProps} />;
         default:
           return null;
@@ -108,15 +116,12 @@ export default function OnboardingPage() {
 
     // Regular step components
     switch (stepId) {
-      case 'account':
+      case "account":
         return (
-          <AccountStep
-            onNext={goToNextStep}
-            initialData={state.account}
-          />
+          <AccountStep onNext={goToNextStep} initialData={state.account} />
         );
-      
-      case 'basics':
+
+      case "basics":
         return (
           <BasicsStep
             onNext={goToNextStep}
@@ -124,8 +129,8 @@ export default function OnboardingPage() {
             initialData={state.basics}
           />
         );
-      
-      case 'communities':
+
+      case "communities":
         return (
           <CommunitiesStep
             onNext={goToNextStep}
@@ -133,8 +138,8 @@ export default function OnboardingPage() {
             initialData={{ selectedCommunities: state.selectedCommunities }}
           />
         );
-      
-      case 'submissions':
+
+      case "submissions":
         return (
           <div className="space-y-6">
             <div className="text-center">
@@ -145,15 +150,15 @@ export default function OnboardingPage() {
                 Fill out applications for your selected communities
               </p>
             </div>
-            
+
             <div className="grid gap-4">
               {state.selectedCommunities.map((community) => (
                 <div
                   key={community}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                     state.submissions[community]
-                      ? 'bg-green-50 border-green-200'
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      ? "bg-green-50 border-green-200"
+                      : "bg-gray-50 border-gray-200 hover:bg-gray-100"
                   }`}
                   onClick={() => handleCommunityStepSelect(community)}
                 >
@@ -161,17 +166,19 @@ export default function OnboardingPage() {
                     <div>
                       <h3 className="font-semibold">{community}</h3>
                       <p className="text-sm text-gray-600">
-                        {state.submissions[community] ? 'Completed' : 'Click to fill out application'}
+                        {state.submissions[community]
+                          ? "Completed"
+                          : "Click to fill out application"}
                       </p>
                     </div>
                     <div className="text-2xl">
-                      {state.submissions[community] ? '✅' : '📝'}
+                      {state.submissions[community] ? "✅" : "📝"}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            
+
             <div className="flex justify-between pt-6">
               <button
                 onClick={goToPrevStep}
@@ -181,7 +188,11 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={goToNextStep}
-                disabled={!state.selectedCommunities.every(community => state.submissions[community])}
+                disabled={
+                  !state.selectedCommunities.every(
+                    (community) => state.submissions[community]
+                  )
+                }
                 className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue
@@ -189,18 +200,18 @@ export default function OnboardingPage() {
             </div>
           </div>
         );
-      
-      case 'done':
+
+      case "done":
         return (
           <DoneStep
             onComplete={async () => {
               await completeOnboarding();
-              router.push('/dashboard');
+              router.push("/dashboard");
             }}
             initialData={state}
           />
         );
-      
+
       default:
         return (
           <div className="text-center">
@@ -216,7 +227,7 @@ export default function OnboardingPage() {
   };
 
   // Show loading state
-  if (status === 'loading' || isLoading) {
+  if (status === "loading" || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -265,18 +276,24 @@ export default function OnboardingPage() {
       </div>
 
       {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && (
+      {process.env.NODE_ENV === "development" && (
         <div className="mt-8 p-4 bg-gray-100 rounded-lg text-sm">
           <details>
-            <summary className="cursor-pointer font-semibold">Debug Info</summary>
+            <summary className="cursor-pointer font-semibold">
+              Debug Info
+            </summary>
             <pre className="mt-2 text-xs overflow-auto">
-              {JSON.stringify({ 
-                currentStep: state.currentStep,
-                currentStepInfo,
-                selectedCommunities: state.selectedCommunities,
-                submissions: Object.keys(state.submissions),
-                isComplete: state.isComplete
-              }, null, 2)}
+              {JSON.stringify(
+                {
+                  currentStep: state.currentStep,
+                  currentStepInfo,
+                  selectedCommunities: state.selectedCommunities,
+                  submissions: Object.keys(state.submissions),
+                  isComplete: state.isComplete,
+                },
+                null,
+                2
+              )}
             </pre>
           </details>
         </div>

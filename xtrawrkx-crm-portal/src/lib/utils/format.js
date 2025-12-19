@@ -199,3 +199,40 @@ export function formatDuration(hours, locale = 'en-IN') {
     }
   }
 }
+
+/**
+ * Format currency with Indian numbering system (Cr, Lakh, Thousand)
+ * @param {number} amount - The amount to format
+ * @param {object} options - Formatting options
+ * @param {number} options.decimals - Number of decimal places (default: 2)
+ * @returns {string} Formatted currency string with compact notation
+ */
+export function formatCurrencyCompact(amount, options = {}) {
+  if (typeof amount !== 'number' || isNaN(amount)) {
+    return '₹0';
+  }
+
+  const decimals = options.decimals ?? 2;
+  const absAmount = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+
+  // 1 Crore = 1,00,00,000
+  if (absAmount >= 10000000) {
+    const crores = absAmount / 10000000;
+    return `${sign}₹${crores.toFixed(decimals)} Cr`;
+  }
+  // 1 Lakh = 1,00,000
+  else if (absAmount >= 100000) {
+    const lakhs = absAmount / 100000;
+    return `${sign}₹${lakhs.toFixed(decimals)} Lakh`;
+  }
+  // 1 Thousand = 1,000
+  else if (absAmount >= 1000) {
+    const thousands = absAmount / 1000;
+    return `${sign}₹${thousands.toFixed(decimals)} Thousand`;
+  }
+  // Less than 1000, show full number
+  else {
+    return `${sign}₹${absAmount.toFixed(0)}`;
+  }
+}

@@ -1,4 +1,10 @@
 {
+  "name": "xtrawrkx-suits",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd xtrawrkx-backend-strapi && npm install && cd ../xtrawrkx-crm-portal && npm install && cd ../xtrawrkx-client-portal && npm install && cd ../xtrawrkx-accounts && npm install && cd ../xtrawrkx-pm-dashboard && npm install"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "jsonwebtoken": "^9.0.2",

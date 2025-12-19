@@ -1,12 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Input, Textarea, Select } from "../../../../components/ui";
+import {
+  Button,
+  Input,
+  Textarea,
+  Select,
+  Card,
+} from "../../../../components/ui";
 import dealGroupService from "../../../../lib/api/dealGroupService";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { FolderPlus, X, Trash2, Edit, Save } from "lucide-react";
 
-export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGroupUpdated, onGroupDeleted }) {
+export default function DealGroupModal({
+  isOpen,
+  onClose,
+  onGroupCreated,
+  onGroupUpdated,
+  onGroupDeleted,
+}) {
   const { user } = useAuth();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,7 +45,9 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
         pagination: { pageSize: 1000 },
         sort: ["name:asc"],
       });
-      const groupsData = Array.isArray(response) ? response : response?.data || [];
+      const groupsData = Array.isArray(response)
+        ? response
+        : response?.data || [];
       setGroups(groupsData);
     } catch (error) {
       console.error("Error fetching deal groups:", error);
@@ -44,8 +58,14 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+    // Clear field-specific error and submit error when user starts typing
+    if (errors[field] || errors.submit) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        if (errors[field]) newErrors[field] = "";
+        if (errors.submit) delete newErrors.submit;
+        return newErrors;
+      });
     }
   };
 
@@ -63,18 +83,30 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
 
     try {
       setLoading(true);
+      setErrors({}); // Clear any previous errors
       const groupData = {
         ...formData,
         createdBy: user?.id || user?.documentId || null,
       };
-      await dealGroupService.create(groupData);
-      await fetchGroups();
-      setShowCreateForm(false);
-      setFormData({ name: "", description: "", department: "", team: "" });
-      if (onGroupCreated) onGroupCreated();
+      const response = await dealGroupService.create(groupData);
+
+      // Check if creation was successful
+      if (response && (response.id || response.documentId || response.data)) {
+        await fetchGroups();
+        setShowCreateForm(false);
+        setFormData({ name: "", description: "", department: "", team: "" });
+        setErrors({}); // Clear errors on success
+        if (onGroupCreated) onGroupCreated();
+      } else {
+        throw new Error("Invalid response from server");
+      }
     } catch (error) {
       console.error("Error creating deal group:", error);
-      setErrors({ submit: "Failed to create group. Please try again." });
+      const errorMessage =
+        error?.response?.data?.error?.message ||
+        error?.message ||
+        "Failed to create group. Please try again.";
+      setErrors({ submit: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -85,21 +117,40 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
 
     try {
       setLoading(true);
-      await dealGroupService.update(editingGroup.id || editingGroup.documentId, formData);
-      await fetchGroups();
-      setEditingGroup(null);
-      setFormData({ name: "", description: "", department: "", team: "" });
-      if (onGroupUpdated) onGroupUpdated();
+      setErrors({}); // Clear any previous errors
+      const response = await dealGroupService.update(
+        editingGroup.id || editingGroup.documentId,
+        formData
+      );
+
+      // Check if update was successful
+      if (response && (response.id || response.documentId || response.data)) {
+        await fetchGroups();
+        setEditingGroup(null);
+        setFormData({ name: "", description: "", department: "", team: "" });
+        setErrors({}); // Clear errors on success
+        if (onGroupUpdated) onGroupUpdated();
+      } else {
+        throw new Error("Invalid response from server");
+      }
     } catch (error) {
       console.error("Error updating deal group:", error);
-      setErrors({ submit: "Failed to update group. Please try again." });
+      const errorMessage =
+        error?.response?.data?.error?.message ||
+        error?.message ||
+        "Failed to update group. Please try again.";
+      setErrors({ submit: errorMessage });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (groupId) => {
-    if (!confirm("Are you sure you want to delete this group? Deals in this group will not be deleted, but they will no longer be grouped.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this group? Deals in this group will not be deleted, but they will no longer be grouped."
+      )
+    ) {
       return;
     }
 
@@ -131,24 +182,38 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
     setEditingGroup(null);
     setFormData({ name: "", description: "", department: "", team: "" });
     setShowCreateForm(false);
+    setErrors({}); // Clear errors when canceling
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <Card
+        glass={true}
+        className="w-full max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        padding={false}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Deal Groups</h2>
-            <p className="text-sm text-gray-600">Organize deals by department or team</p>
+        <div className="flex items-center justify-between p-6 border-b border-white/30">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-500/10 backdrop-blur-md rounded-xl flex items-center justify-center">
+              <FolderPlus className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Deal Groups
+              </h2>
+              <p className="text-sm text-gray-500">
+                Organize deals by department or team
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
 
@@ -156,8 +221,8 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
         <div className="flex-1 overflow-y-auto p-6">
           {/* Create/Edit Form */}
           {(showCreateForm || editingGroup) && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {editingGroup ? "Edit Group" : "Create New Group"}
               </h3>
               <div className="space-y-4">
@@ -171,7 +236,9 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
                 <Textarea
                   label="Description"
                   value={formData.description}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("description", e.target.value)
+                  }
                   placeholder="Optional description for this group"
                   rows={2}
                 />
@@ -179,7 +246,9 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
                   <Input
                     label="Department"
                     value={formData.department}
-                    onChange={(e) => handleInputChange("department", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("department", e.target.value)
+                    }
                     placeholder="e.g., Sales, Engineering"
                   />
                   <Input
@@ -196,7 +265,7 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
                   <Button
                     onClick={editingGroup ? handleUpdate : handleCreate}
                     disabled={loading}
-                    className="flex-1"
+                    className="flex-1 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -216,6 +285,7 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
                     onClick={cancelEdit}
                     variant="outline"
                     disabled={loading}
+                    className="border-gray-200 hover:bg-gray-50"
                   >
                     Cancel
                   </Button>
@@ -228,8 +298,17 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
           <div className="space-y-3">
             {!showCreateForm && !editingGroup && (
               <Button
-                onClick={() => setShowCreateForm(true)}
-                className="w-full mb-4"
+                onClick={() => {
+                  setShowCreateForm(true);
+                  setErrors({}); // Clear errors when opening create form
+                  setFormData({
+                    name: "",
+                    description: "",
+                    department: "",
+                    team: "",
+                  });
+                }}
+                className="w-full mb-4 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg"
               >
                 <FolderPlus className="w-4 h-4 mr-2" />
                 Create New Group
@@ -245,49 +324,66 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
               <div className="text-center py-8 text-gray-500">
                 <FolderPlus className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                 <p>No deal groups yet</p>
-                <p className="text-sm mt-1">Create a group to organize your deals</p>
+                <p className="text-sm mt-1">
+                  Create a group to organize your deals
+                </p>
               </div>
             ) : (
               groups.map((group) => {
                 const groupData = group.attributes || group;
-                const isEditing = editingGroup?.id === group.id || editingGroup?.documentId === group.documentId;
-                
+                const isEditing =
+                  editingGroup?.id === group.id ||
+                  editingGroup?.documentId === group.documentId;
+
                 if (isEditing) return null;
 
                 return (
                   <div
                     key={group.id || group.documentId}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-orange-300 transition-colors bg-white"
+                    className="p-5 rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl transition-all duration-300 hover:scale-[1.02]"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{groupData.name}</h4>
+                        <h4 className="font-semibold text-gray-900 text-lg mb-1">
+                          {groupData.name}
+                        </h4>
                         {groupData.description && (
-                          <p className="text-sm text-gray-600 mt-1">{groupData.description}</p>
+                          <p className="text-sm text-gray-600 mt-1 mb-2">
+                            {groupData.description}
+                          </p>
                         )}
                         <div className="flex gap-4 mt-2 text-xs text-gray-500">
                           {groupData.department && (
-                            <span>Dept: {groupData.department}</span>
+                            <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-lg font-medium">
+                              Dept: {groupData.department}
+                            </span>
                           )}
                           {groupData.team && (
-                            <span>Team: {groupData.team}</span>
+                            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg font-medium">
+                              Team: {groupData.team}
+                            </span>
                           )}
                           {group.deals && Array.isArray(group.deals) && (
-                            <span>{group.deals.length} deal{group.deals.length !== 1 ? 's' : ''}</span>
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg font-medium">
+                              {group.deals.length} deal
+                              {group.deals.length !== 1 ? "s" : ""}
+                            </span>
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 ml-4">
                         <button
                           onClick={() => startEdit(group)}
-                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2.5 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 border border-blue-100"
                           title="Edit"
                         >
                           <Edit className="w-4 h-4 text-blue-600" />
                         </button>
                         <button
-                          onClick={() => handleDelete(group.id || group.documentId)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                          onClick={() =>
+                            handleDelete(group.id || group.documentId)
+                          }
+                          className="p-2.5 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 border border-red-100"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
@@ -302,14 +398,16 @@ export default function DealGroupModal({ isOpen, onClose, onGroupCreated, onGrou
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200">
-          <Button onClick={onClose} variant="outline" className="w-full">
+        <div className="p-6 border-t border-white/30">
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="w-full border-gray-200 hover:bg-gray-50"
+          >
             Close
           </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
-
-

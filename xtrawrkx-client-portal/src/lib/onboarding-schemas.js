@@ -41,6 +41,11 @@ export const userBasicsSchema = z.object({
     founded: z.string().max(20, 'Founded year too long').optional().or(z.literal('')),
     title: z.string().max(100, 'Title too long').optional().or(z.literal('')),
     department: z.string().max(100, 'Department too long').optional().or(z.literal('')),
+    // Company type and account type fields
+    companyType: z.enum(['startup-corporate', 'investor', 'enablers-academia']).optional(),
+    subType: z.string().max(100, 'Sub type too long').optional().or(z.literal('')),
+    type: z.enum(['CUSTOMER', 'PARTNER', 'VENDOR']).optional(),
+    revenue: z.string().max(50, 'Revenue too long').optional().or(z.literal('')),
 });
 
 export const communitySelectionSchema = z.object({
