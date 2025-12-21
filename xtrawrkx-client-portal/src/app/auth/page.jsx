@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "@iconify/react";
-import { useAuth } from "@/lib/auth";
-import { isOnboardingEnabled } from "@/lib/onboarding-config";
+import { useAuth, useSession } from "@/lib/auth";
 import { SignInForm, SignUpForm, ForgotPasswordForm } from "@/components/auth";
 import { clientSignup, verifyOTP } from "@/lib/api";
 
@@ -44,8 +43,7 @@ function OTPVerificationForm({ tempOTP, onVerify, onBack, email }) {
             Verify Account
           </h2>
           <p className="text-gray-600 text-lg">
-            Enter the verification code to complete your registration and start
-            the onboarding process
+            Enter the verification code to complete your registration
           </p>
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             {tempOTP ? (
@@ -165,6 +163,19 @@ export default function AuthPage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const router = useRouter();
   const { signIn, checkAuth } = useAuth();
+  const { data: session, status } = useSession();
+
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    if (status === "loading") {
+      return;
+    }
+
+    if (status === "authenticated" && session?.user) {
+      console.log("User authenticated, redirecting to dashboard...");
+      router.push("/dashboard");
+    }
+  }, [status, session, router]);
 
   const testimonials = [
     {
@@ -219,30 +230,9 @@ export default function AuthPage() {
 
   const handleSignIn = async (formData) => {
     try {
-      const response = await signIn(formData.email, formData.password);
-
-      // Check onboarding status from response
-      const account = response.account || response.user;
-      const onboardingCompleted = account?.onboardingCompleted || false;
-      const onboardingEnabled = isOnboardingEnabled();
-
-      console.log("Login response:", {
-        onboardingCompleted,
-        onboardingEnabled,
-        account: account,
-      });
-
-      if (onboardingEnabled && !onboardingCompleted) {
-        // User needs to complete onboarding
-        console.log("Redirecting to onboarding (not completed)...");
-        router.push("/onboarding");
-      } else {
-        // Onboarding is complete or disabled - go directly to dashboard
-        console.log(
-          "Redirecting to dashboard (onboarding complete or disabled)..."
-        );
-        router.push("/dashboard");
-      }
+      await signIn(formData.email, formData.password);
+      console.log("Login successful, redirecting to dashboard...");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Sign in error:", error);
       alert("Login failed. Please check your credentials.");
@@ -251,13 +241,8 @@ export default function AuthPage() {
 
   const handleSignUp = async (formData) => {
     try {
-      // Call backend signup endpoint
-      const response = await clientSignup(
-        formData.name,
-        formData.email,
-        formData.phone,
-        formData.password
-      );
+      // Call backend signup endpoint with all form data
+      const response = await clientSignup(formData);
 
       if (response.success) {
         // Show OTP verification step
@@ -281,36 +266,18 @@ export default function AuthPage() {
 
   const handleOTPVerification = async (otp) => {
     try {
-      // Call backend OTP verification endpoint
       const response = await verifyOTP(otpData.email, otp);
 
       if (response.success && response.token) {
-        console.log("OTP verification successful");
-
-        // Trigger auth context to re-check authentication
-        console.log("Updating auth context...");
+        console.log("OTP verification successful, redirecting to dashboard...");
         await checkAuth();
-        console.log("Auth context updated, proceeding with redirect...");
-
-        // For new users after signup, always redirect to onboarding if enabled
-        const onboardingEnabled = isOnboardingEnabled();
-        console.log("Onboarding enabled:", onboardingEnabled);
-
-        if (onboardingEnabled) {
-          // Use window.location to force a complete navigation and auth check
-          console.log("Redirecting to onboarding...");
-          window.location.href = "/onboarding";
-        } else {
-          // Redirect to dashboard if onboarding is disabled
-          console.log("Redirecting to dashboard...");
-          window.location.href = "/dashboard";
-        }
+        window.location.href = "/dashboard";
       } else {
         throw new Error(response.message || "Verification failed");
       }
     } catch (error) {
       console.error("OTP verification error:", error);
-      throw error; // Re-throw so the form can handle it
+      throw error;
     }
   };
 
@@ -323,6 +290,30 @@ export default function AuthPage() {
     console.log("Forgot password:", formData);
     // TODO: Implement forgot password logic with backend
   };
+
+  // Show loading state while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is authenticated, don't show auth page (redirect is handled in useEffect)
+  if (status === "authenticated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   // If in OTP step, show OTP verification form with split layout
   if (otpStep) {

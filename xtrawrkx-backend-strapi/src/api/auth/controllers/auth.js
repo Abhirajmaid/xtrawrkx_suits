@@ -250,6 +250,7 @@ module.exports = {
                     type: account.type,
                     isActive: account.isActive,
                     emailVerified: account.emailVerified,
+                    phone: account.phone,
                 },
                 contacts: account.contacts,
                 token: token,
@@ -265,10 +266,27 @@ module.exports = {
      */
     async clientSignup(ctx) {
         try {
-            const { name, email, phone, password } = ctx.request.body;
+            const {
+                name,
+                email,
+                phone,
+                password,
+                companyName,
+                industry,
+                website,
+                employees,
+                description,
+                location,
+                selectedCommunities
+            } = ctx.request.body;
 
+            // Validate required fields
             if (!name || !email || !phone || !password) {
                 return ctx.badRequest('Name, email, phone, and password are required');
+            }
+
+            if (!companyName || !industry) {
+                return ctx.badRequest('Company name and industry are required');
             }
 
             // Validate password strength
@@ -299,14 +317,29 @@ module.exports = {
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
 
-            // Create client account with emailVerified = false (will be verified via OTP)
+            // Create client account with all provided information
             const account = await strapi.db.query('api::client-account.client-account').create({
                 data: {
                     email: email.toLowerCase(),
                     phone: phone,
                     password: hashedPassword,
-                    companyName: `${firstName}'s Company`, // Temporary company name - will be updated during onboarding
-                    industry: 'Other', // Default industry - will be updated during onboarding
+                    companyName: companyName,
+                    industry: industry,
+                    companyType: companyType,
+                    subType: subType || null,
+                    website: website || null,
+                    employees: employees || null,
+                    founded: founded || null,
+                    revenue: revenue || null,
+                    description: description || null,
+                    address: address || null,
+                    city: city || null,
+                    state: state || null,
+                    country: country || null,
+                    zipCode: zipCode || null,
+                    linkedIn: linkedIn || null,
+                    twitter: twitter || null,
+                    selectedCommunities: selectedCommunities || [],
                     type: 'CUSTOMER',
                     emailVerificationToken: otp,
                     emailVerified: false,

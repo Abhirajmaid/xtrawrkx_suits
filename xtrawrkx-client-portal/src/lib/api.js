@@ -9,19 +9,56 @@ import { strapiClient } from './strapiClient.js';
 // Use Strapi for data storage, fallback to mock backend for development
 const useStrapi = process.env.NEXT_PUBLIC_USE_STRAPI !== 'false';
 
+/**
+ * Store client account in localStorage with ensured onboarding status
+ * Similar to how we store auth tokens - always ensure onboardingCompleted is set
+ */
+function storeClientAccount(account) {
+    if (!account || typeof window === 'undefined') {
+        return;
+    }
+
+    // Method 2 FIRST: Infer from data (most reliable)
+    // Method 1 backup: Check boolean flag
+    const hasRequiredData = !!(
+        account.companyName &&
+        account.industry &&
+        account.email &&
+        account.phone
+    );
+
+    let onboardingCompleted;
+    if (hasRequiredData) {
+        // If they have all required data, onboarding is complete
+        onboardingCompleted = true;
+    } else if (account.onboardingCompleted === true) {
+        // Fall back to boolean if data doesn't exist
+        onboardingCompleted = true;
+    } else {
+        onboardingCompleted = false;
+    }
+
+    // Store account with ensured onboarding status
+    const accountToStore = {
+        ...account,
+        onboardingCompleted: onboardingCompleted
+    };
+
+    localStorage.setItem('client_account', JSON.stringify(accountToStore));
+
+    return accountToStore;
+}
+
 // ============================================================================
 // Authentication & Session
 // ============================================================================
 
 /**
  * Client signup - creates account and sends OTP
- * @param {string} name 
- * @param {string} email 
- * @param {string} phone 
- * @param {string} password 
+ * @param {object} signupData - All signup information
  * @returns {Promise<{success: boolean, message: string}>}
  */
-export async function clientSignup(name, email, phone, password) {
+export async function clientSignup(signupData) {
     if (useStrapi) {
         try {
             const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
@@ -30,7 +67,7 @@ export async function clientSignup(name, email, phone, password) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ name, email, phone, password }),
+                body: JSON.stringify(signupData),
             });
 
             if (!response.ok) {
@@ -47,8 +84,8 @@ export async function clientSignup(name, email, phone, password) {
 
     // Fallback to mock backend
     return backendClient.post('/auth/send-otp', {
-        email,
-        phone
+        email: signupData.email,
+        phone: signupData.phone
     });
 }
 
@@ -82,7 +119,7 @@ export async function verifyOTP(email, otp) {
                 localStorage.setItem('auth_token', data.token);
                 localStorage.setItem('client_token', data.token);
                 if (data.account) {
-                    localStorage.setItem('client_account', JSON.stringify(data.account));
+                    storeClientAccount(data.account);
                 }
             }
 
@@ -133,20 +170,21 @@ export async function login(email, password) {
             }
 
             const data = await response.json();
-            
+
             // Store token in localStorage (client-side only)
-            if (data.token && typeof window !== 'undefined') {
-                localStorage.setItem('client_token', data.token);
-                localStorage.setItem('auth_token', data.token); // For compatibility
+            const token = data.jwt || data.token;
+            if (token && typeof window !== 'undefined') {
+                localStorage.setItem('client_token', token);
+                localStorage.setItem('auth_token', token);
                 if (data.account) {
-                    localStorage.setItem('client_account', JSON.stringify(data.account));
+                    storeClientAccount(data.account);
                 }
                 if (data.contacts) {
                     localStorage.setItem('client_contacts', JSON.stringify(data.contacts));
                 }
             }
-            
-            return data;
+
+            return { ...data, token: token };
         } catch (error) {
             console.error('Error logging in via Strapi:', error);
             throw error;
@@ -183,7 +221,7 @@ export async function getCurrentUser() {
                             account: account,
                             id: account.id,
                             email: account.email,
-                            name: account.companyName
+                            name: account.companyName,
                         };
                     } catch (error) {
                         console.error('Error parsing client account:', error);
@@ -194,7 +232,7 @@ export async function getCurrentUser() {
             // Try to fetch from Strapi
             const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
             const token = typeof window !== 'undefined' ? (localStorage.getItem('client_token') || localStorage.getItem('auth_token')) : null;
-            
+
             if (!token) {
                 throw new Error('No authentication token');
             }
@@ -212,11 +250,11 @@ export async function getCurrentUser() {
             }
 
             const data = await response.json();
-            
+
             // Handle client account response
             if (data.type === 'client' && data.account) {
                 if (typeof window !== 'undefined') {
-                    localStorage.setItem('client_account', JSON.stringify(data.account));
+                    storeClientAccount(data.account);
                 }
                 return {
                     account: data.account,
@@ -305,7 +343,7 @@ export async function getOnboardingAccount() {
                                 console.error('Error parsing contacts:', e);
                             }
                         }
-                        
+
                         return {
                             email: account.email || '',
                             phone: account.phone || '',
@@ -322,7 +360,7 @@ export async function getOnboardingAccount() {
             // Try to fetch from API
             const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
             const token = typeof window !== 'undefined' ? (localStorage.getItem('client_token') || localStorage.getItem('auth_token')) : null;
-            
+
             if (token) {
                 const response = await fetch(`${strapiUrl}/api/onboarding/account?email=${encodeURIComponent(session?.user?.email || '')}`, {
                     method: 'GET',
@@ -438,13 +476,13 @@ export async function completeOnboarding(data) {
     if (useStrapi) {
         try {
             const response = await strapiClient.completeOnboarding(data);
-            
+
             // Store token in localStorage (client-side only)
             if (response.token && typeof window !== 'undefined') {
                 localStorage.setItem('client_token', response.token);
                 localStorage.setItem('auth_token', response.token); // For compatibility
             }
-            
+
             return response;
         } catch (error) {
             console.error('Error completing onboarding in Strapi:', error);
@@ -453,24 +491,4 @@ export async function completeOnboarding(data) {
     }
 
     return backendClient.post('/onboarding/complete', data);
-}
-
-/**
- * Get onboarding completion status
- * @returns {Promise<any>}
- */
-export async function getOnboardingStatus() {
-    if (useStrapi) {
-        try {
-            const user = await strapiClient.getCurrentUser();
-            return {
-                isComplete: user?.onboardingCompleted || false,
-                completedAt: user?.onboardingCompletedAt || null,
-            };
-        } catch (error) {
-            console.error('Error getting onboarding status from Strapi:', error);
-        }
-    }
-
-    return backendClient.get('/onboarding/complete');
 }

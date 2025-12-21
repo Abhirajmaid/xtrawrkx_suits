@@ -2406,14 +2406,14 @@ const ClientAccountDetailPage = ({ params }) => {
                   <Plus className="w-4 h-4 mr-2" />
                   Add Invoice
                 </Button>
-              </div>
+                          </div>
               {invoicesLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
                   <span className="ml-2 text-gray-600">
                     Loading invoices...
-                  </span>
-                </div>
+                              </span>
+                            </div>
               ) : invoices.length > 0 ? (
                 <Table columns={invoiceColumns} data={invoices} />
               ) : (
@@ -2425,9 +2425,9 @@ const ClientAccountDetailPage = ({ params }) => {
                   <p className="text-sm text-gray-500 mt-1">
                     Create invoices to track billing
                   </p>
-                </div>
+                          </div>
               )}
-            </div>
+                        </div>
           )}
 
           {activeTab === "communities" && (
@@ -2438,7 +2438,7 @@ const ClientAccountDetailPage = ({ params }) => {
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                       <UserCircle className="w-6 h-6 text-white" />
-                    </div>
+                        </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
                         Selected Communities
@@ -2462,7 +2462,7 @@ const ClientAccountDetailPage = ({ params }) => {
                         {community}
                       </Badge>
                     ))}
-                  </div>
+                          </div>
                 ) : (
                   <div className="text-center py-8">
                     <UserCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -2470,9 +2470,9 @@ const ClientAccountDetailPage = ({ params }) => {
                     <p className="text-sm text-gray-500 mt-1">
                       This account hasn't joined any communities yet
                     </p>
-                  </div>
+                        </div>
                 )}
-              </div>
+                      </div>
 
               {/* Community Memberships */}
               <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
@@ -2481,23 +2481,23 @@ const ClientAccountDetailPage = ({ params }) => {
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
                       <Award className="w-6 h-6 text-white" />
                     </div>
-                    <div>
+                            <div>
                       <h3 className="text-lg font-semibold text-gray-900">
                         Community Memberships
                       </h3>
                       <p className="text-sm text-gray-500">
                         Active and inactive community memberships
                       </p>
-                    </div>
-                  </div>
-                </div>
+                              </div>
+                              </div>
+                            </div>
                 {communitiesLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
                     <span className="ml-2 text-gray-600">
                       Loading memberships...
                     </span>
-                  </div>
+                          </div>
                 ) : communityMemberships.length > 0 ? (
                   <div className="space-y-4">
                     {communityMemberships.map((membership) => {
@@ -2522,7 +2522,7 @@ const ClientAccountDetailPage = ({ params }) => {
                                   isActive ? "text-green-600" : "text-gray-400"
                                 }`}
                               />
-                            </div>
+                          </div>
                             <div>
                               <div className="flex items-center gap-2">
                                 <h4 className="font-semibold text-gray-900">
@@ -2556,15 +2556,15 @@ const ClientAccountDetailPage = ({ params }) => {
                                     {new Date(
                                       membershipData.joinedAt
                                     ).toLocaleDateString()}
-                                  </span>
-                                )}
+                                </span>
+                          )}
                                 {membershipData.membershipData
                                   ?.joinedViaOnboarding && (
                                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                                     Via Onboarding
-                                  </span>
-                                )}
-                              </div>
+                                </span>
+                          )}
+                        </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2573,48 +2573,48 @@ const ClientAccountDetailPage = ({ params }) => {
                             ) : (
                               <XCircle className="w-5 h-5 text-gray-400" />
                             )}
-                          </div>
-                        </div>
+                      </div>
+                    </div>
                       );
                     })}
-                  </div>
-                ) : (
+                </div>
+              ) : (
                   <div className="text-center py-8">
                     <Award className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-600">
                       No community memberships found
-                    </p>
+                  </p>
                     <p className="text-sm text-gray-500 mt-1">
                       This account hasn't joined any communities yet
                     </p>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
 
               {/* Community Submissions */}
-              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
+            <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
                       <FileText className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900">
                         Community Submissions
-                      </h3>
+                </h3>
                       <p className="text-sm text-gray-500">
                         Applications and submissions to communities
                       </p>
-                    </div>
+              </div>
                   </div>
                 </div>
                 {communitiesLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
-                    <span className="ml-2 text-gray-600">
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                  <span className="ml-2 text-gray-600">
                       Loading submissions...
-                    </span>
-                  </div>
+                  </span>
+                </div>
                 ) : communitySubmissions.length > 0 ? (
                   <div className="space-y-4">
                     {communitySubmissions.map((submission) => {
@@ -2680,18 +2680,18 @@ const ClientAccountDetailPage = ({ params }) => {
                       );
                     })}
                   </div>
-                ) : (
-                  <div className="text-center py-8">
+              ) : (
+                <div className="text-center py-8">
                     <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-600">
+                  <p className="text-gray-600">
                       No community submissions found
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
                       This account hasn't submitted any community applications
                       yet
-                    </p>
-                  </div>
-                )}
+                  </p>
+                </div>
+              )}
               </div>
             </div>
           )}

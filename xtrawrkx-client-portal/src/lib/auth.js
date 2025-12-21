@@ -29,13 +29,53 @@ export function AuthProvider({ children }) {
 
             console.log('Getting current user...');
             const user = await getCurrentUser();
-            console.log('User data received:', user);
+            console.log('User data received:', {
+                hasUser: !!user,
+                hasAccount: !!user?.account,
+                accountId: user?.account?.id || user?.id,
+                onboardingCompleted: user?.account?.onboardingCompleted || user?.onboardingCompleted,
+                userOnboarded: user?.onboarded
+            });
 
             // Handle both account-based and user-based responses
             const account = user?.account || user;
             const accountId = account?.id || user?.id;
             const accountEmail = account?.email || user?.email;
             const accountName = account?.companyName || account?.name || accountEmail;
+
+            // Method 2 FIRST: Infer from required data (most reliable)
+            // Method 1 backup: Check boolean flags
+            const hasRequiredData = !!(
+                account?.companyName &&
+                account?.industry &&
+                account?.email &&
+                account?.phone
+            );
+
+            let onboardingCompleted = false;
+
+            if (hasRequiredData) {
+                // If they have all required data, onboarding is complete
+                console.log('checkAuth: Inferred onboarding from data');
+                onboardingCompleted = true;
+            } else if (account?.onboardingCompleted !== undefined) {
+                onboardingCompleted = Boolean(account.onboardingCompleted);
+            } else if (user?.onboardingCompleted !== undefined) {
+                onboardingCompleted = Boolean(user.onboardingCompleted);
+            } else if (user?.onboarded !== undefined) {
+                onboardingCompleted = Boolean(user.onboarded);
+            }
+
+            console.log('Setting session with onboarding status:', {
+                accountId,
+                email: accountEmail,
+                onboardingCompleted,
+                accountOnboardingCompleted: account?.onboardingCompleted,
+                userOnboardingCompleted: user?.onboardingCompleted,
+                userOnboarded: user?.onboarded,
+                accountKeys: account ? Object.keys(account) : [],
+                userKeys: user ? Object.keys(user) : []
+            });
 
             setSession({
                 user: {
@@ -46,12 +86,12 @@ export function AuthProvider({ children }) {
                         id: accountId,
                         email: accountEmail,
                         phone: account?.phone || user?.phone || '',
-                        onboarded: account?.onboardingCompleted || user?.onboarded || false,
-                        needsOnboarding: !(account?.onboardingCompleted || user?.onboarded),
+                        onboarded: onboardingCompleted,
+                        needsOnboarding: !onboardingCompleted,
                     }
                 }
             });
-            console.log('Session set, status: authenticated');
+            console.log('Session set, status: authenticated, onboarded:', onboardingCompleted);
             setStatus('authenticated');
         } catch (error) {
             console.error('Auth check failed:', error);
@@ -62,6 +102,7 @@ export function AuthProvider({ children }) {
             setStatus('unauthenticated');
         }
     };
+
 
     // sendOTP is deprecated - use clientSignup instead
     const sendOTP = async (email, phone) => {
@@ -84,8 +125,6 @@ export function AuthProvider({ children }) {
                         id: response.user.id,
                         email: response.user.email,
                         phone: response.user.phone || '',
-                        onboarded: response.user.onboarded || false,
-                        needsOnboarding: response.user.needsOnboarding !== false,
                     }
                 }
             });
@@ -198,7 +237,8 @@ export function useAuth() {
         signIn: context.signIn,
         signOut: context.signOut,
         register: context.register,
-        checkAuth: context.checkAuth
+        checkAuth: context.checkAuth,
+        updateOnboardingStatus: context.updateOnboardingStatus
     };
 }
 

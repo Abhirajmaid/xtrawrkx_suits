@@ -42,3 +42,4 @@ Write-Host "  • PM Dashboard:         http://localhost:3005" -ForegroundColor 
 Write-Host ""
 Write-Host "Each application is running in its own PowerShell window." -ForegroundColor Gray
 Write-Host "Close the individual windows to stop each application." -ForegroundColor Gray
+

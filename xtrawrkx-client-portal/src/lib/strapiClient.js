@@ -250,6 +250,11 @@ class StrapiClient {
      */
     async completeOnboarding(onboardingData) {
         try {
+            console.log('strapiClient.completeOnboarding called with:', {
+                hasData: !!onboardingData,
+                dataKeys: onboardingData ? Object.keys(onboardingData) : []
+            });
+
             const response = await fetch(`${this.baseURL}${this.apiPath}/onboarding/complete`, {
                 method: 'POST',
                 headers: {
@@ -258,23 +263,99 @@ class StrapiClient {
                 body: JSON.stringify(onboardingData),
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            console.log('Strapi response status:', response.status, response.statusText);
+
+            // Get response text first to handle empty responses
+            const responseText = await response.text();
+
+            if (!responseText || responseText.trim() === '') {
+                console.error('Strapi returned empty response:', {
+                    status: response.status,
+                    statusText: response.statusText
+                });
+                throw new Error(`Server returned empty response: ${response.status} ${response.statusText}`);
             }
 
-            const data = await response.json();
+            let errorData;
+            try {
+                errorData = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Failed to parse Strapi response as JSON:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    responseText: responseText.substring(0, 500)
+                });
+                throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
+            }
+
+            if (!response.ok) {
+                const errorMessage = errorData.error?.message || errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+                console.error('Strapi API error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData: errorData
+                });
+                throw new Error(errorMessage);
+            }
+
+            // Log the full response structure to debug
+            console.log('strapiClient.completeOnboarding: Full response:', {
+                hasAccount: !!errorData.account,
+                accountKeys: errorData.account ? Object.keys(errorData.account) : [],
+                onboardingCompleted: errorData.account?.onboardingCompleted,
+                onboardingCompletedAt: errorData.account?.onboardingCompletedAt,
+                fullAccount: errorData.account
+            });
 
             // Store authentication data
             if (typeof window !== 'undefined') {
-                localStorage.setItem('client_token', data.token);
-                localStorage.setItem('client_account', JSON.stringify(data.account));
-                localStorage.setItem('client_contacts', JSON.stringify([data.primaryContact]));
+                if (errorData.token) {
+                    localStorage.setItem('client_token', errorData.token);
+                }
+                if (errorData.account) {
+                    // FORCE onboardingCompleted to true after completion
+                    // This ensures localStorage always has the correct value regardless of backend response
+                    const accountToStore = {
+                        ...errorData.account,
+                        onboardingCompleted: true,  // Always true after completion
+                        onboardingCompletedAt: errorData.account.onboardingCompletedAt || new Date().toISOString()
+                    };
+
+                    console.log('completeOnboarding: FORCING account.onboardingCompleted to true and storing:', {
+                        id: accountToStore.id,
+                        email: accountToStore.email,
+                        onboardingCompleted: accountToStore.onboardingCompleted,
+                        onboardingCompletedAt: accountToStore.onboardingCompletedAt,
+                        accountKeys: Object.keys(accountToStore),
+                        originalBackendValue: errorData.account.onboardingCompleted
+                    });
+                    localStorage.setItem('client_account', JSON.stringify(accountToStore));
+
+                    // Verify it was stored correctly
+                    const stored = localStorage.getItem('client_account');
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        console.log('completeOnboarding: Verified stored account:', {
+                            id: parsed.id,
+                            onboardingCompleted: parsed.onboardingCompleted,
+                            onboardingCompletedAt: parsed.onboardingCompletedAt,
+                            SUCCESS: parsed.onboardingCompleted === true ? 'YES' : 'NO - STILL FALSE'
+                        });
+                    }
+                }
+                if (errorData.primaryContact) {
+                    localStorage.setItem('client_contacts', JSON.stringify([errorData.primaryContact]));
+                }
             }
 
-            return data;
+            return errorData;
         } catch (error) {
             console.error('Onboarding completion failed:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
             throw error;
         }
     }
@@ -444,10 +525,10 @@ class StrapiClient {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    accountId: accountId || null, 
+                body: JSON.stringify({
+                    accountId: accountId || null,
                     email: email,
-                    basics: basicsData 
+                    basics: basicsData
                 }),
             });
 
