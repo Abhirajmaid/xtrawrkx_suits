@@ -4,8 +4,8 @@
  */
 class AuthService {
     static TOKEN_KEY = 'currentUser';
-    static API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app/api';
-    // static API_BASE_URL = 'http://localhost:1337/api';
+    // Use environment variable for API URL, fallback to localhost for development
+    static API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:1337') + '/api';
 
     /**
      * Get JWT token from localStorage

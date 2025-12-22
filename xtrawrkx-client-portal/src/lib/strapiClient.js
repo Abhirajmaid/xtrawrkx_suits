@@ -3,7 +3,8 @@
  */
 class StrapiClient {
     constructor() {
-        this.baseURL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+        // Use environment variable for API URL, fallback to localhost for development
+        this.baseURL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
         this.apiPath = '/api';
         this.useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === 'true' && process.env.NODE_ENV === 'development';
     }

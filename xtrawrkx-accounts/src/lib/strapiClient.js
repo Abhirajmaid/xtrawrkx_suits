@@ -4,8 +4,8 @@
  */
 class StrapiClient {
     constructor() {
-        this.baseURL = 'https://xtrawrkxsuits-production.up.railway.app';
-        // this.baseURL = 'http://localhost:1337';
+        // Use environment variable for API URL, fallback to localhost for development
+        this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:1337';
         this.apiPath = '/api';
     }
 
