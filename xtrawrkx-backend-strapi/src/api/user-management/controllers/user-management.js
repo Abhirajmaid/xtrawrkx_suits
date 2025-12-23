@@ -175,8 +175,12 @@ module.exports = {
                 isActive: true,
                 invitationToken,
                 invitationExpires,
-                invitedBy: currentUser.id,
             };
+
+            // Only add invitedBy if currentUser exists and is valid
+            if (currentUser && currentUser.id) {
+                userData.invitedBy = currentUser.id;
+            }
 
             // Add primary role if specified
             if (primaryRole) {

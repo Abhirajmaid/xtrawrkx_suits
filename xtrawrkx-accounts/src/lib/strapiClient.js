@@ -118,13 +118,16 @@ class StrapiClient {
             firstName: userData.firstName || '',
             lastName: userData.lastName || '',
             phone: userData.phone || '',
-            role: userData.role || 'DEVELOPER',
-            department: userData.department || 'DEVELOPMENT',
             authProvider: 'PASSWORD',
             emailVerified: userData.emailVerified || false,
             lastLoginAt: new Date().toISOString(),
             isActive: true,
         };
+
+        // Only include department if it's a valid ID (number)
+        if (userData.department && typeof userData.department === 'number') {
+            userPayload.department = userData.department;
+        }
 
         try {
             // Try to find existing user by email

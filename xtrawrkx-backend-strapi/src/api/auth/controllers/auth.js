@@ -74,8 +74,6 @@ module.exports = {
                                     firstName: 'Admin',
                                     lastName: 'User',
                                     password: hashedPassword,
-                                    role: 'ADMIN',
-                                    department: 'MANAGEMENT',
                                     isActive: true,
                                     emailVerified: true,
                                     authProvider: 'PASSWORD',
@@ -579,6 +577,24 @@ module.exports = {
                 }
             }
 
+            // Validate department - can be either ID or code
+            let departmentData = null;
+            if (department) {
+                departmentData = await strapi.db.query('api::department.department').findOne({
+                    where: {
+                        $or: [
+                            { id: department },
+                            { code: department }
+                        ],
+                        isActive: true
+                    }
+                });
+
+                if (!departmentData) {
+                    return ctx.badRequest('Invalid department specified');
+                }
+            }
+
             // Use provided password
             const tempPassword = password;
             console.log('=== USING PROVIDED PASSWORD ===');
@@ -596,18 +612,22 @@ module.exports = {
                 lastName,
                 phone,
                 password: hashedPassword,
-                department,
                 authProvider: 'PASSWORD',
                 emailVerified: false,
                 isActive: true,
                 invitationToken,
                 invitationExpires,
-                invitedBy: 1, // Temporary: use admin user ID
+                // invitedBy removed to avoid foreign key constraint errors in new databases
             };
 
             // Add primary role if specified
             if (primaryRole) {
                 userData.primaryRole = primaryRole;
+            }
+
+            // Add department if validated
+            if (departmentData) {
+                userData.department = departmentData.id;
             }
 
             // Create user
