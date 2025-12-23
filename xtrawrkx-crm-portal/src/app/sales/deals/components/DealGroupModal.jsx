@@ -86,7 +86,7 @@ export default function DealGroupModal({
       setErrors({}); // Clear any previous errors
       const groupData = {
         ...formData,
-        createdBy: user?.id || user?.documentId || null,
+        // Removed createdBy to avoid relation errors - not essential for functionality
       };
       const response = await dealGroupService.create(groupData);
 

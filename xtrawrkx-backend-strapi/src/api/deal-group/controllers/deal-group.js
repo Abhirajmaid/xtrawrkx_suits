@@ -18,8 +18,14 @@ module.exports = createCoreController('api::deal-group.deal-group', ({ strapi })
                 return ctx.badRequest('Group name is required');
             }
 
+            // Remove createdBy if it's null or undefined to avoid relation errors
+            const cleanData = { ...data };
+            if (!cleanData.createdBy) {
+                delete cleanData.createdBy;
+            }
+
             const entity = await strapi.entityService.create('api::deal-group.deal-group', {
-                data,
+                data: cleanData,
                 populate: {
                     createdBy: true,
                     deals: true
@@ -123,8 +129,14 @@ module.exports = createCoreController('api::deal-group.deal-group', ({ strapi })
             const { id } = ctx.params;
             const { data } = ctx.request.body;
 
+            // Remove createdBy if it's null or undefined to avoid relation errors
+            const cleanData = { ...data };
+            if (!cleanData.createdBy) {
+                delete cleanData.createdBy;
+            }
+
             const entity = await strapi.entityService.update('api::deal-group.deal-group', id, {
-                data,
+                data: cleanData,
                 populate: {
                     createdBy: true,
                     deals: true

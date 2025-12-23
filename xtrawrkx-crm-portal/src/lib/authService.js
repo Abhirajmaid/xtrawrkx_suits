@@ -1,6 +1,7 @@
 // Use environment variable or fallback to production URL
 // Use environment variable for API URL, fallback to localhost for development
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:1337';
+// const API_BASE_URL = 'https://xtrawrkxsuits-production.up.railway.app';
 
 class AuthService {
     constructor() {
