@@ -149,7 +149,7 @@ export default function LoginPage() {
 
       // Store user info and token using AuthService
       const AuthService = (await import("@/lib/authService")).default;
-      
+
       const userData = {
         email: data.user.email || formData.email,
         firstName: data.user.firstName || "",
@@ -170,10 +170,10 @@ export default function LoginPage() {
 
       // Store using AuthService (stores in 'currentUser' key)
       AuthService.setUserData(userData);
-      
+
       // Also store in context for backward compatibility
       login(userData);
-      
+
       // Keep authToken for backward compatibility (will be migrated on next getToken call)
       localStorage.setItem("authToken", data.token);
 
@@ -393,8 +393,8 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between">
+              {/* Remember Me */}
+              <div className="flex items-center">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -404,12 +404,6 @@ export default function LoginPage() {
                   />
                   <span className="text-sm text-gray-700">Remember me</span>
                 </label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
-                >
-                  Forgot password?
-                </Link>
               </div>
 
               {/* Submit Button */}
