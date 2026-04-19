@@ -203,7 +203,13 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
                     ACTIVE: 0,
                     INACTIVE: 0,
                     CHURNED: 0,
-                    ON_HOLD: 0
+                    ON_HOLD: 0,
+                    REGISTERED: 0,
+                    COMMUNITY_MEMBER: 0,
+                    COMMUNITY_PAID: 0,
+                    COMMUNITY_NON_PAID: 0,
+                    LOST: 0,
+                    STOPPED: 0
                 },
                 totalRevenue: 0,
                 averageHealthScore: 0,
@@ -248,7 +254,13 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
                         ACTIVE: 0,
                         INACTIVE: 0,
                         CHURNED: 0,
-                        ON_HOLD: 0
+                        ON_HOLD: 0,
+                        REGISTERED: 0,
+                        COMMUNITY_MEMBER: 0,
+                        COMMUNITY_PAID: 0,
+                        COMMUNITY_NON_PAID: 0,
+                        LOST: 0,
+                        STOPPED: 0
                     },
                     totalRevenue: 0,
                     averageHealthScore: 0,

@@ -8,6 +8,36 @@ const activityLogger = require('../../../services/activityLogger');
 // JWT secret - use environment variable or fallback to default
 const JWT_SECRET = process.env.JWT_SECRET || 'myJwtSecret123456789012345678901234567890';
 
+const COMMUNITY_CODE_MAP = {
+    xen: 'XEN',
+    xevfin: 'XEVFIN',
+    xevtg: 'XEVTG',
+    xdd: 'XDD',
+    'xev.fin': 'XEVFIN',
+    'x&d': 'XDD',
+};
+
+function normalizeCommunityCodes(selectedCommunities = []) {
+    if (!Array.isArray(selectedCommunities)) return [];
+
+    const normalized = selectedCommunities
+        .map((community) => String(community || '').trim())
+        .filter(Boolean)
+        .map((community) => {
+            const directMap = COMMUNITY_CODE_MAP[community.toLowerCase()];
+            if (directMap) return directMap;
+
+            const upper = community.toUpperCase().replace(/[^A-Z]/g, '');
+            if (['XEN', 'XEVFIN', 'XEVTG', 'XDD'].includes(upper)) {
+                return upper;
+            }
+            return null;
+        })
+        .filter(Boolean);
+
+    return [...new Set(normalized)];
+}
+
 /**
  * Authentication Controller
  * Handles authentication for both internal users and client accounts
@@ -342,6 +372,8 @@ module.exports = {
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
 
+            const normalizedCommunities = normalizeCommunityCodes(selectedCommunities);
+
             // Prepare account data
             const accountData = {
                 email: email.toLowerCase(),
@@ -363,10 +395,12 @@ module.exports = {
                 linkedIn: linkedIn || null,
                 twitter: twitter || null,
                 type: 'CUSTOMER',
+                status: normalizedCommunities.length > 0 ? 'COMMUNITY_MEMBER' : 'REGISTERED',
                 emailVerificationToken: otp,
                 emailVerified: false,
                 isActive: false, // Inactive until OTP is verified
-                source: 'ONBOARDING'
+                source: 'ONBOARDING',
+                selectedCommunities: normalizedCommunities,
             };
 
             // Only add revenue if it's a valid number (not a range string)
@@ -461,6 +495,28 @@ module.exports = {
                     stack: projectError.stack
                 });
                 // Continue with signup even if project creation fails
+            }
+
+            // Create community memberships from selected onboarding communities
+            if (normalizedCommunities.length > 0) {
+                try {
+                    await Promise.all(
+                        normalizedCommunities.map((communityCode) =>
+                            strapi.db.query('api::community-membership.community-membership').create({
+                                data: {
+                                    clientAccount: account.id,
+                                    community: communityCode,
+                                    status: 'ACTIVE',
+                                    membershipType: 'FREE',
+                                    joinedAt: new Date(),
+                                },
+                            })
+                        )
+                    );
+                } catch (membershipError) {
+                    // Keep signup successful even if membership creation has a partial failure.
+                    console.error('Failed to create one or more community memberships:', membershipError);
+                }
             }
 
             // Send OTP email

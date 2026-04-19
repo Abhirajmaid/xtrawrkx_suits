@@ -71,8 +71,8 @@ export function ChatWindow({
 
   if (!conversation) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg h-96 flex flex-col">
-        <div className="p-6 border-b border-gray-200/50">
+      <div className="flex h-96 flex-col rounded-2xl border border-gray-200 bg-white shadow-md ring-1 ring-gray-900/[0.06]">
+        <div className="border-b border-gray-200 p-6">
           <h3 className="font-bold text-gray-900 text-lg">
             Select a conversation
           </h3>
@@ -97,12 +97,12 @@ export function ChatWindow({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className={`bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg flex flex-col ${
+      className={`flex flex-col rounded-2xl border border-gray-200 bg-white shadow-md ring-1 ring-gray-900/[0.06] ${
         isMinimized ? "h-16" : "h-[600px]"
       } transition-all duration-300`}
     >
       {/* Chat Header */}
-      <div className="p-6 border-b border-gray-200/50 flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-gray-200 p-6">
         <div className="flex items-center space-x-4">
           <div className="relative">
             <Avatar className="h-12 w-12 shadow-lg">
@@ -196,7 +196,7 @@ export function ChatWindow({
           </div>
 
           {/* Message Input */}
-          <div className="p-6 border-t border-gray-200/50">
+          <div className="border-t border-gray-200 p-6">
             <MessageInput
               onSendMessage={handleSendMessage}
               onFileUpload={handleFileUpload}

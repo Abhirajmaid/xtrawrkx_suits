@@ -303,32 +303,6 @@ export default function TasksPage() {
           return hasMatchingProject;
         });
 
-            // Check for projects array first, then single project
-            const projectsArray = tData.projects?.data || tData.projects || [];
-            const singleProject =
-              tData.project?.data?.attributes ||
-              tData.project?.attributes ||
-              tData.project;
-
-            let projectId = null;
-            if (Array.isArray(projectsArray) && projectsArray.length > 0) {
-              projectId =
-                (projectsArray[0].attributes || projectsArray[0]).id ||
-                (projectsArray[0].attributes || projectsArray[0]).documentId;
-            } else if (singleProject) {
-              projectId = singleProject.id || singleProject.documentId;
-            }
-
-            return {
-              id: t.id || t.documentId,
-              name: tData.name || tData.title,
-              projectId: projectId,
-              hasProjects: !!tData.projects,
-              hasProject: !!tData.project,
-            };
-          })
-        );
-
         // Transform tasks to match UI format
         const transformedTasks = filteredTasks.map((task) => {
           const taskData = task.attributes || task;

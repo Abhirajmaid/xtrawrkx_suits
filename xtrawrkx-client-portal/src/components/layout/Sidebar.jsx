@@ -382,7 +382,7 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
                 if (typeof window !== "undefined") {
                   localStorage.removeItem("auth_token");
                   localStorage.removeItem("client_token");
-                  window.location.href = "/login";
+                  window.location.href = "/auth";
                 }
               }}
               className={cn(

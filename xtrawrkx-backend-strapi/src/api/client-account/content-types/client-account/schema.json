@@ -107,7 +107,13 @@
                 "ACTIVE",
                 "INACTIVE",
                 "CHURNED",
-                "ON_HOLD"
+                "ON_HOLD",
+                "REGISTERED",
+                "COMMUNITY_MEMBER",
+                "COMMUNITY_PAID",
+                "COMMUNITY_NON_PAID",
+                "LOST",
+                "STOPPED"
             ],
             "default": "ACTIVE"
         },

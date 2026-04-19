@@ -1127,6 +1127,18 @@ const ClientAccountDetailPage = ({ params }) => {
         return "bg-red-100 text-red-800";
       case "ON_HOLD":
         return "bg-yellow-100 text-yellow-800";
+      case "REGISTERED":
+        return "bg-blue-100 text-blue-800";
+      case "COMMUNITY_MEMBER":
+        return "bg-indigo-100 text-indigo-800";
+      case "COMMUNITY_PAID":
+        return "bg-emerald-100 text-emerald-800";
+      case "COMMUNITY_NON_PAID":
+        return "bg-cyan-100 text-cyan-800";
+      case "LOST":
+        return "bg-rose-100 text-rose-800";
+      case "STOPPED":
+        return "bg-orange-100 text-orange-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -2481,266 +2493,351 @@ const ClientAccountDetailPage = ({ params }) => {
 
           {activeTab === "communities" && (
             <div className="space-y-6">
-              {/* Selected Communities */}
-              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                      <UserCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Selected Communities
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Communities this account has joined
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {account?.selectedCommunities &&
-                Array.isArray(account.selectedCommunities) &&
-                account.selectedCommunities.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {account.selectedCommunities.map((community, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="info"
-                        className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border border-purple-200"
-                      >
-                        {community}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <UserCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-600">No communities selected</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      This account hasn't joined any communities yet
-                    </p>
-                  </div>
-                )}
-              </div>
+              {(() => {
+                const selectedCommunities = Array.isArray(account?.selectedCommunities)
+                  ? account.selectedCommunities
+                  : [];
+                const activeMemberships = communityMemberships.filter((membership) => {
+                  const membershipData = membership.attributes || membership;
+                  return membershipData.status === "ACTIVE";
+                }).length;
+                const pendingSubmissions = communitySubmissions.filter((submission) => {
+                  const submissionData = submission.attributes || submission;
+                  return (submissionData.status || "SUBMITTED") === "PENDING";
+                }).length;
 
-              {/* Community Memberships */}
-              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                      <Award className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Community Memberships
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Active and inactive community memberships
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {communitiesLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
-                    <span className="ml-2 text-gray-600">
-                      Loading memberships...
-                    </span>
-                  </div>
-                ) : communityMemberships.length > 0 ? (
-                  <div className="space-y-4">
-                    {communityMemberships.map((membership) => {
-                      const membershipData =
-                        membership.attributes || membership;
-                      const isActive = membershipData.status === "ACTIVE";
-                      return (
-                        <div
-                          key={membership.id}
-                          className="flex items-center justify-between p-4 bg-white/50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div
-                              className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                isActive
-                                  ? "bg-gradient-to-br from-green-100 to-emerald-100"
-                                  : "bg-gradient-to-br from-gray-100 to-gray-200"
-                              }`}
-                            >
-                              <Award
-                                className={`w-6 h-6 ${
-                                  isActive ? "text-green-600" : "text-gray-400"
-                                }`}
-                              />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-semibold text-gray-900">
-                                  {membershipData.community}
-                                </h4>
-                                <Badge
-                                  variant={isActive ? "success" : "secondary"}
-                                  className="text-xs"
-                                >
-                                  {isActive ? "Active" : "Inactive"}
-                                </Badge>
-                                {membershipData.membershipType && (
-                                  <Badge
-                                    variant={
-                                      membershipData.membershipType ===
-                                      "PREMIUM"
-                                        ? "warning"
-                                        : "info"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {membershipData.membershipType}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                                {membershipData.joinedAt && (
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    Joined{" "}
-                                    {new Date(
-                                      membershipData.joinedAt
-                                    ).toLocaleDateString()}
-                                  </span>
-                                )}
-                                {membershipData.membershipData
-                                  ?.joinedViaOnboarding && (
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                                    Via Onboarding
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="rounded-2xl bg-gradient-to-br from-white/80 to-white/50 backdrop-blur-xl border border-white/40 shadow-lg p-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              Selected
+                            </p>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                              {selectedCommunities.length}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {isActive ? (
-                              <CheckCircle2 className="w-5 h-5 text-green-500" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-gray-400" />
-                            )}
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                            <UserCircle className="w-5 h-5 text-white" />
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Award className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-600">
-                      No community memberships found
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      This account hasn't joined any communities yet
-                    </p>
-                  </div>
-                )}
-              </div>
+                      </div>
 
-              {/* Community Submissions */}
-              <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Community Submissions
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Applications and submissions to communities
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {communitiesLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
-                    <span className="ml-2 text-gray-600">
-                      Loading submissions...
-                    </span>
-                  </div>
-                ) : communitySubmissions.length > 0 ? (
-                  <div className="space-y-4">
-                    {communitySubmissions.map((submission) => {
-                      const submissionData =
-                        submission.attributes || submission;
-                      const status = submissionData.status || "SUBMITTED";
-                      const statusColors = {
-                        SUBMITTED: "bg-blue-100 text-blue-800",
-                        APPROVED: "bg-green-100 text-green-800",
-                        REJECTED: "bg-red-100 text-red-800",
-                        PENDING: "bg-yellow-100 text-yellow-800",
-                      };
-                      return (
-                        <div
-                          key={submission.id}
-                          className="flex items-center justify-between p-4 bg-white/50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
-                              <FileText className="w-6 h-6 text-orange-600" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-semibold text-gray-900">
-                                  {submissionData.community}
-                                </h4>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                    statusColors[status] || statusColors.PENDING
-                                  }`}
-                                >
-                                  {status}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                                {submissionData.submissionId && (
-                                  <span className="font-mono text-xs">
-                                    ID: {submissionData.submissionId}
-                                  </span>
-                                )}
-                                {submissionData.createdAt && (
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(
-                                      submissionData.createdAt
-                                    ).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                      <div className="rounded-2xl bg-gradient-to-br from-white/80 to-white/50 backdrop-blur-xl border border-white/40 shadow-lg p-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              Active Memberships
+                            </p>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                              {activeMemberships}
+                            </p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              // View submission details
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
+                            <CheckCircle2 className="w-5 h-5 text-white" />
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-600">
-                      No community submissions found
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      This account hasn't submitted any community applications
-                      yet
-                    </p>
-                  </div>
-                )}
-              </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-gradient-to-br from-white/80 to-white/50 backdrop-blur-xl border border-white/40 shadow-lg p-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              Pending Submissions
+                            </p>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                              {pendingSubmissions}
+                            </p>
+                          </div>
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                            <Clock className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      <div className="rounded-2xl bg-gradient-to-br from-white/75 to-white/45 backdrop-blur-xl border border-white/35 shadow-xl p-6">
+                        <div className="flex items-center gap-3 mb-5">
+                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                            <Users className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Selected Communities
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                              Chosen during onboarding
+                            </p>
+                          </div>
+                        </div>
+
+                        {selectedCommunities.length > 0 ? (
+                          <div className="space-y-3">
+                            {selectedCommunities.map((community, idx) => {
+                              const code = String(community || "").toUpperCase();
+                              const communityMeta = {
+                                XEN: {
+                                  name: "XEN",
+                                  category: "Hardware & Automotive Startups",
+                                  theme: "from-blue-50 to-cyan-50 border-blue-200",
+                                  badge: "bg-blue-100 text-blue-700",
+                                  iconBg: "from-blue-100 to-cyan-100 text-blue-700",
+                                },
+                                XEVFIN: {
+                                  name: "XEV.FIN",
+                                  category: "Finance & Investment",
+                                  theme: "from-emerald-50 to-green-50 border-emerald-200",
+                                  badge: "bg-emerald-100 text-emerald-700",
+                                  iconBg: "from-emerald-100 to-green-100 text-emerald-700",
+                                },
+                                XEVTG: {
+                                  name: "XEVTG",
+                                  category: "Talent & Training",
+                                  theme: "from-sky-50 to-cyan-50 border-sky-200",
+                                  badge: "bg-sky-100 text-sky-700",
+                                  iconBg: "from-sky-100 to-cyan-100 text-sky-700",
+                                },
+                                XDD: {
+                                  name: "xD&D",
+                                  category: "Drones and Designs",
+                                  theme: "from-amber-50 to-yellow-50 border-amber-200",
+                                  badge: "bg-amber-100 text-amber-700",
+                                  iconBg: "from-amber-100 to-yellow-100 text-amber-700",
+                                },
+                              }[code] || {
+                                name: code || "Community",
+                                category: "Community",
+                                theme: "from-purple-50 to-pink-50 border-purple-200",
+                                badge: "bg-purple-100 text-purple-700",
+                                iconBg: "from-purple-100 to-pink-100 text-purple-700",
+                              };
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`rounded-xl border bg-gradient-to-r px-4 py-4 ${communityMeta.theme}`}
+                                >
+                                  <div className="flex items-start gap-4">
+                                    <div
+                                      className={`w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center text-xs font-bold ${communityMeta.iconBg}`}
+                                    >
+                                      {code || "C"}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2 mb-0.5">
+                                        <p className="text-[28px] leading-8 font-semibold text-gray-900 tracking-tight">
+                                          {communityMeta.name}
+                                        </p>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mb-0.5">
+                                        {communityMeta.category}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-10">
+                            <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-700 font-medium">
+                              No communities selected
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              This account has not selected communities yet.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl bg-gradient-to-br from-white/75 to-white/45 backdrop-blur-xl border border-white/35 shadow-xl p-6">
+                        <div className="flex items-center gap-3 mb-5">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                            <Award className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Community Memberships
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                              Membership status by community
+                            </p>
+                          </div>
+                        </div>
+
+                        {communitiesLoading ? (
+                          <div className="flex items-center justify-center py-10">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                            <span className="ml-2 text-gray-600">
+                              Loading memberships...
+                            </span>
+                          </div>
+                        ) : communityMemberships.length > 0 ? (
+                          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                            {communityMemberships.map((membership) => {
+                              const membershipData = membership.attributes || membership;
+                              const isActive = membershipData.status === "ACTIVE";
+                              return (
+                                <div
+                                  key={membership.id}
+                                  className="rounded-xl border border-gray-200 bg-white/70 px-4 py-3 hover:shadow-md transition-shadow"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div
+                                        className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                                          isActive
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-gray-100 text-gray-500"
+                                        }`}
+                                      >
+                                        <Award className="w-4 h-4" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="font-semibold text-gray-900 truncate">
+                                          {membershipData.community}
+                                        </p>
+                                        {membershipData.joinedAt && (
+                                          <p className="text-xs text-gray-500 flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            Joined{" "}
+                                            {new Date(membershipData.joinedAt).toLocaleDateString()}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Badge
+                                        variant={isActive ? "success" : "secondary"}
+                                        className="text-xs"
+                                      >
+                                        {membershipData.status || "UNKNOWN"}
+                                      </Badge>
+                                      {membershipData.membershipType && (
+                                        <Badge
+                                          variant={
+                                            membershipData.membershipType === "PREMIUM"
+                                              ? "warning"
+                                              : "info"
+                                          }
+                                          className="text-xs"
+                                        >
+                                          {membershipData.membershipType}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-10">
+                            <Award className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-700 font-medium">
+                              No memberships found
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Membership entries will appear here once created.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl bg-gradient-to-br from-white/75 to-white/45 backdrop-blur-xl border border-white/35 shadow-xl p-6">
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Community Submissions
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            Application history and approval status
+                          </p>
+                        </div>
+                      </div>
+
+                      {communitiesLoading ? (
+                        <div className="flex items-center justify-center py-10">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                          <span className="ml-2 text-gray-600">
+                            Loading submissions...
+                          </span>
+                        </div>
+                      ) : communitySubmissions.length > 0 ? (
+                        <div className="space-y-3">
+                          {communitySubmissions.map((submission) => {
+                            const submissionData = submission.attributes || submission;
+                            const status = submissionData.status || "SUBMITTED";
+                            const statusColors = {
+                              SUBMITTED: "bg-blue-100 text-blue-800",
+                              APPROVED: "bg-green-100 text-green-800",
+                              REJECTED: "bg-red-100 text-red-800",
+                              PENDING: "bg-yellow-100 text-yellow-800",
+                            };
+                            return (
+                              <div
+                                key={submission.id}
+                                className="rounded-xl border border-gray-200 bg-white/70 px-4 py-3 hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <p className="font-semibold text-gray-900 truncate">
+                                        {submissionData.community}
+                                      </p>
+                                      <span
+                                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                          statusColors[status] || statusColors.PENDING
+                                        }`}
+                                      >
+                                        {status}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                      {submissionData.submissionId && (
+                                        <span className="font-mono">
+                                          #{submissionData.submissionId}
+                                        </span>
+                                      )}
+                                      {submissionData.createdAt && (
+                                        <span className="flex items-center gap-1">
+                                          <Calendar className="w-3 h-3" />
+                                          {new Date(submissionData.createdAt).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Button variant="ghost" size="sm">
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-10">
+                          <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-700 font-medium">
+                            No submissions found
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Community applications will appear here once submitted.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 

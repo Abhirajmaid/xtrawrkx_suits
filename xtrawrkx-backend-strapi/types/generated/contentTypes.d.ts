@@ -763,7 +763,18 @@ export interface ApiClientAccountClientAccount
       Schema.Attribute.DefaultTo<'MANUAL'>;
     state: Schema.Attribute.String;
     status: Schema.Attribute.Enumeration<
-      ['ACTIVE', 'INACTIVE', 'CHURNED', 'ON_HOLD']
+      [
+        'ACTIVE',
+        'INACTIVE',
+        'CHURNED',
+        'ON_HOLD',
+        'REGISTERED',
+        'COMMUNITY_MEMBER',
+        'COMMUNITY_PAID',
+        'COMMUNITY_NON_PAID',
+        'LOST',
+        'STOPPED',
+      ]
     > &
       Schema.Attribute.DefaultTo<'ACTIVE'>;
     subType: Schema.Attribute.String;
