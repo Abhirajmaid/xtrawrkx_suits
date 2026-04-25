@@ -623,6 +623,15 @@ export interface ApiChatMessageChatMessage extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    authorClientAccount: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::client-account.client-account'
+    >;
+    authorUser: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::xtrawrkx-user.xtrawrkx-user'
+    >;
+    channelKey: Schema.Attribute.String & Schema.Attribute.DefaultTo<''>;
     clientAccount: Schema.Attribute.Relation<
       'manyToOne',
       'api::client-account.client-account'
@@ -633,6 +642,7 @@ export interface ApiChatMessageChatMessage extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     deal: Schema.Attribute.Relation<'manyToOne', 'api::deal.deal'>;
     editedAt: Schema.Attribute.DateTime;
+    fromClient: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isDeleted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isEdited: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isThreadStarter: Schema.Attribute.Boolean &
@@ -752,6 +762,10 @@ export interface ApiClientAccountClientAccount
     onboardingData: Schema.Attribute.JSON;
     password: Schema.Attribute.Password;
     phone: Schema.Attribute.String;
+    portalAuthoredChatMessages: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::chat-message.chat-message'
+    >;
     projects: Schema.Attribute.Relation<'oneToMany', 'api::project.project'>;
     proposals: Schema.Attribute.Relation<'oneToMany', 'api::proposal.proposal'>;
     publishedAt: Schema.Attribute.DateTime;
@@ -763,7 +777,18 @@ export interface ApiClientAccountClientAccount
       Schema.Attribute.DefaultTo<'MANUAL'>;
     state: Schema.Attribute.String;
     status: Schema.Attribute.Enumeration<
-      ['ACTIVE', 'INACTIVE', 'CHURNED', 'ON_HOLD']
+      [
+        'ACTIVE',
+        'INACTIVE',
+        'CHURNED',
+        'ON_HOLD',
+        'REGISTERED',
+        'COMMUNITY_MEMBER',
+        'COMMUNITY_PAID',
+        'COMMUNITY_NON_PAID',
+        'LOST',
+        'STOPPED',
+      ]
     > &
       Schema.Attribute.DefaultTo<'ACTIVE'>;
     subType: Schema.Attribute.String;

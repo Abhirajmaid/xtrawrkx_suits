@@ -298,16 +298,18 @@ export default function DashboardPage() {
   const [todaysSchedule, setTodaysSchedule] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
 
-  // Get current date
+  // Get current date (short: sat, 4/18/2026)
   const getCurrentDate = () => {
     const now = new Date();
-    const options = {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
+    const weekday = now
+      .toLocaleDateString("en-US", { weekday: "short" })
+      .toLowerCase();
+    const datePart = now.toLocaleDateString("en-US", {
+      month: "numeric",
       day: "numeric",
-    };
-    return now.toLocaleDateString("en-US", options);
+      year: "numeric",
+    });
+    return `${weekday}, ${datePart}`;
   };
 
   // Get greeting based on time of day
@@ -1132,22 +1134,15 @@ export default function DashboardPage() {
           }
         }
 
-        // Fetch community memberships for this client
-        const membershipParams = strapiClient.buildQueryString({
-          filters: {
-            clientAccount: {
-              id: {
-                $eq: accountId,
-              },
-            },
-          },
-          populate: ["community", "clientAccount"],
-          pagination: { pageSize: 100 },
-        });
-        const membershipsUrl = `${strapiClient.buildURL(
-          "/community-memberships",
-          {}
-        )}?${membershipParams}`;
+        // `community` on membership is an enum — do not populate it. Strapi 5 REST
+        // relation filters also 400; use list-for-client instead.
+        const membershipsUrl = strapiClient.buildURL(
+          "/community-memberships/list-for-client",
+          {
+            clientAccountId: String(accountId),
+            pageSize: 100,
+          }
+        );
         const membershipsResponse = await fetch(membershipsUrl, {
           method: "GET",
           headers: strapiClient.getHeaders(),
@@ -1330,7 +1325,6 @@ export default function DashboardPage() {
     return (
       <div className="space-y-4 bg-white min-h-screen">
         <PageHeader
-          title="Dashboard"
           subtitle={getCurrentDate()}
           breadcrumb={[]}
           showSearch={false}
@@ -1350,7 +1344,6 @@ export default function DashboardPage() {
       {/* Page Header */}
       <div className="px-4 pt-4">
         <PageHeader
-          title="Dashboard"
           subtitle={getCurrentDate()}
           breadcrumb={[]}
           showSearch={true}

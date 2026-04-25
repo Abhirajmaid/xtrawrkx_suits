@@ -2,6 +2,7 @@
 
 import { useState, useEffect, createContext, useContext } from 'react';
 import { verifyOTP as apiVerifyOTP, login as apiLogin, logout as apiLogout, getCurrentUser } from './api/authService.js';
+import { resolveClientAccountCompanyName } from '@/utils/clientAccountCompany';
 
 // Auth Context
 const AuthContext = createContext(null);
@@ -17,6 +18,25 @@ export function AuthProvider({ children }) {
 
     const checkAuth = async () => {
         try {
+            if (typeof window !== 'undefined') {
+                const path = window.location.pathname || '';
+                if (path.includes('/auth')) {
+                    const params = new URLSearchParams(window.location.search);
+                    const handoffEmail = params.get('email');
+                    if (
+                        params.get('from') === 'xtrawrkx-website' &&
+                        handoffEmail &&
+                        handoffEmail.includes('@')
+                    ) {
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('client_token');
+                        localStorage.removeItem('client_account');
+                        localStorage.removeItem('client_contacts');
+                        localStorage.removeItem('demo_user');
+                    }
+                }
+            }
+
             const token = localStorage.getItem('auth_token') || localStorage.getItem('client_token');
 
             if (!token) {
@@ -30,12 +50,16 @@ export function AuthProvider({ children }) {
             const account = user?.account || user;
             const accountId = account?.id || user?.id;
             const accountEmail = account?.email || user?.email;
-            const accountName = account?.companyName || account?.name || accountEmail;
+            const accountName =
+                resolveClientAccountCompanyName(account) ||
+                account?.companyName ||
+                account?.name ||
+                accountEmail;
 
             // Method 2 FIRST: Infer from required data (most reliable)
             // Method 1 backup: Check boolean flags
             const hasRequiredData = !!(
-                account?.companyName &&
+                (resolveClientAccountCompanyName(account) || account?.companyName) &&
                 account?.industry &&
                 account?.email &&
                 account?.phone
@@ -74,6 +98,8 @@ export function AuthProvider({ children }) {
             console.error('Auth check failed:', error);
             localStorage.removeItem('auth_token');
             localStorage.removeItem('client_token');
+            localStorage.removeItem('client_account');
+            localStorage.removeItem('client_contacts');
             localStorage.removeItem('demo_user');
             setSession(null);
             setStatus('unauthenticated');
@@ -120,6 +146,9 @@ export function AuthProvider({ children }) {
             console.error('Logout error:', error);
         } finally {
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('client_token');
+            localStorage.removeItem('client_account');
+            localStorage.removeItem('client_contacts');
             setSession(null);
             setStatus('unauthenticated');
             window.location.href = '/auth';
@@ -135,7 +164,11 @@ export function AuthProvider({ children }) {
             const account = response.account || response.user;
             const accountId = account?.id || account?.id;
             const accountEmail = account?.email || email;
-            const accountName = account?.companyName || account?.name || accountEmail;
+            const accountName =
+                resolveClientAccountCompanyName(account) ||
+                account?.companyName ||
+                account?.name ||
+                accountEmail;
 
             setSession({
                 user: {

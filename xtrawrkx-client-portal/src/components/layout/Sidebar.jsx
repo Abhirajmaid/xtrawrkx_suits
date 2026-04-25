@@ -21,11 +21,14 @@ import {
   hasPermission,
   MENU_ITEM_TYPES,
 } from "@/config/sidebarMenu";
+import { resolveClientAccountCompanyName } from "@/utils/clientAccountCompany";
+import { useChat } from "@/components/providers/ChatProvider";
 
 export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userRole = getUserRole(session);
+  const { unreadCount } = useChat();
 
   // Track expanded/collapsed state for each section
   const [expandedSections, setExpandedSections] = useState(() => {
@@ -62,9 +65,14 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
     }
 
     const company = companyData || account;
+    const displayName =
+      resolveClientAccountCompanyName(company) ||
+      String(company?.companyName || "").trim() ||
+      String(company?.name || "").trim() ||
+      "Company";
 
     return {
-      name: company?.companyName || company?.name || "Company",
+      name: displayName,
       email: company?.email || "",
       industry: company?.industry || "",
       phone: company?.phone || "",
@@ -112,6 +120,9 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
       ? item.submenu.filter((subItem) => hasPermission(subItem, userRole))
       : [];
 
+    const navBadge =
+      item.id === "messages" && unreadCount > 0 ? unreadCount : null;
+
     if (collapsed) {
       // Collapsed: show only icon, submenu not accessible
       return (
@@ -127,6 +138,11 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
           title={item.label}
         >
           <Icon className="w-5 h-5" />
+          {navBadge != null && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow">
+              {navBadge > 9 ? "9+" : navBadge}
+            </span>
+          )}
           {/* Tooltip */}
           <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
             {item.label}
@@ -207,7 +223,19 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
         )}
       >
         <Icon className="w-5 h-5 flex-shrink-0" />
-        <span>{item.label}</span>
+        <span className="flex-1">{item.label}</span>
+        {navBadge != null && (
+          <span
+            className={cn(
+              "min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full text-xs font-bold shadow",
+              isActive
+                ? "bg-white/25 text-white"
+                : "bg-red-500 text-white"
+            )}
+          >
+            {navBadge > 9 ? "9+" : navBadge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -382,7 +410,7 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
                 if (typeof window !== "undefined") {
                   localStorage.removeItem("auth_token");
                   localStorage.removeItem("client_token");
-                  window.location.href = "/login";
+                  window.location.href = "/auth";
                 }
               }}
               className={cn(

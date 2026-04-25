@@ -5,6 +5,7 @@
 
 import backendClient from '../backendClient.js';
 import { strapiClient } from '../strapiClient.js';
+import { resolveClientAccountCompanyName } from '@/utils/clientAccountCompany';
 
 // Use environment variable for API URL, fallback to localhost for development
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
@@ -25,7 +26,7 @@ function storeClientAccount(account) {
     // Method 2 FIRST: Infer from data (most reliable)
     // Method 1 backup: Check boolean flag
     const hasRequiredData = !!(
-        account.companyName &&
+        (resolveClientAccountCompanyName(account) || account.companyName) &&
         account.industry &&
         account.email &&
         account.phone
@@ -253,59 +254,66 @@ export async function login(email, password) {
 export async function getCurrentUser() {
     if (useStrapi) {
         try {
-            // Check localStorage first for client account
+            const token =
+                typeof window !== 'undefined'
+                    ? localStorage.getItem('client_token') ||
+                      localStorage.getItem('auth_token')
+                    : null;
+
+            const buildClientUserPayload = (account) => ({
+                account,
+                id: account.id,
+                email: account.email,
+                name:
+                    resolveClientAccountCompanyName(account) ||
+                    account.companyName ||
+                    account.email,
+            });
+
+            if (token) {
+                const response = await fetch(`${strapiClient.baseURL}/api/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.type === 'client' && data.account) {
+                        if (typeof window !== 'undefined') {
+                            storeClientAccount(data.account);
+                            if (data.contacts?.length) {
+                                localStorage.setItem(
+                                    'client_contacts',
+                                    JSON.stringify(data.contacts)
+                                );
+                            }
+                        }
+                        return buildClientUserPayload(data.account);
+                    }
+                    return data;
+                }
+            }
+
             if (typeof window !== 'undefined') {
                 const accountData = localStorage.getItem('client_account');
                 if (accountData) {
                     try {
                         const account = JSON.parse(accountData);
-                        return {
-                            account: account,
-                            id: account.id,
-                            email: account.email,
-                            name: account.companyName,
-                        };
+                        return buildClientUserPayload(account);
                     } catch (error) {
                         console.error('Error parsing client account:', error);
                     }
                 }
             }
 
-            // Try to fetch from Strapi
-            const token = typeof window !== 'undefined' ? (localStorage.getItem('client_token') || localStorage.getItem('auth_token')) : null;
-
             if (!token) {
                 throw new Error('No authentication token');
             }
 
-            const response = await fetch(`${strapiClient.baseURL}/api/auth/me`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to get current user');
-            }
-
-            const data = await response.json();
-
-            // Handle client account response
-            if (data.type === 'client' && data.account) {
-                if (typeof window !== 'undefined') {
-                    storeClientAccount(data.account);
-                }
-                return {
-                    account: data.account,
-                    id: data.account.id,
-                    email: data.account.email,
-                    name: data.account.companyName
-                };
-            }
-
-            return data;
+            throw new Error('Failed to get current user');
         } catch (error) {
             console.error('Error getting current user from Strapi:', error);
             // Fallback to demo user check
@@ -348,7 +356,10 @@ export async function getCurrentUser() {
 export async function logout() {
     if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_token');
-        localStorage.removeItem('demo_user'); // Also remove demo user data
+        localStorage.removeItem('client_token');
+        localStorage.removeItem('client_account');
+        localStorage.removeItem('client_contacts');
+        localStorage.removeItem('demo_user');
     }
     return Promise.resolve();
 }

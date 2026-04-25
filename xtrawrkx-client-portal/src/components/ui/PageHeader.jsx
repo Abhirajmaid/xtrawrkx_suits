@@ -24,6 +24,7 @@ import {
 import { Card } from "./Card";
 import { useSession } from "@/lib/auth";
 import { strapiClient } from "@/lib/strapiClient";
+import { resolveClientAccountCompanyName } from "@/utils/clientAccountCompany";
 
 export function PageHeader({
   title,
@@ -261,7 +262,10 @@ export function PageHeader({
       const accountData = localStorage.getItem("client_account");
       if (accountData) {
         const account = JSON.parse(accountData);
-        return account?.companyName || account?.name || null;
+        const resolved =
+          resolveClientAccountCompanyName(account) ||
+          String(account?.companyName || "").trim();
+        return resolved || null;
       }
     } catch (e) {
       console.error("Error parsing client_account:", e);
@@ -272,7 +276,7 @@ export function PageHeader({
   // Check if this is the dashboard page
   const isDashboard = pathname === "/dashboard";
 
-  // Build breadcrumb from pathname if not provided
+  // Build breadcrumb from pathname if not provided (dashboard omits path crumb)
   const breadcrumbItems =
     breadcrumb.length > 0
       ? breadcrumb.map((item) => {
@@ -300,16 +304,18 @@ export function PageHeader({
             href: item.href || "#",
           };
         })
-      : pathname
-          .split("/")
-          .filter(Boolean)
-          .map((segment, index, array) => {
-            const href = "/" + array.slice(0, index + 1).join("/");
-            const label =
-              segment.charAt(0).toUpperCase() +
-              segment.slice(1).replace(/-/g, " ");
-            return { label, href };
-          });
+      : isDashboard
+        ? []
+        : pathname
+            .split("/")
+            .filter(Boolean)
+            .map((segment, index, array) => {
+              const href = "/" + array.slice(0, index + 1).join("/");
+              const label =
+                segment.charAt(0).toUpperCase() +
+                segment.slice(1).replace(/-/g, " ");
+              return { label, href };
+            });
 
   return (
     <Card glass={true} className="relative z-[40]" padding={false}>
@@ -347,15 +353,29 @@ export function PageHeader({
           {/* Title and Subtitle */}
           {isDashboard ? (
             <div>
-              <h1 className="text-5xl font-light text-gray-900 mb-2 tracking-tight">
+              <h1 className="text-5xl font-light text-gray-900 tracking-tight mb-2">
                 {getGreeting()}, {getUserDisplayName()}
               </h1>
-              {getCompanyInfo() && (
-                <p className="text-2xl font-semibold text-xtrawrkx-500">
-                  {getCompanyInfo()}
-                </p>
+              {(getCompanyInfo() || subtitle) && (
+                <div className="mt-1 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-0">
+                  {getCompanyInfo() && (
+                    <p className="text-2xl font-semibold text-xtrawrkx-500 leading-snug">
+                      {getCompanyInfo()}
+                    </p>
+                  )}
+                  {getCompanyInfo() && subtitle && (
+                    <span
+                      className="hidden h-7 w-px shrink-0 bg-gray-300 sm:mx-4 sm:block"
+                      aria-hidden
+                    />
+                  )}
+                  {subtitle && (
+                    <p className="text-2xl font-medium leading-snug text-gray-700">
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
               )}
-              {subtitle && <p className="text-gray-600 mt-2">{subtitle}</p>}
             </div>
           ) : (
             <>
@@ -591,7 +611,7 @@ export function PageHeader({
                           if (typeof window !== "undefined") {
                             localStorage.removeItem("auth_token");
                             localStorage.removeItem("client_token");
-                            window.location.href = "/login";
+                            window.location.href = "/auth";
                           }
                         }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600"
