@@ -1,9 +1,8 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  css: {
-    postcss: null,
-  },
+  // Avoid loading postcss.config.mjs (Tailwind v4) during pure unit tests
+  css: false,
   test: {
     environment: "node",
     css: false,

@@ -75,6 +75,205 @@ const tryRequest = async ({ paths, method, body }) => {
   };
 };
 
+const extractStrapiList = (payload) => {
+  if (!payload) return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
+
+const pickRecordId = (record) => {
+  if (!record || typeof record !== "object") return null;
+  if (record.id != null && record.id !== "") return record.id;
+  if (record.documentId != null && record.documentId !== "") return record.documentId;
+  return null;
+};
+
+const pickRowAttributes = (row) => {
+  if (!row || typeof row !== "object") return {};
+  return row.attributes && typeof row.attributes === "object" ? row.attributes : row;
+};
+
+const normalizeOnboardingData = (value) => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return { ...value };
+  }
+  return {};
+};
+
+const uniqueStringList = (...items) => {
+  const out = [];
+  const seen = new Set();
+  for (const item of items) {
+    const s = typeof item === "string" ? item.trim() : "";
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out;
+};
+
+/**
+ * When the website profile `company` changes, keep Strapi `client-account.companyName`
+ * (and onboardingData.signupCompany) aligned so CRM + client portal show the same name.
+ */
+const syncWebsiteCompanyToStrapiClientAccount = async ({ body, attrs, existingId }) => {
+  const incoming = String(body?.company || "").trim();
+  if (!incoming || !existingId) {
+    return { attempted: false, ok: true, skipped: true, error: null };
+  }
+
+  const currentName = String(attrs.companyName || "").trim();
+  const onboarding = normalizeOnboardingData(attrs.onboardingData);
+  const signupCo = String(onboarding.signupCompany || "").trim();
+
+  if (currentName === incoming && signupCo === incoming) {
+    return { attempted: false, ok: true, skipped: true, error: null };
+  }
+
+  const email = String(body?.email || "").trim().toLowerCase();
+  const localPart = email.split("@")[0] || "user";
+
+  const companyNameCandidates = uniqueStringList(
+    incoming,
+    `${incoming} (${localPart})`,
+    `${incoming} · ${email}`
+  );
+
+  let lastErr = null;
+  for (const companyName of companyNameCandidates) {
+    const putRes = await tryRequest({
+      paths: [`/client-accounts/${existingId}`],
+      method: "PUT",
+      body: {
+        data: {
+          companyName,
+          onboardingData: {
+            ...onboarding,
+            signupCompany: incoming,
+            profileUid: body?.uid ?? onboarding.profileUid ?? null,
+            firstName: body?.firstName ?? onboarding.firstName ?? null,
+            lastName: body?.lastName ?? onboarding.lastName ?? null,
+            displayName: body?.displayName ?? onboarding.displayName ?? null,
+            updatedFrom: "website_public_profile_sync",
+          },
+        },
+      },
+    });
+
+    if (putRes.ok) {
+      return {
+        attempted: true,
+        ok: true,
+        skipped: false,
+        companyName,
+        error: null,
+      };
+    }
+
+    lastErr =
+      putRes.data?.error?.message ||
+      putRes.data?.error ||
+      putRes.status ||
+      "Update failed";
+
+    const msg = JSON.stringify(putRes.data || {}).toLowerCase();
+    const isUniqueConflict =
+      putRes.status === 400 &&
+      (msg.includes("unique") ||
+        msg.includes("duplicate") ||
+        msg.includes("already"));
+
+    if (!isUniqueConflict) {
+      return {
+        attempted: true,
+        ok: false,
+        skipped: false,
+        error: lastErr,
+      };
+    }
+  }
+
+  return {
+    attempted: true,
+    ok: false,
+    skipped: false,
+    error: lastErr || "Unique companyName constraint could not be satisfied.",
+  };
+};
+
+/**
+ * CRM list view shows companyName on line 1 and primary contact name on line 2.
+ * Website signups only had client-account rows (no Contact), so line 2 was "No contact".
+ */
+const ensureWebsitePrimaryContact = async (body, clientAccountId) => {
+  const email = String(body?.email || "").trim().toLowerCase();
+  if (!email || !clientAccountId) {
+    return { attempted: false, ok: false, error: "Missing email or client account id." };
+  }
+
+  const listPath = `/contacts?filters[clientAccount][id][$eq]=${encodeURIComponent(
+    String(clientAccountId)
+  )}&pagination[pageSize]=25`;
+
+  const existing = await tryRequest({
+    paths: [listPath],
+    method: "GET",
+  });
+
+  if (!existing.ok) {
+    return {
+      attempted: true,
+      ok: false,
+      status: existing.status,
+      error: existing.data?.error || "Unable to check contacts for client account.",
+    };
+  }
+
+  const rows = extractStrapiList(existing.data);
+  const normalized = rows.map((row) => {
+    const attrs = pickRowAttributes(row);
+    const id = pickRecordId(row);
+    return { id, role: String(attrs.role || "").toUpperCase() };
+  });
+
+  const hasPrimary = normalized.some((r) => r.role === "PRIMARY_CONTACT");
+  if (hasPrimary) {
+    return { attempted: true, ok: true, status: 200, error: null };
+  }
+
+  const firstName = String(body?.firstName || "").trim() || email.split("@")[0] || "Member";
+  const lastName = String(body?.lastName || "").trim() || "User";
+  const jobTitle = String(body?.jobTitle || "").trim();
+
+  const createResult = await tryRequest({
+    paths: ["/contacts"],
+    method: "POST",
+    body: {
+      data: {
+        firstName,
+        lastName,
+        email,
+        role: "PRIMARY_CONTACT",
+        title: jobTitle || "Website signup",
+        clientAccount: clientAccountId,
+        status: "ACTIVE",
+      },
+    },
+  });
+
+  if (!createResult.ok) {
+    return {
+      attempted: true,
+      ok: false,
+      status: createResult.status,
+      error: createResult.data?.error || "Primary contact creation failed.",
+    };
+  }
+
+  return { attempted: true, ok: true, status: createResult.status, error: null };
+};
+
 const ensureClientAccount = async (body) => {
   const email = String(body?.email || "").trim().toLowerCase();
   if (!email) {
@@ -112,13 +311,45 @@ const ensureClientAccount = async (body) => {
   if (existingRows.length > 0) {
     const first = existingRows[0];
     const attrs = first?.attributes || {};
+    const existingId = pickRecordId(first);
+    const primaryContactSync = await ensureWebsitePrimaryContact(body, existingId);
+
+    let clientPasswordSync = null;
+    const pwd = body?.initialClientPassword;
+    if (existingId && pwd && String(pwd).length >= 6) {
+      const pwdRes = await tryRequest({
+        paths: [`/client-accounts/${existingId}`],
+        method: "PUT",
+        body: {
+          data: {
+            password: pwd,
+          },
+        },
+      });
+      clientPasswordSync = {
+        attempted: true,
+        ok: Boolean(pwdRes.ok),
+        status: pwdRes.status,
+        error: pwdRes.ok ? null : pwdRes.data?.error || "Password sync failed.",
+      };
+    }
+
+    const companyNameSync = await syncWebsiteCompanyToStrapiClientAccount({
+      body,
+      attrs,
+      existingId,
+    });
+
     return {
       attempted: true,
       ok: true,
       status: 200,
       error: null,
+      primaryContactSync,
+      clientPasswordSync,
+      companyNameSync,
       data: {
-        id: first?.id || null,
+        id: existingId,
         status: attrs.status || body?.status || "REGISTERED",
         source: attrs.source || body?.source || "ONBOARDING",
         raw: first,
@@ -132,51 +363,109 @@ const ensureClientAccount = async (body) => {
   const company = String(body?.company || "").trim();
   const uid = String(body?.uid || "").trim();
   const localName = email.split("@")[0] || "website-user";
-  const derivedCompany = company || displayName || `${firstName} ${lastName}`.trim() || localName;
+  const personLine = [firstName, lastName].filter(Boolean).join(" ").trim() || displayName || localName;
+  const displayCompany = (company && company.trim()) || personLine;
   const fallbackIndustry = String(body?.jobTitle || "").trim() || "General";
 
-  const createResult = await tryRequest({
-    paths: ["/client-accounts"],
-    method: "POST",
-    body: {
-      data: {
-        email,
-        companyName: `${derivedCompany}-${uid || Date.now()}`,
-        industry: fallbackIndustry,
-        type: "CUSTOMER",
-        status: "REGISTERED",
-        source: "ONBOARDING",
-        isActive: true,
-        onboardingData: {
-          profileUid: uid || null,
-          firstName,
-          lastName,
-          displayName,
-          createdFrom: "website_public_signup",
-        },
-      },
-    },
-  });
+  const emailLocal = email.split("@")[0] || "user";
+  const companyTrimmed = String(company || "").trim();
+  const companyNameCandidates = companyTrimmed
+    ? uniqueStringList(
+        companyTrimmed,
+        `${companyTrimmed} (${personLine})`,
+        `${companyTrimmed} (${emailLocal})`,
+        `${companyTrimmed} · ${email}`,
+        uid ? `${companyTrimmed} #${uid.slice(-8)}` : null
+      )
+    : uniqueStringList(
+        displayCompany,
+        `${displayCompany} (${emailLocal})`,
+        `${displayCompany} · ${email}`,
+        uid ? `${displayCompany} #${uid.slice(-8)}` : null
+      );
 
-  if (!createResult.ok) {
+  const initialPwd = body?.initialClientPassword;
+  const includePassword =
+    initialPwd && typeof initialPwd === "string" && initialPwd.length >= 6;
+
+  let createResult = null;
+  let lastCreateError = null;
+  for (const companyName of companyNameCandidates) {
+    const accountPayload = {
+      email,
+      companyName,
+      industry: fallbackIndustry,
+      type: "CUSTOMER",
+      status: "REGISTERED",
+      source: "ONBOARDING",
+      isActive: true,
+      onboardingData: {
+        profileUid: uid || null,
+        firstName,
+        lastName,
+        displayName,
+        signupCompany: companyTrimmed || null,
+        createdFrom: "website_public_signup",
+      },
+    };
+    if (includePassword) {
+      accountPayload.password = initialPwd;
+    }
+
+    createResult = await tryRequest({
+      paths: ["/client-accounts"],
+      method: "POST",
+      body: {
+        data: accountPayload,
+      },
+    });
+
+    if (createResult.ok) {
+      break;
+    }
+
+    lastCreateError = createResult.data?.error || createResult.status;
+    const msg = JSON.stringify(createResult.data || {}).toLowerCase();
+    const isUniqueConflict =
+      createResult.status === 400 &&
+      (msg.includes("unique") || msg.includes("already exists") || msg.includes("duplicate"));
+
+    if (!isUniqueConflict) {
+      break;
+    }
+  }
+
+  if (!createResult?.ok) {
     return {
       attempted: true,
       ok: false,
-      status: createResult.status,
-      error: createResult.data?.error || "Client account setup failed.",
+      status: createResult?.status || 500,
+      error:
+        (typeof lastCreateError === "string" ? lastCreateError : null) ||
+        createResult?.data?.error ||
+        "Client account setup failed.",
       data: null,
+      primaryContactSync: null,
     };
   }
 
   const created = createResult.data?.data || createResult.data;
   const attrs = created?.attributes || {};
+  const newId = pickRecordId(created) ?? created?.id ?? null;
+  const primaryContactSync = await ensureWebsitePrimaryContact(body, newId);
+
   return {
     attempted: true,
     ok: true,
     status: createResult.status,
     error: null,
+    primaryContactSync,
+    companyNameSync: null,
+    clientPasswordSync: includePassword
+      ? { attempted: true, ok: true, status: createResult.status, error: null }
+      : { attempted: false, ok: true, status: null, error: null },
     data: {
-      id: created?.id || null,
+      id: newId,
       status: attrs.status || "REGISTERED",
       source: attrs.source || "ONBOARDING",
       raw: created,
@@ -263,7 +552,10 @@ export async function POST(request) {
                 ? "Client account setup failed."
                 : null),
           status: clientAccountResult?.status || null,
+          companyNameSync: clientAccountResult?.companyNameSync ?? null,
         },
+        primaryContactSync: clientAccountResult?.primaryContactSync || null,
+        clientPasswordSync: clientAccountResult?.clientPasswordSync || null,
       },
       { status: 200 }
     );

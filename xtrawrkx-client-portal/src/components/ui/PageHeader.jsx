@@ -24,6 +24,7 @@ import {
 import { Card } from "./Card";
 import { useSession } from "@/lib/auth";
 import { strapiClient } from "@/lib/strapiClient";
+import { resolveClientAccountCompanyName } from "@/utils/clientAccountCompany";
 
 export function PageHeader({
   title,
@@ -261,7 +262,10 @@ export function PageHeader({
       const accountData = localStorage.getItem("client_account");
       if (accountData) {
         const account = JSON.parse(accountData);
-        return account?.companyName || account?.name || null;
+        const resolved =
+          resolveClientAccountCompanyName(account) ||
+          String(account?.companyName || "").trim();
+        return resolved || null;
       }
     } catch (e) {
       console.error("Error parsing client_account:", e);

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
@@ -18,142 +19,15 @@ import {
   XCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-
-const communityAvatarClass = {
-  "blue-500": "bg-blue-500",
-  "green-500": "bg-green-500",
-  "purple-500": "bg-purple-500",
-  "pink-500": "bg-pink-500",
-};
-
-function avatarClassFor(colorKey) {
-  return communityAvatarClass[colorKey] || "bg-xtrawrkx-500";
-}
-
-// Communities data
-const communitiesData = [
-  {
-    id: 1,
-    name: "XEN",
-    fullName: "XEN Entrepreneurs Network",
-    category: "Business Division",
-    description:
-      "Early-stage startup community focused on innovation and growth",
-    members: 1247,
-    tier: "Premium",
-    status: "Active",
-    tags: ["Startup Support", "Networking", "Mentorship"],
-    logo: "/images/logos/xen-logo.png",
-    color: "blue-500",
-    isMember: true,
-    userTier: "x3",
-    userTierName: "Growth Member",
-    canUpgrade: true,
-    nextTier: "x4",
-    nextTierName: "Scale Member",
-    monthlyEvents: 8,
-    activeDiscussions: 23,
-    successStories: 156,
-    joinDate: "2024-01-15",
-    memberSince: "3 months",
-    benefits: [
-      "Weekly networking events",
-      "1-on-1 mentorship sessions",
-      "Pitch deck reviews",
-      "Co-founder matching",
-    ],
-  },
-  {
-    id: 2,
-    name: "XEV.FiN",
-    fullName: "XEV Financial Network",
-    category: "Investment Division",
-    description: "Investment & funding network for entrepreneurs and investors",
-    members: 523,
-    tier: "Elite",
-    status: "Active",
-    tags: ["Investment", "Funding", "Due Diligence"],
-    logo: "/images/logos/xevfin-logo.png",
-    color: "green-500",
-    isMember: false,
-    userTier: null,
-    userTierName: null,
-    canUpgrade: false,
-    nextTier: null,
-    nextTierName: null,
-    monthlyEvents: 4,
-    activeDiscussions: 12,
-    successStories: 89,
-    joinDate: null,
-    memberSince: null,
-    benefits: [
-      "Investor pitch sessions",
-      "Due diligence workshops",
-      "Term sheet negotiations",
-      "Portfolio management",
-    ],
-  },
-  {
-    id: 3,
-    name: "XEVTG",
-    fullName: "XEV Tech Guild",
-    category: "Tech Division",
-    description: "Tech talent marketplace for professionals and companies",
-    members: 2156,
-    tier: "Standard",
-    status: "Active",
-    tags: ["Tech Talent", "Remote Work", "Skill Development"],
-    logo: "/images/logos/xevtg-logo.png",
-    color: "purple-500",
-    isMember: true,
-    userTier: "x2",
-    userTierName: "Tech Member",
-    canUpgrade: true,
-    nextTier: "x3",
-    nextTierName: "Senior Member",
-    monthlyEvents: 12,
-    activeDiscussions: 45,
-    successStories: 234,
-    joinDate: "2024-02-20",
-    memberSince: "2 months",
-    benefits: [
-      "Skill assessment tests",
-      "Job matching algorithm",
-      "Remote work opportunities",
-      "Tech mentorship",
-    ],
-  },
-  {
-    id: 4,
-    name: "xD&D",
-    fullName: "Design & Development Community",
-    category: "Creative Division",
-    description: "Design & development community for creators and builders",
-    members: 892,
-    tier: "Standard",
-    status: "Active",
-    tags: ["Design", "Development", "Portfolio"],
-    logo: "/images/logos/xdd-logo.png",
-    color: "pink-500",
-    isMember: false,
-    userTier: null,
-    userTierName: null,
-    canUpgrade: false,
-    nextTier: null,
-    nextTierName: null,
-    monthlyEvents: 6,
-    activeDiscussions: 18,
-    successStories: 67,
-    joinDate: null,
-    memberSince: null,
-    benefits: [
-      "Portfolio reviews",
-      "Design critiques",
-      "Collaboration projects",
-      "Creative workshops",
-    ],
-  },
-];
+import CommunityJoinRequirementsModal from "@/components/communities/CommunityJoinRequirementsModal";
+import {
+  COMMUNITIES_LIST,
+  getCommunityById,
+  avatarClassFor,
+} from "@/data/communitiesCatalog";
+import { listActiveMembershipsForClient } from "@/lib/api/communityProgramService";
+import { strapiClient } from "@/lib/strapiClient";
+import { resolveClientAccountCompanyName } from "@/utils/clientAccountCompany";
 
 const filterOptions = {
   status: ["All", "Member", "Non-Member"],
@@ -168,6 +42,89 @@ const filterOptions = {
 };
 
 export default function CommunitiesPage() {
+  const searchParams = useSearchParams();
+  const joinPromptConsumed = useRef(false);
+
+  const [joinedEnums, setJoinedEnums] = useState([]);
+  const [membershipsLoaded, setMembershipsLoaded] = useState(false);
+  const [clientAccountId, setClientAccountId] = useState(null);
+  const [accountDefaults, setAccountDefaults] = useState({});
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [joinTarget, setJoinTarget] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const id = strapiClient.getCurrentAccountId();
+      if (!cancelled) setClientAccountId(id);
+
+      if (typeof window !== "undefined") {
+        const raw = localStorage.getItem("client_account");
+        if (raw) {
+          try {
+            const acc = JSON.parse(raw);
+            const attrs = acc.attributes || acc;
+            setAccountDefaults({
+              company: resolveClientAccountCompanyName(acc) || resolveClientAccountCompanyName(attrs),
+              jobTitle: attrs.jobTitle || acc.jobTitle || "",
+              phone: attrs.phone || acc.phone || "",
+            });
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      if (!id) {
+        if (!cancelled) setMembershipsLoaded(true);
+        return;
+      }
+
+      const rows = await listActiveMembershipsForClient(id);
+      if (cancelled) return;
+      setJoinedEnums(rows.map((r) => r.community).filter(Boolean));
+      setMembershipsLoaded(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!membershipsLoaded || joinPromptConsumed.current) return;
+    const raw = searchParams.get("join");
+    if (!raw) return;
+    const c = getCommunityById(raw);
+    if (!c || !clientAccountId) return;
+    if (joinedEnums.includes(c.strapiEnum)) return;
+    joinPromptConsumed.current = true;
+    setJoinTarget(c);
+    setJoinModalOpen(true);
+  }, [membershipsLoaded, joinedEnums, clientAccountId, searchParams]);
+
+  const communitiesData = useMemo(
+    () =>
+      COMMUNITIES_LIST.map((c) => ({
+        ...c,
+        isMember: joinedEnums.includes(c.strapiEnum),
+      })),
+    [joinedEnums]
+  );
+
+  const openJoinModal = (community) => {
+    setJoinTarget(community);
+    setJoinModalOpen(true);
+  };
+
+  const handleJoinSuccess = (community) => {
+    if (!community?.strapiEnum) return;
+    setJoinedEnums((prev) =>
+      prev.includes(community.strapiEnum) ? prev : [...prev, community.strapiEnum]
+    );
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFilters, setSelectedFilters] = useState({
     status: "All",
@@ -204,7 +161,7 @@ export default function CommunitiesPage() {
     0
   );
   const successStoriesTotal = communitiesData.reduce(
-    (sum, c) => sum + c.successStories,
+    (sum, c) => sum + (c.successStoriesCount ?? 0),
     0
   );
 
@@ -622,6 +579,7 @@ export default function CommunitiesPage() {
                         ) : (
                           <button
                             type="button"
+                            onClick={() => openJoinModal(community)}
                             className="inline-flex flex-1 min-w-[140px] items-center justify-center px-4 py-2 bg-xtrawrkx-500 text-white rounded-xl text-sm font-semibold hover:bg-xtrawrkx-600 transition-colors shadow-md"
                           >
                             Join community
@@ -710,6 +668,7 @@ export default function CommunitiesPage() {
                           ) : (
                             <button
                               type="button"
+                              onClick={() => openJoinModal(community)}
                               className="inline-flex items-center justify-center px-4 py-2 bg-xtrawrkx-500 text-white rounded-xl text-sm font-semibold hover:bg-xtrawrkx-600 transition-colors shadow-md"
                             >
                               Join community
@@ -743,6 +702,18 @@ export default function CommunitiesPage() {
           )}
         </div>
       </div>
+
+      <CommunityJoinRequirementsModal
+        isOpen={joinModalOpen}
+        onClose={() => {
+          setJoinModalOpen(false);
+          setJoinTarget(null);
+        }}
+        community={joinTarget}
+        clientAccountId={clientAccountId}
+        accountDefaults={accountDefaults}
+        onSuccess={handleJoinSuccess}
+      />
     </div>
   );
 }

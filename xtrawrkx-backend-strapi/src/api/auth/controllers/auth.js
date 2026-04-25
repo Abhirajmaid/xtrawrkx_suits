@@ -261,6 +261,7 @@ module.exports = {
             ctx.send({
                 account: {
                     id: account.id,
+                    documentId: account.documentId || null,
                     email: account.email,
                     companyName: account.companyName,
                     industry: account.industry,
@@ -268,6 +269,9 @@ module.exports = {
                     isActive: account.isActive,
                     emailVerified: account.emailVerified,
                     phone: account.phone,
+                    onboardingData: account.onboardingData || null,
+                    onboardingCompleted: account.onboardingCompleted,
+                    onboardingCompletedAt: account.onboardingCompletedAt || null,
                 },
                 contacts: account.contacts,
                 token: token,
@@ -656,12 +660,17 @@ module.exports = {
                 message: 'Account verified successfully',
                 account: {
                     id: updatedAccount.id,
+                    documentId: updatedAccount.documentId || null,
                     email: updatedAccount.email,
                     companyName: updatedAccount.companyName,
                     industry: updatedAccount.industry,
                     type: updatedAccount.type,
                     isActive: updatedAccount.isActive,
                     emailVerified: updatedAccount.emailVerified,
+                    phone: updatedAccount.phone || null,
+                    onboardingData: updatedAccount.onboardingData || null,
+                    onboardingCompleted: updatedAccount.onboardingCompleted,
+                    onboardingCompletedAt: updatedAccount.onboardingCompletedAt || null,
                 },
                 contacts: updatedAccount.contacts || [],
                 token: token,
@@ -865,6 +874,47 @@ module.exports = {
             // Ensure decoded is an object (not a string)
             if (typeof decoded === 'string' || !decoded) {
                 return ctx.unauthorized('Invalid token format');
+            }
+
+            if (decoded.type === 'client') {
+                const account = await strapi.db.query('api::client-account.client-account').findOne({
+                    where: {
+                        id: decoded.id,
+                        isActive: true,
+                    },
+                    populate: {
+                        contacts: {
+                            where: { status: 'ACTIVE' },
+                            select: ['id', 'firstName', 'lastName', 'email', 'role', 'portalAccessLevel'],
+                        },
+                    },
+                });
+
+                if (!account) {
+                    return ctx.unauthorized('Client account not found or inactive');
+                }
+
+                const accountPayload = {
+                    id: account.id,
+                    documentId: account.documentId || null,
+                    email: account.email,
+                    companyName: account.companyName,
+                    industry: account.industry,
+                    type: account.type,
+                    isActive: account.isActive,
+                    emailVerified: account.emailVerified,
+                    phone: account.phone,
+                    onboardingData: account.onboardingData || null,
+                    onboardingCompleted: account.onboardingCompleted,
+                    onboardingCompletedAt: account.onboardingCompletedAt || null,
+                };
+
+                return ctx.send({
+                    success: true,
+                    type: 'client',
+                    account: accountPayload,
+                    contacts: account.contacts || [],
+                });
             }
 
             if (decoded.type !== 'internal') {

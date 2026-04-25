@@ -135,6 +135,12 @@
             "target": "api::chat-message.chat-message",
             "mappedBy": "clientAccount"
         },
+        "portalAuthoredChatMessages": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::chat-message.chat-message",
+            "mappedBy": "authorClientAccount"
+        },
         "tasks": {
             "type": "relation",
             "relation": "oneToMany",

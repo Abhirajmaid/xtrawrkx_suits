@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
 import { useSession } from "@/lib/session";
 import { ChatNotifications } from "../chat/ChatNotifications";
+import { resolveClientAccountCompanyName } from "@/utils/clientAccountCompany";
 
 // Top navigation items matching reference
 const navigationTabs = [
@@ -26,6 +27,24 @@ export function TopNavbar({ onMenuClick }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const portalTitle = (() => {
+    if (typeof window === "undefined") {
+      return session?.account?.companyName || "Client Portal";
+    }
+    try {
+      const raw = localStorage.getItem("client_account");
+      if (!raw) return "Client Portal";
+      const acc = JSON.parse(raw);
+      return (
+        resolveClientAccountCompanyName(acc) ||
+        acc.companyName ||
+        "Client Portal"
+      );
+    } catch {
+      return "Client Portal";
+    }
+  })();
 
   return (
     <>
@@ -51,7 +70,7 @@ export function TopNavbar({ onMenuClick }) {
                   <Home className="h-4 w-4 text-white" />
                 </div>
                 <h1 className="text-lg font-semibold text-gray-900">
-                  {session?.account?.companyName || "Client Portal"}
+                  {portalTitle}
                 </h1>
               </div>
 

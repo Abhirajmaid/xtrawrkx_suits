@@ -11,59 +11,99 @@ const STRAPI_API_URL =
 const buildBaseUrl = () =>
   STRAPI_API_URL.endsWith("/") ? STRAPI_API_URL.slice(0, -1) : STRAPI_API_URL;
 
-const membershipPaths = (email) => [
-  `/client-accounts?filters[email][$eq]=${encodeURIComponent(
-    email
-  )}&pagination[pageSize]=1`,
-  `/client-accounts/by-email?email=${encodeURIComponent(email)}`,
-  `/client-accounts/status?email=${encodeURIComponent(email)}`,
-  `/community-memberships/status?email=${encodeURIComponent(email)}`,
-  `/communities/membership-status?email=${encodeURIComponent(email)}`,
-  `/users/community-status?email=${encodeURIComponent(email)}`,
-];
+const COMMUNITY_LABELS = {
+  XEN: "XEN",
+  XEVFIN: "XEV.FiN",
+  XEVTG: "XEVTG",
+  XDD: "xD&D",
+};
 
-const extractClientAccount = (data) => {
-  if (!data || typeof data !== "object") {
+/** Matches xtrawrkx-client-portal `communitiesCatalog` numeric ids */
+const COMMUNITY_PORTAL_PAGE_ID = {
+  XEN: 1,
+  XEVFIN: 2,
+  XEVTG: 3,
+  XDD: 4,
+};
+
+async function fetchJson(url) {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  const data = await response.json().catch(() => null);
+  return { response, data };
+}
+
+/**
+ * Strapi `client-account.find` returns a bare array; default REST uses `{ data: [...] }`.
+ * Match `profile/route.js` `extractStrapiList` so lookups succeed either way.
+ */
+function extractStrapiList(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
+function parseIntegerDbId(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  const s = String(value).trim();
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
+/**
+ * Strapi 5 REST may return numeric `id`, only `documentId`, or nest fields under
+ * `attributes`. Treat an account as present if we have either identifier.
+ */
+function firstClientAccountRow(payload) {
+  const rows = extractStrapiList(payload);
+  if (!rows?.length) return null;
+  const row = rows[0];
+  if (!row || typeof row !== "object") return null;
+
+  const attrs =
+    row.attributes && typeof row.attributes === "object" ? row.attributes : {};
+
+  const numericId =
+    parseIntegerDbId(row.id) ?? parseIntegerDbId(attrs.id);
+
+  let documentId =
+    row.documentId != null && String(row.documentId).trim() !== ""
+      ? String(row.documentId).trim()
+      : attrs.documentId != null && String(attrs.documentId).trim() !== ""
+        ? String(attrs.documentId).trim()
+        : null;
+
+  if (!documentId && numericId == null && row.id != null) {
+    const sid = String(row.id).trim();
+    if (sid && !/^\d+$/.test(sid)) {
+      documentId = sid;
+    }
+  }
+
+  if (numericId == null && !documentId) {
     return null;
   }
 
-  if (Array.isArray(data) && data.length > 0) {
-    const firstRow = data[0];
-    if (firstRow?.attributes) {
-      return { id: firstRow.id, ...firstRow.attributes };
-    }
-    return firstRow;
-  }
+  const email = attrs.email ?? row.email ?? null;
+  const status = attrs.status ?? row.status ?? null;
+  const source = attrs.source ?? row.source ?? null;
 
-  if (data.clientAccount && typeof data.clientAccount === "object") {
-    return data.clientAccount;
-  }
-
-  if (data.client_account && typeof data.client_account === "object") {
-    return data.client_account;
-  }
-
-  if (Array.isArray(data.data) && data.data.length > 0) {
-    const firstRow = data.data[0];
-    if (firstRow?.attributes) {
-      return { id: firstRow.id, ...firstRow.attributes };
-    }
-    return firstRow;
-  }
-
-  if (data.data && typeof data.data === "object") {
-    if (data.data.attributes) {
-      return { id: data.data.id, ...data.data.attributes };
-    }
-    return data.data;
-  }
-
-  if (data.status || data.source) {
-    return data;
-  }
-
-  return null;
-};
+  return {
+    id: numericId ?? documentId,
+    numericId,
+    documentId,
+    email,
+    status,
+    source,
+    ...attrs,
+  };
+}
 
 export async function GET(request) {
   try {
@@ -78,81 +118,132 @@ export async function GET(request) {
     }
 
     const baseUrl = buildBaseUrl();
-    let lastResult = null;
+    const emailRaw = String(email).trim();
+    const emailNorm = emailRaw.toLowerCase();
+    const emailCandidates = [...new Set([emailNorm, emailRaw].filter(Boolean))];
 
-    for (const path of membershipPaths(email)) {
-      const response = await fetch(`${baseUrl}${path}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-        cache: "no-store",
-      });
+    let accountJson = null;
+    let accountRes = null;
 
-      if (response.status === 404) {
-        lastResult = {
-          status: 404,
-          error: "Endpoint not found",
-        };
-        continue;
-      }
+    for (const candidate of emailCandidates) {
+      const accountUrl = `${baseUrl}/client-accounts?filters[email][$eq]=${encodeURIComponent(
+        candidate
+      )}&pagination[pageSize]=1`;
+      const result = await fetchJson(accountUrl);
+      accountRes = result.response;
+      accountJson = result.data;
 
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
+      if (!accountRes.ok) {
         return NextResponse.json(
           {
             error:
-              data?.error || "Unable to fetch community membership status.",
+              accountJson?.error?.message ||
+              accountJson?.error ||
+              "Unable to load client account.",
           },
-          { status: response.status }
+          { status: accountRes.status }
         );
       }
 
-      const clientAccount = extractClientAccount(data);
-      const clientAccountStatus =
-        clientAccount?.status || data?.status || data?.clientAccountStatus || null;
-      const clientAccountSource =
-        clientAccount?.source || data?.source || data?.clientAccountSource || null;
-      const hasClientAccount = Boolean(clientAccount);
+      if (firstClientAccountRow(accountJson)) {
+        break;
+      }
+    }
 
+    const clientRow = firstClientAccountRow(accountJson);
+
+    if (!clientRow) {
       return NextResponse.json(
         {
-          hasClientAccount,
-          clientAccount: hasClientAccount
-            ? {
-                id: clientAccount?.id || null,
-                status: clientAccountStatus,
-                source: clientAccountSource,
-                raw: clientAccount,
-              }
-            : null,
-          hasCommunity:
-            Boolean(data?.hasCommunity) ||
-            Boolean(data?.communityName) ||
-            Boolean(data?.community?.name) ||
-            [
-              "COMMUNITY_MEMBER",
-              "COMMUNITY_PAID",
-              "COMMUNITY_NON_PAID",
-              "ACTIVE",
-            ].includes(String(clientAccountStatus || "").toUpperCase()),
-          communityName: data?.communityName || data?.community?.name || "",
-          communitySlug: data?.communitySlug || data?.community?.slug || "",
-          membershipId: data?.membershipId || data?.id || "",
-          ...data,
+          hasClientAccount: false,
+          clientAccount: null,
+          hasCommunity: false,
+          memberships: [],
+          communityName: "",
+          communitySlug: "",
+          membershipId: "",
         },
         { status: 200 }
       );
     }
 
+    const accountId = clientRow.numericId ?? clientRow.id;
+    const accountDocumentId = clientRow.documentId || null;
+    const status = clientRow.status || null;
+    const source = clientRow.source || null;
+
+    const clientKey =
+      accountDocumentId != null && String(accountDocumentId).trim() !== ""
+        ? String(accountDocumentId).trim()
+        : accountId != null && String(accountId).trim() !== ""
+          ? String(accountId).trim()
+          : "";
+
+    if (!clientKey) {
+      return NextResponse.json(
+        {
+          hasClientAccount: false,
+          clientAccount: null,
+          hasCommunity: false,
+          memberships: [],
+          communityName: "",
+          communitySlug: "",
+          membershipId: "",
+        },
+        { status: 200 }
+      );
+    }
+
+    const memUrl = `${baseUrl}/community-memberships/list-for-client?clientAccountId=${encodeURIComponent(
+      clientKey
+    )}&status=ACTIVE&pageSize=50`;
+
+    const { response: memRes, data: memJson } = await fetchJson(memUrl);
+
+    const membershipRows = memRes.ok && Array.isArray(memJson?.data)
+      ? memJson.data
+      : [];
+
+    const memberships = membershipRows.map((row) => {
+      const a = row.attributes || {};
+      const code = a.community || "";
+      const portalId = COMMUNITY_PORTAL_PAGE_ID[code] ?? null;
+      return {
+        id: row.id,
+        community: code,
+        label: COMMUNITY_LABELS[code] || code,
+        portalId,
+        status: a.status || "ACTIVE",
+        joinedAt: a.joinedAt || null,
+      };
+    });
+
+    const hasCommunity = memberships.length > 0;
+    const primary = memberships[0];
+    const communityName = memberships
+      .map((m) => m.label || m.community)
+      .filter(Boolean)
+      .join(", ");
+
     return NextResponse.json(
       {
-        error:
-          lastResult?.error ||
-          "No compatible community membership endpoint was found.",
+        hasClientAccount: true,
+        clientAccount: {
+          id: clientRow.numericId ?? accountId,
+          documentId: accountDocumentId,
+          status,
+          source,
+          email: clientRow.email || emailRaw || emailNorm,
+        },
+        hasCommunity,
+        memberships,
+        communityName,
+        communitySlug: primary?.community
+          ? String(primary.community).toLowerCase()
+          : "",
+        membershipId: primary?.id != null ? String(primary.id) : "",
       },
-      { status: lastResult?.status || 404 }
+      { status: 200 }
     );
   } catch (error) {
     return NextResponse.json(

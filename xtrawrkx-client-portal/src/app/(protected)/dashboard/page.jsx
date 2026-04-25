@@ -1134,22 +1134,15 @@ export default function DashboardPage() {
           }
         }
 
-        // Fetch community memberships for this client
-        const membershipParams = strapiClient.buildQueryString({
-          filters: {
-            clientAccount: {
-              id: {
-                $eq: accountId,
-              },
-            },
-          },
-          populate: ["community", "clientAccount"],
-          pagination: { pageSize: 100 },
-        });
-        const membershipsUrl = `${strapiClient.buildURL(
-          "/community-memberships",
-          {}
-        )}?${membershipParams}`;
+        // `community` on membership is an enum — do not populate it. Strapi 5 REST
+        // relation filters also 400; use list-for-client instead.
+        const membershipsUrl = strapiClient.buildURL(
+          "/community-memberships/list-for-client",
+          {
+            clientAccountId: String(accountId),
+            pageSize: 100,
+          }
+        );
         const membershipsResponse = await fetch(membershipsUrl, {
           method: "GET",
           headers: strapiClient.getHeaders(),

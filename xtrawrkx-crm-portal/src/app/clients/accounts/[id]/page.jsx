@@ -138,10 +138,11 @@ const ClientAccountDetailPage = ({ params }) => {
 
   // Fetch communities when communities tab is active
   useEffect(() => {
-    if (activeTab === "communities" && account?.id) {
-      fetchCommunities(account.id);
+    const accountKey = account?.id || account?.documentId;
+    if (activeTab === "communities" && accountKey) {
+      fetchCommunities(accountKey);
     }
-  }, [activeTab, account?.id]);
+  }, [activeTab, account?.id, account?.documentId]);
 
   // Fetch users for assignment
   useEffect(() => {
@@ -678,45 +679,22 @@ const ClientAccountDetailPage = ({ params }) => {
     try {
       setCommunitiesLoading(true);
 
-      // Build query params for Strapi
-      const membershipParams = strapiClient.buildQueryString({
-        filters: {
-          clientAccount: {
-            id: {
-              $eq: accountId,
-            },
-          },
-        },
-        populate: "*",
-        pagination: {
-          pageSize: 100,
-        },
-      });
+      const idParam = encodeURIComponent(String(accountId));
 
-      const submissionParams = strapiClient.buildQueryString({
-        filters: {
-          clientAccount: {
-            id: {
-              $eq: accountId,
-            },
-          },
-        },
-        populate: "*",
-        pagination: {
-          pageSize: 100,
-        },
-      });
+      // Strapi 5 REST relation filters return 400; use custom list-for-client routes.
+      const membershipUrl = `/community-memberships/list-for-client?clientAccountId=${idParam}&pageSize=100`;
+      const submissionUrl = `/community-submissions/list-for-client?clientAccountId=${idParam}&pageSize=100`;
 
       // Fetch community memberships and submissions
       const [membershipsResponse, submissionsResponse] =
         await Promise.allSettled([
           strapiClient
-            .request(`/community-memberships?${membershipParams}`, {
+            .request(membershipUrl, {
               method: "GET",
             })
             .catch(() => ({ data: [] })),
           strapiClient
-            .request(`/community-submissions?${submissionParams}`, {
+            .request(submissionUrl, {
               method: "GET",
             })
             .catch(() => ({ data: [] })),
@@ -733,11 +711,11 @@ const ClientAccountDetailPage = ({ params }) => {
 
       // Handle Strapi response structure (attributes pattern)
       const processedMemberships = memberships.map((m) => ({
-        id: m.id,
+        id: m.id ?? m.documentId,
         ...(m.attributes || m),
       }));
       const processedSubmissions = submissions.map((s) => ({
-        id: s.id,
+        id: s.id ?? s.documentId,
         ...(s.attributes || s),
       }));
 

@@ -14,7 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar";
+import { Avatar } from "@/components/ui/Avatar";
 import { ChatWindow } from "./ChatWindow";
 import { useChat } from "@/components/providers/ChatProvider";
 import ModernButton from "@/components/ui/ModernButton";
@@ -25,13 +25,8 @@ export function ChatInterface() {
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
 
   // Use chat context instead of local state
-  const {
-    conversations,
-    sendMessage,
-    markAsRead,
-    updateConversation,
-    getMessages,
-  } = useChat();
+  const { conversations, sendMessage, markAsRead, updateConversation } =
+    useChat();
 
   // Filter conversations based on search
   const filteredConversations = conversations.filter(
@@ -46,7 +41,9 @@ export function ChatInterface() {
     if (!a.isPinned && b.isPinned) return 1;
     if (a.unread > 0 && b.unread === 0) return -1;
     if (a.unread === 0 && b.unread > 0) return 1;
-    return new Date(b.time) - new Date(a.time);
+    const tb = b.sortKey ?? b.lastMessageAt ?? 0;
+    const ta = a.sortKey ?? a.lastMessageAt ?? 0;
+    return tb - ta;
   });
 
   // Handle conversation selection
@@ -176,15 +173,13 @@ function ConversationItem({ conversation, isSelected, onSelect, onAction }) {
       <div className="flex items-center space-x-4">
         {/* Avatar */}
         <div className="relative">
-          <Avatar className="h-14 w-14 shadow-lg">
-            <AvatarImage src={conversation.avatar} />
-            <AvatarFallback className="bg-gradient-to-br from-pink-500 to-red-500 text-white font-semibold">
-              {conversation.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </AvatarFallback>
-          </Avatar>
+          <Avatar
+            src={conversation.avatar || undefined}
+            name={conversation.name}
+            color="bg-gradient-to-br from-pink-500 to-red-500"
+            size="lg"
+            className="h-14 w-14 shadow-lg text-sm"
+          />
           {conversation.isOnline && (
             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-3 border-white shadow-sm" />
           )}

@@ -189,7 +189,9 @@ export default function EventCard({
                   text="Register Now"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Handle registration
+                    if (event.websiteUrl) {
+                      window.open(event.websiteUrl, "_blank", "noopener,noreferrer");
+                    }
                   }}
                   className="text-xs"
                 />

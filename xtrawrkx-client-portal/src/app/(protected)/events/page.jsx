@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Calendar,
   Clock,
@@ -12,228 +12,14 @@ import {
   ChevronDown,
   XCircle,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import EventCard from "@/components/events/EventCard";
 import RegistrationDetails from "@/components/events/RegistrationDetails";
 import VirtualTicket from "@/components/events/VirtualTicket";
 import EventGalleryModal from "@/components/events/EventGalleryModal";
-
-// Mock data for events
-const mockEvents = [
-  {
-    id: 1,
-    title: "XEN Annual Conference 2024",
-    description:
-      "Join us for the biggest entrepreneurship conference of the year featuring industry leaders, networking opportunities, and exclusive workshops.",
-    date: "2024-03-15",
-    time: "09:00 AM",
-    location: "Convention Center, Downtown",
-    category: "Conference",
-    status: "upcoming",
-    registrationStatus: "confirmed",
-    ticketType: "VIP",
-    price: "$299",
-    capacity: 500,
-    registered: 342,
-    image: "/images/events/conference.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/xen-conference-2024",
-    registrationDetails: {
-      registrationId: "REG-2024-001",
-      attendeeName: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+1 (555) 123-4567",
-      dietaryRequirements: "Vegetarian",
-      emergencyContact: "Jane Doe - +1 (555) 987-6543",
-      specialRequests: "Wheelchair accessible seating",
-      registrationDate: "2024-01-15",
-      paymentStatus: "paid",
-      paymentMethod: "Credit Card",
-      ticketNumber: "TKT-2024-001",
-    },
-  },
-  {
-    id: 2,
-    title: "XEV.FiN Investment Workshop",
-    description:
-      "Learn advanced investment strategies and portfolio management techniques from financial experts.",
-    date: "2024-02-28",
-    time: "02:00 PM",
-    location: "Financial District, Suite 200",
-    category: "Workshop",
-    status: "upcoming",
-    registrationStatus: "confirmed",
-    ticketType: "Standard",
-    price: "$149",
-    capacity: 50,
-    registered: 28,
-    image: "/images/events/workshop.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/investment-workshop",
-    registrationDetails: {
-      registrationId: "REG-2024-002",
-      attendeeName: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+1 (555) 123-4567",
-      dietaryRequirements: "None",
-      emergencyContact: "Jane Doe - +1 (555) 987-6543",
-      specialRequests: "None",
-      registrationDate: "2024-01-20",
-      paymentStatus: "paid",
-      paymentMethod: "PayPal",
-      ticketNumber: "TKT-2024-002",
-    },
-  },
-  {
-    id: 3,
-    title: "XEVTG Tech Meetup",
-    description:
-      "Monthly tech meetup featuring the latest trends in software development and AI.",
-    date: "2024-01-20",
-    time: "06:00 PM",
-    location: "Tech Hub, Innovation Center",
-    category: "Meetup",
-    status: "completed",
-    registrationStatus: "attended",
-    ticketType: "Free",
-    price: "Free",
-    capacity: 100,
-    registered: 89,
-    image: "/images/events/meetup.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/tech-meetup-jan",
-    registrationDetails: {
-      registrationId: "REG-2024-003",
-      attendeeName: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+1 (555) 123-4567",
-      dietaryRequirements: "None",
-      emergencyContact: "Jane Doe - +1 (555) 987-6543",
-      specialRequests: "None",
-      registrationDate: "2024-01-10",
-      paymentStatus: "paid",
-      paymentMethod: "Free Event",
-      ticketNumber: "TKT-2024-003",
-    },
-  },
-  {
-    id: 4,
-    title: "XEN Leadership Summit 2024",
-    description:
-      "Exclusive leadership summit for entrepreneurs and business leaders featuring keynote speakers and networking sessions.",
-    date: "2024-04-10",
-    time: "08:00 AM",
-    location: "Grand Hotel, Business District",
-    category: "Conference",
-    status: "upcoming",
-    registrationStatus: "confirmed",
-    ticketType: "Premium",
-    price: "$499",
-    capacity: 200,
-    registered: 156,
-    image: "/images/events/summit.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/leadership-summit-2024",
-    registrationDetails: {
-      registrationId: "REG-2024-004",
-      attendeeName: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+1 (555) 123-4567",
-      dietaryRequirements: "Gluten-free",
-      emergencyContact: "Jane Doe - +1 (555) 987-6543",
-      specialRequests: "Vegetarian meal preference",
-      registrationDate: "2024-02-01",
-      paymentStatus: "paid",
-      paymentMethod: "Credit Card",
-      ticketNumber: "TKT-2024-004",
-    },
-  },
-  {
-    id: 5,
-    title: "XEV.FiN Crypto Workshop",
-    description:
-      "Learn about cryptocurrency trading, DeFi protocols, and blockchain technology from industry experts.",
-    date: "2023-12-15",
-    time: "10:00 AM",
-    location: "Financial Center, Suite 500",
-    category: "Workshop",
-    status: "completed",
-    registrationStatus: "attended",
-    ticketType: "Standard",
-    price: "$199",
-    capacity: 75,
-    registered: 68,
-    image: "/images/events/crypto-workshop.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/crypto-workshop-dec",
-    registrationDetails: {
-      registrationId: "REG-2023-005",
-      attendeeName: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+1 (555) 123-4567",
-      dietaryRequirements: "None",
-      emergencyContact: "Jane Doe - +1 (555) 987-6543",
-      specialRequests: "None",
-      registrationDate: "2023-11-20",
-      paymentStatus: "paid",
-      paymentMethod: "PayPal",
-      ticketNumber: "TKT-2023-005",
-    },
-  },
-  {
-    id: 6,
-    title: "XEN Innovation Summit 2024",
-    description:
-      "Discover the latest innovations in technology, entrepreneurship, and sustainable business practices.",
-    date: "2024-05-20",
-    time: "09:00 AM",
-    location: "Innovation Center, Tech District",
-    category: "Conference",
-    status: "upcoming",
-    registrationStatus: "not_registered",
-    ticketType: "Premium",
-    price: "$399",
-    capacity: 300,
-    registered: 156,
-    image: "/images/events/innovation-summit.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/innovation-summit-2024",
-    registrationDetails: null,
-  },
-  {
-    id: 7,
-    title: "XEV.FiN Trading Masterclass",
-    description:
-      "Advanced trading strategies and risk management techniques for professional traders.",
-    date: "2024-04-05",
-    time: "02:00 PM",
-    location: "Trading Floor, Financial District",
-    category: "Workshop",
-    status: "upcoming",
-    registrationStatus: "not_registered",
-    ticketType: "VIP",
-    price: "$599",
-    capacity: 25,
-    registered: 8,
-    image: "/images/events/trading-masterclass.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/trading-masterclass",
-    registrationDetails: null,
-  },
-  {
-    id: 8,
-    title: "XEVTG Developer Meetup",
-    description:
-      "Monthly meetup for developers featuring talks on modern web technologies and open source projects.",
-    date: "2024-03-25",
-    time: "06:30 PM",
-    location: "Developer Hub, Downtown",
-    category: "Meetup",
-    status: "upcoming",
-    registrationStatus: "not_registered",
-    ticketType: "Free",
-    price: "Free",
-    capacity: 80,
-    registered: 45,
-    image: "/images/events/dev-meetup.jpg",
-    websiteUrl: "https://xtrawrkx.com/events/dev-meetup-mar",
-    registrationDetails: null,
-  },
-];
+import { fetchWebsiteEventsCatalog } from "@/lib/websiteEventsService";
 
 const filterOptions = [
   { value: "all", label: "All Events" },
@@ -251,37 +37,57 @@ const categoryTabs = [
 ];
 
 export default function EventsPage() {
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState(null);
+
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [activeTab, setActiveTab] = useState("details");
-  const [eventCategoryTab, setEventCategoryTab] = useState("my-events");
+  const [eventCategoryTab, setEventCategoryTab] = useState("all-events");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [galleryEvent, setGalleryEvent] = useState(null);
 
+  const loadEvents = useCallback(async () => {
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const data = await fetchWebsiteEventsCatalog();
+      setEvents(data);
+    } catch (e) {
+      setEventsError(e.message || "Could not load events from the website.");
+      setEvents([]);
+    } finally {
+      setEventsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
   const myEventsCount = useMemo(
     () =>
-      mockEvents.filter(
+      events.filter(
         (e) =>
           e.registrationStatus === "confirmed" ||
           e.registrationStatus === "attended"
       ).length,
-    []
+    [events]
   );
 
   const eventStats = useMemo(() => {
-    const upcoming = mockEvents.filter((e) => e.status === "upcoming").length;
-    const completed = mockEvents.filter(
-      (e) => e.status === "completed"
-    ).length;
+    const upcoming = events.filter((e) => e.status === "upcoming").length;
+    const completed = events.filter((e) => e.status === "completed").length;
     return {
-      total: mockEvents.length,
+      total: events.length,
       myRegistrations: myEventsCount,
       upcoming,
       completed,
     };
-  }, [myEventsCount]);
+  }, [events, myEventsCount]);
 
   const statusStats = [
     {
@@ -325,14 +131,14 @@ export default function EventsPage() {
   const tabBadges = useMemo(
     () => ({
       "my-events": myEventsCount,
-      "all-events": mockEvents.length,
-      "past-events": mockEvents.filter((e) => e.status === "completed").length,
+      "all-events": events.length,
+      "past-events": events.filter((e) => e.status === "completed").length,
     }),
-    [myEventsCount]
+    [myEventsCount, events]
   );
 
   const filteredEvents = useMemo(() => {
-    return mockEvents.filter((event) => {
+    return events.filter((event) => {
       const matchesSearch =
         event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         event.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -355,7 +161,7 @@ export default function EventsPage() {
 
       return matchesSearch && matchesCategoryTab && matchesFilter;
     });
-  }, [eventCategoryTab, searchTerm, filterStatus]);
+  }, [events, eventCategoryTab, searchTerm, filterStatus]);
 
   const listSectionTitle =
     eventCategoryTab === "my-events"
@@ -377,7 +183,7 @@ export default function EventsPage() {
   };
 
   const pageSubtitle =
-    "Manage registrations, browse the catalog, and open tickets when you need them.";
+    "Events are loaded from the xtrawrkx website catalog (Firebase). Register on the site; portal shows the same listings.";
 
   const hasActiveFilters =
     filterStatus !== "all" || searchTerm.length > 0;
@@ -397,6 +203,19 @@ export default function EventsPage() {
 
       <div className="px-3 mt-6">
         <div className="space-y-4">
+          {eventsError ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-wrap items-center justify-between gap-2">
+              <span>{eventsError}</span>
+              <button
+                type="button"
+                onClick={() => loadEvents()}
+                className="font-semibold text-amber-950 underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+
           {/* KPI row — matches Projects / Tasks */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {statusStats.map((stat) => {
@@ -551,7 +370,12 @@ export default function EventsPage() {
                 </div>
               </div>
               <div className="p-4 space-y-3">
-                {filteredEvents.length === 0 ? (
+                {eventsLoading ? (
+                  <div className="text-center py-14 flex flex-col items-center gap-3">
+                    <Loader2 className="h-10 w-10 text-xtrawrkx-500 animate-spin" />
+                    <p className="text-sm text-gray-600">Loading events from xtrawrkx.com…</p>
+                  </div>
+                ) : filteredEvents.length === 0 ? (
                   <div className="text-center py-14">
                     <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-1">
@@ -571,7 +395,7 @@ export default function EventsPage() {
                 ) : (
                   filteredEvents.map((event) => (
                     <EventCard
-                      key={event.id}
+                      key={String(event.id)}
                       event={event}
                       selected={selectedEvent?.id === event.id}
                       onClick={() => {

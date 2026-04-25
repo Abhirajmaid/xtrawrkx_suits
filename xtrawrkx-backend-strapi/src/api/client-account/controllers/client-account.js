@@ -30,18 +30,22 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
                 }
             });
 
-            // Log activity
-            await strapi.entityService.create('api::activity.activity', {
-                data: {
-                    type: 'ACCOUNT',
-                    activityType: 'NOTE',
-                    title: 'Client Account Created',
-                    description: `Client account "${data.companyName}" was created`,
-                    status: 'COMPLETED',
-                    createdBy: ctx.state.user?.id,
-                    clientAccount: entity.id
-                }
-            });
+            // Log activity (non-blocking — public website signup must not fail if note fails)
+            try {
+                await strapi.entityService.create('api::activity.activity', {
+                    data: {
+                        type: 'ACCOUNT',
+                        activityType: 'NOTE',
+                        title: 'Client Account Created',
+                        description: `Client account "${data.companyName}" was created`,
+                        status: 'COMPLETED',
+                        createdBy: ctx.state.user?.id,
+                        clientAccount: entity.id
+                    }
+                });
+            } catch (activityError) {
+                console.warn('client-account.create: activity log skipped', activityError);
+            }
 
             return { data: entity };
         } catch (error) {
@@ -57,35 +61,46 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
         try {
             const { query } = ctx;
 
-            // Build filters
-            const filters = {};
+            // Honor Strapi REST filter syntax (e.g. filters[email][$eq]=...) so website / CRM lookups work.
+            let filters =
+                query.filters && typeof query.filters === 'object' && !Array.isArray(query.filters)
+                    ? JSON.parse(JSON.stringify(query.filters))
+                    : {};
 
-            if (query.status) {
+            if (query.status != null && query.status !== '' && filters.status === undefined) {
                 filters.status = query.status;
             }
 
-            if (query.type) {
+            if (query.type != null && query.type !== '' && filters.type === undefined) {
                 filters.type = query.type;
             }
 
-            if (query.accountManager) {
+            if (query.accountManager != null && query.accountManager !== '' && filters.accountManager === undefined) {
                 filters.accountManager = query.accountManager;
             }
 
             if (query.search) {
-                filters.$or = [
+                const searchOr = [
                     { companyName: { $containsi: query.search } },
                     { industry: { $containsi: query.search } },
                     { email: { $containsi: query.search } }
                 ];
+                if (Object.keys(filters).length > 0) {
+                    filters.$and = [...(Array.isArray(filters.$and) ? filters.$and : []), { $or: searchOr }];
+                } else {
+                    filters.$or = searchOr;
+                }
             }
+
+            const page = query.pagination?.page || query.page || 1;
+            const pageSize = query.pagination?.pageSize || query.pageSize || 25;
 
             const entities = await strapi.entityService.findMany('api::client-account.client-account', {
                 filters,
                 sort: query.sort || 'createdAt:desc',
                 pagination: {
-                    page: query.page || 1,
-                    pageSize: query.pageSize || 25
+                    page,
+                    pageSize
                 },
                 populate: {
                     accountManager: true,

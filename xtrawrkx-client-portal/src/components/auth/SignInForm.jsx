@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AuthCard from "./AuthCard";
 import AuthInput from "./AuthInput";
 import AuthButton from "./AuthButton";
@@ -10,12 +10,22 @@ export default function SignInForm({
   onForgotPassword,
   onSignUp,
   onSubmit,
+  initialEmail = "",
   className = "",
 }) {
   const [formData, setFormData] = useState({
-    email: "",
+    email: typeof initialEmail === "string" && initialEmail.includes("@") ? initialEmail : "",
     password: "",
   });
+
+  useEffect(() => {
+    if (typeof initialEmail === "string" && initialEmail.includes("@")) {
+      setFormData((prev) => ({
+        ...prev,
+        email: initialEmail.trim(),
+      }));
+    }
+  }, [initialEmail]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
