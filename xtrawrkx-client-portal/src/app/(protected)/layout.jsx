@@ -35,7 +35,22 @@ export default function ProtectedLayout({ children }) {
       router.push(qs ? `/auth?${qs}` : "/auth");
       return;
     }
-  }, [status, router]);
+
+    if (status === "authenticated" && typeof window !== "undefined") {
+      const role = String(
+        session?.user?.role || session?.account?.role || session?.role || ""
+      ).toUpperCase();
+      const pathname = window.location.pathname || "";
+      const isRestrictedForMember =
+        role !== "ADMIN" &&
+        role !== "MANAGER" &&
+        role !== "CLIENT" &&
+        (pathname.startsWith("/company") || pathname.startsWith("/billing"));
+      if (isRestrictedForMember) {
+        router.push("/dashboard");
+      }
+    }
+  }, [status, router, session]);
 
   // Show loading state while checking authentication
   if (status === "loading") {

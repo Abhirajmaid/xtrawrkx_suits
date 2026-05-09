@@ -122,6 +122,21 @@
         "requiresApproval": {
             "type": "boolean",
             "default": false
+        },
+        "isSharedWithClient": {
+            "type": "boolean",
+            "default": false
+        },
+        "clientId": {
+            "type": "string"
+        },
+        "createdBySource": {
+            "type": "enumeration",
+            "enum": [
+                "internal",
+                "client"
+            ],
+            "default": "internal"
         }
     }
 }

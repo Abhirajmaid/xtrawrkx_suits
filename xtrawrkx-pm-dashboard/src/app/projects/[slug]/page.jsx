@@ -1352,6 +1352,40 @@ export default function ProjectDetail({ params }) {
       },
     },
     {
+      key: "visibility",
+      label: "VISIBILITY",
+      render: (_, task) => (
+        <div className="min-w-[150px]">
+          <span
+            className={`inline-block px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              task.isSharedWithClient
+                ? "bg-green-100 text-green-700 border-green-200"
+                : "bg-gray-100 text-gray-700 border-gray-200"
+            }`}
+          >
+            {task.isSharedWithClient ? "Shared with Client" : "Internal Only"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "source",
+      label: "SOURCE",
+      render: (_, task) => (
+        <div className="min-w-[120px]">
+          <span
+            className={`inline-block px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              task.createdBySource === "client"
+                ? "bg-blue-100 text-blue-700 border-blue-200"
+                : "bg-orange-100 text-orange-700 border-orange-200"
+            }`}
+          >
+            {task.createdBySource === "client" ? "Client Created" : "Internal"}
+          </span>
+        </div>
+      ),
+    },
+    {
       key: "dueDate",
       label: "DUE DATE",
       render: (_, task) => {

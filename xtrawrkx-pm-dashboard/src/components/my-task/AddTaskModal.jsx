@@ -29,6 +29,7 @@ const AddTaskModal = ({
     priority: "MEDIUM",
     status: "SCHEDULED",
     progress: 0,
+    isSharedWithClient: false,
   });
 
   // Debug: Log form data changes
@@ -62,6 +63,7 @@ const AddTaskModal = ({
         priority: "MEDIUM",
         status: "SCHEDULED",
         progress: 0,
+        isSharedWithClient: false,
       });
       setTags([]);
       setNewTag("");
@@ -276,6 +278,8 @@ const AddTaskModal = ({
         tags: tags.length > 0 ? tags : null,
         // Add createdBy - use user ID from auth context
         createdBy: user?.id || user?._id || user?.xtrawrkxUserId || 1,
+        createdBySource: "internal",
+        isSharedWithClient: !!formData.isSharedWithClient,
       };
 
 
@@ -634,6 +638,47 @@ const AddTaskModal = ({
                   </h3>
                 </div>
                 <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Share with Client
+                    </label>
+                    <div className="flex items-center justify-between rounded-xl border border-gray-300 px-4 py-3 bg-white">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          Do you want to share this task with the client?
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {formData.isSharedWithClient
+                            ? "Shared with client portal"
+                            : "Internal only"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleInputChange(
+                            "isSharedWithClient",
+                            !formData.isSharedWithClient,
+                          )
+                        }
+                        className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
+                          formData.isSharedWithClient
+                            ? "bg-green-500"
+                            : "bg-gray-300"
+                        }`}
+                        aria-label="Toggle share with client"
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                            formData.isSharedWithClient
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
                   <Input
                     label="Due Date"
                     type="date"

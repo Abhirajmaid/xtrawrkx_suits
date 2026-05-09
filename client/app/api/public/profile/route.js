@@ -28,6 +28,11 @@ const clientAccountSearchPath = (email) =>
     email
   )}&pagination[pageSize]=1`;
 
+const defaultProjectSearchPath = (clientAccountId) =>
+  `/projects?filters[clientAccount][id][$eq]=${encodeURIComponent(
+    String(clientAccountId)
+  )}&pagination[pageSize]=1`;
+
 const tryRequest = async ({ paths, method, body }) => {
   const baseUrl = buildBaseUrl();
   let lastError = null;
@@ -113,18 +118,77 @@ const uniqueStringList = (...items) => {
   return out;
 };
 
+const buildOnboardingData = (body, existingOnboarding = {}) => {
+  const normalize = (value) => (typeof value === "string" ? value.trim() : "");
+  return {
+    ...normalizeOnboardingData(existingOnboarding),
+    profileUid: body?.uid ?? existingOnboarding?.profileUid ?? null,
+    firstName: body?.firstName ?? existingOnboarding?.firstName ?? null,
+    lastName: body?.lastName ?? existingOnboarding?.lastName ?? null,
+    displayName: body?.displayName ?? existingOnboarding?.displayName ?? null,
+    signupCompany:
+      normalize(body?.companyName) ||
+      normalize(body?.company) ||
+      normalize(existingOnboarding?.signupCompany) ||
+      null,
+    phone: normalize(body?.phone) || normalize(existingOnboarding?.phone) || null,
+    companyEmail:
+      normalize(body?.companyEmail) ||
+      normalize(existingOnboarding?.companyEmail) ||
+      null,
+    companyPhone:
+      normalize(body?.companyPhone) ||
+      normalize(existingOnboarding?.companyPhone) ||
+      null,
+    companyType:
+      normalize(body?.companyType) ||
+      normalize(existingOnboarding?.companyType) ||
+      null,
+    companySubType:
+      normalize(body?.companySubType) ||
+      normalize(existingOnboarding?.companySubType) ||
+      null,
+    industry: normalize(body?.industry) || normalize(existingOnboarding?.industry) || null,
+    website: normalize(body?.website) || normalize(existingOnboarding?.website) || null,
+    companyDescription:
+      normalize(body?.companyDescription) ||
+      normalize(existingOnboarding?.companyDescription) ||
+      null,
+    jobTitle: normalize(body?.jobTitle) || normalize(existingOnboarding?.jobTitle) || null,
+    addressLine1:
+      normalize(body?.addressLine1) || normalize(existingOnboarding?.addressLine1) || null,
+    addressLine2:
+      normalize(body?.addressLine2) || normalize(existingOnboarding?.addressLine2) || null,
+    city: normalize(body?.city) || normalize(existingOnboarding?.city) || null,
+    state: normalize(body?.state) || normalize(existingOnboarding?.state) || null,
+    country: normalize(body?.country) || normalize(existingOnboarding?.country) || null,
+    postalCode:
+      normalize(body?.postalCode) || normalize(existingOnboarding?.postalCode) || null,
+    linkedin:
+      normalize(body?.linkedin) || normalize(existingOnboarding?.linkedin) || null,
+    xProfile:
+      normalize(body?.xProfile) || normalize(existingOnboarding?.xProfile) || null,
+    interests:
+      normalize(body?.interests) || normalize(existingOnboarding?.interests) || null,
+    lookingFor:
+      normalize(body?.lookingFor) || normalize(existingOnboarding?.lookingFor) || null,
+    bio: normalize(body?.bio) || normalize(existingOnboarding?.bio) || null,
+    updatedFrom: "website_public_profile_sync",
+  };
+};
+
 /**
  * When the website profile `company` changes, keep Strapi `client-account.companyName`
  * (and onboardingData.signupCompany) aligned so CRM + client portal show the same name.
  */
 const syncWebsiteCompanyToStrapiClientAccount = async ({ body, attrs, existingId }) => {
-  const incoming = String(body?.company || "").trim();
+  const incoming = String(body?.companyName || body?.company || "").trim();
   if (!incoming || !existingId) {
     return { attempted: false, ok: true, skipped: true, error: null };
   }
 
   const currentName = String(attrs.companyName || "").trim();
-  const onboarding = normalizeOnboardingData(attrs.onboardingData);
+  const onboarding = buildOnboardingData(body, attrs.onboardingData);
   const signupCo = String(onboarding.signupCompany || "").trim();
 
   if (currentName === incoming && signupCo === incoming) {
@@ -150,12 +214,6 @@ const syncWebsiteCompanyToStrapiClientAccount = async ({ body, attrs, existingId
           companyName,
           onboardingData: {
             ...onboarding,
-            signupCompany: incoming,
-            profileUid: body?.uid ?? onboarding.profileUid ?? null,
-            firstName: body?.firstName ?? onboarding.firstName ?? null,
-            lastName: body?.lastName ?? onboarding.lastName ?? null,
-            displayName: body?.displayName ?? onboarding.displayName ?? null,
-            updatedFrom: "website_public_profile_sync",
           },
         },
       },
@@ -242,9 +300,13 @@ const ensureWebsitePrimaryContact = async (body, clientAccountId) => {
     return { attempted: true, ok: true, status: 200, error: null };
   }
 
-  const firstName = String(body?.firstName || "").trim() || email.split("@")[0] || "Member";
-  const lastName = String(body?.lastName || "").trim() || "User";
+  const firstName =
+    String(body?.firstName || "").trim() || email.split("@")[0] || "Member";
+  // Avoid polluting CRM with placeholder last names like "User".
+  // If we don't have a real lastName from the website profile, keep it empty.
+  const lastName = String(body?.lastName || "").trim();
   const jobTitle = String(body?.jobTitle || "").trim();
+  const phone = String(body?.phone || body?.companyPhone || "").trim();
 
   const createResult = await tryRequest({
     paths: ["/contacts"],
@@ -256,6 +318,7 @@ const ensureWebsitePrimaryContact = async (body, clientAccountId) => {
         email,
         role: "PRIMARY_CONTACT",
         title: jobTitle || "Website signup",
+        phone: phone || null,
         clientAccount: clientAccountId,
         status: "ACTIVE",
       },
@@ -274,6 +337,59 @@ const ensureWebsitePrimaryContact = async (body, clientAccountId) => {
   return { attempted: true, ok: true, status: createResult.status, error: null };
 };
 
+const ensureDefaultProjectForClientAccount = async ({ clientAccountId, body }) => {
+  if (!clientAccountId) {
+    return { attempted: false, ok: false, error: "Missing client account id." };
+  }
+
+  const existing = await tryRequest({
+    paths: [defaultProjectSearchPath(clientAccountId)],
+    method: "GET",
+  });
+  if (!existing.ok) {
+    return {
+      attempted: true,
+      ok: false,
+      status: existing.status,
+      error: existing.data?.error || "Unable to check existing projects.",
+    };
+  }
+
+  const existingRows = extractStrapiList(existing.data);
+  if (existingRows.length > 0) {
+    return { attempted: true, ok: true, skipped: true, status: 200 };
+  }
+
+  const company = String(body?.companyName || body?.company || "Client").trim();
+  const firstName = String(body?.firstName || "").trim();
+  const projectName = `${company} - Onboarding Project`;
+
+  const createRes = await tryRequest({
+    paths: ["/projects"],
+    method: "POST",
+    body: {
+      data: {
+        name: projectName,
+        description: `Auto-created after website registration for ${firstName || company}.`,
+        status: "PLANNING",
+        progress: 0,
+        clientAccount: clientAccountId,
+      },
+    },
+  });
+
+  if (!createRes.ok) {
+    return {
+      attempted: true,
+      ok: false,
+      status: createRes.status,
+      error: createRes.data?.error || "Default project creation failed.",
+    };
+  }
+
+  return { attempted: true, ok: true, skipped: false, status: createRes.status };
+};
+
 const ensureClientAccount = async (body) => {
   const email = String(body?.email || "").trim().toLowerCase();
   if (!email) {
@@ -283,6 +399,24 @@ const ensureClientAccount = async (body) => {
       status: 400,
       error: "Email is required for client account setup.",
       data: null,
+    };
+  }
+
+  // We only create/update Strapi client accounts when the website profile has a real company.
+  // Otherwise we accidentally create user-based "companies" (e.g. companyName = username/email local-part).
+  const companyTrimmed = String(body?.companyName || body?.company || "").trim();
+  if (!companyTrimmed) {
+    return {
+      attempted: false,
+      ok: true,
+      status: 200,
+      error: null,
+      data: null,
+      skipped: true,
+      reason: "Missing company name on website profile.",
+      primaryContactSync: null,
+      companyNameSync: null,
+      clientPasswordSync: null,
     };
   }
 
@@ -313,6 +447,10 @@ const ensureClientAccount = async (body) => {
     const attrs = first?.attributes || {};
     const existingId = pickRecordId(first);
     const primaryContactSync = await ensureWebsitePrimaryContact(body, existingId);
+    const defaultProjectSync = await ensureDefaultProjectForClientAccount({
+      clientAccountId: existingId,
+      body,
+    });
 
     let clientPasswordSync = null;
     const pwd = body?.initialClientPassword;
@@ -346,6 +484,7 @@ const ensureClientAccount = async (body) => {
       status: 200,
       error: null,
       primaryContactSync,
+      defaultProjectSync,
       clientPasswordSync,
       companyNameSync,
       data: {
@@ -360,29 +499,21 @@ const ensureClientAccount = async (body) => {
   const firstName = String(body?.firstName || "").trim();
   const lastName = String(body?.lastName || "").trim();
   const displayName = String(body?.displayName || "").trim();
-  const company = String(body?.company || "").trim();
   const uid = String(body?.uid || "").trim();
   const localName = email.split("@")[0] || "website-user";
   const personLine = [firstName, lastName].filter(Boolean).join(" ").trim() || displayName || localName;
-  const displayCompany = (company && company.trim()) || personLine;
-  const fallbackIndustry = String(body?.jobTitle || "").trim() || "General";
+  const displayCompany = companyTrimmed;
+  const fallbackIndustry =
+    String(body?.industry || body?.jobTitle || "").trim() || "General";
 
   const emailLocal = email.split("@")[0] || "user";
-  const companyTrimmed = String(company || "").trim();
-  const companyNameCandidates = companyTrimmed
-    ? uniqueStringList(
-        companyTrimmed,
-        `${companyTrimmed} (${personLine})`,
-        `${companyTrimmed} (${emailLocal})`,
-        `${companyTrimmed} · ${email}`,
-        uid ? `${companyTrimmed} #${uid.slice(-8)}` : null
-      )
-    : uniqueStringList(
-        displayCompany,
-        `${displayCompany} (${emailLocal})`,
-        `${displayCompany} · ${email}`,
-        uid ? `${displayCompany} #${uid.slice(-8)}` : null
-      );
+  // Prefer the exact company name from website profile.
+  // Only add suffixes if we hit the unique `companyName` constraint in Strapi.
+  const companyNameCandidates = uniqueStringList(
+    companyTrimmed,
+    `${companyTrimmed} (${emailLocal})`,
+    uid ? `${companyTrimmed} #${uid.slice(-8)}` : null
+  );
 
   const initialPwd = body?.initialClientPassword;
   const includePassword =
@@ -400,11 +531,7 @@ const ensureClientAccount = async (body) => {
       source: "ONBOARDING",
       isActive: true,
       onboardingData: {
-        profileUid: uid || null,
-        firstName,
-        lastName,
-        displayName,
-        signupCompany: companyTrimmed || null,
+        ...buildOnboardingData(body),
         createdFrom: "website_public_signup",
       },
     };
@@ -453,6 +580,10 @@ const ensureClientAccount = async (body) => {
   const attrs = created?.attributes || {};
   const newId = pickRecordId(created) ?? created?.id ?? null;
   const primaryContactSync = await ensureWebsitePrimaryContact(body, newId);
+  const defaultProjectSync = await ensureDefaultProjectForClientAccount({
+    clientAccountId: newId,
+    body,
+  });
 
   return {
     attempted: true,
@@ -460,6 +591,7 @@ const ensureClientAccount = async (body) => {
     status: createResult.status,
     error: null,
     primaryContactSync,
+    defaultProjectSync,
     companyNameSync: null,
     clientPasswordSync: includePassword
       ? { attempted: true, ok: true, status: createResult.status, error: null }
@@ -555,6 +687,7 @@ export async function POST(request) {
           companyNameSync: clientAccountResult?.companyNameSync ?? null,
         },
         primaryContactSync: clientAccountResult?.primaryContactSync || null,
+        defaultProjectSync: clientAccountResult?.defaultProjectSync || null,
         clientPasswordSync: clientAccountResult?.clientPasswordSync || null,
       },
       { status: 200 }

@@ -131,6 +131,56 @@ module.exports = {
         },
         {
             method: 'GET',
+            path: '/auth/company-members',
+            handler: 'auth.listCompanyMembers',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'POST',
+            path: '/auth/company-members',
+            handler: 'auth.addCompanyMember',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'PUT',
+            path: '/auth/company-members/:memberId',
+            handler: 'auth.updateCompanyMember',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'DELETE',
+            path: '/auth/company-members/:memberId',
+            handler: 'auth.deleteCompanyMember',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'POST',
+            path: '/auth/company-roles',
+            handler: 'auth.createCompanyRole',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'GET',
             path: '/auth/activities',
             handler: 'auth.getUserActivities',
             config: {

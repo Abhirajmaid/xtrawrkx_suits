@@ -19,6 +19,7 @@ import {
   sendRegistrationEmail,
   sendPaymentConfirmationEmail,
 } from "@/src/utils/emailUtils";
+import { usePublicAuth } from "@/src/contexts/PublicAuthContext";
 
 const designations = [
   "CEO/Founder",
@@ -127,7 +128,9 @@ export default function CompanyEventRegistration({ params }) {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAuthGate, setShowAuthGate] = useState(false);
 
+  const { isAuthenticated, profile, loading: authLoading } = usePublicAuth();
   const eventService = new EventService();
 
   // Fetch event by slug from Firebase with fallback to static data
@@ -187,13 +190,10 @@ export default function CompanyEventRegistration({ params }) {
   }, [slug]);
 
   const [formData, setFormData] = useState({
-    // Personal Information
     name: "",
     email: "",
     phone: "",
     designation: "",
-
-    // Company Information
     companyName: "",
     companyEmail: "",
     companyPhone: "",
@@ -209,6 +209,33 @@ export default function CompanyEventRegistration({ params }) {
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [showSuccessPage, setShowSuccessPage] = useState(false);
   const [successData, setSuccessData] = useState(null);
+
+  // Show auth gate once auth state is resolved and user is not logged in
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setShowAuthGate(true);
+    }
+  }, [authLoading, isAuthenticated]);
+
+  // Auto-fill form fields from profile when authenticated
+  useEffect(() => {
+    if (isAuthenticated && profile) {
+      setFormData((prev) => ({
+        ...prev,
+        name:
+          prev.name ||
+          [profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
+          profile.displayName ||
+          "",
+        email: prev.email || profile.email || "",
+        designation: prev.designation || profile.jobTitle || "",
+        companyName: prev.companyName || profile.company || "",
+        companyEmail:
+          prev.companyEmail || (!prev.companyEmail ? profile.email : "") || "",
+        linkedinUrl: prev.linkedinUrl || "",
+      }));
+    }
+  }, [isAuthenticated, profile]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -687,8 +714,107 @@ export default function CompanyEventRegistration({ params }) {
     ? "FREE"
     : `₹${priceInfo.amount.toLocaleString()}`;
 
+  const registerRedirect = `/events/${slug}/register`;
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Auth Gate Modal */}
+      {showAuthGate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => (window.location.href = `/events/${slug}`)}
+          />
+          {/* Modal */}
+          <div className="relative w-full max-w-md rounded-3xl bg-white shadow-[0_32px_80px_rgba(15,23,42,0.22)] overflow-hidden">
+            {/* Top accent */}
+            <div className="bg-gradient-to-r from-brand-primary to-brand-secondary px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+                  <Icon icon="solar:lock-bold" width={24} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-widest text-white/70">
+                    Account required
+                  </p>
+                  <h3 className="text-lg font-bold leading-tight">
+                    Register an account first
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-6">
+              <p className="text-sm leading-relaxed text-slate-600">
+                To register for{" "}
+                <span className="font-semibold text-slate-900">
+                  {event?.title}
+                </span>
+                , you need an xtrawrkx account. Once registered, we&apos;ll
+                automatically fill your details in this form.
+              </p>
+
+              {/* Steps */}
+              <div className="mt-5 space-y-2.5">
+                {[
+                  {
+                    num: "1",
+                    label: "Create your free xtrawrkx account",
+                    icon: "solar:user-plus-bold",
+                  },
+                  {
+                    num: "2",
+                    label: "You'll be brought back here automatically",
+                    icon: "solar:arrow-right-bold",
+                  },
+                  {
+                    num: "3",
+                    label: "Your details are auto-filled — just confirm",
+                    icon: "solar:check-circle-bold",
+                  },
+                ].map(({ num, label, icon }) => (
+                  <div key={num} className="flex items-center gap-3">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-primary/10">
+                      <Icon
+                        icon={icon}
+                        width={14}
+                        className="text-brand-primary"
+                      />
+                    </div>
+                    <p className="text-sm text-slate-700">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <a
+                  href={`/auth?mode=signup&redirect=${encodeURIComponent(registerRedirect)}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-primary to-brand-secondary px-5 py-3.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 active:scale-[0.98]"
+                >
+                  <Icon icon="solar:user-plus-bold" width={18} />
+                  Create an account
+                </a>
+                <a
+                  href={`/auth?mode=login&redirect=${encodeURIComponent(registerRedirect)}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+                >
+                  <Icon icon="solar:login-bold" width={18} />
+                  I already have an account
+                </a>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => (window.location.href = `/events/${slug}`)}
+                className="mt-4 w-full text-center text-xs text-slate-400 transition hover:text-slate-600"
+              >
+                ← Back to event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <Section className="relative border-b overflow-hidden">
         {/* Background Image */}
@@ -740,6 +866,40 @@ export default function CompanyEventRegistration({ params }) {
         </Container>
       </Section>
 
+      {/* Profile auto-fill banner */}
+      {isAuthenticated && profile && (
+        <div className="border-b border-emerald-200 bg-emerald-50">
+          <Container>
+            <div className="flex items-center justify-between gap-4 py-3">
+              <div className="flex items-center gap-2.5 text-sm text-emerald-800">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shrink-0">
+                  {(
+                    profile.firstName?.[0] ||
+                    profile.displayName?.[0] ||
+                    "U"
+                  ).toUpperCase()}
+                </div>
+                <span>
+                  Signed in as{" "}
+                  <strong>
+                    {[profile.firstName, profile.lastName]
+                      .filter(Boolean)
+                      .join(" ") || profile.displayName}
+                  </strong>{" "}
+                  — details auto-filled below. You can still edit any field.
+                </span>
+              </div>
+              <a
+                href="/profile"
+                className="shrink-0 text-xs font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+              >
+                View profile
+              </a>
+            </div>
+          </Container>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <Container className="py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -747,14 +907,22 @@ export default function CompanyEventRegistration({ params }) {
             <div className="lg:col-span-2 space-y-8">
               {/* Personal Information */}
               <div className="bg-white rounded-xl p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <Icon
-                    icon="solar:user-bold"
-                    width={24}
-                    className="mr-2 text-brand-primary"
-                  />
-                  Personal Information
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Icon
+                      icon="solar:user-bold"
+                      width={24}
+                      className="mr-2 text-brand-primary"
+                    />
+                    Personal Information
+                  </h2>
+                  {isAuthenticated && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
+                      <Icon icon="solar:check-circle-bold" width={13} />
+                      Auto-filled from your profile
+                    </span>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -769,6 +937,8 @@ export default function CompanyEventRegistration({ params }) {
                       className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors ${
                         errors.name
                           ? "border-red-300 bg-red-50"
+                          : formData.name && isAuthenticated
+                          ? "border-emerald-300 bg-emerald-50/50"
                           : "border-gray-300"
                       }`}
                       placeholder="Enter your full name"
@@ -790,6 +960,8 @@ export default function CompanyEventRegistration({ params }) {
                       className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors ${
                         errors.email
                           ? "border-red-300 bg-red-50"
+                          : formData.email && isAuthenticated
+                          ? "border-emerald-300 bg-emerald-50/50"
                           : "border-gray-300"
                       }`}
                       placeholder="your.email@example.com"
@@ -847,14 +1019,22 @@ export default function CompanyEventRegistration({ params }) {
 
               {/* Company Information */}
               <div className="bg-white rounded-xl p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <Icon
-                    icon="solar:buildings-2-bold"
-                    width={24}
-                    className="mr-2 text-brand-primary"
-                  />
-                  Company Information
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Icon
+                      icon="solar:buildings-2-bold"
+                      width={24}
+                      className="mr-2 text-brand-primary"
+                    />
+                    Company Information
+                  </h2>
+                  {isAuthenticated && (formData.companyName || formData.companyEmail) && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
+                      <Icon icon="solar:check-circle-bold" width={13} />
+                      Partially auto-filled
+                    </span>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -869,6 +1049,8 @@ export default function CompanyEventRegistration({ params }) {
                       className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors ${
                         errors.companyName
                           ? "border-red-300 bg-red-50"
+                          : formData.companyName && isAuthenticated
+                          ? "border-emerald-300 bg-emerald-50/50"
                           : "border-gray-300"
                       }`}
                       placeholder="Your company name"
@@ -892,6 +1074,8 @@ export default function CompanyEventRegistration({ params }) {
                       className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors ${
                         errors.companyEmail
                           ? "border-red-300 bg-red-50"
+                          : formData.companyEmail && isAuthenticated
+                          ? "border-emerald-300 bg-emerald-50/50"
                           : "border-gray-300"
                       }`}
                       placeholder="company@example.com"

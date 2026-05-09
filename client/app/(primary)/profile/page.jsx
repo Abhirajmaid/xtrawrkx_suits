@@ -9,14 +9,61 @@ import Button from "@/src/components/common/Button";
 import { usePublicAuth } from "@/src/contexts/PublicAuthContext";
 import { commonToasts } from "@/src/utils/toast";
 
-const overviewFields = [
-  { key: "email", label: "Email" },
-  { key: "company", label: "Company" },
-  { key: "jobTitle", label: "Role / title" },
-  { key: "location", label: "Location" },
-  { key: "interests", label: "Focus areas" },
-  { key: "lookingFor", label: "Looking for" },
-  { key: "bio", label: "Short bio", fullWidth: true },
+const profileSections = [
+  {
+    key: "personal",
+    title: "Personal",
+    icon: "solar:user-id-bold",
+    fields: [
+      { key: "firstName", label: "First name" },
+      { key: "lastName", label: "Last name" },
+      { key: "email", label: "Email" },
+      { key: "phone", label: "Phone" },
+      { key: "displayName", label: "Display name" },
+    ],
+  },
+  {
+    key: "company",
+    title: "Company Information",
+    icon: "solar:buildings-bold",
+    fields: [
+      { key: "companyName", label: "Company name" },
+      { key: "companyEmail", label: "Company email" },
+      { key: "companyPhone", label: "Company phone" },
+      { key: "industry", label: "Industry" },
+      { key: "jobTitle", label: "Role / title" },
+      { key: "companyType", label: "Company type" },
+      { key: "companySubType", label: "Sub-type" },
+      { key: "website", label: "Website" },
+      { key: "companyDescription", label: "Company description", fullWidth: true },
+    ],
+  },
+  {
+    key: "address",
+    title: "Address Information",
+    icon: "solar:map-point-bold",
+    fields: [
+      { key: "addressLine1", label: "Address line 1" },
+      { key: "addressLine2", label: "Address line 2" },
+      { key: "city", label: "City" },
+      { key: "state", label: "State / region" },
+      { key: "country", label: "Country" },
+      { key: "postalCode", label: "Postal code" },
+      { key: "location", label: "Location summary", fullWidth: true },
+    ],
+  },
+  {
+    key: "social",
+    title: "Social & Additional Information",
+    icon: "solar:link-circle-bold",
+    fields: [
+      { key: "linkedin", label: "LinkedIn" },
+      { key: "xProfile", label: "X / Twitter" },
+      { key: "interests", label: "Interests / focus areas" },
+      { key: "lookingFor", label: "Looking for" },
+      { key: "bio", label: "Short bio", fullWidth: true },
+    ],
+  },
 ];
 
 export default function ProfilePage() {
@@ -26,9 +73,26 @@ export default function ProfilePage() {
   const [editForm, setEditForm] = useState({
     firstName: "",
     lastName: "",
+    phone: "",
     company: "",
+    companyName: "",
+    companyEmail: "",
+    companyPhone: "",
+    industry: "",
+    companyType: "",
+    companySubType: "",
+    website: "",
+    companyDescription: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    country: "",
+    postalCode: "",
     jobTitle: "",
     location: "",
+    linkedin: "",
+    xProfile: "",
     interests: "",
     lookingFor: "",
     bio: "",
@@ -50,9 +114,26 @@ export default function ProfilePage() {
     () => ({
       firstName: profile?.firstName || "",
       lastName: profile?.lastName || "",
+      phone: profile?.phone || "",
       company: profile?.company || "",
+      companyName: profile?.companyName || profile?.company || "",
+      companyEmail: profile?.companyEmail || "",
+      companyPhone: profile?.companyPhone || "",
+      industry: profile?.industry || "",
+      companyType: profile?.companyType || "",
+      companySubType: profile?.companySubType || "",
+      website: profile?.website || "",
+      companyDescription: profile?.companyDescription || "",
+      addressLine1: profile?.addressLine1 || "",
+      addressLine2: profile?.addressLine2 || "",
+      city: profile?.city || "",
+      state: profile?.state || "",
+      country: profile?.country || "",
+      postalCode: profile?.postalCode || "",
       jobTitle: profile?.jobTitle || "",
       location: profile?.location || "",
+      linkedin: profile?.linkedin || "",
+      xProfile: profile?.xProfile || "",
       interests: profile?.interests || "",
       lookingFor: profile?.lookingFor || "",
       bio: profile?.bio || "",
@@ -77,6 +158,12 @@ export default function ProfilePage() {
     try {
       await updateUserProfile({
         ...editForm,
+        company: editForm.companyName || editForm.company,
+        location:
+          editForm.location ||
+          [editForm.city, editForm.state, editForm.country]
+            .filter(Boolean)
+            .join(", "),
         displayName: [editForm.firstName, editForm.lastName]
           .filter(Boolean)
           .join(" "),
@@ -177,7 +264,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_360px]">
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.5fr)_360px]">
             <section className="rounded-[1.75rem] border border-white/80 bg-white/95 p-6 shadow-[0_28px_70px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:p-8">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary">
@@ -185,10 +272,10 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium uppercase tracking-[0.24em] text-brand-primary">
-                    Overview
+                    profile dossier
                   </p>
                   <h3 className="text-2xl font-semibold text-slate-900">
-                    Your account details
+                    Registration details
                   </h3>
                 </div>
               </div>
@@ -238,11 +325,55 @@ export default function ProfilePage() {
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Phone
+                      </span>
+                      <input
+                        name="phone"
+                        value={editForm.phone}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
                         Company
                       </span>
                       <input
-                        name="company"
-                        value={editForm.company}
+                        name="companyName"
+                        value={editForm.companyName}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Company email
+                      </span>
+                      <input
+                        name="companyEmail"
+                        value={editForm.companyEmail}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Company phone
+                      </span>
+                      <input
+                        name="companyPhone"
+                        value={editForm.companyPhone}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Industry
+                      </span>
+                      <input
+                        name="industry"
+                        value={editForm.industry}
                         onChange={handleEditChange}
                         className="input"
                       />
@@ -254,6 +385,138 @@ export default function ProfilePage() {
                       <input
                         name="jobTitle"
                         value={editForm.jobTitle}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Company type
+                      </span>
+                      <input
+                        name="companyType"
+                        value={editForm.companyType}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Sub-type
+                      </span>
+                      <input
+                        name="companySubType"
+                        value={editForm.companySubType}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Website
+                      </span>
+                      <input
+                        name="website"
+                        value={editForm.website}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Company description
+                      </span>
+                      <textarea
+                        name="companyDescription"
+                        value={editForm.companyDescription}
+                        onChange={handleEditChange}
+                        className="input min-h-24 resize-none"
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Address line 1
+                      </span>
+                      <input
+                        name="addressLine1"
+                        value={editForm.addressLine1}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Address line 2
+                      </span>
+                      <input
+                        name="addressLine2"
+                        value={editForm.addressLine2}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        City
+                      </span>
+                      <input
+                        name="city"
+                        value={editForm.city}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        State / region
+                      </span>
+                      <input
+                        name="state"
+                        value={editForm.state}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Country
+                      </span>
+                      <input
+                        name="country"
+                        value={editForm.country}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        Postal code
+                      </span>
+                      <input
+                        name="postalCode"
+                        value={editForm.postalCode}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        LinkedIn
+                      </span>
+                      <input
+                        name="linkedin"
+                        value={editForm.linkedin}
+                        onChange={handleEditChange}
+                        className="input"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">
+                        X / Twitter
+                      </span>
+                      <input
+                        name="xProfile"
+                        value={editForm.xProfile}
                         onChange={handleEditChange}
                         className="input"
                       />
@@ -306,26 +569,40 @@ export default function ProfilePage() {
                 </div>
               ) : null}
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {overviewFields.map((field) => (
-                  <div
-                    key={field.key}
-                    className={`rounded-2xl border border-slate-100 bg-slate-50/80 p-5 ${
-                      field.fullWidth ? "sm:col-span-2" : ""
-                    }`}
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                      {field.label}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">
-                      {profile?.[field.key] || "Not provided yet"}
-                    </p>
-                  </div>
+              <div className="mt-6 space-y-6">
+                {profileSections.map((section) => (
+                  <article key={section.key} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white text-brand-primary shadow-sm">
+                        <Icon icon={section.icon} width={18} />
+                      </span>
+                      <h4 className="text-base font-semibold text-slate-900">{section.title}</h4>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {section.fields.map((field) => (
+                        <div
+                          key={field.key}
+                          className={`rounded-xl border border-slate-100 bg-white px-4 py-3 ${
+                            field.fullWidth ? "sm:col-span-2" : ""
+                          }`}
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            {field.label}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-slate-700 break-words">
+                            {profile?.[field.key] || "Not provided yet"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
                 ))}
               </div>
             </section>
 
-            <ProfileCommunityCard />
+            <div className="self-start">
+              <ProfileCommunityCard />
+            </div>
           </div>
         </Container>
       </main>

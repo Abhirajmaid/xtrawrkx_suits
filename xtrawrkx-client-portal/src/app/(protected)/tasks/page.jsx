@@ -30,6 +30,8 @@ import { useSession } from "@/lib/auth";
 import strapiClient from "@/lib/strapiClient";
 import { createPortal } from "react-dom";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
+import CreateTaskModal from "@/components/tasks/CreateTaskModal";
+import { listCompanyMembers } from "@/lib/api/companyMembersService";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -45,6 +47,11 @@ export default function TasksPage() {
   const [isTaskModalFullView, setIsTaskModalFullView] = useState(false);
   const [expandedSubtasks, setExpandedSubtasks] = useState({});
   const [subtaskDropdownPositions, setSubtaskDropdownPositions] = useState({});
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  const [clientProjects, setClientProjects] = useState([]);
+  const [clientMembers, setClientMembers] = useState([]);
+  const [currentAccountId, setCurrentAccountId] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const subtaskButtonRefs = useRef({});
 
   // Load tasks from API
@@ -78,6 +85,15 @@ export default function TasksPage() {
 
         if (!accountId) {
           accountId = strapiClient.getCurrentAccountId();
+        }
+
+        setCurrentAccountId(accountId);
+        try {
+          const membersResponse = await listCompanyMembers();
+          setClientMembers(membersResponse?.data || []);
+        } catch (membersError) {
+          console.warn("Unable to load company members for task assignment", membersError);
+          setClientMembers([]);
         }
 
         // Try to get from getCurrentUser if available
@@ -157,6 +173,18 @@ export default function TasksPage() {
           );
         });
 
+        setClientProjects(
+          clientProjects
+            .map((project) => {
+              const projectData = project.attributes || project;
+              return {
+                id: project.id || project.documentId || projectData.id,
+                name: projectData.name || "Untitled Project",
+              };
+            })
+            .filter((project) => project.id),
+        );
+
 
         // Extract project IDs - handle all possible ID locations
         const projectIds = clientProjects
@@ -233,6 +261,10 @@ export default function TasksPage() {
 
         const filteredTasks = allTasks.filter((task) => {
           const taskData = task.attributes || task;
+
+          if (!taskData.isSharedWithClient) {
+            return false;
+          }
 
           // Handle both single project and projects array (many-to-many)
           let projects = [];
@@ -455,6 +487,8 @@ export default function TasksPage() {
               (taskData.status || "").toUpperCase() === "CLIENT_REVIEW",
             clientApproval: taskData.clientApproval || null,
             approvedAt: taskData.approvedAt || null,
+            isSharedWithClient: !!taskData.isSharedWithClient,
+            createdBySource: taskData.createdBySource || "internal",
             createdAt: taskData.createdAt || new Date().toISOString(),
             updatedAt: taskData.updatedAt || new Date().toISOString(),
           };
@@ -472,7 +506,67 @@ export default function TasksPage() {
     if (session) {
       loadTasks();
     }
-  }, [session]);
+  }, [session, reloadKey]);
+
+  const handleCreateTask = async (taskInput) => {
+    const taskBaseURL = strapiClient.buildURL("/tasks", {});
+    const creatorId = Number(session?.user?.id);
+    const numericAccountId =
+      currentAccountId !== null && currentAccountId !== undefined
+        ? Number(currentAccountId)
+        : null;
+
+    const statusMap = {
+      todo: "SCHEDULED",
+      "in-progress": "IN_PROGRESS",
+      review: "IN_REVIEW",
+      completed: "COMPLETED",
+    };
+    const priorityMap = {
+      low: "LOW",
+      medium: "MEDIUM",
+      high: "HIGH",
+      urgent: "HIGH",
+    };
+
+    const payload = {
+      title: taskInput.title,
+      description: taskInput.description || "",
+      projects: [Number(taskInput.projectId)],
+      scheduledDate: taskInput.dueDate
+        ? new Date(`${taskInput.dueDate}T00:00:00`).toISOString()
+        : null,
+      status: statusMap[taskInput.status] || "SCHEDULED",
+      priority: priorityMap[taskInput.priority] || "MEDIUM",
+      progress: 0,
+      isSharedWithClient: true,
+      createdBySource: "client",
+      clientId:
+        currentAccountId !== null && currentAccountId !== undefined
+          ? String(currentAccountId)
+          : null,
+      ...(numericAccountId && !isNaN(numericAccountId)
+        ? { clientAccount: numericAccountId }
+        : {}),
+      ...(creatorId && !isNaN(creatorId) ? { creator: creatorId } : {}),
+      ...(taskInput.assignmentScope === "client" && taskInput.assigneeMemberId
+        ? { contact: Number(taskInput.assigneeMemberId) }
+        : {}),
+    };
+
+    const response = await fetch(taskBaseURL, {
+      method: "POST",
+      headers: strapiClient.getHeaders(),
+      body: JSON.stringify({ data: payload }),
+    });
+
+    if (!response.ok) {
+      const errPayload = await response.json().catch(() => ({}));
+      throw new Error(errPayload?.error?.message || "Failed to create task");
+    }
+
+    setReloadKey((prev) => prev + 1);
+  };
 
   // Calculate task statistics with flexible status matching
   const taskStats = {
@@ -1336,6 +1430,13 @@ export default function TasksPage() {
             {/* Right: View Toggle */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
+                onClick={() => setIsCreateTaskModalOpen(true)}
+                className="w-10 h-10 rounded-full backdrop-blur-sm border transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center bg-xtrawrkx-500 text-white border-xtrawrkx-500/50 hover:bg-xtrawrkx-600"
+                title="Add Task"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+              <button
                 onClick={() => setActiveView("list")}
                 className={`w-10 h-10 rounded-full backdrop-blur-sm border transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center ${
                   activeView === "list"
@@ -1522,6 +1623,22 @@ export default function TasksPage() {
         onApprove={handleApprove}
         onReject={handleReject}
         onComment={handleComment}
+      />
+
+      <CreateTaskModal
+        isOpen={isCreateTaskModalOpen}
+        onClose={() => setIsCreateTaskModalOpen(false)}
+        projects={clientProjects}
+        clientMembers={clientMembers}
+        onTaskCreate={async (taskData) => {
+          try {
+            await handleCreateTask(taskData);
+            setIsCreateTaskModalOpen(false);
+          } catch (error) {
+            console.error("Error creating task:", error);
+            alert(error.message || "Failed to create task");
+          }
+        }}
       />
     </div>
   );

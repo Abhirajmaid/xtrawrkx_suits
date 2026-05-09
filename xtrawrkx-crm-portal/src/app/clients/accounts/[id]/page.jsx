@@ -1528,6 +1528,23 @@ const ClientAccountDetailPage = ({ params }) => {
       ),
     },
     {
+      key: "portal_role",
+      label: "PORTAL ROLE",
+      render: (_, contact) => {
+        const portalRoleRaw =
+          contact?.portalAccess?.roleName ||
+          (contact?.role === "PRIMARY_CONTACT" ? "ADMIN" : "MEMBER");
+        const portalRole = String(portalRoleRaw).replaceAll("_", " ");
+        return (
+          <div className="min-w-[150px]">
+            <Badge variant="secondary" className="text-xs">
+              {portalRole}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    {
       key: "status",
       label: "STATUS",
       render: (_, contact) => (
@@ -1552,6 +1569,33 @@ const ClientAccountDetailPage = ({ params }) => {
           )}
         </div>
       ),
+    },
+    {
+      key: "last_activity",
+      label: "LAST ACTIVITY",
+      render: (_, contact) => {
+        const lastActivity =
+          contact?.portalAccess?.lastLogin ||
+          contact?.lastContactDate ||
+          contact?.updatedAt;
+        const recentlyUpdated = contact?.updatedAt
+          ? Date.now() - new Date(contact.updatedAt).getTime() < 1000 * 60 * 60 * 24 * 3
+          : false;
+        return (
+          <div className="min-w-[180px]">
+            <div className="text-sm text-gray-900">
+              {lastActivity ? new Date(lastActivity).toLocaleString() : "No activity"}
+            </div>
+            {recentlyUpdated && (
+              <div className="mt-1">
+                <Badge variant="warning" className="text-xs">
+                  Recently Updated
+                </Badge>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "actions",
@@ -1615,7 +1659,11 @@ const ClientAccountDetailPage = ({ params }) => {
     <div className="bg-white min-h-screen">
       <div className="p-4 space-y-4">
         <PageHeader
-          title={account.companyName}
+          title={
+            account?.onboardingData?.signupCompany ||
+            account?.onboardingData?.company ||
+            account.companyName
+          }
           subtitle={`Client Account • ${
             account.industry || "Industry not specified"
           } • ${account.type || "Customer"}`}
@@ -1623,7 +1671,13 @@ const ClientAccountDetailPage = ({ params }) => {
             { label: "Dashboard", href: "/" },
             { label: "Clients", href: "/clients" },
             { label: "Client Accounts", href: "/clients/accounts" },
-            { label: account.companyName, href: `/clients/accounts/${id}` },
+            {
+              label:
+                account?.onboardingData?.signupCompany ||
+                account?.onboardingData?.company ||
+                account.companyName,
+              href: `/clients/accounts/${id}`,
+            },
           ]}
           showSearch={false}
           showActions={true}
@@ -2354,7 +2408,7 @@ const ClientAccountDetailPage = ({ params }) => {
             <ActivitiesPanel
               entityType="clientAccount"
               entityId={account.id}
-              entityName={account.name}
+              entityName={account.companyName || account.name}
               onActivityCreated={fetchAccountDetails}
             />
           )}

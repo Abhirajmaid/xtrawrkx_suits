@@ -19,7 +19,8 @@ import EventCard from "@/components/events/EventCard";
 import RegistrationDetails from "@/components/events/RegistrationDetails";
 import VirtualTicket from "@/components/events/VirtualTicket";
 import EventGalleryModal from "@/components/events/EventGalleryModal";
-import { fetchWebsiteEventsCatalog } from "@/lib/websiteEventsService";
+import { fetchWebsiteEventsCatalogWithRegistrations } from "@/lib/websiteEventsService";
+import { useSession } from "@/lib/auth";
 
 const filterOptions = [
   { value: "all", label: "All Events" },
@@ -37,6 +38,9 @@ const categoryTabs = [
 ];
 
 export default function EventsPage() {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email || "";
+
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState(null);
@@ -50,23 +54,26 @@ export default function EventsPage() {
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [galleryEvent, setGalleryEvent] = useState(null);
 
-  const loadEvents = useCallback(async () => {
-    setEventsLoading(true);
-    setEventsError(null);
-    try {
-      const data = await fetchWebsiteEventsCatalog();
-      setEvents(data);
-    } catch (e) {
-      setEventsError(e.message || "Could not load events from the website.");
-      setEvents([]);
-    } finally {
-      setEventsLoading(false);
-    }
-  }, []);
+  const loadEvents = useCallback(
+    async (email) => {
+      setEventsLoading(true);
+      setEventsError(null);
+      try {
+        const data = await fetchWebsiteEventsCatalogWithRegistrations(email);
+        setEvents(data);
+      } catch (e) {
+        setEventsError(e.message || "Could not load events from the website.");
+        setEvents([]);
+      } finally {
+        setEventsLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+    loadEvents(userEmail);
+  }, [loadEvents, userEmail]);
 
   const myEventsCount = useMemo(
     () =>
@@ -208,7 +215,7 @@ export default function EventsPage() {
               <span>{eventsError}</span>
               <button
                 type="button"
-                onClick={() => loadEvents()}
+                onClick={() => loadEvents(userEmail)}
                 className="font-semibold text-amber-950 underline"
               >
                 Retry

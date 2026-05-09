@@ -80,6 +80,27 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
   };
 
   const companyInfo = getCompanyInfo();
+  const getSidebarUserName = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const contactsRaw = localStorage.getItem("client_contacts");
+        if (contactsRaw) {
+          const contacts = JSON.parse(contactsRaw);
+          if (Array.isArray(contacts) && contacts[0]) {
+            const c = contacts[0];
+            const full = `${c.firstName || ""} ${c.lastName || ""}`.trim();
+            if (full) return full;
+            if (c.email) return c.email.split("@")[0];
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const email = companyInfo?.email || "";
+    return email ? email.split("@")[0] : "User";
+  };
+  const sidebarUserName = getSidebarUserName();
 
   // Toggle section expansion
   const toggleSection = (sectionId) => {
@@ -383,18 +404,16 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-xtrawrkx-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {companyInfo.name.charAt(0).toUpperCase()}
+                    {sidebarUserName.charAt(0).toUpperCase()}
                   </div>
                   {!collapsed && (
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-900 text-sm truncate">
+                        {sidebarUserName}
+                      </div>
+                      <div className="text-xs text-gray-600 truncate">
                         {companyInfo.name}
                       </div>
-                      {companyInfo.industry && (
-                        <div className="text-xs text-gray-600 truncate">
-                          {companyInfo.industry}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

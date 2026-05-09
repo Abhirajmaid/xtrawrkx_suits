@@ -42,6 +42,8 @@ const TaskDetailModal = ({
     isOpen: false,
   });
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
+  const [shareConfirmedInModal, setShareConfirmedInModal] = useState(false);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
 
   // Update local task when prop changes (especially status and priority updates from parent)
   useEffect(() => {
@@ -60,6 +62,22 @@ const TaskDetailModal = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id, task?.status, task?.priority, task?.scheduledDate]);
+
+  useEffect(() => {
+    if (!task?.id) return;
+    if (typeof window === "undefined") return;
+    const key = `task-share-confirmed-${task.id}`;
+    setShareConfirmedInModal(window.localStorage.getItem(key) === "1");
+  }, [task?.id]);
+
+  useEffect(() => {
+    if (!isOpen || !task?.id) return;
+    setShowSharePrompt(false);
+    const timer = setTimeout(() => {
+      setShowSharePrompt(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isOpen, task?.id]);
 
   // Load projects and users
   useEffect(() => {
@@ -397,6 +415,46 @@ const TaskDetailModal = ({
     await handleStatusUpdate(newStatus);
   };
 
+  const handleShareToggle = async (nextValue) => {
+    if (!safeTask?.id) return;
+
+    const previousValue = !!safeTask.isSharedWithClient;
+    setLocalTask((prev) => ({ ...prev, isSharedWithClient: nextValue }));
+
+    try {
+      await taskService.updateTask(safeTask.id, {
+        isSharedWithClient: nextValue,
+      });
+
+      if (typeof window !== "undefined") {
+        const key = `task-share-confirmed-${safeTask.id}`;
+        if (nextValue) {
+          window.localStorage.setItem(key, "1");
+          setShareConfirmedInModal(true);
+        } else {
+          window.localStorage.removeItem(key);
+          setShareConfirmedInModal(false);
+        }
+      }
+
+      if (onTaskRefresh) {
+        await onTaskRefresh();
+      }
+      return true;
+    } catch (error) {
+      console.error("Error updating task share status:", error);
+      setLocalTask((prev) => ({ ...prev, isSharedWithClient: previousValue }));
+      return false;
+    }
+  };
+
+  const handleSharePromptDecision = async (nextValue) => {
+    const updated = await handleShareToggle(nextValue);
+    if (updated) {
+      setShowSharePrompt(false);
+    }
+  };
+
   const triggerConfetti = () => {
     const duration = 3000;
     const animationEnd = Date.now() + duration;
@@ -471,13 +529,39 @@ const TaskDetailModal = ({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <h1
-              className={`text-xl font-semibold truncate pr-4 ${
-                isComplete ? "text-gray-500 line-through" : "text-gray-900"
-              }`}
-            >
-              {safeTask.name}
-            </h1>
+            <div className="min-w-0 flex-1">
+              <h1
+                className={`text-xl font-semibold truncate pr-4 ${
+                  isComplete ? "text-gray-500 line-through" : "text-gray-900"
+                }`}
+              >
+                {safeTask.name}
+              </h1>
+              <div className="mt-1 flex items-center gap-2">
+                <span
+                  className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                    safeTask.isSharedWithClient
+                      ? "bg-green-100 text-green-700 border-green-200"
+                      : "bg-gray-100 text-gray-700 border-gray-200"
+                  }`}
+                >
+                  {safeTask.isSharedWithClient
+                    ? "Shared with Client"
+                    : "Internal Only"}
+                </span>
+                <span
+                  className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                    safeTask.createdBySource === "client"
+                      ? "bg-blue-100 text-blue-700 border-blue-200"
+                      : "bg-orange-100 text-orange-700 border-orange-200"
+                  }`}
+                >
+                  {safeTask.createdBySource === "client"
+                    ? "Client Created"
+                    : "Internal"}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -521,7 +605,33 @@ const TaskDetailModal = ({
         </div>
 
         {/* Content - Single scroll for whole modal body */}
-        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 relative">
+          {showSharePrompt && (
+            <div className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-4">
+              <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl p-5">
+                <h3 className="text-base font-semibold text-gray-900">
+                  Share this task with client?
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Do you want to share this task with the client?
+                </p>
+                <div className="flex items-center gap-3 mt-4">
+                  <button
+                    onClick={() => handleSharePromptDecision(false)}
+                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                  >
+                    Keep Internal
+                  </button>
+                  <button
+                    onClick={() => handleSharePromptDecision(true)}
+                    className="flex-1 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 text-sm font-medium"
+                  >
+                    Share with Client
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Task Details Card - Matching lead-companies detail page */}
           <div className="px-4 py-4">
             <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-4">
@@ -540,6 +650,42 @@ const TaskDetailModal = ({
                 <span className="text-sm text-gray-700 font-medium">
                   {isComplete ? "Task completed" : "Mark as complete"}
                 </span>
+              </div>
+
+              <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Share this task with client?
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {safeTask.isSharedWithClient
+                        ? "Shared with Client"
+                        : shareConfirmedInModal
+                          ? "Internal Only"
+                          : "Do you want to share this task with the client?"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      handleShareToggle(!Boolean(safeTask.isSharedWithClient))
+                    }
+                    className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
+                      safeTask.isSharedWithClient
+                        ? "bg-green-500"
+                        : "bg-gray-300"
+                    }`}
+                    aria-label="Toggle task sharing with client"
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                        safeTask.isSharedWithClient
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between mb-4">

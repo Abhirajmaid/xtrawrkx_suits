@@ -230,12 +230,18 @@ export default function ProjectDetailsPage() {
     loadProject();
   }, [params]);
 
+  const clientVisibleTasks =
+    project?.tasks?.filter((task) => {
+      const taskData = task.attributes || task;
+      return !!taskData.isSharedWithClient;
+    }) || [];
+
   // Calculate project stats
   const stats = project
     ? [
         {
           title: "Total Tasks",
-          value: (project.tasks?.length || 0).toString(),
+          value: clientVisibleTasks.length.toString(),
           change: "+0",
           changeType: "neutral",
           icon: CheckSquare,
@@ -243,11 +249,11 @@ export default function ProjectDetailsPage() {
         {
           title: "In Progress",
           value: (
-            project.tasks?.filter(
+            clientVisibleTasks.filter(
               (t) =>
                 t.status === "IN_PROGRESS" ||
                 t.attributes?.status === "IN_PROGRESS"
-            ).length || 0
+            ).length
           ).toString(),
           change: "+0",
           changeType: "neutral",
@@ -256,10 +262,10 @@ export default function ProjectDetailsPage() {
         {
           title: "Completed",
           value: (
-            project.tasks?.filter(
+            clientVisibleTasks.filter(
               (t) =>
                 t.status === "COMPLETED" || t.attributes?.status === "COMPLETED"
-            ).length || 0
+            ).length
           ).toString(),
           change: "+0",
           changeType: "neutral",
@@ -419,6 +425,8 @@ export default function ProjectDetailsPage() {
             name: project.name,
           }
         : null,
+      isSharedWithClient: !!taskData.isSharedWithClient,
+      createdBySource: taskData.createdBySource || "internal",
       requiresApproval: taskData.requiresApproval || false,
       clientApproval: taskData.clientApproval || null,
       comments: taskData.comments || [],
@@ -930,7 +938,7 @@ export default function ProjectDetailsPage() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Total Tasks</p>
                         <p className="text-lg font-bold text-gray-900">
-                          {project.tasks?.length || 0}
+                          {clientVisibleTasks.length}
                         </p>
                       </div>
                     </div>
@@ -941,11 +949,11 @@ export default function ProjectDetailsPage() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Completed</p>
                         <p className="text-lg font-bold text-gray-900">
-                          {project.tasks?.filter(
+                          {clientVisibleTasks.filter(
                             (t) =>
                               t.status === "COMPLETED" ||
                               t.attributes?.status === "COMPLETED"
-                          ).length || 0}
+                          ).length}
                         </p>
                       </div>
                     </div>
@@ -956,11 +964,11 @@ export default function ProjectDetailsPage() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">In Progress</p>
                         <p className="text-lg font-bold text-gray-900">
-                          {project.tasks?.filter(
+                          {clientVisibleTasks.filter(
                             (t) =>
                               t.status === "IN_PROGRESS" ||
                               t.attributes?.status === "IN_PROGRESS"
-                          ).length || 0}
+                          ).length}
                         </p>
                       </div>
                     </div>
@@ -1036,7 +1044,7 @@ export default function ProjectDetailsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white/60 backdrop-blur-sm divide-y divide-white/20">
-                    {!project.tasks || project.tasks.length === 0 ? (
+                    {clientVisibleTasks.length === 0 ? (
                       <tr>
                         <td
                           colSpan={taskColumnsTable.length}
@@ -1054,7 +1062,12 @@ export default function ProjectDetailsPage() {
                         </td>
                       </tr>
                     ) : (
-                      project.tasks.map((task) => {
+                      clientVisibleTasks
+                        .filter((task) => {
+                          const taskData = task.attributes || task;
+                          return !!taskData.isSharedWithClient;
+                        })
+                        .map((task) => {
                         const transformedTask = transformTask(task);
                         const isActionRequired =
                           transformedTask.requiresApproval &&
@@ -1084,7 +1097,7 @@ export default function ProjectDetailsPage() {
                             ))}
                           </tr>
                         );
-                      })
+                        })
                     )}
                   </tbody>
                 </table>

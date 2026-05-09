@@ -75,6 +75,8 @@ export default function TaskDetailPage({ params: paramsProp }) {
   const [editingValue, setEditingValue] = useState("");
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [shareConfirmedInModal, setShareConfirmedInModal] = useState(false);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
 
   // Subtask table state
   const [subtaskSearchQuery, setSubtaskSearchQuery] = useState("");
@@ -256,6 +258,21 @@ export default function TaskDetailPage({ params: paramsProp }) {
       loadTask();
     }
   }, [params]);
+
+  useEffect(() => {
+    if (!task?.id || typeof window === "undefined") return;
+    const key = `task-share-confirmed-${task.id}`;
+    setShareConfirmedInModal(window.localStorage.getItem(key) === "1");
+  }, [task?.id]);
+
+  useEffect(() => {
+    if (!task?.id) return;
+    setShowSharePrompt(false);
+    const timer = setTimeout(() => {
+      setShowSharePrompt(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [task?.id]);
 
   // Load projects and users
   useEffect(() => {
@@ -574,6 +591,42 @@ export default function TaskDetailPage({ params: paramsProp }) {
 
   const handleShareTask = () => {
     setCollaboratorModal({ isOpen: true });
+  };
+
+  const handleTaskShareToggle = async (nextValue) => {
+    if (!task?.id) return;
+
+    const previous = !!task.isSharedWithClient;
+    setTask((prev) => ({ ...prev, isSharedWithClient: nextValue }));
+
+    try {
+      await taskService.updateTask(task.id, {
+        isSharedWithClient: nextValue,
+      });
+
+      if (typeof window !== "undefined") {
+        const key = `task-share-confirmed-${task.id}`;
+        if (nextValue) {
+          window.localStorage.setItem(key, "1");
+          setShareConfirmedInModal(true);
+        } else {
+          window.localStorage.removeItem(key);
+          setShareConfirmedInModal(false);
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error("Error updating client sharing:", error);
+      setTask((prev) => ({ ...prev, isSharedWithClient: previous }));
+      return false;
+    }
+  };
+
+  const handleSharePromptDecision = async (nextValue) => {
+    const updated = await handleTaskShareToggle(nextValue);
+    if (updated) {
+      setShowSharePrompt(false);
+    }
   };
 
   const handleCopyTaskLink = async () => {
@@ -1510,6 +1563,32 @@ export default function TaskDetailPage({ params: paramsProp }) {
   return (
     <div className="min-h-screen bg-white">
       <div className="p-4 space-y-4">
+        {showSharePrompt && (
+          <div className="fixed inset-0 z-[70] bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-6">
+            <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl p-5">
+              <h3 className="text-base font-semibold text-gray-900">
+                Share this task with client?
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Do you want to share this task with the client?
+              </p>
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  onClick={() => handleSharePromptDecision(false)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                >
+                  Keep Internal
+                </button>
+                <button
+                  onClick={() => handleSharePromptDecision(true)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 text-sm font-medium"
+                >
+                  Share with Client
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <PageHeader
           title={task.name}
           subtitle={`${
@@ -1592,10 +1671,61 @@ export default function TaskDetailPage({ params: paramsProp }) {
                   </span>
                 </div>
 
+                <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Share this task with client?
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {task.isSharedWithClient
+                          ? "Shared with Client"
+                          : shareConfirmedInModal
+                            ? "Internal Only"
+                            : "Do you want to share this task with the client?"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        handleTaskShareToggle(!Boolean(task.isSharedWithClient))
+                      }
+                      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
+                        task.isSharedWithClient ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                      aria-label="Toggle task sharing with client"
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          task.isSharedWithClient
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Task Details
                 </h3>
                 <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <label className="text-sm font-medium text-gray-700 w-28 flex-shrink-0">
+                      Source
+                    </label>
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${
+                        task.createdBySource === "client"
+                          ? "bg-blue-100 text-blue-700 border-blue-200"
+                          : "bg-orange-100 text-orange-700 border-orange-200"
+                      }`}
+                    >
+                      {task.createdBySource === "client"
+                        ? "Client Created"
+                        : "Internal"}
+                    </span>
+                  </div>
+
                   {/* Assignee */}
                   <div className="flex items-center justify-between py-2 border-b border-gray-100">
                     <label className="text-sm font-medium text-gray-700 w-28 flex-shrink-0">

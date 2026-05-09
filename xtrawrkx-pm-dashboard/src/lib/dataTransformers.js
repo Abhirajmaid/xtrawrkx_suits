@@ -435,6 +435,9 @@ export const transformTask = (strapiTask) => {
         completedDate: taskData.completedDate || strapiTask.completedDate,
         progress: taskData.progress || strapiTask.progress || 0,
         tags: taskData.tags || strapiTask.tags || [],
+        isSharedWithClient: !!(taskData.isSharedWithClient ?? strapiTask.isSharedWithClient),
+        clientId: taskData.clientId || strapiTask.clientId || null,
+        createdBySource: taskData.createdBySource || strapiTask.createdBySource || 'internal',
         createdAt: createdAt,
         updatedAt: updatedAt,
         // Relations

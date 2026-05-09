@@ -6,7 +6,35 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
-module.exports = createCoreController('api::client-account.client-account', ({ strapi }) => ({
+module.exports = createCoreController('api::client-account.client-account', ({ strapi }) => {
+    const ensureDefaultProjectForClientAccount = async (clientAccount) => {
+        try {
+            if (!clientAccount?.id) return;
+
+            const existingProject = await strapi.db.query('api::project.project').findOne({
+                where: { clientAccount: clientAccount.id }
+            });
+
+            if (existingProject?.id) {
+                return;
+            }
+
+            const companyName = String(clientAccount.companyName || '').trim() || 'Client';
+            await strapi.db.query('api::project.project').create({
+                data: {
+                    name: `${companyName} - Onboarding Project`,
+                    description: `Auto-created project for ${companyName} during account registration.`,
+                    status: 'PLANNING',
+                    progress: 0,
+                    clientAccount: clientAccount.id
+                }
+            });
+        } catch (error) {
+            console.warn('client-account.ensureDefaultProjectForClientAccount: skipped', error);
+        }
+    };
+
+    return ({
     /**
      * Create a new client account
      */
@@ -29,6 +57,9 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
                     projects: true
                 }
             });
+
+            // Ensure each new website-registered account has one project visible in CRM/PM/Client Portal.
+            await ensureDefaultProjectForClientAccount(entity);
 
             // Log activity (non-blocking — public website signup must not fail if note fails)
             try {
@@ -181,6 +212,9 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
                     projects: true
                 }
             });
+
+            // Backfill project for existing accounts that were created before auto-project logic.
+            await ensureDefaultProjectForClientAccount(entity);
 
             // Log activity
             await strapi.entityService.create('api::activity.activity', {
@@ -473,4 +507,5 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
             return ctx.badRequest(`Failed to delete client account: ${error.message}`);
         }
     }
-}));
+});
+});

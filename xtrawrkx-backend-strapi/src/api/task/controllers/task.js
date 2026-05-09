@@ -272,8 +272,14 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
             }
 
             // Use creator field instead of createdBy to avoid conflict with Strapi's built-in createdBy field
+            const createdBySourceInput = data.createdBySource || data.createdBy;
+            const createdBySource =
+                createdBySourceInput === 'client' || (!!data.clientId && !createdBySourceInput)
+                    ? 'client'
+                    : 'internal';
+            const isClientCreated = createdBySource === 'client';
             let userId = data.creator || data.createdBy || ctx.state?.user?.id;
-            if (!userId) {
+            if (!userId && !isClientCreated) {
                 return ctx.badRequest('User ID is required to create a task');
             }
 
@@ -311,21 +317,28 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 tags: data.tags || null,
             };
 
+            const hasExplicitShareFlag = typeof data.isSharedWithClient === 'boolean';
+            taskData.createdBySource = createdBySource;
+            taskData.isSharedWithClient = hasExplicitShareFlag
+                ? data.isSharedWithClient
+                : createdBySource === 'client';
+            taskData.clientId = data.clientId ? String(data.clientId) : null;
+
             // Validate and set creator
             const creatorId = parseInt(userId);
-            if (isNaN(creatorId)) {
+            if (!isNaN(creatorId)) {
+                const creatorUser = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
+                    where: { id: creatorId }
+                });
+
+                if (creatorUser) {
+                    taskData.creator = creatorId;
+                } else if (!isClientCreated) {
+                    return ctx.badRequest(`Creator user with ID ${creatorId} not found`);
+                }
+            } else if (!isClientCreated) {
                 return ctx.badRequest('Invalid creator user ID');
             }
-
-            const creatorUser = await strapi.db.query('api::xtrawrkx-user.xtrawrkx-user').findOne({
-                where: { id: creatorId }
-            });
-
-            if (!creatorUser) {
-                return ctx.badRequest(`Creator user with ID ${creatorId} not found`);
-            }
-
-            taskData.creator = creatorId;
 
             // Validate and set assignee if provided
             if (data.assignee) {
@@ -396,7 +409,11 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
                 taskData.leadCompany = parseInt(data.leadCompany);
             }
             if (data.clientAccount) {
-                taskData.clientAccount = parseInt(data.clientAccount);
+                const parsedClientAccountId = parseInt(data.clientAccount);
+                taskData.clientAccount = parsedClientAccountId;
+                if (!taskData.clientId && !isNaN(parsedClientAccountId)) {
+                    taskData.clientId = String(parsedClientAccountId);
+                }
             }
             if (data.contact) {
                 taskData.contact = parseInt(data.contact);
@@ -448,6 +465,27 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
 
             // Build update data object
             const updateData = { ...data };
+
+            if (Object.prototype.hasOwnProperty.call(updateData, 'createdBy')) {
+                updateData.createdBySource =
+                    updateData.createdBy === 'client' ? 'client' : 'internal';
+                delete updateData.createdBy;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(updateData, 'createdBySource')) {
+                if (
+                    updateData.createdBySource !== 'internal' &&
+                    updateData.createdBySource !== 'client'
+                ) {
+                    delete updateData.createdBySource;
+                }
+            }
+
+            if (Object.prototype.hasOwnProperty.call(updateData, 'clientId')) {
+                updateData.clientId = updateData.clientId
+                    ? String(updateData.clientId)
+                    : null;
+            }
 
             // Handle status changes
             if (data.status !== undefined) {

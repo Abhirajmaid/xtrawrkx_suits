@@ -285,8 +285,8 @@ export default function MyTasks() {
             ? parseInt(currentUserId)
             : currentUserId;
 
-        // Filter tasks where user is assignee OR collaborator
-        // Use allPMTasks to include tasks where user might be collaborator but not assignee
+        // Filter tasks where user is assignee/collaborator OR client-created
+        // Client-created tasks should also be visible in PM My Tasks even if unassigned
         const userAssignedTasks = allPMTasks.filter((task) => {
           // Check if task is assigned to current user
           const taskAssigneeId =
@@ -307,7 +307,9 @@ export default function MyTasks() {
             return normalizedCollabId === normalizedCurrentUserId;
           });
 
-          return isAssignee || isCollaborator;
+          const isClientCreated = task.createdBySource === "client";
+
+          return isAssignee || isCollaborator || isClientCreated;
         });
 
         const transformedProjects =
@@ -1023,6 +1025,40 @@ export default function MyTasks() {
           </button>
         );
       },
+    },
+    {
+      key: "visibility",
+      label: "VISIBILITY",
+      render: (_, task) => (
+        <div className="min-w-[150px]">
+          <span
+            className={`inline-block px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              task.isSharedWithClient
+                ? "bg-green-100 text-green-700 border-green-200"
+                : "bg-gray-100 text-gray-700 border-gray-200"
+            }`}
+          >
+            {task.isSharedWithClient ? "Shared with Client" : "Internal Only"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "source",
+      label: "SOURCE",
+      render: (_, task) => (
+        <div className="min-w-[120px]">
+          <span
+            className={`inline-block px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              task.createdBySource === "client"
+                ? "bg-blue-100 text-blue-700 border-blue-200"
+                : "bg-orange-100 text-orange-700 border-orange-200"
+            }`}
+          >
+            {task.createdBySource === "client" ? "Client Created" : "Internal"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "dueDate",
@@ -1894,8 +1930,8 @@ export default function MyTasks() {
           ? parseInt(currentUserId)
           : currentUserId;
 
-      // Filter tasks where user is assignee OR collaborator
-      // Use allPMTasks to include tasks where user might be collaborator but not assignee
+      // Filter tasks where user is assignee/collaborator OR client-created
+      // Client-created tasks should also be visible in PM My Tasks even if unassigned
       const userAssignedTasks = allPMTasks.filter((task) => {
         // Check if task is assigned to current user
         const taskAssigneeId =
@@ -1915,7 +1951,9 @@ export default function MyTasks() {
           return normalizedCollabId === normalizedCurrentUserId;
         });
 
-        return isAssignee || isCollaborator;
+        const isClientCreated = task.createdBySource === "client";
+
+        return isAssignee || isCollaborator || isClientCreated;
       });
 
       setTasks(userAssignedTasks);
