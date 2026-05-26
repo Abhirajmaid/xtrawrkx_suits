@@ -8,6 +8,7 @@ import {
   Button,
   Select,
   Pagination,
+  Card,
 } from "../../../components/ui";
 import { formatNumber, formatCurrency } from "../../../lib/utils";
 import { toast } from "react-toastify";
@@ -155,6 +156,18 @@ import {
 export default function ClientAccountsPage() {
   const router = useRouter();
   const { user } = useAuth();
+
+  const getPersonDisplayName = (contact) => {
+    const first = String(contact?.firstName || "").trim();
+    const last = String(contact?.lastName || "").trim();
+    const title = String(contact?.title || "").trim().toLowerCase();
+
+    const isPlaceholderLast =
+      last.toLowerCase() === "user" && title === "website signup";
+
+    if (first && (!last || isPlaceholderLast)) return first;
+    return `${first} ${last}`.trim() || contact?.email || "";
+  };
 
   // State management
   const [clientAccounts, setClientAccounts] = useState([]);
@@ -565,7 +578,12 @@ export default function ClientAccountsPage() {
       label: "COMPANY",
       width: "300px",
       render: (_, account) => {
-        const firstChar = account.companyName?.charAt(0)?.toUpperCase() || "?";
+        const displayCompanyName =
+          account?.onboardingData?.signupCompany ||
+          account?.onboardingData?.company ||
+          account?.companyName ||
+          "";
+        const firstChar = displayCompanyName?.charAt(0)?.toUpperCase() || "?";
         const primaryContact =
           account.contacts?.find((c) => c.role === "PRIMARY_CONTACT") ||
           account.contacts?.[0];
@@ -577,13 +595,11 @@ export default function ClientAccountsPage() {
             </div>
             <div className="min-w-0">
               <div className="font-medium text-gray-900 truncate">
-                {account.companyName}
+                {displayCompanyName || "—"}
               </div>
               <div className="text-sm text-gray-500 truncate">
                 {primaryContact
-                  ? `${primaryContact.firstName || ""} ${
-                      primaryContact.lastName || ""
-                    }`.trim()
+                  ? getPersonDisplayName(primaryContact)
                   : "No contact"}
               </div>
             </div>

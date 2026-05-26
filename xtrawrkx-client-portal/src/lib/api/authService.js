@@ -267,13 +267,17 @@ export async function getCurrentUser() {
             });
 
             if (token) {
-                const response = await fetch(`${strapiClient.baseURL}/api/auth/me`, {
+                const response = await fetch(
+                    `${strapiClient.baseURL}/api/auth/me?_=${Date.now()}`,
+                    {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                });
+                    cache: 'no-store',
+                }
+                );
 
                 if (response.ok) {
                     const data = await response.json();
@@ -343,6 +347,59 @@ export async function getCurrentUser() {
 
     // Otherwise, use the regular API
     return backendClient.get('/auth/me');
+}
+
+/**
+ * Fetch dedicated POC for the logged-in client (always hits Strapi, merges into storage).
+ * @returns {Promise<{ pocAssigned: boolean, dedicatedPoc: object|null, pocAssignmentStatus?: string }|null>}
+ */
+export async function fetchDedicatedPoc() {
+    if (!useStrapi || typeof window === 'undefined') {
+        return null;
+    }
+
+    const token =
+        localStorage.getItem('client_token') || localStorage.getItem('auth_token');
+    if (!token) return null;
+
+    try {
+        const response = await fetch(
+            `${strapiClient.baseURL}/api/auth/client/dedicated-poc?_=${Date.now()}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                cache: 'no-store',
+            }
+        );
+
+        if (!response.ok) {
+            console.warn('fetchDedicatedPoc failed:', response.status);
+            return null;
+        }
+
+        const data = await response.json();
+        const pocPayload = {
+            pocAssigned: Boolean(data.pocAssigned),
+            dedicatedPoc: data.dedicatedPoc || null,
+            pocAssignmentStatus: data.pocAssignmentStatus || 'UNASSIGNED',
+            pocAssignedAt: data.pocAssignedAt || null,
+        };
+
+        const existingRaw = localStorage.getItem('client_account');
+        const existing = existingRaw ? JSON.parse(existingRaw) : {};
+        localStorage.setItem(
+            'client_account',
+            JSON.stringify({ ...existing, ...pocPayload })
+        );
+
+        return pocPayload;
+    } catch (error) {
+        console.error('fetchDedicatedPoc error:', error);
+        return null;
+    }
 }
 
 /**

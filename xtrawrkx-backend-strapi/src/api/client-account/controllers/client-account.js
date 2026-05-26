@@ -5,8 +5,52 @@
  */
 
 const { createCoreController } = require('@strapi/strapi').factories;
+const { applyPocAssignmentOnUpdate } = require('../../../utils/dedicatedPoc');
 
-module.exports = createCoreController('api::client-account.client-account', ({ strapi }) => ({
+const ACCOUNT_MANAGER_POPULATE = {
+    accountManager: {
+        populate: {
+            primaryRole: true,
+            department: true,
+            avatar: true,
+        },
+    },
+    pocAssignedBy: {
+        populate: {
+            primaryRole: true,
+        },
+    },
+};
+
+module.exports = createCoreController('api::client-account.client-account', ({ strapi }) => {
+    const ensureDefaultProjectForClientAccount = async (clientAccount) => {
+        try {
+            if (!clientAccount?.id) return;
+
+            const existingProject = await strapi.db.query('api::project.project').findOne({
+                where: { clientAccount: clientAccount.id }
+            });
+
+            if (existingProject?.id) {
+                return;
+            }
+
+            const companyName = String(clientAccount.companyName || '').trim() || 'Client';
+            await strapi.db.query('api::project.project').create({
+                data: {
+                    name: `${companyName} - Onboarding Project`,
+                    description: `Auto-created project for ${companyName} during account registration.`,
+                    status: 'PLANNING',
+                    progress: 0,
+                    clientAccount: clientAccount.id
+                }
+            });
+        } catch (error) {
+            console.warn('client-account.ensureDefaultProjectForClientAccount: skipped', error);
+        }
+    };
+
+    return ({
     /**
      * Create a new client account
      */
@@ -14,21 +58,25 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
         try {
             const { data } = ctx.request.body;
 
-            // Add current user as account manager if not specified
-            if (!data.accountManager && ctx.state.user) {
-                data.accountManager = ctx.state.user.id;
+            let createData = { ...data };
+            if (!createData.accountManager && ctx.state.user) {
+                createData.accountManager = ctx.state.user.id;
             }
+            createData = applyPocAssignmentOnUpdate(createData, ctx);
 
             const entity = await strapi.entityService.create('api::client-account.client-account', {
-                data,
+                data: createData,
                 populate: {
-                    accountManager: true,
+                    ...ACCOUNT_MANAGER_POPULATE,
                     contacts: true,
                     activities: true,
                     deals: true,
                     projects: true
                 }
             });
+
+            // Ensure each new website-registered account has one project visible in CRM/PM/Client Portal.
+            await ensureDefaultProjectForClientAccount(entity);
 
             // Log activity (non-blocking — public website signup must not fail if note fails)
             try {
@@ -126,11 +174,7 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
             // First try with basic population
             const entity = await strapi.entityService.findOne('api::client-account.client-account', id, {
                 populate: {
-                    accountManager: {
-                        populate: {
-                            primaryRole: true
-                        }
-                    },
+                    ...ACCOUNT_MANAGER_POPULATE,
                     contacts: true,
                     activities: true,
                     deals: true,
@@ -170,17 +214,26 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
         try {
             const { id } = ctx.params;
             const { data } = ctx.request.body;
+            const updateData = applyPocAssignmentOnUpdate({ ...data }, ctx);
+
+            if (updateData.accountManager != null && updateData.accountManager !== '') {
+                const managerId = Number(updateData.accountManager);
+                updateData.accountManager = Number.isFinite(managerId) ? managerId : updateData.accountManager;
+            }
 
             const entity = await strapi.entityService.update('api::client-account.client-account', id, {
-                data,
+                data: updateData,
                 populate: {
-                    accountManager: true,
+                    ...ACCOUNT_MANAGER_POPULATE,
                     contacts: true,
                     activities: true,
                     deals: true,
                     projects: true
                 }
             });
+
+            // Backfill project for existing accounts that were created before auto-project logic.
+            await ensureDefaultProjectForClientAccount(entity);
 
             // Log activity
             await strapi.entityService.create('api::activity.activity', {
@@ -473,4 +526,5 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
             return ctx.badRequest(`Failed to delete client account: ${error.message}`);
         }
     }
-}));
+});
+});

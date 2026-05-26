@@ -236,6 +236,11 @@ export default function EventPage({ params }) {
 
   const eventCompleted = isEventCompleted(event.date);
 
+  const registerLink =
+    event.season === "individual"
+      ? `/events/${slug}/register`
+      : `/events/season/${event.season || "current"}/register?from=${slug}`;
+
   console.log(
     "Event:",
     event.speakers.length === 0 ? "No speakers" : "Speakers"
@@ -253,7 +258,20 @@ export default function EventPage({ params }) {
         }
       `}</style>
 
-      <div className="min-h-screen bg-white">
+      {/* Sticky mobile Register CTA */}
+      {!eventCompleted && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden">
+          <a
+            href={registerLink}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-primary to-brand-secondary px-5 py-3.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 active:scale-[0.98]"
+          >
+            <Icon icon="solar:ticket-bold" width={18} />
+            Event Registration
+          </a>
+        </div>
+      )}
+
+      <div className={`min-h-screen bg-white${!eventCompleted ? " pb-20 lg:pb-0" : ""}`}>
         {/* Hero Section */}
         <Section className="relative w-full h-[90vh] min-h-[600px] md:h-[70vh] md:min-h-[500px] flex items-center justify-center overflow-hidden p-0">
           {/* Background image */}
@@ -310,21 +328,9 @@ export default function EventPage({ params }) {
             {!eventCompleted && (
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
-                  text={
-                    event.season === "individual"
-                      ? "Register Now"
-                      : event.season
-                      ? `Register for Season ${event.season}`
-                      : "Register Now"
-                  }
+                  text="Event Registration"
                   type="primary"
-                  link={
-                    event.season === "individual"
-                      ? `/events/${slug}/register`
-                      : `/events/season/${
-                          event.season || "current"
-                        }/register?from=${slug}`
-                  }
+                  link={registerLink}
                   className="bg-gradient-to-r from-brand-primary to-brand-secondary"
                 />
                 <Button
@@ -1102,22 +1108,10 @@ export default function EventPage({ params }) {
                     {!eventCompleted ? (
                       <>
                         <Button
-                          text={
-                            event.season === "individual"
-                              ? "Company Registration"
-                              : event.season
-                              ? `Season ${event.season} Registration`
-                              : "Company Registration"
-                          }
+                          text="Event Registration"
                           type="primary"
                           className="w-full mb-3"
-                          link={
-                            event.season === "individual"
-                              ? `/events/${event.slug}/register`
-                              : `/events/season/${
-                                  event.season || "current"
-                                }/register?from=${event.slug}`
-                          }
+                          link={registerLink}
                         />
                         {/* <Button
                         text="Share Event"

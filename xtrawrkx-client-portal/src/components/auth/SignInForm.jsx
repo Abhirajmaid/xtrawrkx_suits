@@ -14,12 +14,12 @@ export default function SignInForm({
   className = "",
 }) {
   const [formData, setFormData] = useState({
-    email: typeof initialEmail === "string" && initialEmail.includes("@") ? initialEmail : "",
+    email: typeof initialEmail === "string" ? initialEmail.trim() : "",
     password: "",
   });
 
   useEffect(() => {
-    if (typeof initialEmail === "string" && initialEmail.includes("@")) {
+    if (typeof initialEmail === "string" && initialEmail.trim()) {
       setFormData((prev) => ({
         ...prev,
         email: initialEmail.trim(),
@@ -53,8 +53,6 @@ export default function SignInForm({
     const newErrors = {};
     if (!formData.email) {
       newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
     }
     if (!formData.password) {
       newErrors.password = "Password is required";
@@ -94,7 +92,7 @@ export default function SignInForm({
 
           <div className="grid grid-cols-1 gap-6">
             <AuthInput
-              type="email"
+              type="text"
               name="email"
               label="Email Address"
               placeholder="Enter your email"
