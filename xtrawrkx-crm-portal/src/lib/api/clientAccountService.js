@@ -36,7 +36,14 @@ class ClientAccountService {
                 populate: {
                     accountManager: {
                         populate: {
-                            primaryRole: true
+                            primaryRole: true,
+                            department: true,
+                            avatar: true,
+                        }
+                    },
+                    pocAssignedBy: {
+                        populate: {
+                            primaryRole: true,
                         }
                     },
                     contacts: true

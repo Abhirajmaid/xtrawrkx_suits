@@ -237,9 +237,32 @@ export function PageHeader({
   };
 
   const getUserDisplayName = () => {
-    const name = loggedInUser?.name || "User";
-    // Capitalize first letter
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    const name = String(loggedInUser?.name || "User").trim();
+    if (!name) return "User";
+    return name;
+  };
+
+  const getClientDisplayName = () => {
+    // Prefer the client account company name (client = company, not person).
+    const fromStorage = getCompanyInfo();
+    if (fromStorage) return fromStorage;
+
+    const account = session?.account || session?.user?.account || session;
+    const resolved =
+      resolveClientAccountCompanyName(account) ||
+      String(account?.companyName || "").trim();
+    return resolved || "Client";
+  };
+
+  const getClientInitials = () => {
+    const name = getClientDisplayName();
+    const parts = String(name || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return "C";
+    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   };
 
   const getUserRole = () => {
@@ -550,7 +573,7 @@ export function PageHeader({
                     <p className="text-sm font-semibold text-gray-900">
                       {getUserDisplayName()}
                     </p>
-                    <p className="text-xs text-gray-500">{getUserRole()}</p>
+                    <p className="text-xs text-gray-500">{getClientDisplayName()}</p>
                   </div>
                 </div>
                 <ChevronDown
@@ -585,7 +608,7 @@ export function PageHeader({
                             {getUserDisplayName()}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {loggedInUser?.email || ""}
+                            {getClientDisplayName()}
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {getUserRole()}

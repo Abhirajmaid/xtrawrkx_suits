@@ -165,6 +165,12 @@
             "target": "api::invoice.invoice",
             "mappedBy": "clientAccount"
         },
+        "portalDocuments": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::client-portal-document.client-portal-document",
+            "mappedBy": "clientAccount"
+        },
         "proposals": {
             "type": "relation",
             "relation": "oneToMany",
@@ -180,7 +186,25 @@
         "accountManager": {
             "type": "relation",
             "relation": "manyToOne",
+            "target": "api::xtrawrkx-user.xtrawrkx-user",
+            "description": "Dedicated POC (Point of Contact) assigned to this client"
+        },
+        "pocAssignedAt": {
+            "type": "datetime"
+        },
+        "pocAssignedBy": {
+            "type": "relation",
+            "relation": "manyToOne",
             "target": "api::xtrawrkx-user.xtrawrkx-user"
+        },
+        "pocAssignmentStatus": {
+            "type": "enumeration",
+            "enum": [
+                "UNASSIGNED",
+                "ASSIGNED",
+                "PENDING"
+            ],
+            "default": "UNASSIGNED"
         },
         "password": {
             "type": "password",
@@ -240,6 +264,9 @@
             "relation": "oneToMany",
             "target": "api::community-membership.community-membership",
             "mappedBy": "clientAccount"
+        },
+        "companyRoles": {
+            "type": "json"
         }
     }
 }

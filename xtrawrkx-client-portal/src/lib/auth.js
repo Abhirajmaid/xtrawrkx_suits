@@ -23,10 +23,15 @@ export function AuthProvider({ children }) {
                 if (path.includes('/auth')) {
                     const params = new URLSearchParams(window.location.search);
                     const handoffEmail = params.get('email');
+                    const shouldSwitchUser =
+                        params.get('switch_user') === '1' || params.get('from') === 'invite';
                     if (
-                        params.get('from') === 'xtrawrkx-website' &&
-                        handoffEmail &&
-                        handoffEmail.includes('@')
+                        shouldSwitchUser ||
+                        (
+                            params.get('from') === 'xtrawrkx-website' &&
+                            handoffEmail &&
+                            handoffEmail.includes('@')
+                        )
                     ) {
                         localStorage.removeItem('auth_token');
                         localStorage.removeItem('client_token');
@@ -55,6 +60,8 @@ export function AuthProvider({ children }) {
                 account?.companyName ||
                 account?.name ||
                 accountEmail;
+            const accountRole = account?.role || user?.role || 'MEMBER';
+            const accountPermissions = Array.isArray(account?.permissions) ? account.permissions : [];
 
             // Method 2 FIRST: Infer from required data (most reliable)
             // Method 1 backup: Check boolean flags
@@ -84,6 +91,8 @@ export function AuthProvider({ children }) {
                     id: accountId,
                     email: accountEmail,
                     name: accountName,
+                    role: accountRole,
+                    permissions: accountPermissions,
                     profile: {
                         id: accountId,
                         email: accountEmail,
@@ -169,12 +178,16 @@ export function AuthProvider({ children }) {
                 account?.companyName ||
                 account?.name ||
                 accountEmail;
+            const accountRole = account?.role || 'MEMBER';
+            const accountPermissions = Array.isArray(account?.permissions) ? account.permissions : [];
 
             setSession({
                 user: {
                     id: accountId,
                     email: accountEmail,
                     name: accountName,
+                    role: accountRole,
+                    permissions: accountPermissions,
                     profile: {
                         id: accountId,
                         email: accountEmail,
@@ -191,6 +204,8 @@ export function AuthProvider({ children }) {
                     id: accountId,
                     email: accountEmail,
                     name: accountName,
+                    role: accountRole,
+                    permissions: accountPermissions,
                     needsOnboarding: !account?.onboardingCompleted,
                 }
             };

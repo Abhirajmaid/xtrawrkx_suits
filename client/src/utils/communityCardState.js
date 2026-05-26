@@ -32,6 +32,10 @@ const buildState = ({
   ctaLabel,
   ctaAction,
   tone,
+  heroTitle = null,
+  headerSubtitle = null,
+  panelTitle = null,
+  panelBody = null,
 }) => ({
   badge,
   title,
@@ -39,6 +43,10 @@ const buildState = ({
   ctaLabel,
   ctaAction,
   tone,
+  heroTitle,
+  headerSubtitle,
+  panelTitle,
+  panelBody,
 });
 
 /**
@@ -209,20 +217,36 @@ export function getProfileCommunitySurfaceState({
     return {
       ...fallback,
       description: loadingError,
+      heroTitle: "Status unavailable",
+      headerSubtitle: "Check your connection and try again.",
+      panelTitle: "Error",
+      panelBody: loadingError,
     };
   }
 
   if (!hasClientAccount) {
-    return getCommunityCardState(status, source, false);
+    const base = getCommunityCardState(status, source, false);
+    return {
+      ...base,
+      heroTitle: "Finish setup",
+      headerSubtitle: "Your client workspace is still being provisioned.",
+      panelTitle: "What this means",
+      panelBody: base.description,
+    };
   }
 
   if (!hasCommunity) {
     return buildState({
       badge: "Community",
-      title: "Be part of our community",
+      title: "Join the community",
       description:
-        "Use the same email and password as your xtrawrkx website account. We will open the client portal sign-in with your email filled in.",
-      ctaLabel: "Be part of community",
+        "Same email and password as here. Opens client portal sign-in with your email prefilled.",
+      heroTitle: "Join us",
+      headerSubtitle: "Member tools live in the client portal.",
+      panelTitle: "What opens",
+      panelBody:
+        "We open client portal sign-in in a new tab with your email prefilled. Use the same password as on this site.",
+      ctaLabel: "Join community",
       ctaAction: "client_portal_community",
       tone: CARD_TONES.info,
     });
@@ -233,13 +257,34 @@ export function getProfileCommunitySurfaceState({
     .filter(Boolean)
     .join(", ");
 
+  const memberCount = memberships.length;
+
+  if (memberCount > 0) {
+    return buildState({
+      badge: "Member",
+      title: labels ? "Communities" : "Community",
+      description: "Tap a card or the button. New tab.",
+      heroTitle: labels ? "Your communities" : "Community",
+      headerSubtitle:
+        "Tap a community to open its workspace in the client portal, or use the button for the full list. Opens in a new tab with your email prefilled.",
+      panelTitle: null,
+      panelBody: null,
+      ctaLabel: "Open client portal",
+      ctaAction: "view_client_portal_community",
+      tone: CARD_TONES.positive,
+    });
+  }
+
   return buildState({
     badge: "Member",
-    title: labels ? "Your communities" : "Your community",
-    description: labels
-      ? `You're an active member of: ${labels}. Tap a community below to open that workspace in the client portal, or use the button for the full communities view—your email is prefilled on sign-in (new tab).`
-      : "You're an active member in the client portal. Use the button below to open your community workspace—we prefill your email on sign-in (new tab).",
-    ctaLabel: "View your community",
+    title: "Community",
+    description: "Opens in a new tab; email prefilled.",
+    heroTitle: "Community",
+    headerSubtitle: "You're connected.",
+    panelTitle: "In the portal",
+    panelBody:
+      "Manage membership, settings, and billing in the client portal (new tab, email prefilled).",
+    ctaLabel: "Open client portal",
     ctaAction: "view_client_portal_community",
     tone: CARD_TONES.positive,
   });

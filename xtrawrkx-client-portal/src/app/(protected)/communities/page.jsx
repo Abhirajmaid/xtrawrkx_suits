@@ -65,10 +65,54 @@ export default function CommunitiesPage() {
           try {
             const acc = JSON.parse(raw);
             const attrs = acc.attributes || acc;
+            const onboardingData =
+              attrs.onboardingData && typeof attrs.onboardingData === "object"
+                ? attrs.onboardingData
+                : {};
             setAccountDefaults({
-              company: resolveClientAccountCompanyName(acc) || resolveClientAccountCompanyName(attrs),
-              jobTitle: attrs.jobTitle || acc.jobTitle || "",
-              phone: attrs.phone || acc.phone || "",
+              company:
+                resolveClientAccountCompanyName(acc) ||
+                resolveClientAccountCompanyName(attrs),
+              companyEmail:
+                onboardingData.companyEmail ||
+                attrs.companyEmail ||
+                "",
+              jobTitle:
+                onboardingData.jobTitle || attrs.jobTitle || acc.jobTitle || "",
+              phone:
+                onboardingData.phone ||
+                attrs.phone ||
+                acc.phone ||
+                onboardingData.companyPhone ||
+                "",
+              companyPhone:
+                onboardingData.companyPhone ||
+                attrs.companyPhone ||
+                "",
+              industry:
+                onboardingData.industry || attrs.industry || acc.industry || "",
+              website: onboardingData.website || attrs.website || "",
+              companyType:
+                onboardingData.companyType || attrs.companyType || "",
+              companySubType:
+                onboardingData.companySubType || attrs.companySubType || "",
+              companyDescription:
+                onboardingData.companyDescription || attrs.companyDescription || "",
+              addressLine1:
+                onboardingData.addressLine1 || attrs.addressLine1 || "",
+              addressLine2:
+                onboardingData.addressLine2 || attrs.addressLine2 || "",
+              city: onboardingData.city || attrs.city || "",
+              state: onboardingData.state || attrs.state || "",
+              country: onboardingData.country || attrs.country || "",
+              postalCode: onboardingData.postalCode || attrs.postalCode || "",
+              linkedin: onboardingData.linkedin || attrs.linkedin || "",
+              xProfile: onboardingData.xProfile || attrs.xProfile || "",
+              interests:
+                onboardingData.interests || attrs.interests || "",
+              registrationLookingFor:
+                onboardingData.lookingFor || attrs.lookingFor || "",
+              bio: onboardingData.bio || attrs.bio || "",
             });
           } catch {
             /* ignore */

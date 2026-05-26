@@ -151,8 +151,8 @@ describe("getProfileCommunitySurfaceState", () => {
       status: "REGISTERED",
       source: "ONBOARDING",
     });
-    expect(state.title).toBe("Be part of our community");
-    expect(state.ctaLabel).toBe("Be part of community");
+    expect(state.title).toBe("Join the community");
+    expect(state.ctaLabel).toBe("Join community");
     expect(state.ctaAction).toBe("client_portal_community");
   });
 
@@ -164,12 +164,12 @@ describe("getProfileCommunitySurfaceState", () => {
       status: "COMMUNITY_MEMBER",
       source: "ONBOARDING",
     });
-    expect(state.title).toBe("Your community");
-    expect(state.ctaLabel).toBe("View your community");
+    expect(state.title).toBe("Community");
+    expect(state.ctaLabel).toBe("Open client portal");
     expect(state.ctaAction).toBe("view_client_portal_community");
   });
 
-  it("lists joined communities in copy when memberships are returned", () => {
+  it("uses compact header copy when memberships are returned (names appear on cards)", () => {
     const state = getProfileCommunitySurfaceState({
       hasClientAccount: true,
       hasCommunity: true,
@@ -181,10 +181,10 @@ describe("getProfileCommunitySurfaceState", () => {
         { id: 2, community: "XEVTG", label: "XEVTG" },
       ],
     });
-    expect(state.title).toBe("Your communities");
-    expect(state.description).toContain("XEN");
-    expect(state.description).toContain("XEVTG");
-    expect(state.ctaLabel).toBe("View your community");
+    expect(state.title).toBe("Communities");
+    expect(state.description).toContain("Tap a card");
+    expect(state.description).toContain("New tab");
+    expect(state.ctaLabel).toBe("Open client portal");
     expect(state.ctaAction).toBe("view_client_portal_community");
   });
 

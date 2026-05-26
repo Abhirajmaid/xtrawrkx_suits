@@ -145,100 +145,108 @@ export default function ProfileCommunityCard() {
     });
   };
 
+  const hasMembershipList = (communityStatus?.memberships?.length ?? 0) > 0;
+
+  const gradientTitle = cardState.heroTitle ?? cardState.title;
+
+  const gradientSubtitle =
+    cardState.headerSubtitle ?? cardState.description;
+
+  const showInnerCard =
+    !(communityStatus?.memberships?.length > 0) &&
+    Boolean(cardState.panelTitle && cardState.panelBody);
+
   return (
     <aside className="overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/95 shadow-[0_28px_70px_rgba(15,23,42,0.12)] backdrop-blur-xl">
-      <div className="bg-gradient-to-br from-slate-900 via-sky-900 to-brand-primary px-6 py-6 text-white">
-        <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em]">
+      <div className="bg-gradient-to-br from-slate-900 via-sky-900 to-brand-primary px-5 py-5 text-white sm:px-6 sm:py-6">
+        <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.2em]">
           {cardState.badge}
         </span>
-        <h3 className="mt-4 text-2xl font-semibold">{cardState.title}</h3>
-        <p className="mt-3 text-sm leading-6 text-white/85">
-          {cardState.description}
-        </p>
+        <h3 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
+          {gradientTitle}
+        </h3>
+        {gradientSubtitle ? (
+          <p
+            className={`mt-2 leading-relaxed text-white/85 ${
+              hasMembershipList ? "text-sm text-white/80" : "text-sm"
+            }`}
+          >
+            {gradientSubtitle}
+          </p>
+        ) : null}
       </div>
 
-      <div className="space-y-5 px-6 py-6">
-        <div className={`rounded-2xl border p-4 ${toneClass}`}>
-          <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-white p-3 text-brand-primary shadow-sm">
-              <Icon
-                icon={
-                  communityStatus?.hasCommunity
-                    ? "solar:users-group-rounded-bold"
-                    : cardState.ctaAction === "retry_setup"
-                    ? "solar:refresh-bold"
-                    : "solar:user-plus-bold"
-                }
-                width={22}
-              />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-900">{cardState.title}</p>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                {communityStatus?.loadingError
-                  ? communityStatus.loadingError
-                  : cardState.description}
-              </p>
+      <div className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
+        {showInnerCard ? (
+          <div className={`rounded-2xl border p-4 ${toneClass}`}>
+            <div className="flex items-start gap-3">
+              <div className="rounded-2xl bg-white p-3 text-brand-primary shadow-sm">
+                <Icon
+                  icon={
+                    communityStatus?.hasCommunity
+                      ? "solar:users-group-rounded-bold"
+                      : cardState.ctaAction === "retry_setup"
+                      ? "solar:refresh-bold"
+                      : "solar:user-plus-bold"
+                  }
+                  width={22}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {cardState.panelTitle}
+                </p>
+                <p className="mt-1 text-sm leading-snug text-slate-500">
+                  {cardState.panelBody}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         {communityStatus?.memberships?.length ? (
-          <div className="space-y-3">
-            <p className="text-sm font-semibold text-slate-900">
-              Your communities
-            </p>
-            <p className="text-xs text-slate-500">
-              Each card opens that community&apos;s page in the client portal (new
-              tab), same handoff as &quot;View your community&quot;.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {communityStatus.memberships.map((m) => (
-                <button
-                  key={`${m.id}-${m.community}`}
-                  type="button"
-                  onClick={() => openMembershipInPortal(m)}
-                  className="group flex flex-col rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white p-4 text-left shadow-sm transition hover:border-emerald-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-                >
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {communityStatus.memberships.map((m) => (
+              <button
+                key={`${m.id}-${m.community}`}
+                type="button"
+                onClick={() => openMembershipInPortal(m)}
+                aria-label={`Open ${m.label || m.community} in portal`}
+                className="group flex items-start gap-2.5 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white p-3 text-left shadow-sm transition hover:border-emerald-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">
+                  {(m.label || m.community || "?").charAt(0)}
+                </span>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">
-                        {(m.label || m.community || "?").charAt(0)}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-slate-900">
-                          {m.label || m.community}
-                        </p>
-                        {m.joinedAt ? (
-                          <p className="text-xs text-slate-500">
-                            Member since{" "}
-                            {new Date(m.joinedAt).toLocaleDateString(undefined, {
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {m.label || m.community}
+                    </p>
                     <Icon
                       icon="solar:arrow-right-up-linear"
                       className="shrink-0 text-emerald-600 opacity-70 transition group-hover:opacity-100"
-                      width={22}
+                      width={18}
                     />
                   </div>
-                  <span className="mt-3 text-xs font-medium text-emerald-700">
-                    View this community in portal →
-                  </span>
-                </button>
-              ))}
-            </div>
+                  {m.joinedAt ? (
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Since{" "}
+                      {new Date(m.joinedAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+              </button>
+            ))}
           </div>
         ) : null}
 
         <Button
           text={cardState.ctaLabel}
           type="primary"
-          className="w-full justify-center"
+          className="w-full"
           onClick={handleCommunityClick}
           disabled={profileBusy}
         />
