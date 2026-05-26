@@ -32,12 +32,12 @@ export default function Button({
           icon={icon}
           width={size === "sm" ? 16 : size === "lg" ? 20 : 18}
           height={size === "sm" ? 16 : size === "lg" ? 20 : 18}
-          className="mr-2"
+          className="mr-2 shrink-0"
         />
       )}
-      {text}
+      <span className="min-w-0 flex-1 text-left">{text}</span>
       {!hideArrow && (
-        <span className="btn-icon">
+        <span className="btn-icon shrink-0" aria-hidden>
           <Icon icon="solar:arrow-right-up-linear" width="18" height="18" />
         </span>
       )}

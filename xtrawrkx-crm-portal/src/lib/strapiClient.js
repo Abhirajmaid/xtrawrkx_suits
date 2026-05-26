@@ -347,6 +347,27 @@ class StrapiClient {
         return this.delete(`/invoices/${id}`);
     }
 
+    // Client portal documents API
+    async getClientPortalDocuments(params = {}) {
+        return this.get('/client-portal-documents', params);
+    }
+
+    async getClientPortalDocument(id, params = {}) {
+        return this.get(`/client-portal-documents/${id}`, params);
+    }
+
+    async createClientPortalDocument(data) {
+        return this.post('/client-portal-documents', { data });
+    }
+
+    async updateClientPortalDocument(id, data) {
+        return this.put(`/client-portal-documents/${id}`, { data });
+    }
+
+    async deleteClientPortalDocument(id) {
+        return this.delete(`/client-portal-documents/${id}`);
+    }
+
     // Proposals API
     async getProposals(params = {}) {
         return this.get('/proposals', params);

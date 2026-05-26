@@ -6,6 +6,25 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
+const ASSIGNED_STATUSES = new Set(['ASSIGNED', 'SCHEDULED']);
+
+function isAssignedStatus(status) {
+    if (!status) return true;
+    return ASSIGNED_STATUSES.has(String(status).toUpperCase());
+}
+
+/** Block reverting to Assigned once the task has left that state. */
+function assertStatusNotRevertingToAssigned(currentStatus, newStatus) {
+    if (isAssignedStatus(newStatus) && !isAssignedStatus(currentStatus)) {
+        return {
+            allowed: false,
+            message:
+                'Status cannot be changed back to Assigned after the task has moved forward.',
+        };
+    }
+    return { allowed: true };
+}
+
 module.exports = createCoreController('api::task.task', ({ strapi }) => ({
     /**
      * Get all tasks (for global tasks page)
@@ -489,6 +508,14 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
 
             // Handle status changes
             if (data.status !== undefined) {
+                const statusGuard = assertStatusNotRevertingToAssigned(
+                    existingTask.status,
+                    data.status,
+                );
+                if (!statusGuard.allowed) {
+                    return ctx.badRequest(statusGuard.message);
+                }
+
                 if (data.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
                     updateData.completedDate = new Date().toISOString();
                 } else if (data.status !== 'COMPLETED' && existingTask.status === 'COMPLETED') {
@@ -677,6 +704,14 @@ module.exports = createCoreController('api::task.task', ({ strapi }) => ({
 
             if (!existingTask) {
                 return ctx.notFound('Task not found');
+            }
+
+            const statusGuard = assertStatusNotRevertingToAssigned(
+                existingTask.status,
+                status,
+            );
+            if (!statusGuard.allowed) {
+                return ctx.badRequest(statusGuard.message);
             }
 
             const updateData = { status };

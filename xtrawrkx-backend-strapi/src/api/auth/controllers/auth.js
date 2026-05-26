@@ -4,6 +4,83 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const activityLogger = require('../../../services/activityLogger');
+const { buildClientAccountPocFields } = require('../../../utils/dedicatedPoc');
+
+async function loadFullClientAccount(strapi, account) {
+    if (!account?.id && !account?.documentId) return null;
+
+    const populate = {
+        accountManager: {
+            populate: {
+                primaryRole: true,
+                department: true,
+                avatar: true,
+            },
+        },
+    };
+
+    let fullAccount = await strapi.db.query('api::client-account.client-account').findOne({
+        where: { id: account.id },
+        populate,
+    });
+
+    if (!fullAccount && account.documentId) {
+        fullAccount = await strapi.db.query('api::client-account.client-account').findOne({
+            where: { documentId: account.documentId },
+            populate,
+        });
+    }
+
+    if (!fullAccount) {
+        try {
+            fullAccount = await strapi.entityService.findOne(
+                'api::client-account.client-account',
+                account.documentId || account.id,
+                {
+                    populate: {
+                        accountManager: {
+                            populate: ['primaryRole', 'department', 'avatar'],
+                        },
+                    },
+                }
+            );
+        } catch {
+            fullAccount = null;
+        }
+    }
+
+    return fullAccount;
+}
+
+async function buildClientPortalAccountPayload(strapi, account) {
+    if (!account?.id && !account?.documentId) return null;
+
+    const fullAccount = await loadFullClientAccount(strapi, account);
+
+    if (!fullAccount) return null;
+
+    const base = {
+        id: fullAccount.id,
+        documentId: fullAccount.documentId || null,
+        email: fullAccount.email,
+        companyName: fullAccount.companyName,
+        industry: fullAccount.industry,
+        type: fullAccount.type,
+        isActive: fullAccount.isActive,
+        emailVerified: fullAccount.emailVerified,
+        phone: fullAccount.phone,
+        onboardingData: fullAccount.onboardingData || null,
+        onboardingCompleted: fullAccount.onboardingCompleted,
+        onboardingCompletedAt: fullAccount.onboardingCompletedAt || null,
+    };
+
+    const pocFields = await buildClientAccountPocFields(fullAccount, strapi);
+
+    return {
+        ...base,
+        ...pocFields,
+    };
+}
 
 // JWT secret - use environment variable or fallback to default
 const JWT_SECRET = process.env.JWT_SECRET || 'myJwtSecret123456789012345678901234567890';
@@ -405,20 +482,14 @@ module.exports = {
                             .where({ id: Number(memberPortalAccess.id) })
                             .update({ last_login: new Date().toISOString(), is_active: 1 });
 
+                        const memberAccountPayload = await buildClientPortalAccountPayload(
+                            strapi,
+                            memberContact.clientAccount
+                        );
+
                         return ctx.send({
                             account: {
-                                id: memberContact.clientAccount.id,
-                                documentId: memberContact.clientAccount.documentId || null,
-                                email: memberContact.clientAccount.email,
-                                companyName: memberContact.clientAccount.companyName,
-                                industry: memberContact.clientAccount.industry,
-                                type: memberContact.clientAccount.type,
-                                isActive: memberContact.clientAccount.isActive,
-                                emailVerified: memberContact.clientAccount.emailVerified,
-                                phone: memberContact.clientAccount.phone,
-                                onboardingData: memberContact.clientAccount.onboardingData || null,
-                                onboardingCompleted: memberContact.clientAccount.onboardingCompleted,
-                                onboardingCompletedAt: memberContact.clientAccount.onboardingCompletedAt || null,
+                                ...memberAccountPayload,
                                 role: roleName,
                                 permissions: roleConfig.permissions || [],
                                 memberContactId: memberContact.id,
@@ -490,20 +561,11 @@ module.exports = {
                 companyName: account.companyName
             }, JWT_SECRET, { expiresIn: '7d' });
 
+            const ownerAccountPayload = await buildClientPortalAccountPayload(strapi, account);
+
             ctx.send({
                 account: {
-                    id: account.id,
-                    documentId: account.documentId || null,
-                    email: account.email,
-                    companyName: account.companyName,
-                    industry: account.industry,
-                    type: account.type,
-                    isActive: account.isActive,
-                    emailVerified: account.emailVerified,
-                    phone: account.phone,
-                    onboardingData: account.onboardingData || null,
-                    onboardingCompleted: account.onboardingCompleted,
-                    onboardingCompletedAt: account.onboardingCompletedAt || null,
+                    ...ownerAccountPayload,
                     role: 'ADMIN',
                     permissions: CLIENT_MEMBER_DEFAULT_ROLES.ADMIN.permissions,
                 },
@@ -1116,6 +1178,116 @@ module.exports = {
     /**
      * Get current user information
      */
+    /**
+     * Client portal — fetch dedicated POC for logged-in client account
+     */
+    async getClientDedicatedPoc(ctx) {
+        try {
+            const token = ctx.request.headers.authorization?.replace('Bearer ', '');
+            if (!token) {
+                return ctx.unauthorized('No token provided');
+            }
+
+            let decoded;
+            try {
+                decoded = jwt.verify(token, JWT_SECRET);
+            } catch {
+                return ctx.unauthorized('Invalid token');
+            }
+
+            if (decoded.type !== 'client' || !decoded.id) {
+                return ctx.unauthorized('Client token required');
+            }
+
+            const account = await strapi.db.query('api::client-account.client-account').findOne({
+                where: { id: decoded.id, isActive: true },
+            });
+
+            if (!account) {
+                return ctx.notFound('Client account not found');
+            }
+
+            const fullAccount = await loadFullClientAccount(strapi, account);
+            const pocFields = await buildClientAccountPocFields(fullAccount || account, strapi);
+
+            return ctx.send({
+                success: true,
+                ...pocFields,
+            });
+        } catch (error) {
+            console.error('getClientDedicatedPoc error:', error);
+            return ctx.internalServerError('Failed to load dedicated POC');
+        }
+    },
+
+    /**
+     * Client portal — documents for logged-in client account (ACTIVE only)
+     */
+    async getClientPortalDocuments(ctx) {
+        try {
+            const token = ctx.request.headers.authorization?.replace('Bearer ', '');
+            if (!token) {
+                return ctx.unauthorized('No token provided');
+            }
+
+            let decoded;
+            try {
+                decoded = jwt.verify(token, JWT_SECRET);
+            } catch {
+                return ctx.unauthorized('Invalid token');
+            }
+
+            if (decoded.type !== 'client' || !decoded.id) {
+                return ctx.unauthorized('Client token required');
+            }
+
+            const account = await strapi.db.query('api::client-account.client-account').findOne({
+                where: { id: decoded.id, isActive: true },
+            });
+
+            if (!account) {
+                return ctx.notFound('Client account not found');
+            }
+
+            const rows = await strapi.entityService.findMany(
+                'api::client-portal-document.client-portal-document',
+                {
+                    filters: {
+                        clientAccount: { id: account.id },
+                        status: 'ACTIVE',
+                    },
+                    populate: { documents: true, createdBy: true },
+                    sort: { issueDate: 'desc' },
+                }
+            );
+
+            const baseUrl =
+                strapi.config.get('server.url') ||
+                process.env.PUBLIC_URL ||
+                'http://localhost:1337';
+
+            const withUrls = (rows || []).map((row) => {
+                const files = Array.isArray(row.documents)
+                    ? row.documents.map((f) => ({
+                          ...f,
+                          url: f.url?.startsWith('http')
+                              ? f.url
+                              : `${baseUrl}${f.url}`,
+                      }))
+                    : [];
+                return { ...row, documents: files };
+            });
+
+            return ctx.send({
+                success: true,
+                data: withUrls,
+            });
+        } catch (error) {
+            console.error('getClientPortalDocuments error:', error);
+            return ctx.internalServerError('Failed to load documents');
+        }
+    },
+
     async getCurrentUser(ctx) {
         try {
 
@@ -1158,20 +1330,7 @@ module.exports = {
                     return ctx.unauthorized('Client account not found or inactive');
                 }
 
-                const accountPayload = {
-                    id: account.id,
-                    documentId: account.documentId || null,
-                    email: account.email,
-                    companyName: account.companyName,
-                    industry: account.industry,
-                    type: account.type,
-                    isActive: account.isActive,
-                    emailVerified: account.emailVerified,
-                    phone: account.phone,
-                    onboardingData: account.onboardingData || null,
-                    onboardingCompleted: account.onboardingCompleted,
-                    onboardingCompletedAt: account.onboardingCompletedAt || null,
-                };
+                const accountPayload = await buildClientPortalAccountPayload(strapi, account);
 
                 return ctx.send({
                     success: true,

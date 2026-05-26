@@ -32,6 +32,7 @@ import { createPortal } from "react-dom";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 import { listCompanyMembers } from "@/lib/api/companyMembersService";
+import { getStatusLabel } from "@/lib/taskStatusConstants";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -370,46 +371,7 @@ export default function TasksPage() {
           const attachments = taskData.attachments || taskData.files || [];
 
           // Normalize status
-          const normalizeStatus = (status) => {
-            if (!status) return "To Do";
-            const statusUpper = status.toUpperCase().trim();
-            if (
-              statusUpper === "TO DO" ||
-              statusUpper === "TODO" ||
-              statusUpper === "PLANNING" ||
-              statusUpper === "PLANNED" ||
-              statusUpper === "SCHEDULED"
-            ) {
-              return "To Do";
-            }
-            if (
-              statusUpper === "IN PROGRESS" ||
-              statusUpper === "IN_PROGRESS" ||
-              statusUpper === "ACTIVE"
-            ) {
-              return "In Progress";
-            }
-            if (statusUpper === "IN REVIEW" || statusUpper === "IN_REVIEW") {
-              return "Internal Review";
-            }
-            if (
-              statusUpper === "CLIENT REVIEW" ||
-              statusUpper === "CLIENT_REVIEW"
-            ) {
-              return "Client Review";
-            }
-            if (statusUpper === "APPROVED") {
-              return "Approved";
-            }
-            if (statusUpper === "DONE" || statusUpper === "COMPLETED") {
-              return "Done";
-            }
-            if (statusUpper === "CANCELLED" || statusUpper === "CANCELED") {
-              return "Cancelled";
-            }
-            // Return original if no match
-            return status;
-          };
+          const normalizeStatus = (status) => getStatusLabel(status);
 
           // Normalize priority
           const normalizePriority = (priority) => {
@@ -445,6 +407,9 @@ export default function TasksPage() {
                 }
               : null,
             scheduledDate: taskData.scheduledDate || taskData.dueDate,
+            timeAllotted: taskData.timeAllotted ?? null,
+            autoAccept: !!taskData.autoAccept,
+            sharePreferenceSetAtCreation: !!taskData.sharePreferenceSetAtCreation,
             progress: taskData.progress || 0,
             subtasks: taskData.subtasks?.data || taskData.subtasks || [],
             comments: comments.map((comment) => {
@@ -516,18 +481,17 @@ export default function TasksPage() {
         ? Number(currentAccountId)
         : null;
 
-    const statusMap = {
-      todo: "SCHEDULED",
-      "in-progress": "IN_PROGRESS",
-      review: "IN_REVIEW",
-      completed: "COMPLETED",
-    };
     const priorityMap = {
       low: "LOW",
       medium: "MEDIUM",
       high: "HIGH",
       urgent: "HIGH",
     };
+
+    const resolvedStatus =
+      taskInput.autoAccept && taskInput.assigneeMemberId
+        ? "ACCEPTED"
+        : taskInput.status || "ASSIGNED";
 
     const payload = {
       title: taskInput.title,
@@ -536,7 +500,10 @@ export default function TasksPage() {
       scheduledDate: taskInput.dueDate
         ? new Date(`${taskInput.dueDate}T00:00:00`).toISOString()
         : null,
-      status: statusMap[taskInput.status] || "SCHEDULED",
+      status: resolvedStatus,
+      timeAllotted: taskInput.timeAllotted ?? null,
+      autoAccept: !!taskInput.autoAccept,
+      sharePreferenceSetAtCreation: true,
       priority: priorityMap[taskInput.priority] || "MEDIUM",
       progress: 0,
       isSharedWithClient: true,
@@ -1057,6 +1024,20 @@ export default function TasksPage() {
           </div>
         );
       },
+    },
+    {
+      key: "timeAllotted",
+      label: "TIME ALLOTTED",
+      render: (_, task) => (
+        <div className="flex items-center gap-2 min-w-[120px]">
+          <Clock className="w-4 h-4 flex-shrink-0 text-gray-500" />
+          <span className="text-sm text-gray-700 font-medium">
+            {task.timeAllotted != null && task.timeAllotted !== ""
+              ? `${task.timeAllotted} hrs`
+              : "—"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "status",

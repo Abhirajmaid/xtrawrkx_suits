@@ -8,6 +8,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import ModernButton from "@/components/ui/ModernButton";
+import {
+  CP_STATUS_SELECT_OPTIONS,
+  getEditableStatusOptions,
+} from "@/lib/taskStatusConstants";
 
 export default function CreateTaskModal({
   isOpen,
@@ -21,8 +25,10 @@ export default function CreateTaskModal({
     description: "",
     project: "",
     dueDate: "",
+    timeAllotted: "",
     priority: "medium",
-    status: "todo",
+    status: "ACCEPTED",
+    autoAccept: true,
     assignmentScope: "internal",
     assigneeMemberId: "",
   });
@@ -36,12 +42,10 @@ export default function CreateTaskModal({
     { value: "urgent", label: "Urgent", color: "text-red-600" },
   ];
 
-  const statuses = [
-    { value: "todo", label: "To Do", color: "text-gray-600" },
-    { value: "in-progress", label: "In Progress", color: "text-blue-600" },
-    { value: "review", label: "Review", color: "text-yellow-600" },
-    { value: "completed", label: "Completed", color: "text-green-600" },
-  ];
+  const statuses = getEditableStatusOptions(
+    formData.autoAccept ? "Accepted" : formData.status,
+    CP_STATUS_SELECT_OPTIONS,
+  );
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -86,15 +90,20 @@ export default function CreateTaskModal({
 
     // Create task object
     const newTask = {
-      id: `t${Date.now()}`, // Generate unique ID
+      id: `t${Date.now()}`,
       title: formData.title.trim(),
       description: formData.description.trim(),
       projectId: formData.project,
       dueDate: formData.dueDate,
+      timeAllotted: formData.timeAllotted
+        ? parseFloat(formData.timeAllotted)
+        : null,
       priority: formData.priority,
-      status: formData.status,
+      status: formData.autoAccept ? "ACCEPTED" : formData.status,
+      autoAccept: !!formData.autoAccept,
       assignmentScope: formData.assignmentScope,
       assigneeMemberId: formData.assigneeMemberId || null,
+      sharePreferenceSetAtCreation: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -108,8 +117,10 @@ export default function CreateTaskModal({
       description: "",
       project: "",
       dueDate: "",
+      timeAllotted: "",
       priority: "medium",
-      status: "todo",
+      status: "ACCEPTED",
+      autoAccept: true,
       assignmentScope: "internal",
       assigneeMemberId: "",
     });
@@ -124,8 +135,10 @@ export default function CreateTaskModal({
       description: "",
       project: "",
       dueDate: "",
+      timeAllotted: "",
       priority: "medium",
-      status: "todo",
+      status: "ACCEPTED",
+      autoAccept: true,
       assignmentScope: "internal",
       assigneeMemberId: "",
     });
@@ -258,9 +271,8 @@ export default function CreateTaskModal({
                   <div />
                 </div>
 
-                {/* Due Date and Priority Row */}
+                {/* Due Date, Time Allotted, Priority */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Due Date */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Due Date
@@ -277,7 +289,23 @@ export default function CreateTaskModal({
                     />
                   </div>
 
-                  {/* Priority */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Time Allotted (hrs)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      placeholder="e.g. 8"
+                      value={formData.timeAllotted}
+                      onChange={(e) =>
+                        handleInputChange("timeAllotted", e.target.value)
+                      }
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all duration-200"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Priority
@@ -296,11 +324,7 @@ export default function CreateTaskModal({
                       ))}
                     </select>
                   </div>
-                </div>
 
-                {/* Status */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Status */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Status
@@ -310,7 +334,8 @@ export default function CreateTaskModal({
                       onChange={(e) =>
                         handleInputChange("status", e.target.value)
                       }
-                      className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all duration-200"
+                      disabled={formData.autoAccept}
+                      className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all duration-200 disabled:bg-gray-100"
                     >
                       {statuses.map((status) => (
                         <option key={status.value} value={status.value}>
@@ -319,6 +344,45 @@ export default function CreateTaskModal({
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 px-4 py-3 bg-white">
+                  <p className="text-sm font-medium text-gray-800 mb-2">
+                    Auto-accept for assignee
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="autoAccept"
+                        checked={formData.autoAccept === true}
+                        onChange={() => {
+                          handleInputChange("autoAccept", true);
+                          handleInputChange("status", "ACCEPTED");
+                        }}
+                      />
+                      <span className="text-sm text-gray-700">
+                        Auto-accept (default)
+                      </span>
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="autoAccept"
+                        checked={formData.autoAccept === false}
+                        onChange={() => {
+                          handleInputChange("autoAccept", false);
+                          handleInputChange("status", "ASSIGNED");
+                        }}
+                      />
+                      <span className="text-sm text-gray-700">
+                        Require manual accept
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Assign To

@@ -406,6 +406,7 @@ export default function ProjectDetailsPage() {
       priority: normalizePriority(taskData.priority),
       scheduledDate:
         taskData.scheduledDate || taskData.dueDate || taskData.endDate,
+      timeAllotted: taskData.timeAllotted ?? null,
       progress: taskData.progress || 0,
       assignee: assigneeData
         ? {
@@ -573,6 +574,20 @@ export default function ProjectDetailsPage() {
           </div>
         );
       },
+    },
+    {
+      key: "timeAllotted",
+      label: "TIME ALLOTTED",
+      render: (_, task) => (
+        <div className="flex items-center gap-2 min-w-[120px]">
+          <Clock className="w-4 h-4 flex-shrink-0 text-gray-500" />
+          <span className="text-sm text-gray-700 font-medium">
+            {task.timeAllotted != null && task.timeAllotted !== ""
+              ? `${task.timeAllotted} hrs`
+              : "—"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "status",

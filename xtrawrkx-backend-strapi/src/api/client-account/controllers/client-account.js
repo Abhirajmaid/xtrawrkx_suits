@@ -5,6 +5,22 @@
  */
 
 const { createCoreController } = require('@strapi/strapi').factories;
+const { applyPocAssignmentOnUpdate } = require('../../../utils/dedicatedPoc');
+
+const ACCOUNT_MANAGER_POPULATE = {
+    accountManager: {
+        populate: {
+            primaryRole: true,
+            department: true,
+            avatar: true,
+        },
+    },
+    pocAssignedBy: {
+        populate: {
+            primaryRole: true,
+        },
+    },
+};
 
 module.exports = createCoreController('api::client-account.client-account', ({ strapi }) => {
     const ensureDefaultProjectForClientAccount = async (clientAccount) => {
@@ -42,15 +58,16 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
         try {
             const { data } = ctx.request.body;
 
-            // Add current user as account manager if not specified
-            if (!data.accountManager && ctx.state.user) {
-                data.accountManager = ctx.state.user.id;
+            let createData = { ...data };
+            if (!createData.accountManager && ctx.state.user) {
+                createData.accountManager = ctx.state.user.id;
             }
+            createData = applyPocAssignmentOnUpdate(createData, ctx);
 
             const entity = await strapi.entityService.create('api::client-account.client-account', {
-                data,
+                data: createData,
                 populate: {
-                    accountManager: true,
+                    ...ACCOUNT_MANAGER_POPULATE,
                     contacts: true,
                     activities: true,
                     deals: true,
@@ -157,11 +174,7 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
             // First try with basic population
             const entity = await strapi.entityService.findOne('api::client-account.client-account', id, {
                 populate: {
-                    accountManager: {
-                        populate: {
-                            primaryRole: true
-                        }
-                    },
+                    ...ACCOUNT_MANAGER_POPULATE,
                     contacts: true,
                     activities: true,
                     deals: true,
@@ -201,11 +214,17 @@ module.exports = createCoreController('api::client-account.client-account', ({ s
         try {
             const { id } = ctx.params;
             const { data } = ctx.request.body;
+            const updateData = applyPocAssignmentOnUpdate({ ...data }, ctx);
+
+            if (updateData.accountManager != null && updateData.accountManager !== '') {
+                const managerId = Number(updateData.accountManager);
+                updateData.accountManager = Number.isFinite(managerId) ? managerId : updateData.accountManager;
+            }
 
             const entity = await strapi.entityService.update('api::client-account.client-account', id, {
-                data,
+                data: updateData,
                 populate: {
-                    accountManager: true,
+                    ...ACCOUNT_MANAGER_POPULATE,
                     contacts: true,
                     activities: true,
                     deals: true,

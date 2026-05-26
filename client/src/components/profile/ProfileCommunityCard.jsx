@@ -246,7 +246,7 @@ export default function ProfileCommunityCard() {
         <Button
           text={cardState.ctaLabel}
           type="primary"
-          className="w-full justify-center"
+          className="w-full"
           onClick={handleCommunityClick}
           disabled={profileBusy}
         />

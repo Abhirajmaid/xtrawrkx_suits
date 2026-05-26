@@ -213,14 +213,6 @@ export const sidebarMenuConfig = [
                 roles: [USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.CLIENT, USER_ROLES.MEMBER],
             },
             {
-                id: "help",
-                type: MENU_ITEM_TYPES.LINK,
-                label: "Help / Support",
-                href: "/help",
-                icon: HelpCircle,
-                roles: [USER_ROLES.ADMIN, USER_ROLES.CLIENT, USER_ROLES.MEMBER],
-            },
-            {
                 id: "about",
                 type: MENU_ITEM_TYPES.LINK,
                 label: "About",

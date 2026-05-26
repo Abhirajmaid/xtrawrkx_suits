@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -10,7 +10,6 @@ import {
   X,
   ChevronDown,
   ChevronRight as ChevronRightIcon,
-  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -21,8 +20,15 @@ import {
   hasPermission,
   MENU_ITEM_TYPES,
 } from "@/config/sidebarMenu";
-import { resolveClientAccountCompanyName } from "@/utils/clientAccountCompany";
 import { useChat } from "@/components/providers/ChatProvider";
+import { fetchDedicatedPoc, getCurrentUser } from "@/lib/api/authService";
+import {
+  getClientAccountFromStorage,
+  getDedicatedPoc,
+  isPocAssigned,
+} from "@/lib/pocUtils";
+import DedicatedPocSidebarCard from "./DedicatedPocSidebarCard";
+import SupportAssistanceCard from "./SupportAssistanceCard";
 
 export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
   const pathname = usePathname();
@@ -43,64 +49,62 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
 
   // Track expanded submenu items (e.g., Billing submenu)
   const [expandedSubmenus, setExpandedSubmenus] = useState({});
+  const [pocSnapshot, setPocSnapshot] = useState({
+    pocAssigned: false,
+    dedicatedPoc: null,
+  });
 
-  // Get company information
-  const getCompanyInfo = () => {
-    if (!session) return null;
-
-    // Try to get company info from session
-    const account = session.account || session.user?.account || session;
-
-    // Also try to get from localStorage if available
-    let companyData = null;
-    if (typeof window !== "undefined") {
-      try {
-        const accountData = localStorage.getItem("client_account");
-        if (accountData) {
-          companyData = JSON.parse(accountData);
-        }
-      } catch (e) {
-        console.error("Error parsing client_account:", e);
-      }
+  const refreshClientAccount = useCallback(async () => {
+    try {
+      await getCurrentUser();
+    } catch {
+      // fall back to cached account
     }
 
-    const company = companyData || account;
-    const displayName =
-      resolveClientAccountCompanyName(company) ||
-      String(company?.companyName || "").trim() ||
-      String(company?.name || "").trim() ||
-      "Company";
+    const pocFromApi = await fetchDedicatedPoc();
+    if (pocFromApi) {
+      setPocSnapshot({
+        pocAssigned: pocFromApi.pocAssigned,
+        dedicatedPoc: pocFromApi.dedicatedPoc,
+      });
+      return;
+    }
 
-    return {
-      name: displayName,
-      email: company?.email || "",
-      industry: company?.industry || "",
-      phone: company?.phone || "",
+    const account = getClientAccountFromStorage();
+    setPocSnapshot({
+      pocAssigned: isPocAssigned(account),
+      dedicatedPoc: getDedicatedPoc(account),
+    });
+  }, []);
+
+  useEffect(() => {
+    refreshClientAccount();
+    const onFocus = () => refreshClientAccount();
+    const interval = setInterval(refreshClientAccount, 60000);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(interval);
     };
-  };
+  }, [refreshClientAccount, pathname]);
 
-  const companyInfo = getCompanyInfo();
-  const getSidebarUserName = () => {
-    if (typeof window !== "undefined") {
-      try {
-        const contactsRaw = localStorage.getItem("client_contacts");
-        if (contactsRaw) {
-          const contacts = JSON.parse(contactsRaw);
-          if (Array.isArray(contacts) && contacts[0]) {
-            const c = contacts[0];
-            const full = `${c.firstName || ""} ${c.lastName || ""}`.trim();
-            if (full) return full;
-            if (c.email) return c.email.split("@")[0];
-          }
-        }
-      } catch {
-        // ignore
-      }
+  // Keep Settings & System expanded when viewing settings or legal pages
+  useEffect(() => {
+    const settingsPaths = ["/settings", "/about", "/privacy", "/terms"];
+    if (settingsPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+      setExpandedSections((prev) => ({
+        ...prev,
+        "settings-system": true,
+      }));
     }
-    const email = companyInfo?.email || "";
-    return email ? email.split("@")[0] : "User";
-  };
-  const sidebarUserName = getSidebarUserName();
+  }, [pathname]);
+
+  const showPocCard = pocSnapshot.pocAssigned;
+  const pocForCard =
+    pocSnapshot.dedicatedPoc ||
+    (pocSnapshot.pocAssigned
+      ? { fullName: "Dedicated POC", designation: "Point of Contact", teamName: "Customer Success" }
+      : null);
 
   // Toggle section expansion
   const toggleSection = (sectionId) => {
@@ -386,63 +390,24 @@ export function Sidebar({ isOpen, onClose, collapsed, onCollapseChange }) {
           )}
         </div>
 
-        {/* Main Navigation - Scrollable */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-6">
+        {/* Navigation + POC — single scrollable column */}
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
           {sidebarMenuConfig.map((section) => renderSection(section))}
-        </nav>
 
-        {/* Bottom Section - Fixed */}
-        <div className="mt-auto border-t border-gray-200 bg-gray-50/50">
-          {/* Company Card */}
-          {companyInfo && (
-            <div className={cn("p-3", collapsed && "px-2")}>
-              <div
-                className={cn(
-                  "bg-white rounded-lg p-3 shadow-sm border border-gray-200",
-                  collapsed && "p-2"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-xtrawrkx-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {sidebarUserName.charAt(0).toUpperCase()}
-                  </div>
-                  {!collapsed && (
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 text-sm truncate">
-                        {sidebarUserName}
-                      </div>
-                      <div className="text-xs text-gray-600 truncate">
-                        {companyInfo.name}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Logout Button */}
-          <div className={cn("p-3 pt-0", collapsed && "px-2")}>
-            <button
-              onClick={() => {
-                // Handle logout
-                if (typeof window !== "undefined") {
-                  localStorage.removeItem("auth_token");
-                  localStorage.removeItem("client_token");
-                  window.location.href = "/auth";
-                }
-              }}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-red-600 hover:bg-red-50 hover:text-red-700",
-                collapsed && "justify-center"
-              )}
-              title={collapsed ? "Logout" : undefined}
-            >
-              <LogOut className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Logout</span>}
-            </button>
+          <div
+            className={cn(
+              "rounded-2xl border border-gray-200 bg-white shadow-sm",
+              collapsed && "flex justify-center py-2"
+            )}
+            aria-label="Point of contact"
+          >
+            {showPocCard && pocForCard ? (
+              <DedicatedPocSidebarCard poc={pocForCard} collapsed={collapsed} />
+            ) : (
+              <SupportAssistanceCard collapsed={collapsed} />
+            )}
           </div>
-        </div>
+        </nav>
       </div>
     </>
   );

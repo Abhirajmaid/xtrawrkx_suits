@@ -21,6 +21,12 @@ import taskService from "../../lib/taskService";
 import projectService from "../../lib/projectService";
 import apiClient from "../../lib/apiClient";
 import { transformProject, formatDate } from "../../lib/dataTransformers";
+import {
+  PM_STATUS_SELECT_OPTIONS,
+  assertStatusChangeAllowed,
+  getEditableStatusOptions,
+  STATUS_REVERT_TO_ASSIGNED_MESSAGE,
+} from "../../lib/taskStatusConstants";
 
 const TaskDetailModal = ({
   isOpen,
@@ -42,8 +48,6 @@ const TaskDetailModal = ({
     isOpen: false,
   });
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
-  const [shareConfirmedInModal, setShareConfirmedInModal] = useState(false);
-  const [showSharePrompt, setShowSharePrompt] = useState(false);
 
   // Update local task when prop changes (especially status and priority updates from parent)
   useEffect(() => {
@@ -62,22 +66,6 @@ const TaskDetailModal = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id, task?.status, task?.priority, task?.scheduledDate]);
-
-  useEffect(() => {
-    if (!task?.id) return;
-    if (typeof window === "undefined") return;
-    const key = `task-share-confirmed-${task.id}`;
-    setShareConfirmedInModal(window.localStorage.getItem(key) === "1");
-  }, [task?.id]);
-
-  useEffect(() => {
-    if (!isOpen || !task?.id) return;
-    setShowSharePrompt(false);
-    const timer = setTimeout(() => {
-      setShowSharePrompt(true);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [isOpen, task?.id]);
 
   // Load projects and users
   useEffect(() => {
@@ -159,8 +147,20 @@ const TaskDetailModal = ({
 
   // Helper functions
   const getStatusColor = (status) => {
-    const statusLower = (status || "To Do")?.toLowerCase().replace(/\s+/g, "-");
+    const statusLower = (status || "Assigned")
+      ?.toLowerCase()
+      .replace(/\s+/g, "-");
     const statusColors = {
+      assigned: {
+        bg: "bg-blue-100",
+        text: "text-blue-800",
+        border: "border-blue-400",
+      },
+      accepted: {
+        bg: "bg-teal-100",
+        text: "text-teal-800",
+        border: "border-teal-400",
+      },
       "to-do": {
         bg: "bg-blue-100",
         text: "text-blue-800",
@@ -171,10 +171,30 @@ const TaskDetailModal = ({
         text: "text-yellow-800",
         border: "border-yellow-400",
       },
+      "on-hold": {
+        bg: "bg-orange-100",
+        text: "text-orange-800",
+        border: "border-orange-400",
+      },
+      "pending-review": {
+        bg: "bg-purple-100",
+        text: "text-purple-800",
+        border: "border-purple-400",
+      },
+      "revision-required": {
+        bg: "bg-amber-100",
+        text: "text-amber-800",
+        border: "border-amber-400",
+      },
       "in-review": {
         bg: "bg-purple-100",
         text: "text-purple-800",
         border: "border-purple-400",
+      },
+      "waiting-for-client": {
+        bg: "bg-indigo-100",
+        text: "text-indigo-800",
+        border: "border-indigo-400",
       },
       done: {
         bg: "bg-green-100",
@@ -243,6 +263,12 @@ const TaskDetailModal = ({
     if (!localTask?.id) return;
     const taskId = localTask.id;
     const oldStatus = localTask.status;
+
+    const guard = assertStatusChangeAllowed(oldStatus, newStatus);
+    if (!guard.ok) {
+      alert(guard.message || STATUS_REVERT_TO_ASSIGNED_MESSAGE);
+      return;
+    }
 
     // Update local state immediately for instant feedback (optimistic update)
     setLocalTask((prev) => ({ ...prev, status: newStatus }));
@@ -402,10 +428,12 @@ const TaskDetailModal = ({
   const handleToggleComplete = async () => {
     if (!localTask?.id) return;
     const isCurrentlyComplete =
+      localTask.status === "Completed" ||
       localTask.status === "Done" ||
       localTask.status === "COMPLETED" ||
-      localTask.status?.toLowerCase() === "done";
-    const newStatus = isCurrentlyComplete ? "To Do" : "Done";
+      localTask.status?.toLowerCase() === "done" ||
+      localTask.status?.toLowerCase() === "completed";
+    const newStatus = isCurrentlyComplete ? "In Progress" : "Completed";
 
     // Trigger confetti animation only when completing (not uncompleting)
     if (!isCurrentlyComplete) {
@@ -426,17 +454,6 @@ const TaskDetailModal = ({
         isSharedWithClient: nextValue,
       });
 
-      if (typeof window !== "undefined") {
-        const key = `task-share-confirmed-${safeTask.id}`;
-        if (nextValue) {
-          window.localStorage.setItem(key, "1");
-          setShareConfirmedInModal(true);
-        } else {
-          window.localStorage.removeItem(key);
-          setShareConfirmedInModal(false);
-        }
-      }
-
       if (onTaskRefresh) {
         await onTaskRefresh();
       }
@@ -445,13 +462,6 @@ const TaskDetailModal = ({
       console.error("Error updating task share status:", error);
       setLocalTask((prev) => ({ ...prev, isSharedWithClient: previousValue }));
       return false;
-    }
-  };
-
-  const handleSharePromptDecision = async (nextValue) => {
-    const updated = await handleShareToggle(nextValue);
-    if (updated) {
-      setShowSharePrompt(false);
     }
   };
 
@@ -497,9 +507,11 @@ const TaskDetailModal = ({
   };
 
   const isComplete =
+    safeTask.status === "Completed" ||
     safeTask.status === "Done" ||
     safeTask.status === "COMPLETED" ||
-    safeTask.status?.toLowerCase() === "done";
+    safeTask.status?.toLowerCase() === "done" ||
+    safeTask.status?.toLowerCase() === "completed";
 
   // const getStatusColor = (status) => {
   //   switch (status) {
@@ -605,33 +617,7 @@ const TaskDetailModal = ({
         </div>
 
         {/* Content - Single scroll for whole modal body */}
-        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 relative">
-          {showSharePrompt && (
-            <div className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-4">
-              <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl p-5">
-                <h3 className="text-base font-semibold text-gray-900">
-                  Share this task with client?
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Do you want to share this task with the client?
-                </p>
-                <div className="flex items-center gap-3 mt-4">
-                  <button
-                    onClick={() => handleSharePromptDecision(false)}
-                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
-                  >
-                    Keep Internal
-                  </button>
-                  <button
-                    onClick={() => handleSharePromptDecision(true)}
-                    className="flex-1 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 text-sm font-medium"
-                  >
-                    Share with Client
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
           {/* Task Details Card - Matching lead-companies detail page */}
           <div className="px-4 py-4">
             <div className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-xl border border-white/30 shadow-xl p-4">
@@ -661,9 +647,7 @@ const TaskDetailModal = ({
                     <p className="text-xs text-gray-600 mt-1">
                       {safeTask.isSharedWithClient
                         ? "Shared with Client"
-                        : shareConfirmedInModal
-                          ? "Internal Only"
-                          : "Do you want to share this task with the client?"}
+                        : "Internal Only"}
                     </p>
                   </div>
                   <button
@@ -784,6 +768,19 @@ const TaskDetailModal = ({
                       </div>
                     </div>
 
+                    {/* Time Allotted */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Time allotted (hrs)
+                      </label>
+                      <p className="mt-1 text-gray-900">
+                        {safeTask.timeAllotted != null &&
+                        safeTask.timeAllotted !== ""
+                          ? `${safeTask.timeAllotted} hrs`
+                          : "Not set"}
+                      </p>
+                    </div>
+
                     {/* Due Date */}
                     <div>
                       <label className="text-sm font-medium text-gray-500">
@@ -861,25 +858,26 @@ const TaskDetailModal = ({
                               editingValue,
                             )}`}
                           >
-                            <option value="To Do">To Do</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Internal Review">
-                              Internal Review
-                            </option>
-                            <option value="Done">Done</option>
-                            <option value="Cancelled">Cancelled</option>
+                            {getEditableStatusOptions(
+                              safeTask.status,
+                              PM_STATUS_SELECT_OPTIONS,
+                            ).map((opt) => (
+                              <option key={opt.value} value={opt.label}>
+                                {opt.label}
+                              </option>
+                            ))}
                           </select>
                         ) : (
                           <span
                             onClick={() => {
-                              setEditingValue(safeTask.status || "To Do");
+                              setEditingValue(safeTask.status || "Assigned");
                               setEditingField("status");
                             }}
                             className={`inline-block px-3 py-1.5 rounded-lg border-2 font-bold text-xs cursor-pointer hover:shadow-md transition-all ${getStatusColor(
                               safeTask.status,
                             )}`}
                           >
-                            {safeTask.status || "To Do"}
+                            {safeTask.status || "Assigned"}
                           </span>
                         )}
                       </div>

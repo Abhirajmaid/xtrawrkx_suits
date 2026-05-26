@@ -50,6 +50,11 @@ import {
   transformStatusToStrapi,
   transformPriorityToStrapi,
 } from "../../../lib/dataTransformers";
+import {
+  assertStatusChangeAllowed,
+  getEditableStatusOptionsByLabel,
+  STATUS_REVERT_TO_ASSIGNED_MESSAGE,
+} from "../../../lib/taskStatusConstants";
 import SubtaskDetailModal from "../../../components/shared/SubtaskDetailModal";
 
 export default function TaskDetailPage({ params: paramsProp }) {
@@ -75,9 +80,6 @@ export default function TaskDetailPage({ params: paramsProp }) {
   const [editingValue, setEditingValue] = useState("");
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [shareConfirmedInModal, setShareConfirmedInModal] = useState(false);
-  const [showSharePrompt, setShowSharePrompt] = useState(false);
-
   // Subtask table state
   const [subtaskSearchQuery, setSubtaskSearchQuery] = useState("");
   const [editingSubtaskId, setEditingSubtaskId] = useState(null);
@@ -258,21 +260,6 @@ export default function TaskDetailPage({ params: paramsProp }) {
       loadTask();
     }
   }, [params]);
-
-  useEffect(() => {
-    if (!task?.id || typeof window === "undefined") return;
-    const key = `task-share-confirmed-${task.id}`;
-    setShareConfirmedInModal(window.localStorage.getItem(key) === "1");
-  }, [task?.id]);
-
-  useEffect(() => {
-    if (!task?.id) return;
-    setShowSharePrompt(false);
-    const timer = setTimeout(() => {
-      setShowSharePrompt(true);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [task?.id]);
 
   // Load projects and users
   useEffect(() => {
@@ -522,6 +509,13 @@ export default function TaskDetailPage({ params: paramsProp }) {
 
   const handleStatusUpdate = async (newStatus) => {
     if (!task) return;
+
+    const guard = assertStatusChangeAllowed(task.status, newStatus);
+    if (!guard.ok) {
+      alert(guard.message || STATUS_REVERT_TO_ASSIGNED_MESSAGE);
+      return;
+    }
+
     try {
       const strapiStatus = transformStatusToStrapi(newStatus);
       await taskService.updateTask(task.id, {
@@ -603,29 +597,11 @@ export default function TaskDetailPage({ params: paramsProp }) {
       await taskService.updateTask(task.id, {
         isSharedWithClient: nextValue,
       });
-
-      if (typeof window !== "undefined") {
-        const key = `task-share-confirmed-${task.id}`;
-        if (nextValue) {
-          window.localStorage.setItem(key, "1");
-          setShareConfirmedInModal(true);
-        } else {
-          window.localStorage.removeItem(key);
-          setShareConfirmedInModal(false);
-        }
-      }
       return true;
     } catch (error) {
       console.error("Error updating client sharing:", error);
       setTask((prev) => ({ ...prev, isSharedWithClient: previous }));
       return false;
-    }
-  };
-
-  const handleSharePromptDecision = async (nextValue) => {
-    const updated = await handleTaskShareToggle(nextValue);
-    if (updated) {
-      setShowSharePrompt(false);
     }
   };
 
@@ -1563,32 +1539,6 @@ export default function TaskDetailPage({ params: paramsProp }) {
   return (
     <div className="min-h-screen bg-white">
       <div className="p-4 space-y-4">
-        {showSharePrompt && (
-          <div className="fixed inset-0 z-[70] bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-6">
-            <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-2xl p-5">
-              <h3 className="text-base font-semibold text-gray-900">
-                Share this task with client?
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Do you want to share this task with the client?
-              </p>
-              <div className="flex items-center gap-3 mt-4">
-                <button
-                  onClick={() => handleSharePromptDecision(false)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
-                >
-                  Keep Internal
-                </button>
-                <button
-                  onClick={() => handleSharePromptDecision(true)}
-                  className="flex-1 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 text-sm font-medium"
-                >
-                  Share with Client
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         <PageHeader
           title={task.name}
           subtitle={`${
@@ -1680,9 +1630,7 @@ export default function TaskDetailPage({ params: paramsProp }) {
                       <p className="text-xs text-gray-600 mt-1">
                         {task.isSharedWithClient
                           ? "Shared with Client"
-                          : shareConfirmedInModal
-                            ? "Internal Only"
-                            : "Do you want to share this task with the client?"}
+                          : "Internal Only"}
                       </p>
                     </div>
                     <button
@@ -1869,15 +1817,13 @@ export default function TaskDetailPage({ params: paramsProp }) {
                             editingValue,
                           )}`}
                         >
-                          <option value="To Do">To Do</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Internal Review">
-                            Internal Review
-                          </option>
-                          <option value="Client Review">Client Review</option>
-                          <option value="Approved">Approved</option>
-                          <option value="Done">Done</option>
-                          <option value="Cancelled">Cancelled</option>
+                          {getEditableStatusOptionsByLabel(
+                            task?.status || "Assigned",
+                          ).map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </select>
                       ) : (
                         <span

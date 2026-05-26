@@ -70,6 +70,26 @@ module.exports = {
             },
         },
         {
+            method: 'GET',
+            path: '/auth/client/dedicated-poc',
+            handler: 'auth.getClientDedicatedPoc',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: 'GET',
+            path: '/auth/client/documents',
+            handler: 'auth.getClientPortalDocuments',
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
             method: 'POST',
             path: '/auth/request-reset',
             handler: 'auth.requestPasswordReset',

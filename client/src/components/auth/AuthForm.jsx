@@ -3,6 +3,13 @@
 import { useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
 import Button from "../common/Button";
+import SearchableSelect from "../common/SearchableSelect";
+import { FormSkipLink, SignupStepNav } from "./FormNavButtons";
+import {
+  COMPANY_TYPES,
+  getSubTypesForCompanyType,
+  INDUSTRIES,
+} from "@/src/data/companyRegistrationOptions";
 import { usePublicAuth } from "@/src/contexts/PublicAuthContext";
 import { commonToasts, toastUtils } from "@/src/utils/toast";
 
@@ -56,6 +63,7 @@ export default function AuthForm({
   const [loginData, setLoginData] = useState(loginInitialState);
   const [signupData, setSignupData] = useState(signupInitialState);
   const [signupStep, setSignupStep] = useState(0);
+  const [skippedSteps, setSkippedSteps] = useState({ address: false, social: false });
   const [localError, setLocalError] = useState("");
   const signupSteps = [
     "Personal",
@@ -79,6 +87,7 @@ export default function AuthForm({
     setLocalError("");
     setMode(nextMode);
     setSignupStep(0);
+    setSkippedSteps({ address: false, social: false });
   };
 
   const handleLoginChange = (event) => {
@@ -91,12 +100,41 @@ export default function AuthForm({
     setSignupData((current) => ({ ...current, [name]: value }));
   };
 
-  const validateSignup = () => {
+  const handleSignupSelectChange = (event) => {
+    const { name, value } = event.target;
+    if (name === "companyType") {
+      setSignupData((current) => ({
+        ...current,
+        companyType: value,
+        companySubType: "",
+      }));
+      return;
+    }
+    setSignupData((current) => ({ ...current, [name]: value }));
+  };
+
+  const companySubTypeOptions = useMemo(
+    () => getSubTypesForCompanyType(signupData.companyType),
+    [signupData.companyType]
+  );
+
+  const validateSignup = ({ addressSkipped, socialSkipped } = {}) => {
+    const addressStepSkipped = addressSkipped ?? skippedSteps.address;
+    const socialStepSkipped = socialSkipped ?? skippedSteps.social;
+
     if (!signupData.firstName.trim() || !signupData.lastName.trim()) return "Please complete your personal details.";
     if (!signupData.email.trim() || !signupData.password.trim()) return "Please provide your account email and password.";
     if (!signupData.companyName.trim() || !signupData.companyEmail.trim() || !signupData.industry.trim()) return "Please complete required company details.";
-    if (!signupData.addressLine1.trim() || !signupData.city.trim() || !signupData.country.trim()) return "Please complete required address details.";
-    if (!signupData.jobTitle.trim() || !signupData.lookingFor.trim()) return "Please complete the required account fields.";
+    if (
+      !addressStepSkipped &&
+      (!signupData.addressLine1.trim() || !signupData.city.trim() || !signupData.country.trim())
+    ) {
+      return "Please complete required address details.";
+    }
+    if (!signupData.jobTitle.trim()) return "Please complete your role / title.";
+    if (!socialStepSkipped && !signupData.lookingFor.trim()) {
+      return "Please share what you are looking for in the ecosystem.";
+    }
     if (signupData.password.length < 6) {
       return "Password must be at least 6 characters long.";
     }
@@ -104,42 +142,31 @@ export default function AuthForm({
     return "";
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const completeSignup = async ({ addressSkipped, socialSkipped } = {}) => {
     clearError();
     setLocalError("");
 
+    const validationError = validateSignup({ addressSkipped, socialSkipped });
+    if (validationError) {
+      setLocalError(validationError);
+      return;
+    }
+
     try {
-      if (isSignup) {
-        const validationError = validateSignup();
-        if (validationError) {
-          setLocalError(validationError);
-          return;
-        }
-
-        const signupResult = await signUp({
-          ...signupData,
-          company: signupData.companyName || signupData.company,
-          location:
-            signupData.location ||
-            [signupData.city, signupData.state, signupData.country]
-              .filter(Boolean)
-              .join(", "),
-        });
-        commonToasts.saveSuccess();
-        if (signupResult?.clientAccountSetup?.ok === false) {
-          toastUtils.warning(
-            `${signupResult.clientAccountSetup.error} Open your profile and use Retry Setup.`
-          );
-        }
-      } else {
-        if (!loginData.email.trim() || !loginData.password.trim()) {
-          setLocalError("Please enter your email and password.");
-          return;
-        }
-
-        await signIn(loginData.email, loginData.password);
-        commonToasts.loginSuccess();
+      const signupResult = await signUp({
+        ...signupData,
+        company: signupData.companyName || signupData.company,
+        location:
+          signupData.location ||
+          [signupData.city, signupData.state, signupData.country]
+            .filter(Boolean)
+            .join(", "),
+      });
+      commonToasts.saveSuccess();
+      if (signupResult?.clientAccountSetup?.ok === false) {
+        toastUtils.warning(
+          `${signupResult.clientAccountSetup.error} Open your profile and use Retry Setup.`
+        );
       }
 
       if (onSuccess) {
@@ -149,6 +176,36 @@ export default function AuthForm({
       }
 
       onClose?.();
+    } catch (submitError) {
+      setLocalError(submitError.message || "Unable to continue right now.");
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    clearError();
+    setLocalError("");
+
+    try {
+      if (isSignup) {
+        await completeSignup();
+      } else {
+        if (!loginData.email.trim() || !loginData.password.trim()) {
+          setLocalError("Please enter your email and password.");
+          return;
+        }
+
+        await signIn(loginData.email, loginData.password);
+        commonToasts.loginSuccess();
+
+        if (onSuccess) {
+          onSuccess();
+        } else if (isPage && typeof window !== "undefined") {
+          window.location.href = POST_AUTH_PAGE_PATH;
+        }
+
+        onClose?.();
+      }
     } catch (submitError) {
       setLocalError(submitError.message || "Unable to continue right now.");
     }
@@ -166,10 +223,12 @@ export default function AuthForm({
         return "Please complete all required company fields.";
       }
     }
-    if (signupStep === 2) {
-      if (!signupData.addressLine1.trim() || !signupData.city.trim() || !signupData.country.trim()) return "Please complete required address fields.";
+    if (signupStep === 2 && !skippedSteps.address) {
+      if (!signupData.addressLine1.trim() || !signupData.city.trim() || !signupData.country.trim()) {
+        return "Please complete required address fields.";
+      }
     }
-    if (signupStep === 3 && !signupData.lookingFor.trim()) {
+    if (signupStep === 3 && !skippedSteps.social && !signupData.lookingFor.trim()) {
       return "Please share what you are looking for in the ecosystem.";
     }
     return "";
@@ -185,7 +244,31 @@ export default function AuthForm({
     setSignupStep((current) => Math.min(current + 1, signupSteps.length - 1));
   };
 
+  const goBackSignupStep = () => {
+    setLocalError("");
+    if (signupStep === 3) {
+      setSkippedSteps((steps) => ({ ...steps, social: false }));
+    }
+    if (signupStep === 2) {
+      setSkippedSteps((steps) => ({ ...steps, address: false }));
+    }
+    setSignupStep((current) => Math.max(current - 1, 0));
+  };
+
+  const skipAddressStep = () => {
+    setLocalError("");
+    setSkippedSteps((steps) => ({ ...steps, address: true }));
+    setSignupStep(3);
+  };
+
+  const skipSocialStep = async () => {
+    setLocalError("");
+    setSkippedSteps((steps) => ({ ...steps, social: true }));
+    await completeSignup({ socialSkipped: true });
+  };
+
   const isSignupLastStep = signupStep === signupSteps.length - 1;
+  const showSkipButton = signupStep === 2 || signupStep === 3;
 
   const surfaceClassName = isPage
     ? "w-full overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-[0_32px_80px_rgba(15,23,42,0.14)] backdrop-blur"
@@ -326,10 +409,37 @@ export default function AuthForm({
                 {signupStep === 1 && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Company name *</span><input name="companyName" value={signupData.companyName} onChange={handleSignupChange} className="input" placeholder="Enter company name" /></label>
-                    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Industry *</span><input name="industry" value={signupData.industry} onChange={handleSignupChange} className="input" placeholder="Technology" /></label>
+                    <SearchableSelect
+                      className="block"
+                      label="Industry"
+                      name="industry"
+                      value={signupData.industry}
+                      onChange={handleSignupSelectChange}
+                      options={INDUSTRIES}
+                      placeholder="Select industry"
+                      required
+                    />
                     <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Role / title *</span><input name="jobTitle" value={signupData.jobTitle} onChange={handleSignupChange} className="input" placeholder="Founder" /></label>
-                    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Company type</span><input name="companyType" value={signupData.companyType} onChange={handleSignupChange} className="input" placeholder="Private Ltd" /></label>
-                    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Sub-type</span><input name="companySubType" value={signupData.companySubType} onChange={handleSignupChange} className="input" placeholder="SaaS" /></label>
+                    <SearchableSelect
+                      className="block"
+                      label="Company type"
+                      name="companyType"
+                      value={signupData.companyType}
+                      onChange={handleSignupSelectChange}
+                      options={COMPANY_TYPES}
+                      placeholder="Select company type"
+                    />
+                    <SearchableSelect
+                      className="block"
+                      label="Sub-type"
+                      name="companySubType"
+                      value={signupData.companySubType}
+                      onChange={handleSignupSelectChange}
+                      options={companySubTypeOptions}
+                      placeholder="Select sub-type"
+                      disabledPlaceholder="Select company type first"
+                      disabled={!signupData.companyType}
+                    />
                     <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Company email *</span><input name="companyEmail" type="email" value={signupData.companyEmail} onChange={handleSignupChange} className="input" placeholder="contact@company.com" /></label>
                     <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Company phone</span><input name="companyPhone" value={signupData.companyPhone} onChange={handleSignupChange} className="input" placeholder="+1 (555) 123-4567" /></label>
                     <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Website</span><input name="website" value={signupData.website} onChange={handleSignupChange} className="input" placeholder="https://company.com" /></label>
@@ -339,21 +449,27 @@ export default function AuthForm({
 
                 {signupStep === 2 && (
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Address line 1 *</span><input name="addressLine1" value={signupData.addressLine1} onChange={handleSignupChange} className="input" placeholder="Street address" /></label>
+                    <p className="sm:col-span-2 text-xs text-slate-500">
+                      Address details are optional — you can complete them later using Skip for Now.
+                    </p>
+                    <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Address line 1</span><input name="addressLine1" value={signupData.addressLine1} onChange={handleSignupChange} className="input" placeholder="Street address" /></label>
                     <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Address line 2</span><input name="addressLine2" value={signupData.addressLine2} onChange={handleSignupChange} className="input" placeholder="Suite / floor (optional)" /></label>
-                    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">City *</span><input name="city" value={signupData.city} onChange={handleSignupChange} className="input" placeholder="Toronto" /></label>
+                    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">City</span><input name="city" value={signupData.city} onChange={handleSignupChange} className="input" placeholder="Toronto" /></label>
                     <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">State / region</span><input name="state" value={signupData.state} onChange={handleSignupChange} className="input" placeholder="Ontario" /></label>
-                    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Country *</span><input name="country" value={signupData.country} onChange={handleSignupChange} className="input" placeholder="Canada" /></label>
+                    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Country</span><input name="country" value={signupData.country} onChange={handleSignupChange} className="input" placeholder="Canada" /></label>
                     <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Postal code</span><input name="postalCode" value={signupData.postalCode} onChange={handleSignupChange} className="input" placeholder="M5V 2T6" /></label>
                   </div>
                 )}
 
                 {signupStep === 3 && (
                   <div className="grid gap-4 sm:grid-cols-2">
+                    <p className="sm:col-span-2 text-xs text-slate-500">
+                      Social and additional details are optional — add them now or skip and update your profile later.
+                    </p>
                     <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">LinkedIn</span><input name="linkedin" value={signupData.linkedin} onChange={handleSignupChange} className="input" placeholder="linkedin.com/in/username" /></label>
                     <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">X / Twitter</span><input name="xProfile" value={signupData.xProfile} onChange={handleSignupChange} className="input" placeholder="x.com/username" /></label>
                     <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Interests & focus areas</span><input name="interests" value={signupData.interests} onChange={handleSignupChange} className="input" placeholder="Technologies, sectors, themes" /></label>
-                    <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">What are you looking for? *</span><textarea name="lookingFor" value={signupData.lookingFor} onChange={handleSignupChange} className="input min-h-24 resize-none" placeholder="Networking, hiring, funding, partnerships" /></label>
+                    <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">What are you looking for?</span><textarea name="lookingFor" value={signupData.lookingFor} onChange={handleSignupChange} className="input min-h-24 resize-none" placeholder="Networking, hiring, funding, partnerships" /></label>
                     <label className="block sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Short bio</span><textarea name="bio" value={signupData.bio} onChange={handleSignupChange} className="input min-h-24 resize-none" placeholder="Tell us a little about your work and goals." /></label>
                   </div>
                 )}
@@ -406,26 +522,15 @@ export default function AuthForm({
             ) : null}
 
             {isSignup ? (
-              <div className="flex items-center gap-3">
-                {signupStep > 0 ? (
-                  <Button
-                    text="Back"
-                    type="outline"
-                    className="w-full justify-center"
-                    onClick={() => setSignupStep((current) => Math.max(current - 1, 0))}
-                  />
-                ) : null}
-                <Button
-                  text={isSignupLastStep ? "Create Account" : "Continue"}
-                  type="primary"
-                  className="w-full justify-center"
-                  hideArrow={authBusy}
-                  disabled={authBusy}
-                  htmlType={isSignupLastStep ? "submit" : "button"}
-                  onClick={isSignupLastStep ? undefined : goToNextSignupStep}
-                  icon={authBusy ? "solar:loading-bold" : undefined}
-                />
-              </div>
+              <SignupStepNav
+                showBack={signupStep > 0}
+                onBack={goBackSignupStep}
+                continueText={isSignupLastStep ? "Create Account" : "Continue"}
+                htmlType={isSignupLastStep ? "submit" : "button"}
+                onContinue={isSignupLastStep ? undefined : goToNextSignupStep}
+                loading={authBusy}
+                disabled={authBusy}
+              />
             ) : (
               <Button
                 text="Login"
@@ -439,16 +544,24 @@ export default function AuthForm({
             )}
           </form>
 
-          <p className="mt-5 text-sm text-slate-500">
-            {isSignup ? "Already have an account?" : "Need an account?"}{" "}
-            <button
-              type="button"
-              className="font-medium text-brand-primary transition hover:text-brand-secondary"
-              onClick={() => handleModeChange(isSignup ? "login" : "signup")}
-            >
-              {isSignup ? "Sign in here" : "Register here"}
-            </button>
-          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-slate-500">
+            <p>
+              {isSignup ? "Already have an account?" : "Need an account?"}{" "}
+              <button
+                type="button"
+                className="font-medium text-brand-primary transition hover:text-brand-secondary"
+                onClick={() => handleModeChange(isSignup ? "login" : "signup")}
+              >
+                {isSignup ? "Sign in here" : "Register here"}
+              </button>
+            </p>
+            {isSignup && showSkipButton ? (
+              <FormSkipLink
+                onClick={signupStep === 2 ? skipAddressStep : skipSocialStep}
+                disabled={authBusy}
+              />
+            ) : null}
+          </div>
           {!isPage ? (
             <p className="mt-3 text-xs leading-6 text-slate-400">
               You can also continue on the full auth page at{" "}
