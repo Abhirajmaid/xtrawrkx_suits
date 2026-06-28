@@ -148,6 +148,20 @@ export const PublicAuthProvider = ({ children }) => {
     }
   };
 
+  const resetPassword = async (email) => {
+    setAuthBusy(true);
+    setError(null);
+
+    try {
+      await publicUserService.resetPassword(email);
+    } catch (nextError) {
+      setError(nextError.message);
+      throw nextError;
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
   const refreshUserData = async () => {
     if (!user) return null;
 
@@ -278,6 +292,7 @@ export const PublicAuthProvider = ({ children }) => {
       signIn,
       signUp,
       signOut,
+      resetPassword,
       refreshUserData,
       retryClientAccountSetup,
       updateUserProfile,

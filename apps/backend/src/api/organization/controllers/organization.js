@@ -10,6 +10,7 @@ const {
   canAccess,
   canManageAppSettings,
   canManageOrganizationProfile,
+  canManageOrganizationRoles,
   canManageOrganizationSecurity,
   relationId,
 } = require('../../../utils/rbac');
@@ -38,10 +39,10 @@ function getRolesAdminError(ctx, orgIdFromParams) {
   if (!ctx.state.effectivePermissions && !ctx.state.orgPermissions) {
     return 'Permissions are not available for this organization';
   }
-  if (canManageAppSettings(ctx)) {
+  if (canManageOrganizationRoles(ctx)) {
     return null;
   }
-  return 'Only users with manage access to CRM or PM settings can manage roles';
+  return 'Only organization admins can manage roles and permissions';
 }
 
 function buildRoleCode(name, organizationId) {
@@ -195,6 +196,8 @@ module.exports = createCoreController('api::organization.organization', ({ strap
           currentRoleCode: ctx.state.orgRoleCode || 'member',
           permissions: ctx.state.effectivePermissions || ctx.state.orgPermissions || rbac.normalizePermissions({}),
           canEditOrganizationSettings,
+          canManageOrganizationRoles: canManageOrganizationRoles(ctx),
+          canManageSecuritySettings: canManageOrganizationSecurity(ctx),
         },
       });
     } catch (error) {

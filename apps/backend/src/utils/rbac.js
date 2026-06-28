@@ -34,7 +34,14 @@ function normalizeRoleCode(role) {
 
 function isAdminRole(role) {
   const code = normalizeRoleCode(role);
-  return code === 'admin' || code.endsWith('-admin') || String(role?.name || '').toLowerCase() === 'admin';
+  const name = String(role?.name || '').trim().toLowerCase();
+  return (
+    code === 'admin' ||
+    code.endsWith('-admin') ||
+    name === 'admin' ||
+    name === 'organization admin' ||
+    name === 'platform admin'
+  );
 }
 
 /** Org role name/code from JWT middleware (organization-user.role). */
@@ -184,6 +191,13 @@ function canManageOrganizationSecurity(ctx) {
   return isAdminRole(orgRoleFromCtx(ctx));
 }
 
+/** Accounts roles & permissions — org Admin (or platform admin), or CRM/PM settings manage. */
+function canManageOrganizationRoles(ctx) {
+  if (ctx?.state?.platformAdminContext) return true;
+  if (isAdminRole(orgRoleFromCtx(ctx))) return true;
+  return canManageAppSettings(ctx);
+}
+
 function requireAppSettingsManage(ctx) {
   if (canManageAppSettings(ctx)) return null;
   return ctx.forbidden('You need manage access to CRM or PM settings');
@@ -211,6 +225,7 @@ module.exports = {
   canAccessPermissions,
   canManageAppSettings,
   canManageOrganizationProfile,
+  canManageOrganizationRoles,
   canManageOrganizationSecurity,
   getAccess,
   isAdminRole,

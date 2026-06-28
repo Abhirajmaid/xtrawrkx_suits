@@ -48,6 +48,10 @@ const loginInitialState = {
   password: "",
 };
 
+const forgotPasswordInitialState = {
+  email: "",
+};
+
 /** After login or signup on the standalone `/auth` page, always land on the public profile. */
 const POST_AUTH_PAGE_PATH = "/profile";
 
@@ -58,9 +62,11 @@ export default function AuthForm({
   isPage = false,
   redirectTo = "/profile",
 }) {
-  const { signIn, signUp, authBusy, error, clearError } = usePublicAuth();
+  const { signIn, signUp, resetPassword, authBusy, error, clearError } = usePublicAuth();
   const [mode, setMode] = useState(initialMode);
   const [loginData, setLoginData] = useState(loginInitialState);
+  const [forgotPasswordData, setForgotPasswordData] = useState(forgotPasswordInitialState);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [signupData, setSignupData] = useState(signupInitialState);
   const [signupStep, setSignupStep] = useState(0);
   const [skippedSteps, setSkippedSteps] = useState({ address: false, social: false });
@@ -73,26 +79,35 @@ export default function AuthForm({
   ];
 
   const isSignup = mode === "signup";
+  const isForgotPassword = mode === "forgot-password";
 
-  const activeTitle = useMemo(
-    () =>
-      isSignup
-        ? "Create your xtrawrkx account"
-        : "Sign in to your xtrawrkx account",
-    [isSignup]
-  );
+  const activeTitle = useMemo(() => {
+    if (isForgotPassword) return "Reset your password";
+    return isSignup
+      ? "Create your xtrawrkx account"
+      : "Sign in to your xtrawrkx account";
+  }, [isForgotPassword, isSignup]);
 
   const handleModeChange = (nextMode) => {
     clearError();
     setLocalError("");
+    setResetEmailSent(false);
     setMode(nextMode);
     setSignupStep(0);
     setSkippedSteps({ address: false, social: false });
+    if (nextMode === "login") {
+      setForgotPasswordData(forgotPasswordInitialState);
+    }
   };
 
   const handleLoginChange = (event) => {
     const { name, value } = event.target;
     setLoginData((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleForgotPasswordChange = (event) => {
+    const { name, value } = event.target;
+    setForgotPasswordData((current) => ({ ...current, [name]: value }));
   };
 
   const handleSignupChange = (event) => {
@@ -187,7 +202,15 @@ export default function AuthForm({
     setLocalError("");
 
     try {
-      if (isSignup) {
+      if (isForgotPassword) {
+        if (!forgotPasswordData.email.trim()) {
+          setLocalError("Please enter your email address.");
+          return;
+        }
+
+        await resetPassword(forgotPasswordData.email);
+        setResetEmailSent(true);
+      } else if (isSignup) {
         await completeSignup();
       } else {
         if (!loginData.email.trim() || !loginData.password.trim()) {
@@ -339,7 +362,9 @@ export default function AuthForm({
                 {activeTitle}
               </h3>
               <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
-                {isSignup
+                {isForgotPassword
+                  ? "Enter the email linked to your account and we will send reset instructions."
+                  : isSignup
                   ? "Set up your account to unlock your profile page and community routing."
                   : "Use your email and password to continue to your profile and community access."}
               </p>
@@ -356,33 +381,77 @@ export default function AuthForm({
             ) : null}
           </div>
 
-          <div className="mt-8 grid grid-cols-2 rounded-[1.15rem] border border-slate-200 bg-slate-50 p-1">
-            <button
-              type="button"
-              className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
-                !isSignup
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-              onClick={() => handleModeChange("login")}
-            >
-              I already have an account
-            </button>
-            <button
-              type="button"
-              className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
-                isSignup
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-              onClick={() => handleModeChange("signup")}
-            >
-              I need to register
-            </button>
-          </div>
+          {!isForgotPassword ? (
+            <div className="mt-8 grid grid-cols-2 rounded-[1.15rem] border border-slate-200 bg-slate-50 p-1">
+              <button
+                type="button"
+                className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
+                  !isSignup
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+                onClick={() => handleModeChange("login")}
+              >
+                I already have an account
+              </button>
+              <button
+                type="button"
+                className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
+                  isSignup
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+                onClick={() => handleModeChange("signup")}
+              >
+                I need to register
+              </button>
+            </div>
+          ) : null}
 
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {isSignup ? (
+            {isForgotPassword ? (
+              resetEmailSent ? (
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-center shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <Icon icon="solar:letter-bold" width={28} />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">Check your email</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    If an account exists for{" "}
+                    <span className="font-medium text-slate-900">
+                      {forgotPasswordData.email}
+                    </span>
+                    , you will receive password reset instructions shortly.
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Did not receive it? Check your spam folder or try again with a different email.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-slate-900">Email address</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      We will send a link to reset your password.
+                    </p>
+                  </div>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">
+                      Email
+                    </span>
+                    <input
+                      name="email"
+                      type="email"
+                      value={forgotPasswordData.email}
+                      onChange={handleForgotPasswordChange}
+                      className="input"
+                      placeholder="alex@company.com"
+                      autoComplete="email"
+                    />
+                  </label>
+                </div>
+              )
+            ) : isSignup ? (
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
                 <div className="mb-5">
                   <div className="mb-3 flex items-center justify-between">
@@ -499,9 +568,24 @@ export default function AuthForm({
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-slate-700">
-                      Password
-                    </span>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-slate-700">
+                        Password
+                      </span>
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-brand-primary transition hover:text-brand-secondary"
+                        onClick={() => {
+                          setForgotPasswordData((current) => ({
+                            ...current,
+                            email: loginData.email,
+                          }));
+                          handleModeChange("forgot-password");
+                        }}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
                     <input
                       name="password"
                       type="password"
@@ -531,6 +615,26 @@ export default function AuthForm({
                 loading={authBusy}
                 disabled={authBusy}
               />
+            ) : isForgotPassword ? (
+              resetEmailSent ? (
+                <Button
+                  text="Back to sign in"
+                  type="secondary"
+                  className="w-full justify-center"
+                  htmlType="button"
+                  onClick={() => handleModeChange("login")}
+                />
+              ) : (
+                <Button
+                  text="Send reset link"
+                  type="primary"
+                  className="w-full justify-center"
+                  hideArrow={authBusy}
+                  disabled={authBusy}
+                  htmlType="submit"
+                  icon={authBusy ? "solar:loading-bold" : undefined}
+                />
+              )
             ) : (
               <Button
                 text="Login"
@@ -545,16 +649,46 @@ export default function AuthForm({
           </form>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-slate-500">
-            <p>
-              {isSignup ? "Already have an account?" : "Need an account?"}{" "}
-              <button
-                type="button"
-                className="font-medium text-brand-primary transition hover:text-brand-secondary"
-                onClick={() => handleModeChange(isSignup ? "login" : "signup")}
-              >
-                {isSignup ? "Sign in here" : "Register here"}
-              </button>
-            </p>
+            {isForgotPassword ? (
+              resetEmailSent ? (
+                <p>
+                  Need a different email?{" "}
+                  <button
+                    type="button"
+                    className="font-medium text-brand-primary transition hover:text-brand-secondary"
+                    onClick={() => {
+                      setResetEmailSent(false);
+                      setLocalError("");
+                      clearError();
+                    }}
+                  >
+                    Try again
+                  </button>
+                </p>
+              ) : (
+                <p>
+                  Remembered your password?{" "}
+                  <button
+                    type="button"
+                    className="font-medium text-brand-primary transition hover:text-brand-secondary"
+                    onClick={() => handleModeChange("login")}
+                  >
+                    Back to sign in
+                  </button>
+                </p>
+              )
+            ) : (
+              <p>
+                {isSignup ? "Already have an account?" : "Need an account?"}{" "}
+                <button
+                  type="button"
+                  className="font-medium text-brand-primary transition hover:text-brand-secondary"
+                  onClick={() => handleModeChange(isSignup ? "login" : "signup")}
+                >
+                  {isSignup ? "Sign in here" : "Register here"}
+                </button>
+              </p>
+            )}
             {isSignup && showSkipButton ? (
               <FormSkipLink
                 onClick={signupStep === 2 ? skipAddressStep : skipSocialStep}

@@ -1,50 +1,42 @@
 import { NextResponse } from 'next/server';
 import { CMS_CONFIG } from '@/src/config/cms';
 
-const STRAPI_API_URL = CMS_CONFIG.STRAPI_API_URL || process.env.NEXT_PUBLIC_STRAPI_API_URL || 'http://localhost:1337/api';
+const STRAPI_API_URL = CMS_CONFIG.STRAPI_API_URL;
+
+function strapiBaseUrl() {
+    return STRAPI_API_URL.endsWith('/') ? STRAPI_API_URL.slice(0, -1) : STRAPI_API_URL;
+}
 
 export async function POST(request) {
     try {
         const body = await request.json();
-        // CRM portal uses 'email' instead of 'identifier'
         const { email, password, identifier } = body;
+        const userIdentifier = identifier || email;
 
-        // Support both 'email' and 'identifier' for compatibility
-        const userEmail = email || identifier;
-
-        if (!userEmail || !password) {
+        if (!userIdentifier || !password) {
             return NextResponse.json(
                 { error: 'Email and password are required' },
                 { status: 400 }
             );
         }
 
-        // Construct endpoint URL - using /api/auth/internal/login (same as CRM portal)
-        const baseUrl = STRAPI_API_URL.endsWith('/')
-            ? STRAPI_API_URL.slice(0, -1)
-            : STRAPI_API_URL;
-
-        const authEndpoint = `${baseUrl}/auth/internal/login`;
-
-        // Proxy request to Strapi backend
-        const response = await fetch(authEndpoint, {
+        const response = await fetch(`${strapiBaseUrl()}/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                Accept: 'application/json',
             },
             body: JSON.stringify({
-                email: userEmail,
+                identifier: userIdentifier,
                 password,
             }),
         });
 
-        // Parse JSON response
         let data;
         try {
             data = await response.json();
         } catch (parseError) {
-            console.error('Failed to parse response:', parseError);
+            console.error('Failed to parse Strapi login response:', parseError);
             return NextResponse.json(
                 {
                     error: 'Invalid response from authentication server',
@@ -55,25 +47,23 @@ export async function POST(request) {
         }
 
         if (!response.ok) {
-            // Extract error message from various possible response structures
             const errorMessage =
                 data.error?.message ||
                 (typeof data.error === 'string' ? data.error : null) ||
                 data.message ||
                 'Authentication failed. Please try again.';
 
-            return NextResponse.json(
-                { error: errorMessage },
-                { status: response.status }
-            );
+            return NextResponse.json({ error: errorMessage }, { status: response.status });
         }
 
-        // Return response in format compatible with both token and jwt
-        return NextResponse.json({
-            jwt: data.token || data.jwt,
-            token: data.token || data.jwt,
-            user: data.user,
-        }, { status: 200 });
+        return NextResponse.json(
+            {
+                jwt: data.token || data.jwt,
+                token: data.token || data.jwt,
+                user: data.user,
+            },
+            { status: 200 }
+        );
     } catch (error) {
         console.error('Login API error:', error);
         return NextResponse.json(
@@ -85,4 +75,3 @@ export async function POST(request) {
         );
     }
 }
-

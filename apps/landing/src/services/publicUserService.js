@@ -3,6 +3,7 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
@@ -324,6 +325,23 @@ export const publicUserService = {
       await signOut(auth);
     } catch (error) {
       throw new Error("Unable to sign out right now.");
+    }
+  },
+
+  async resetPassword(email) {
+    if (!isFirebaseAvailable()) {
+      throw new Error("Firebase is not available. Please check the app configuration.");
+    }
+
+    const normalizedEmail = email?.trim();
+    if (!normalizedEmail) {
+      throw new Error("Please enter your email address.");
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, normalizedEmail);
+    } catch (error) {
+      throw new Error(toErrorMessage(error, "Unable to send password reset email."));
     }
   },
 

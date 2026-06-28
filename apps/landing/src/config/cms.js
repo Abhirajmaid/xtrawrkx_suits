@@ -8,8 +8,13 @@ export const CMS_CONFIG = {
     // Admin configuration
     ADMIN_EMAILS: process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(',') || ['admin@xtrawrkx.com'],
 
-    // Strapi backend configuration
-    STRAPI_API_URL: 'https://xtrawrkxsuits-production.up.railway.app/api',
+    // Strapi backend — env overrides; local dev defaults to localhost
+    STRAPI_API_URL:
+        process.env.NEXT_PUBLIC_STRAPI_API_URL ||
+        process.env.STRAPI_API_URL ||
+        (process.env.NODE_ENV !== 'production'
+            ? 'http://localhost:1337/api'
+            : 'https://xtrawrkxsuits-production.up.railway.app/api'),
 
     // Firebase project configuration
     FIREBASE_CONFIG: {

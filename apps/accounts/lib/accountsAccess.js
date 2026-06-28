@@ -24,3 +24,8 @@ export function isOrganizationAdmin() {
   if (org && isAdminRoleShape({ code: org.roleCode, name: org.role })) return true
   return isAdminRoleShape(authService.getCurrentOrgRole())
 }
+
+/** Client-side hint for roles CRUD — server enforces via canManageOrganizationRoles. */
+export function canManageOrganizationRoles() {
+  return isOrganizationAdmin()
+}

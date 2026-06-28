@@ -13,6 +13,10 @@ import {
 } from "@/src/services/databaseService";
 import { CloudinaryService } from "@/src/services/cloudinaryService";
 import { formatEventDate } from "@/src/utils/dateUtils";
+import {
+  getRegistrationClosedMessage,
+  isRegistrationOpen,
+} from "@/src/utils/eventRegistration";
 import RegistrationSuccess from "@/src/components/common/RegistrationSuccess";
 import { commonToasts, toastUtils } from "@/src/utils/toast";
 import {
@@ -944,6 +948,15 @@ export default function SeasonRegistration({ params }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const selectedEventDetails = seasonEvents.filter((event) =>
+      formData.selectedEvents.includes(event.id)
+    );
+    const closedSelection = selectedEventDetails.find((event) => !isRegistrationOpen(event));
+    if (closedSelection) {
+      toastUtils.error(getRegistrationClosedMessage(closedSelection));
+      return;
+    }
+
     if (!validateForm()) {
       toastUtils.validationError(
         "Please correct the errors in the form before submitting."
@@ -1190,6 +1203,38 @@ export default function SeasonRegistration({ params }) {
             No upcoming events are available for registration in this season.
           </p>
           <Button text="Back to Events" type="primary" link="/events" />
+        </div>
+      </div>
+    );
+  }
+
+  const sourceEvent = fromEvent
+    ? seasonEvents.find((event) => event.slug === fromEvent)
+    : null;
+  const openSeasonEvents = seasonEvents.filter((event) => isRegistrationOpen(event));
+  const registrationBlocked = sourceEvent
+    ? !isRegistrationOpen(sourceEvent)
+    : openSeasonEvents.length === 0;
+
+  if (registrationBlocked) {
+    const closedMessage = sourceEvent
+      ? getRegistrationClosedMessage(sourceEvent)
+      : "Registration is closed for all events in this season.";
+    const backLink = sourceEvent ? `/events/${sourceEvent.slug}` : "/events";
+
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <Icon
+            icon="mdi:calendar-remove"
+            className="text-amber-500 mx-auto mb-4"
+            width={64}
+          />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Registration closed
+          </h3>
+          <p className="text-gray-600 mb-4">{closedMessage}</p>
+          <Button text="Back to event" type="primary" link={backLink} />
         </div>
       </div>
     );

@@ -8,6 +8,11 @@ import Button from "@/src/components/common/Button";
 import { Icon } from "@iconify/react";
 import { EventService, galleryService } from "@/src/services/databaseService";
 import { formatEventDate } from "@/src/utils/dateUtils";
+import {
+  getRegistrationClosedMessage,
+  isEventPast,
+  isRegistrationOpen,
+} from "@/src/utils/eventRegistration";
 
 export default function EventPage({ params }) {
   const { slug } = use(params);
@@ -19,25 +24,6 @@ export default function EventPage({ params }) {
   const [error, setError] = useState(null);
 
   const eventService = new EventService();
-
-  // Function to check if event is completed (past date)
-  const isEventCompleted = (eventDate) => {
-    if (!eventDate) return false;
-
-    const now = new Date();
-    const eventDateTime =
-      eventDate instanceof Date ? eventDate : new Date(eventDate);
-
-    // Set both dates to start of day for comparison
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const eventDay = new Date(
-      eventDateTime.getFullYear(),
-      eventDateTime.getMonth(),
-      eventDateTime.getDate()
-    );
-
-    return eventDay < today;
-  };
 
   // Auto-scroll effect for speakers
   useEffect(() => {
@@ -234,7 +220,9 @@ export default function EventPage({ params }) {
     );
   }
 
-  const eventCompleted = isEventCompleted(event.date);
+  const eventCompleted = isEventPast(event.date);
+  const registrationOpen = isRegistrationOpen(event);
+  const registrationClosedMessage = getRegistrationClosedMessage(event);
 
   const registerLink =
     event.season === "individual"
@@ -259,7 +247,7 @@ export default function EventPage({ params }) {
       `}</style>
 
       {/* Sticky mobile Register CTA */}
-      {!eventCompleted && (
+      {registrationOpen && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden">
           <a
             href={registerLink}
@@ -271,7 +259,7 @@ export default function EventPage({ params }) {
         </div>
       )}
 
-      <div className={`min-h-screen bg-white${!eventCompleted ? " pb-20 lg:pb-0" : ""}`}>
+      <div className={`min-h-screen bg-white${registrationOpen ? " pb-20 lg:pb-0" : ""}`}>
         {/* Hero Section */}
         <Section className="relative w-full h-[90vh] min-h-[600px] md:h-[70vh] md:min-h-[500px] flex items-center justify-center overflow-hidden p-0">
           {/* Background image */}
@@ -325,7 +313,7 @@ export default function EventPage({ params }) {
             </div>
 
             {/* Action buttons - conditional based on event status */}
-            {!eventCompleted && (
+            {registrationOpen && (
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   text="Event Registration"
@@ -461,6 +449,15 @@ export default function EventPage({ params }) {
                   <span className="font-medium">
                     This event has been completed
                   </span>
+                </div>
+              </div>
+            )}
+
+            {!eventCompleted && !registrationOpen && (
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 max-w-md mx-auto">
+                <div className="flex items-center gap-2 justify-center text-white text-center">
+                  <Icon icon="mdi:calendar-remove" width={24} />
+                  <span className="font-medium">{registrationClosedMessage}</span>
                 </div>
               </div>
             )}
@@ -1105,20 +1102,17 @@ export default function EventPage({ params }) {
 
                   {/* Action buttons - conditional based on event status */}
                   <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200">
-                    {!eventCompleted ? (
-                      <>
-                        <Button
-                          text="Event Registration"
-                          type="primary"
-                          className="w-full mb-3"
-                          link={registerLink}
-                        />
-                        {/* <Button
-                        text="Share Event"
-                        type="secondary"
-                        className="w-full"
-                      /> */}
-                      </>
+                    {registrationOpen ? (
+                      <Button
+                        text="Event Registration"
+                        type="primary"
+                        className="w-full mb-3"
+                        link={registerLink}
+                      />
+                    ) : !eventCompleted ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        {registrationClosedMessage}
+                      </div>
                     ) : (
                       <>
                         {event.gallery && event.gallery.length > 0 && (
@@ -1133,11 +1127,6 @@ export default function EventPage({ params }) {
                             }}
                           />
                         )}
-                        {/* <Button
-                        text="Share Event"
-                        type="secondary"
-                        className="w-full"
-                      /> */}
                       </>
                     )}
                   </div>
@@ -1236,12 +1225,16 @@ export default function EventPage({ params }) {
                 ))}
               </div>
               <div className="mt-4 md:mt-6">
-                <Button
-                  text={`Register for Season ${event.season}`}
-                  type="primary"
-                  link={`/events/season/${event.season}/register?from=${slug}`}
-                  className="bg-gradient-to-r from-brand-primary to-brand-secondary w-full md:w-[30%] mx-auto text-sm md:text-base"
-                />
+                {registrationOpen ? (
+                  <Button
+                    text={`Register for Season ${event.season}`}
+                    type="primary"
+                    link={`/events/season/${event.season}/register?from=${slug}`}
+                    className="bg-gradient-to-r from-brand-primary to-brand-secondary w-full md:w-[30%] mx-auto text-sm md:text-base"
+                  />
+                ) : (
+                  <p className="text-center text-sm text-gray-600">{registrationClosedMessage}</p>
+                )}
               </div>
             </Container>
           </Section>

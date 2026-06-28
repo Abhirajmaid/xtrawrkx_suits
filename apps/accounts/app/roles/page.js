@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Eye, Pencil, Plus, Shield, Trash2 } from 'lucide-react'
+import { AlertCircle, Eye, Pencil, Plus, Shield, Trash2 } from 'lucide-react'
 import {
   Button,
   Input,
@@ -13,7 +13,8 @@ import {
 } from '@webfudge/ui'
 import AccountsPageHeader from '../../components/AccountsPageHeader'
 import RoleTableCell from '../../components/RoleTableCell'
-import { rolesService } from '../../lib/api'
+import { canManageOrganizationRoles as clientCanManageRoles } from '../../lib/accountsAccess'
+import { organizationService, rolesService } from '../../lib/api'
 import { ACCESS_OPTIONS, CRM_MODULES, PM_MODULES, emptyPermissionsDraft } from '../../lib/constants/rbacMatrix'
 
 const ACCESS_RANK = { none: 0, read: 1, write: 2, manage: 3 }
@@ -106,9 +107,25 @@ function ModuleMatrix({ draft, label, appKey, modules, onChange, readOnly }) {
   )
 }
 
+function StatusBanner({ variant, children }) {
+  const styles =
+    variant === 'warning'
+      ? 'border-amber-200 bg-amber-50 text-amber-900'
+      : 'border-red-200 bg-red-50 text-red-800'
+
+  return (
+    <div className={`flex items-start gap-2 rounded-lg border px-4 py-3 text-sm ${styles}`}>
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <div>{children}</div>
+    </div>
+  )
+}
+
 export default function RolesPage() {
   const [roles, setRoles] = useState([])
   const [loading, setLoading] = useState(true)
+  const [canManageRoles, setCanManageRoles] = useState(false)
+  const [currentRole, setCurrentRole] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
 
@@ -125,6 +142,17 @@ export default function RolesPage() {
   const fetchRoles = useCallback(async () => {
     try {
       setLoading(true)
+      const clientAdmin = clientCanManageRoles()
+      try {
+        const orgResponse = await organizationService.getCurrent()
+        const org = orgResponse?.data ?? orgResponse
+        setCurrentRole(org?.currentRole || org?.currentRoleCode || '')
+        setCanManageRoles(Boolean(org?.canManageOrganizationRoles) || clientAdmin)
+      } catch (orgErr) {
+        setCanManageRoles(clientAdmin)
+        if (!clientAdmin) console.warn('Could not load organization access for roles', orgErr)
+      }
+
       const list = await rolesService.listForOrg()
       setRoles(Array.isArray(list) ? list : [])
     } catch (error) {
@@ -193,7 +221,16 @@ export default function RolesPage() {
     setFormError('')
   }
 
+  const openViewCustom = (role) => {
+    setDetailModal({ mode: 'view-custom', role })
+    setFormName(role.name || '')
+    setFormDescription(role.description || '')
+    setFormMatrix(clonePermissions(role.permissions))
+    setFormError('')
+  }
+
   const openCreate = () => {
+    if (!canManageRoles) return
     setDetailModal({ mode: 'create' })
     setFormName('')
     setFormDescription('')
@@ -202,6 +239,7 @@ export default function RolesPage() {
   }
 
   const openEditCustom = (role) => {
+    if (!canManageRoles) return
     setDetailModal({ mode: 'edit', role })
     setFormName(role.name || '')
     setFormDescription(role.description || '')
@@ -220,7 +258,7 @@ export default function RolesPage() {
   }
 
   const submitForm = async () => {
-    if (!detailModal) return
+    if (!detailModal || !canManageRoles) return
     const name = formName.trim()
     if (!name) {
       setFormError('Role name is required.')
@@ -253,7 +291,7 @@ export default function RolesPage() {
   }
 
   const confirmDelete = async () => {
-    if (!deleteRole?.id) return
+    if (!deleteRole?.id || !canManageRoles) return
     try {
       setDeleteSubmitting(true)
       await rolesService.delete(deleteRole.id)
@@ -337,7 +375,7 @@ export default function RolesPage() {
               >
                 <Eye className="w-4 h-4" />
               </Button>
-            ) : (
+            ) : canManageRoles ? (
               <>
                 <Button
                   variant="ghost"
@@ -364,15 +402,31 @@ export default function RolesPage() {
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                title="View permissions"
+                className="p-2 text-teal-600 hover:bg-teal-50"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  openViewCustom(role)
+                }}
+              >
+                <Eye className="w-4 h-4" />
+              </Button>
             )}
           </div>
         ),
       },
     ],
-    []
+    [canManageRoles]
   )
 
-  const readOnlyModal = Boolean(detailModal?.mode === 'view-system')
+  const readOnlyModal =
+    !canManageRoles ||
+    detailModal?.mode === 'view-system' ||
+    detailModal?.mode === 'view-custom'
 
   return (
     <div className="p-4 md:p-6 space-y-6 bg-white min-h-full">
@@ -420,15 +474,23 @@ export default function RolesPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search roles..."
-          showAdd
+          showAdd={canManageRoles}
           onAddClick={openCreate}
           addTitle="Add Custom Role"
         />
       </div>
 
+      {!canManageRoles ? (
+        <StatusBanner variant="warning">
+          You have read-only access to roles and permissions
+          {currentRole ? ` (signed in as ${currentRole})` : ''}. Contact an organization Admin to create or edit
+          custom roles.
+        </StatusBanner>
+      ) : null}
+
       <p className="text-xs text-gray-500">
         System roles ship with recommended CRM and PM access. Custom roles are stored only for the active organization
-        and can be assigned when inviting or editing users (admins only for create / edit / delete).
+        and can be assigned when inviting or editing users (organization Admins only for create / edit / delete).
       </p>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -444,10 +506,12 @@ export default function RolesPage() {
                 <Shield className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                 <h3 className="text-lg font-semibold text-gray-700 mb-2">No roles match your filters</h3>
                 <p className="text-sm text-gray-500 mb-4">Try another tab or search term, or add a custom role.</p>
-                <Button variant="primary" onClick={openCreate}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Custom Role
-                </Button>
+                {canManageRoles ? (
+                  <Button variant="primary" onClick={openCreate}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Custom Role
+                  </Button>
+                ) : null}
               </div>
             )}
           </>
@@ -462,7 +526,9 @@ export default function RolesPage() {
             ? 'Add Custom Role'
             : detailModal?.mode === 'edit'
               ? 'Edit Custom Role'
-              : 'System role — permissions'
+              : detailModal?.mode === 'view-custom'
+                ? 'Custom role — permissions'
+                : 'System role — permissions'
         }
         size="lg"
         closeOnBackdrop={!formSaving}

@@ -23,7 +23,7 @@ The Accounts app **Roles & Permissions** page is now functional: organization me
 | Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/api/organizations/:id/roles` | List system + custom roles with normalized permissions |
-| POST | `/api/organizations/:id/roles` | Create custom role (**Admin**, org context matches header) |
+| POST | `/api/organizations/:id/roles` | Create custom role (**organization Admin** or CRM/PM settings manage) |
 | PATCH | `/api/organizations/:id/roles/:roleId` | Update custom role |
 | DELETE | `/api/organizations/:id/roles/:roleId` | Delete unused custom role |
 | PATCH | `/api/organizations/:id/users/:membershipId` | Optional `roleId` or `roleCode`/`roleName` |
@@ -35,6 +35,12 @@ The Accounts app **Roles & Permissions** page is now functional: organization me
 - **Member** — Contributing access on CRM pipeline areas (leads/companies/meetings/calendar); read on most else; invoices none; operational PM on projects/tasks with no PM settings access.
 
 Stored defaults are seeded/updated at bootstrap (`apps/backend/src/index.js`). CRM/PM apps can later read membership `organization-role.permissions` or `organization-user.customPermissions` to enforce UI/routes.
+
+### Accounts portal access (2026-06)
+
+- Backend `canManageOrganizationRoles` grants create/edit/delete to **organization Admin** (and platform admin context), with CRM/PM settings manage as an additional path.
+- `GET /organizations/current` exposes `canManageOrganizationRoles` for the Accounts UI.
+- Non-admins can browse roles read-only; Admins see add/edit/delete controls on `/roles`.
 
 ## Migration
 

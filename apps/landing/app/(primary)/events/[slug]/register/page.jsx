@@ -12,6 +12,10 @@ import {
   EventService,
 } from "@/src/services/databaseService";
 import { formatEventDate } from "@/src/utils/dateUtils";
+import {
+  getRegistrationClosedMessage,
+  isRegistrationOpen,
+} from "@/src/utils/eventRegistration";
 import Script from "next/script";
 import Image from "next/image";
 import { commonToasts, toastUtils } from "@/src/utils/toast";
@@ -421,6 +425,11 @@ export default function CompanyEventRegistration({ params }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!isRegistrationOpen(event)) {
+      toastUtils.error(getRegistrationClosedMessage(event));
+      return;
+    }
+
     if (!validateForm()) {
       toastUtils.validationError(
         "Please correct the errors in the form before submitting."
@@ -443,6 +452,7 @@ export default function CompanyEventRegistration({ params }) {
         eventTitle: event.title,
         eventDate: event.date,
         eventLocation: event.location,
+        registrationDeadline: event.registrationDeadline || null,
 
         // Personal Information (Primary Contact)
         primaryContactName: formData.name,
@@ -612,6 +622,25 @@ export default function CompanyEventRegistration({ params }) {
             available.
           </p>
           <Button text="Back to Events" type="primary" link="/events" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isRegistrationOpen(event)) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <Icon
+            icon="mdi:calendar-remove"
+            className="text-amber-500 mx-auto mb-4"
+            width={64}
+          />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Registration closed
+          </h3>
+          <p className="text-gray-600 mb-4">{getRegistrationClosedMessage(event)}</p>
+          <Button text={`Back to ${event.title}`} type="primary" link={`/events/${slug}`} />
         </div>
       </div>
     );
