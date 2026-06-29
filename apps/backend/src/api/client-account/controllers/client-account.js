@@ -2,8 +2,8 @@
 
 /**
  * client-account controller
- * - Requires authenticated user (ctx.state.user set by global jwt-auth middleware).
- * - All data is scoped to ctx.state.orgId (tenant isolation).
+ * - CRM users: requires ctx.state.user + ctx.state.orgId (tenant isolation).
+ * - Landing website signup: X-Landing-Signup-Key + LANDING_SIGNUP_SECRET (see website-signup.js).
  */
 
 const { createCoreController } = require('@strapi/strapi').factories;
@@ -16,6 +16,14 @@ const {
   safeCount,
 } = require('../../../utils/content-api-helpers');
 const { requireModuleAccess } = require('../../../utils/rbac');
+const {
+  hasWebsiteSignupSecret,
+  isWebsiteSignupPayload,
+  extractEmailFilter,
+  resolveWebsiteSignupOrgId,
+  friendlyClientAccountError,
+  stripWebsiteSignupOnlyFields,
+} = require('../../../utils/website-signup');
 
 const UID = 'api::client-account.client-account';
 
@@ -39,8 +47,85 @@ function parseOptionalDate(value) {
   return d;
 }
 
+function normalizeClientAccountPayload(data) {
+  const companyName = typeof data.companyName === 'string' ? data.companyName.trim() : '';
+  const industry =
+    data.industry != null && String(data.industry).trim() !== ''
+      ? String(data.industry).trim()
+      : '';
+  const emailRaw = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
+
+  if (!companyName) {
+    return { error: 'Company name is required' };
+  }
+  if (!industry) {
+    return { error: 'Industry is required' };
+  }
+  if (!emailRaw) {
+    return { error: 'Company email is required' };
+  }
+  if (!EMAIL_RE.test(emailRaw)) {
+    return { error: 'Company email must be a valid email address' };
+  }
+
+  data.companyName = companyName;
+  data.industry = industry;
+  data.email = emailRaw;
+
+  for (const key of ['onboardingDate', 'contractStartDate', 'contractEndDate']) {
+    if (data[key] != null && data[key] !== '') {
+      const parsed = parseOptionalDate(data[key]);
+      data[key] = parsed != null ? parsed : null;
+    } else {
+      delete data[key];
+    }
+  }
+
+  if (data.healthScore != null && data.healthScore !== '') {
+    const n = parseInt(String(data.healthScore), 10);
+    if (!Number.isNaN(n)) data.healthScore = Math.min(100, Math.max(0, n));
+  }
+  if (data.dealValue != null && data.dealValue !== '') {
+    const n = parseFloat(String(data.dealValue));
+    if (!Number.isNaN(n)) data.dealValue = n;
+  }
+
+  if (data.assignedTo === '' || data.assignedTo == null) {
+    delete data.assignedTo;
+  } else {
+    const aid = parseInt(String(data.assignedTo), 10);
+    if (!Number.isNaN(aid)) data.assignedTo = aid;
+    else delete data.assignedTo;
+  }
+
+  return { data };
+}
+
 module.exports = createCoreController(UID, ({ strapi }) => ({
   async find(ctx) {
+    const websiteSignup = hasWebsiteSignupSecret(ctx);
+
+    if (websiteSignup) {
+      const email = extractEmailFilter(ctx);
+      if (!email) {
+        return ctx.badRequest('Email filter is required for website client account lookup.');
+      }
+
+      const { pageSize } = readListQuery(ctx);
+      const results = await strapi.entityService.findMany(UID, {
+        filters: { email },
+        start: 0,
+        limit: Math.min(pageSize, 5),
+        sort: { createdAt: 'DESC' },
+        populate: sanitizePopulate(ctx.query?.populate),
+      });
+
+      return {
+        data: results,
+        meta: { pagination: { page: 1, pageSize: results.length, pageCount: 1, total: results.length } },
+      };
+    }
+
     if (!ctx.state.user) return ctx.unauthorized('Missing or invalid credentials');
     if (!ctx.state.orgId) return ctx.forbidden('No active organization');
     const denied = requireModuleAccess(ctx, 'crm', 'client_accounts', 'read');
@@ -81,139 +166,140 @@ module.exports = createCoreController(UID, ({ strapi }) => ({
   },
 
   async create(ctx) {
-    if (!ctx.state.user) return ctx.unauthorized('Missing or invalid credentials');
-    if (!ctx.state.orgId) return ctx.forbidden('No active organization');
-    const denied = requireModuleAccess(ctx, 'crm', 'client_accounts', 'write');
-    if (denied) return denied;
-
     const body = ctx.request?.body || {};
     const payload = body.data || body;
-    const data = typeof payload === 'object' ? { ...payload } : {};
+    let data = typeof payload === 'object' ? stripWebsiteSignupOnlyFields(payload) : {};
 
-    const companyName = typeof data.companyName === 'string' ? data.companyName.trim() : '';
-    const industry =
-      data.industry != null && String(data.industry).trim() !== ''
-        ? String(data.industry).trim()
-        : '';
-    const emailRaw = typeof data.email === 'string' ? data.email.trim() : '';
-    if (!companyName) {
-      return ctx.badRequest('Company name is required');
-    }
-    if (!industry) {
-      return ctx.badRequest('Industry is required');
-    }
-    if (!emailRaw) {
-      return ctx.badRequest('Company email is required');
-    }
-    if (!EMAIL_RE.test(emailRaw)) {
-      return ctx.badRequest('Company email must be a valid email address');
-    }
-    data.companyName = companyName;
-    data.industry = industry;
-    data.email = emailRaw;
+    const websiteSignup =
+      hasWebsiteSignupSecret(ctx) && isWebsiteSignupPayload(data);
 
-    for (const key of ['onboardingDate', 'contractStartDate', 'contractEndDate']) {
-      if (data[key] != null && data[key] !== '') {
-        const parsed = parseOptionalDate(data[key]);
-        data[key] = parsed != null ? parsed : null;
-      } else {
-        delete data[key];
+    if (!websiteSignup) {
+      if (!ctx.state.user) return ctx.unauthorized('Missing or invalid credentials');
+      if (!ctx.state.orgId) return ctx.forbidden('No active organization');
+      const denied = requireModuleAccess(ctx, 'crm', 'client_accounts', 'write');
+      if (denied) return denied;
+    }
+
+    const normalized = normalizeClientAccountPayload(data);
+    if (normalized.error) {
+      return ctx.badRequest(normalized.error);
+    }
+    data = normalized.data;
+
+    if (websiteSignup) {
+      const orgId = await resolveWebsiteSignupOrgId(strapi);
+      if (orgId) {
+        data.organization = orgId;
+      }
+      delete data.assignedTo;
+    } else {
+      data.organization = ctx.state.orgId;
+      if (!data.assignedTo && ctx.state.user?.id) {
+        data.assignedTo = ctx.state.user.id;
       }
     }
 
-    if (data.healthScore != null && data.healthScore !== '') {
-      const n = parseInt(String(data.healthScore), 10);
-      if (!Number.isNaN(n)) data.healthScore = Math.min(100, Math.max(0, n));
-    }
-    if (data.dealValue != null && data.dealValue !== '') {
-      const n = parseFloat(String(data.dealValue));
-      if (!Number.isNaN(n)) data.dealValue = n;
-    }
-
-    if (data.assignedTo === '' || data.assignedTo == null) {
-      delete data.assignedTo;
-    } else {
-      const aid = parseInt(String(data.assignedTo), 10);
-      if (!Number.isNaN(aid)) data.assignedTo = aid;
-      else delete data.assignedTo;
-    }
-
-    data.organization = ctx.state.orgId;
-    if (!data.assignedTo && ctx.state.user?.id) {
-      data.assignedTo = ctx.state.user.id;
-    }
-
-    const entry = await strapi.entityService.create(UID, { data });
+    let entry;
     try {
-      await logCrmActivity(strapi, {
-        organizationId: ctx.state.orgId,
-        actorUserId: ctx.state.user?.id,
-        action: 'create',
-        subjectType: 'client_account',
-        entity: entry,
-        changedKeys: null,
-      });
-    } catch (_) {
-      /* best-effort */
+      entry = await strapi.entityService.create(UID, { data });
+    } catch (err) {
+      console.error('Client account create failed:', err);
+      return ctx.badRequest(friendlyClientAccountError(err));
     }
+
+    if (!websiteSignup) {
+      try {
+        await logCrmActivity(strapi, {
+          organizationId: ctx.state.orgId,
+          actorUserId: ctx.state.user?.id,
+          action: 'create',
+          subjectType: 'client_account',
+          entity: entry,
+          changedKeys: null,
+        });
+      } catch (_) {
+        /* best-effort */
+      }
+    }
+
     return { data: entry };
   },
 
   async update(ctx) {
-    if (!ctx.state.user) return ctx.unauthorized('Missing or invalid credentials');
-    if (!ctx.state.orgId) return ctx.forbidden('No active organization');
-    const denied = requireModuleAccess(ctx, 'crm', 'client_accounts', 'write');
-    if (denied) return denied;
     const { id } = ctx.params;
+    const body = ctx.request?.body || {};
+    const payload = body.data || body;
+    let data = typeof payload === 'object' ? stripWebsiteSignupOnlyFields(payload) : {};
+
+    const websiteSignup = hasWebsiteSignupSecret(ctx);
+
+    if (!websiteSignup) {
+      if (!ctx.state.user) return ctx.unauthorized('Missing or invalid credentials');
+      if (!ctx.state.orgId) return ctx.forbidden('No active organization');
+      const denied = requireModuleAccess(ctx, 'crm', 'client_accounts', 'write');
+      if (denied) return denied;
+    }
 
     const existing = await strapi.entityService.findOne(UID, id, {
       populate: ['organization', 'assignedTo'],
     });
     if (!existing) return ctx.notFound();
-    if (orgIdFromRelation(existing.organization) !== ctx.state.orgId) {
-      return ctx.forbidden('Access denied');
+
+    if (!websiteSignup) {
+      if (orgIdFromRelation(existing.organization) !== ctx.state.orgId) {
+        return ctx.forbidden('Access denied');
+      }
+      delete data.organization;
+    } else {
+      delete data.organization;
+      delete data.assignedTo;
     }
 
-    const body = ctx.request?.body || {};
-    const payload = body.data || body;
-    const data = typeof payload === 'object' ? { ...payload } : {};
-    delete data.organization;
-
-    const entry = await strapi.entityService.update(UID, id, { data });
-    const changedKeys = collectChangedKeys(data);
+    let entry;
     try {
-      const forLog =
-        entry?.id != null
-          ? await strapi.entityService.findOne(UID, entry.id, { populate: ['assignedTo'] })
-          : entry;
-      const actorName = await actorDisplayName(strapi, ctx.state.user?.id);
-      const accountName =
-        (forLog?.companyName || forLog?.name || 'Client account').trim() || 'Client account';
-      await emitUpdateNotifications(strapi, {
-        organizationId: ctx.state.orgId,
-        actorUserId: ctx.state.user?.id,
-        actorName,
-        subjectType: 'client_account',
-        subjectId: Number(id),
-        entityName: accountName,
-        changedKeys,
-        stakeholderIds: assignedStakeholderIds(forLog || existing),
-        previousEntity: existing,
-        patch: data,
-      });
-      await logCrmActivity(strapi, {
-        organizationId: ctx.state.orgId,
-        actorUserId: ctx.state.user?.id,
-        action: 'update',
-        subjectType: 'client_account',
-        entity: forLog,
-        changedKeys,
-        previousEntity: existing,
-        patch: data,
-      });
-    } catch (_) {
-      /* best-effort */
+      entry = await strapi.entityService.update(UID, id, { data });
+    } catch (err) {
+      console.error('Client account update failed:', err);
+      return ctx.badRequest(friendlyClientAccountError(err));
     }
+
+    if (!websiteSignup) {
+      const changedKeys = collectChangedKeys(data);
+      try {
+        const forLog =
+          entry?.id != null
+            ? await strapi.entityService.findOne(UID, entry.id, { populate: ['assignedTo'] })
+            : entry;
+        const actorName = await actorDisplayName(strapi, ctx.state.user?.id);
+        const accountName =
+          (forLog?.companyName || forLog?.name || 'Client account').trim() || 'Client account';
+        await emitUpdateNotifications(strapi, {
+          organizationId: ctx.state.orgId,
+          actorUserId: ctx.state.user?.id,
+          actorName,
+          subjectType: 'client_account',
+          subjectId: Number(id),
+          entityName: accountName,
+          changedKeys,
+          stakeholderIds: assignedStakeholderIds(forLog || existing),
+          previousEntity: existing,
+          patch: data,
+        });
+        await logCrmActivity(strapi, {
+          organizationId: ctx.state.orgId,
+          actorUserId: ctx.state.user?.id,
+          action: 'update',
+          subjectType: 'client_account',
+          entity: forLog,
+          changedKeys,
+          previousEntity: existing,
+          patch: data,
+        });
+      } catch (_) {
+        /* best-effort */
+      }
+    }
+
     return { data: entry };
   },
 

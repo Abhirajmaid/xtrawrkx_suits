@@ -68,6 +68,17 @@
       "type": "string",
       "default": "ACTIVE"
     },
+    "source": {
+      "type": "string",
+      "default": "MANUAL"
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    },
+    "onboardingData": {
+      "type": "json"
+    },
     "healthScore": {
       "type": "integer",
       "default": 75

@@ -11,6 +11,50 @@ const STRAPI_API_URL =
 const buildBaseUrl = () =>
   STRAPI_API_URL.endsWith("/") ? STRAPI_API_URL.slice(0, -1) : STRAPI_API_URL;
 
+const buildStrapiHeaders = () => {
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  const token = process.env.STRAPI_API_TOKEN;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const signupKey = process.env.LANDING_SIGNUP_SECRET;
+  if (signupKey) {
+    headers["X-Landing-Signup-Key"] = signupKey;
+  }
+  return headers;
+};
+
+const sanitizeStrapiError = (message) => {
+  const msg = String(message || "").trim();
+  if (!msg) {
+    return "Client account setup failed. Please try again later.";
+  }
+  if (/insert into|select |update |delete from|relation "/i.test(msg)) {
+    return "Client account setup failed. Please try again later or contact support.";
+  }
+  if (/does not exist/i.test(msg)) {
+    return "Client account setup is temporarily unavailable. Please contact support.";
+  }
+  return msg;
+};
+
+const extractStrapiErrorMessage = (data) => {
+  if (!data) return null;
+  if (typeof data === "string") return sanitizeStrapiError(data);
+  const err = data.error;
+  if (typeof err === "string") return sanitizeStrapiError(err);
+  if (err && typeof err.message === "string") {
+    return sanitizeStrapiError(err.message);
+  }
+  if (typeof data.message === "string") {
+    return sanitizeStrapiError(data.message);
+  }
+  return null;
+};
+
 const profileGetPaths = (email) => [
   `/public-user-profiles/by-email?email=${encodeURIComponent(email)}`,
   `/user-profiles/by-email?email=${encodeURIComponent(email)}`,
@@ -40,10 +84,7 @@ const tryRequest = async ({ paths, method, body }) => {
   for (const path of paths) {
     const response = await fetch(`${baseUrl}${path}`, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers: buildStrapiHeaders(),
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
     });
@@ -551,7 +592,8 @@ const ensureClientAccount = async (body) => {
       break;
     }
 
-    lastCreateError = createResult.data?.error || createResult.status;
+    lastCreateError =
+      extractStrapiErrorMessage(createResult.data) || createResult.status;
     const msg = JSON.stringify(createResult.data || {}).toLowerCase();
     const isUniqueConflict =
       createResult.status === 400 &&
@@ -569,7 +611,7 @@ const ensureClientAccount = async (body) => {
       status: createResult?.status || 500,
       error:
         (typeof lastCreateError === "string" ? lastCreateError : null) ||
-        createResult?.data?.error ||
+        extractStrapiErrorMessage(createResult?.data) ||
         "Client account setup failed.",
       data: null,
       primaryContactSync: null,

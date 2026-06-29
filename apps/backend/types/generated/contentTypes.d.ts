@@ -672,16 +672,19 @@ export interface ApiClientAccountClientAccount extends Struct.CollectionTypeSche
     founded: Schema.Attribute.String
     healthScore: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<75>
     industry: Schema.Attribute.String
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>
     linkedIn: Schema.Attribute.String
     locale: Schema.Attribute.String & Schema.Attribute.Private
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::client-account.client-account'> &
       Schema.Attribute.Private
     notes: Schema.Attribute.Text
+    onboardingData: Schema.Attribute.JSON
     onboardingDate: Schema.Attribute.DateTime
     organization: Schema.Attribute.Relation<'manyToOne', 'api::organization.organization'>
     paymentTerms: Schema.Attribute.String & Schema.Attribute.DefaultTo<'NET_30'>
     phone: Schema.Attribute.String
     publishedAt: Schema.Attribute.DateTime
+    source: Schema.Attribute.String & Schema.Attribute.DefaultTo<'MANUAL'>
     state: Schema.Attribute.String
     status: Schema.Attribute.String & Schema.Attribute.DefaultTo<'ACTIVE'>
     twitter: Schema.Attribute.String

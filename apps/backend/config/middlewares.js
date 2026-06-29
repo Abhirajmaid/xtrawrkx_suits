@@ -56,6 +56,7 @@ module.exports = [
         'Accept',
         'X-Organization-Id',
         'X-Department-Id',
+        'X-Landing-Signup-Key',
       ],
     },
   },
